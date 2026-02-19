@@ -1,16 +1,40 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package software.amazon.jdbc.plugin.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Optional;
 import java.util.Properties;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -22,9 +46,9 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -36,25 +60,44 @@ public class DataRemoteCachePluginTest {
   private AutoCloseable closeable;
 
   private DataRemoteCachePlugin plugin;
-  @Mock FullServicesContainer mockServicesContainer;
-  @Mock PluginService mockPluginService;
-  @Mock TelemetryFactory mockTelemetryFactory;
-  @Mock MonitorService mockMonitorService;
-  @Mock TelemetryCounter mockCacheHitCounter;
-  @Mock TelemetryCounter mockCacheMissCounter;
-  @Mock TelemetryCounter mockTotalQueryCounter;
-  @Mock TelemetryCounter mockMalformedHintCounter;
-  @Mock TelemetryCounter mockCacheBypassCounter;
-  @Mock TelemetryContext mockTelemetryContext;
-  @Mock ResultSet mockResult1;
-  @Mock Statement mockStatement;
-  @Mock PreparedStatement mockPreparedStatement;
-  @Mock ResultSetMetaData mockMetaData;
-  @Mock Connection mockConnection;
-  @Mock SessionStateService mockSessionStateService;
-  @Mock DatabaseMetaData mockDbMetadata;
-  @Mock CacheConnection mockCacheConn;
-  @Mock JdbcCallable mockCallable;
+  @Mock
+  FullServicesContainer mockServicesContainer;
+  @Mock
+  PluginService mockPluginService;
+  @Mock
+  TelemetryFactory mockTelemetryFactory;
+  @Mock
+  MonitorService mockMonitorService;
+  @Mock
+  TelemetryCounter mockCacheHitCounter;
+  @Mock
+  TelemetryCounter mockCacheMissCounter;
+  @Mock
+  TelemetryCounter mockTotalQueryCounter;
+  @Mock
+  TelemetryCounter mockMalformedHintCounter;
+  @Mock
+  TelemetryCounter mockCacheBypassCounter;
+  @Mock
+  TelemetryContext mockTelemetryContext;
+  @Mock
+  ResultSet mockResult1;
+  @Mock
+  Statement mockStatement;
+  @Mock
+  PreparedStatement mockPreparedStatement;
+  @Mock
+  ResultSetMetaData mockMetaData;
+  @Mock
+  Connection mockConnection;
+  @Mock
+  SessionStateService mockSessionStateService;
+  @Mock
+  DatabaseMetaData mockDbMetadata;
+  @Mock
+  CacheConnection mockCacheConn;
+  @Mock
+  JdbcCallable mockCallable;
 
   @BeforeEach
   void setUp() throws SQLException {
@@ -69,7 +112,8 @@ public class DataRemoteCachePluginTest {
     when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.hit")).thenReturn(mockCacheHitCounter);
     when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.miss")).thenReturn(mockCacheMissCounter);
     when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.totalQueries")).thenReturn(mockTotalQueryCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.malformedHints")).thenReturn(mockMalformedHintCounter);
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.malformedHints"))
+        .thenReturn(mockMalformedHintCounter);
     when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.bypass")).thenReturn(mockCacheBypassCounter);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
@@ -126,8 +170,8 @@ public class DataRemoteCachePluginTest {
     assertNull(plugin.getTtlForQuery("CACHE_PARAM ttl=300s"));
     assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=300s"));
 
-     // Multiple parameters (future-proofing)
-     assertEquals(300, plugin.getTtlForQuery("CACHE_PARAM(ttl=300s, key=test)"));
+    // Multiple parameters (future-proofing)
+    assertEquals(300, plugin.getTtlForQuery("CACHE_PARAM(ttl=300s, key=test)"));
 
     // Large TTL values should work
     assertEquals(999999, plugin.getTtlForQuery("CACHE_PARAM(ttl=999999s)"));
@@ -216,7 +260,7 @@ public class DataRemoteCachePluginTest {
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
-    when(mockPreparedStatement.toString()).thenReturn("", (String)null);
+    when(mockPreparedStatement.toString()).thenReturn("", (String) null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
@@ -253,7 +297,8 @@ public class DataRemoteCachePluginTest {
     when(mockCallable.call()).thenReturn(mockResult1);
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"/* CACHE_PARAM(ttl=20s) */ select * from T " + RandomStringUtils.randomAlphanumeric(16350)});
+        methodName, mockCallable,
+        new String[]{"/* CACHE_PARAM(ttl=20s) */ select * from T " + RandomStringUtils.randomAlphanumeric(16350)});
 
     // Mock result set containing 1 row
     when(mockResult1.next()).thenReturn(true, true, false);
@@ -299,7 +344,7 @@ public class DataRemoteCachePluginTest {
     assertFalse(rs.next());
 
     rs.beforeFirst();
-    byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
+    byte[] serializedTestResultSet = ((CachedResultSet) rs).serializeIntoByteArray();
     when(mockCacheConn.readFromCache("mysql_null__select * from A")).thenReturn(serializedTestResultSet);
 
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
@@ -325,8 +370,10 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, never()).inc();
     // Verify TelemetryContext behavior for cache miss and hit scenario
     // First call: Cache miss + Database call
-    verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"),
+        eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
     verify(mockTelemetryContext, times(1)).setSuccess(true);  // Cache hit
@@ -366,7 +413,7 @@ public class DataRemoteCachePluginTest {
     assertFalse(rs.next());
 
     rs.beforeFirst();
-    byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
+    byte[] serializedTestResultSet = ((CachedResultSet) rs).serializeIntoByteArray();
     when(mockCacheConn.readFromCache("mysql_null__select * from A")).thenReturn(serializedTestResultSet);
 
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
@@ -393,8 +440,10 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, never()).inc();
     // Verify TelemetryContext behavior for cache miss and hit scenario
     // First call: Cache miss + Database call
-    verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"),
+        eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
     verify(mockTelemetryContext, times(1)).setSuccess(true);  // Cache hit
@@ -448,7 +497,8 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -472,7 +522,8 @@ public class DataRemoteCachePluginTest {
     when(mockResult1.next()).thenReturn(true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1");
 
-    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement, methodName, mockCallable, new String[]{"/*+ CACHE_PARAM(ttl=300s, otherParam=abc) */ select * from T"});
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement, methodName, mockCallable,
+        new String[]{"/*+ CACHE_PARAM(ttl=300s, otherParam=abc) */ select * from T"});
 
     // Cached result set contains 1 row
     assertTrue(rs.next());
@@ -496,7 +547,8 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -524,7 +576,8 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -552,7 +605,8 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -591,7 +645,8 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -625,16 +680,16 @@ public class DataRemoteCachePluginTest {
     assertFalse(rs.next());
 
     rs.beforeFirst();
-    byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
+    byte[] serializedTestResultSet = ((CachedResultSet) rs).serializeIntoByteArray();
     when(mockCacheConn.readFromCache("null_public_user_select * from A")).thenReturn(serializedTestResultSet);
 
-    for (int i = 0; i < 10; i ++) {
-      ResultSet cur_rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+    for (int i = 0; i < 10; i++) {
+      ResultSet curRs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
           methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
 
-      assertTrue(cur_rs.next());
-      assertEquals("bar1", cur_rs.getString("fooName"));
-      assertFalse(cur_rs.next());
+      assertTrue(curRs.next());
+      assertEquals("bar1", curRs.getString("fooName"));
+      assertFalse(curRs.next());
     }
 
     verify(mockPluginService, times(12)).getCurrentConnection();
@@ -653,8 +708,10 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheHitCounter, times(10)).inc();
     verify(mockCacheBypassCounter, never()).inc();
     // Verify TelemetryContext behavior for cache miss and hit scenario
-    verify(mockTelemetryFactory, times(11)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
+    verify(mockTelemetryFactory, times(11)).openTelemetryContext(eq("jdbc-cache-lookup"),
+        eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
+        eq(TelemetryTraceLevel.NESTED));
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
     verify(mockTelemetryContext, times(10)).setSuccess(true);  // Cache hit
     // Context closure: 2 cache contexts + 1 database context = 3 total

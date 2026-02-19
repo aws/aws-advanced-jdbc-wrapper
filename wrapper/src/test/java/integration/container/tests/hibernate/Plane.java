@@ -16,8 +16,15 @@
 
 package integration.container.tests.hibernate;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.NamedQuery;
+import javax.persistence.QueryHint;
+import javax.persistence.Table;
 import org.hibernate.jpa.QueryHints;
-import javax.persistence.*;
 
 @Entity
 @NamedQuery(
@@ -35,13 +42,22 @@ public class Plane {
   @Column(nullable = false, unique = true)
   private String name;
 
-  public Plane() {}
+  public Plane() {
+  }
 
   public Plane(String name) {
     this.name = name;
   }
 
-  public Long getId() { return id; }
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
+  public Long getId() {
+    return id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
 }
