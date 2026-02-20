@@ -162,6 +162,15 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   }
 
   @Override
+  protected Properties getPropsForCachedReaderPromotedToWriterTest() {
+    // For SimpleReadWriteSplitting, enable connection verification to ensure
+    // we don't connect to the promoted writer via stale DNS on the reader endpoint.
+    final Properties props = getPropsWithFailover();
+    props.setProperty(SimpleReadWriteSplittingPlugin.VERIFY_NEW_SRW_CONNECTIONS.name, "true");
+    return props;
+  }
+
+  @Override
   protected String getWriterEndpoint() {
     return TestEnvironment.getCurrent()
         .getInfo()
