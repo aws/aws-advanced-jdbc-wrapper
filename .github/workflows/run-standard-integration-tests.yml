@@ -49,6 +49,10 @@ jobs:
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: |
           ./gradlew --no-parallel --no-daemon test-all-docker
+      - name: 'Run caching integration tests'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
+        run: |
+          ./gradlew --no-parallel --no-daemon test-all-caching
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport

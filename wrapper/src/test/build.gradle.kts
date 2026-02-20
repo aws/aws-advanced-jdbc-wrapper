@@ -51,6 +51,7 @@ dependencies {
     testImplementation("org.testcontainers:mariadb:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
     testImplementation("org.testcontainers:toxiproxy:1.20.4")
+    testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
@@ -58,6 +59,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
+    testImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")

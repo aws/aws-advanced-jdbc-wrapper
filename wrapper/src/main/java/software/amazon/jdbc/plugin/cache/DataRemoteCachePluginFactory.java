@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-package integration;
+package software.amazon.jdbc.plugin.cache;
 
-public enum TestEnvironmentFeatures {
-  IAM,
-  SECRETS_MANAGER,
-  FAILOVER_SUPPORTED,
-  NETWORK_OUTAGES_ENABLED,
-  AWS_CREDENTIALS_ENABLED,
-  PERFORMANCE,
-  HIKARI,
-  SKIP_MYSQL_DRIVER_TESTS,
-  SKIP_PG_DRIVER_TESTS,
-  SKIP_MARIADB_DRIVER_TESTS,
-  RUN_HIBERNATE_TESTS_ONLY,
-  RUN_AUTOSCALING_TESTS_ONLY,
-  TELEMETRY_TRACES_ENABLED,
-  TELEMETRY_METRICS_ENABLED,
-  BLUE_GREEN_DEPLOYMENT,
-  VALKEY_CACHE,
-  RUN_DB_METRICS_ONLY
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
+
+public class DataRemoteCachePluginFactory implements ConnectionPluginFactory {
+
+  @Override
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new DataRemoteCachePlugin(servicesContainer, props);
+  }
 }

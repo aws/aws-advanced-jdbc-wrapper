@@ -17,6 +17,7 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Driver;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -34,6 +35,7 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver";
   private static final String DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbDataSource";
   private static final String CP_DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbPoolDataSource";
+  private static final String PREPARED_STATEMENT_QUERY_HEADER = "sql:";
 
   private static final Set<String> MARIADB_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -164,5 +166,11 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
     return MARIADB_ALLOWED_ON_CLOSED_METHOD_NAMES;
+  }
+
+  @Override
+  public String getSQLQueryString(PreparedStatement ps) {
+    // For MariaDB, this gives something like "ClientPreparedStatement{sql:'select * from T where A=1', parameters:[]}"
+    return this.findSQLQueryString(ps, PREPARED_STATEMENT_QUERY_HEADER);
   }
 }

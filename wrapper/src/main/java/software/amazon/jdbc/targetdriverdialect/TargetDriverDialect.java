@@ -17,6 +17,7 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
@@ -61,4 +62,6 @@ public interface TargetDriverDialect {
   String getSQLState(final Throwable throwable);
 
   Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties);
+
+  String getSQLQueryString(PreparedStatement ps);
 }
