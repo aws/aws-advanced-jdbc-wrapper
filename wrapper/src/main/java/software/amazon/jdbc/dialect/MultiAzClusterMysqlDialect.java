@@ -51,7 +51,6 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
   protected static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
-  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static final EnumSet<FailoverRestriction> FAILOVER_RESTRICTIONS =
       EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
@@ -115,11 +114,6 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   @Override
   public String getInstanceIdQuery() {
     return INSTANCE_ID_QUERY;
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
   }
 
   @Override

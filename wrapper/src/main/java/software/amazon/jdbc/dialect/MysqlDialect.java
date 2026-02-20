@@ -29,12 +29,14 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostRoleUtils;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 
 public class MysqlDialect implements Dialect {
 
   protected static final String VERSION_QUERY = "SHOW VARIABLES LIKE 'version_comment'";
   protected static final String HOST_ALIAS_QUERY = "SELECT CONCAT(@@hostname, ':', @@port)";
+  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static MySQLExceptionHandler mySQLExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
@@ -85,7 +87,8 @@ public class MysqlDialect implements Dialect {
 
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(new HostRoleUtils(getIsReaderQuery()),
+            properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override
@@ -102,6 +105,11 @@ public class MysqlDialect implements Dialect {
   @Override
   public String getServerVersionQuery() {
     return VERSION_QUERY;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
   }
 
   @Override

@@ -44,7 +44,7 @@ import software.amazon.jdbc.util.SynchronousExecutor;
  * information. This class can be overridden to define logic specific to various database engine deployments
  * (e.g. Aurora, Multi-AZ, Global Aurora etc.).
  */
-public abstract class TopologyUtils {
+public abstract class TopologyUtils extends HostRoleUtils {
   private static final Logger LOGGER = Logger.getLogger(TopologyUtils.class.getName());
   protected static final int DEFAULT_QUERY_TIMEOUT_MS = 1000;
 
@@ -55,6 +55,7 @@ public abstract class TopologyUtils {
   public TopologyUtils(
       TopologyDialect dialect,
       HostSpecBuilder hostSpecBuilder) {
+    super(dialect.getIsReaderQuery());
     this.dialect = dialect;
     this.hostSpecBuilder = hostSpecBuilder;
   }
@@ -214,25 +215,4 @@ public abstract class TopologyUtils {
    * @throws SQLException if an exception occurs when querying the database or processing the database response.
    */
   public abstract boolean isWriterInstance(Connection connection) throws SQLException;
-
-  /**
-   * Evaluate the database role of the given connection, either {@link HostRole#WRITER} or {@link HostRole#READER}.
-   *
-   * @param conn the connection to evaluate.
-   * @return the database role of the given connection.
-   * @throws SQLException if an exception occurs when querying the database or processing the database response.
-   */
-  public HostRole getHostRole(Connection conn) throws SQLException {
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.dialect.getIsReaderQuery())) {
-      if (rs.next()) {
-        boolean isReader = rs.getBoolean(1);
-        return isReader ? HostRole.READER : HostRole.WRITER;
-      }
-    } catch (SQLException e) {
-      throw new SQLException(Messages.get("TopologyUtils.errorGettingHostRole"), e);
-    }
-
-    throw new SQLException(Messages.get("TopologyUtils.errorGettingHostRole"));
-  }
 }
