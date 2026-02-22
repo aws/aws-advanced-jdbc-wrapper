@@ -88,7 +88,7 @@ public class AwsSecretsManagerConnectionPlugin2Test {
       "{\"username\": \"" + TEST_USERNAME + "\", \"password\": \"" + TEST_PASSWORD + "\"}";
   private static final String TEST_HOST = "test-domain";
   private static final int TEST_PORT = 5432;
-  private static final long EXPIRATION_TIME = 900;
+
   private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
   private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
