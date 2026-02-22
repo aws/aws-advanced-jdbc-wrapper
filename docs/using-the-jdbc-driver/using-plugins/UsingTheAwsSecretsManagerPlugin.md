@@ -35,11 +35,18 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 | `secretsManagerSecretId`               | String  |                           Yes                            | Set this value to be the secret name or the secret ARN.                                                                                                                                                                          | `secretId`              | `null`        |
 | `secretsManagerRegion`                 | String  | Yes unless the `secretsManagerSecretId` is a Secret ARN. | Set this value to be the region your secret is in.                                                                                                                                                                               | `us-east-2`             | `us-east-1`   |
 | `secretsManagerEndpoint`               | String  |                            No                            | Set this value to be the endpoint override to retrieve your secret from. This parameter value should be in the form of a URL, with a valid protocol (ex. `http://`) and domain (ex. `localhost`). A port number is not required. | `http://localhost:1234` | `null`        |
-| `secretsManagerExpirationSec`          | Integer |                            No                            | This property sets the time in seconds that secrets are cached before it is re-fetched.                                                                                                                                          | `600`                   | `870`         |
+| `secretsManagerExpirationTimeSec`      | Integer |                            No                            | This property sets the time in seconds that secrets are cached before it is re-fetched.                                                                                                                                          | `600`                   | `870`         |
 | `secretsManagerSecretUsernameProperty` | String  |                            No                            | Set this value to be the key in the JSON secret that contains the username for database connection.                                                                                                                              | `writerUsername`        | `username`    |
 | `secretsManagerSecretPasswordProperty` | String  |                            No                            | Set this value to be the key in the JSON secret that contains the password for database connection.                                                                                                                              | `readerPassword`        | `password`    |
 
 *NOTE* A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
+
+## AWS Secrets Manager Connection Plugin v2 (Stale-While-Revalidate)
+An alternative version of this plugin, `awsSecretsManager2`, is available. It uses a **Stale-While-Revalidate (SWR)** caching strategy that connects immediately using stale cached credentials while refreshing them asynchronously in the background. This eliminates connection latency spikes during credential rotation and allows the driver to remain functional during temporary AWS Secrets Manager outages.
+
+Both plugins share the same credential cache and use identical configuration parameters. To switch, simply change the plugin code from `awsSecretsManager` to `awsSecretsManager2`.
+
+For details, see [AWS Secrets Manager Connection Plugin v2](./UsingTheAwsSecretsManagerPlugin2.md).
 
 ## Secret Data
 The secret stored in the AWS Secrets Manager should be a JSON object containing the properties `username` and `password`. If the secret contains different key names, you can specify them with the `secretsManagerSecretUsernameProperty` and `secretsManagerSecretPasswordProperty` parameters.
