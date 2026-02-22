@@ -35,6 +35,7 @@ import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
+import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin2;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
@@ -87,6 +88,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
           put(software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin.class, "plugin:gdbFailover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
+          put(AwsSecretsManagerConnectionPlugin2.class, "plugin:awsSecretsManager2");
           put(FederatedAuthPlugin.class, "plugin:federatedAuth");
           put(OktaAuthPlugin.class, "plugin:okta");
           put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
