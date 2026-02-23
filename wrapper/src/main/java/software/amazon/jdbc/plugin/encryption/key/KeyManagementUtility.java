@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CreateAliasRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
@@ -246,13 +247,12 @@ public class KeyManagementUtility {
    * Rotates the data key for an existing encrypted column. This creates a new data key while
    * preserving the existing encryption metadata.
    *
-   * @param tableName Name of the table
-   * @param columnName Name of the column
+   * @param tableName       Name of the table
+   * @param columnName      Name of the column
    * @param newMasterKeyArn Optional new master key ARN. If null, uses existing master key
-   * @return The new key ID
    * @throws KeyManagementException if key rotation fails
    */
-  public String rotateDataKey(String tableName, String columnName, String newMasterKeyArn)
+  public void rotateDataKey(String tableName, String columnName, @Nullable String newMasterKeyArn)
       throws KeyManagementException {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
@@ -303,8 +303,6 @@ public class KeyManagementUtility {
                 String.format(
                     "Successfully rotated data key for %s.%s from %s to %s",
                     tableName, columnName, currentConfig.getKeyId(), newKeyId));
-
-        return newKeyId;
 
       } finally {
         dataKeyResult.clearPlaintextKey();

@@ -337,6 +337,7 @@ public class KmsEncryptionIntegrationTest {
     });
   }
 
+
   private static void setupPostgreSQL(Connection conn, Statement stmt, String metadataSchema)
       throws Exception {
     // Install encrypted_data custom type

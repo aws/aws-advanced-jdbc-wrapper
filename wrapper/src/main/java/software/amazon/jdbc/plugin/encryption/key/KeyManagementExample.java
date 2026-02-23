@@ -125,21 +125,19 @@ public class KeyManagementExample {
     LOGGER.info("Performing key rotation for security compliance");
 
     // Rotate key for a specific column
-    String newKeyId = keyManagementUtility.rotateDataKey("users", "ssn", null);
-    LOGGER.info(() -> String.format("Rotated key for users.ssn, new key ID: %s", newKeyId));
+    keyManagementUtility.rotateDataKey("users", "ssn", null);
+    LOGGER.info(() -> String.format("Rotated key for users.ssn"));
 
     // Rotate with a new master key
     String newMasterKeyArn =
         keyManagementUtility.createMasterKeyWithPermissions("New Master Key for Enhanced Security");
 
-    String newKeyIdWithNewMaster =
-        keyManagementUtility.rotateDataKey("orders", "credit_card_number", newMasterKeyArn);
+    keyManagementUtility.rotateDataKey("orders", "credit_card_number", newMasterKeyArn);
 
     LOGGER.info(
         () ->
             String.format(
-                "Rotated key for orders.credit_card_number with new master key, new key ID: %s",
-                newKeyIdWithNewMaster));
+                "Rotated key for orders.credit_card_number with new master key"));
   }
 
   /**

@@ -48,15 +48,11 @@ public class EncryptionService {
   private static final Logger LOGGER = Logger.getLogger(EncryptionService.class.getName());
 
   // Algorithm constants
-  private static final String DEFAULT_ALGORITHM = "AES-256-GCM";
   private static final String AES_GCM_TRANSFORMATION = "AES/GCM/NoPadding";
   private static final int GCM_IV_LENGTH = 12; // 96 bits
   private static final int GCM_TAG_LENGTH = 16; // 128 bits
   private static final String HMAC_ALGORITHM = "HmacSHA256";
   private static final int HMAC_TAG_LENGTH = 32; // 256 bits
-
-  // Supported algorithms
-  private static final String[] SUPPORTED_ALGORITHMS = {"AES-256-GCM", "AES-128-GCM"};
 
   private final SecureRandom secureRandom;
 
@@ -290,7 +286,7 @@ public class EncryptionService {
    * @return the default algorithm name
    */
   public String getDefaultAlgorithm() {
-    return DEFAULT_ALGORITHM;
+    return EncryptionAlgorithm.AES_256_GCM.getAlgorithmName();
   }
 
   /**
@@ -300,10 +296,7 @@ public class EncryptionService {
    * @return true if supported, false otherwise
    */
   public boolean isAlgorithmSupported(String algorithm) {
-    if (algorithm == null) {
-      return false;
-    }
-    return Arrays.asList(SUPPORTED_ALGORITHMS).contains(algorithm);
+    return EncryptionAlgorithm.isSupported(algorithm);
   }
 
   /** Validates that the algorithm is supported. */

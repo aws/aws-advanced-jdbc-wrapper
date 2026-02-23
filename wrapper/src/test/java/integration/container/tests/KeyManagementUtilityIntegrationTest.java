@@ -30,6 +30,7 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import java.security.Key;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -323,7 +324,8 @@ public class KeyManagementUtilityIntegrationTest {
     String encryptedDataKey = Base64.getEncoder().encodeToString(
         dataKeyResponse.ciphertextBlob().asByteArray()
     );
-
+    KeyManager.DataKeyResult dataKeyResult = generateDataKey(masterKeyArn);
+    encryptedDataKey = dataKeyResult.getEncryptedKey();
     // Generate HMAC key (32 bytes for SHA-256)
     byte[] hmacKey = new byte[32];
     new java.security.SecureRandom().nextBytes(hmacKey);
