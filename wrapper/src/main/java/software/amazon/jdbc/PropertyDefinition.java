@@ -172,6 +172,15 @@ public class PropertyDefinition {
               "true", "false"
           });
 
+  /**
+   * Internal property used to preserve the original multi-host portion of a JDBC URL
+   * (e.g. for MySQL's loadbalance:// protocol) so that the target driver dialect can
+   * reconstruct the full multi-host URL when connecting.
+   */
+  public static final AwsWrapperProperty ORIGINAL_URL_HOSTS = new AwsWrapperProperty(
+      "wrapperOriginalUrlHosts", null,
+      "Internal: original multi-host portion of the JDBC URL for protocols like loadbalance://.");
+
   public static final AwsWrapperProperty ASSUME_FETCH_ENTIRE_RESULT_SET = new AwsWrapperProperty(
       "wrapperAssumeFetchEntireResultSet", "true",
       "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"
