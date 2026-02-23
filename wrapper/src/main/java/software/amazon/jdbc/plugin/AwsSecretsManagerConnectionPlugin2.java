@@ -144,10 +144,8 @@ public class AwsSecretsManagerConnectionPlugin2 extends AbstractConnectionPlugin
                   .endpointOverride(endpointURI)
                   .region(region)
                   .build();
-            } catch (final URISyntaxException e) {
-              throw new RuntimeException(Messages.get(
-                  "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
-                  new Object[] {e.getMessage()}));
+            } catch (final URISyntaxException ex) {
+              throw new AwsSecretsManagerFetchException(ex);
             }
           } else {
             return SecretsManagerClient.builder()
@@ -382,7 +380,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AbstractConnectionPlugin
                      () -> Messages.get(
                              "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
                              new Object[] {t.getCause().getMessage()}));
-          throw new RuntimeException(Messages.get(
+          throw new SQLException(Messages.get(
                   "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
                   new Object[] {t.getCause().getMessage()}));
         }
@@ -393,6 +391,8 @@ public class AwsSecretsManagerConnectionPlugin2 extends AbstractConnectionPlugin
                   Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"), t);
         }
         if (fetchCause instanceof SQLException) {
+          LOGGER.log(Level.WARNING, t,
+                     () -> Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
           throw (SQLException) fetchCause;
         }
       }
@@ -421,6 +421,8 @@ public class AwsSecretsManagerConnectionPlugin2 extends AbstractConnectionPlugin
           final Secret secret = fetchLatestCredentials(hostSpec);
           AwsSecretsManagerCacheHolder.secretsCache.put(this.secretKey.cacheKey, secret);
           return secret;
+        } catch (final AwsSecretsManagerFetchException ex) {
+          throw ex;
         } catch (final Throwable t) {
           throw new AwsSecretsManagerFetchException(t);
         }

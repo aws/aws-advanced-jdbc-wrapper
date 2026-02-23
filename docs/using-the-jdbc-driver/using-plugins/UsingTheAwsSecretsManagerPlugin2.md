@@ -8,7 +8,7 @@ The plugin is available since version 3.3.0.
 ## Why Use `awsSecretsManager2`?
 
 The original `awsSecretsManager` plugin blocks connection requests when cached credentials have expired, waiting for a synchronous fetch from AWS Secrets Manager before proceeding. This can cause:
-- **Connection latency spikes** during credential rotation when the cache expires.
+- **Connection latency spikes** during credential refresh when the cache expires.
 - **Complete connection failures** if AWS Secrets Manager is temporarily unreachable.
 
 The `awsSecretsManager2` plugin addresses both issues:
@@ -135,10 +135,10 @@ If you have monitoring dashboards or alerts based on this counter, you will see 
 
 Use **`awsSecretsManager`** (original) if:
 - You need strict credential freshness and prefer to block until the latest secret is available.
-- Your application tolerates occasional connection delays during credential rotation.
+- Your application tolerates occasional connection delays during credential refresh on cache expiry.
 
 Use **`awsSecretsManager2`** (SWR) if:
-- You need consistently low connection latency, even during credential rotation windows.
+- You need consistently low connection latency, even during credential refresh on cache expiry.
 - You want your application to remain operational during temporary AWS Secrets Manager outages.
 - You experience connection bursts where many connections open simultaneously.
 

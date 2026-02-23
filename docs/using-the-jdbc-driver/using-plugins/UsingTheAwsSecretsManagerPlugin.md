@@ -42,7 +42,7 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 *NOTE* A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
 
 ## AWS Secrets Manager Connection Plugin v2 (Stale-While-Revalidate)
-An alternative version of this plugin, `awsSecretsManager2`, is available. It uses a **Stale-While-Revalidate (SWR)** caching strategy that connects immediately using stale cached credentials while refreshing them asynchronously in the background. This eliminates connection latency spikes during credential rotation and allows the driver to remain functional during temporary AWS Secrets Manager outages.
+An alternative version of this plugin, `awsSecretsManager2`, is available. It uses a **Stale-While-Revalidate (SWR)** caching strategy that connects immediately using stale cached credentials while refreshing them asynchronously in the background. This eliminates connection latency spikes during credential refresh on cache expiry and allows the driver to remain functional during temporary AWS Secrets Manager outages.
 
 Both plugins share the same credential cache and use identical configuration parameters. To switch, simply change the plugin code from `awsSecretsManager` to `awsSecretsManager2`.
 

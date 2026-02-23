@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.REGION_PROPERTY;
 import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY;
 
+import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -635,6 +636,51 @@ public class AwsSecretsManagerConnectionPlugin2Test {
     } finally {
       executor.shutdown();
     }
+  }
+
+  /**
+   * A bad endpoint URI causes URISyntaxException inside the secretsManagerClientFunc lambda,
+   * which is wrapped in AwsSecretsManagerFetchException (change 1). With no cached secret the
+   * synchronous fetch path runs, and forceFetchSecret must surface this as SQLException (change 2),
+   * not RuntimeException. The absence of double-wrapping (change 4) is implicitly verified:
+   * without change 4 the cause chain would not match the URISyntaxException branch and the
+   * test would fail.
+   */
+  @Test
+  public void testConnectWithInvalidEndpointUriThrowsSQLException() {
+    AwsSecretsManagerConnectionPlugin2 pluginWithBadEndpoint =
+        new AwsSecretsManagerConnectionPlugin2(
+            mockService,
+            testProps,
+            (host, r) -> {
+              throw new AwsSecretsManagerConnectionPlugin2.AwsSecretsManagerFetchException(
+                  new URISyntaxException("bad://endpoint", "Illegal character"));
+            },
+            (id) -> mockGetValueRequest);
+
+    assertThrows(
+        SQLException.class,
+        () -> pluginWithBadEndpoint.connect(
+            TEST_PROTOCOL, TEST_HOSTSPEC, testProps, true, connectFunc));
+  }
+
+  /**
+   * When fetchLatestCredentials throws SQLException due to invalid secret JSON format,
+   * forceFetchSecret must re-throw the original SQLException (change 3 adds a WARNING log
+   * before re-throwing it).
+   */
+  @Test
+  public void testConnectWithSQLExceptionFromFetchPropagatesSQLException() {
+    final GetSecretValueResponse invalidFormatResponse = GetSecretValueResponse.builder()
+        .secretString("{\"user\": \"testUser\", \"pass\": \"testPassword\"}")
+        .build();
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(invalidFormatResponse);
+
+    assertThrows(
+        SQLException.class,
+        () -> this.plugin.connect(
+            TEST_PROTOCOL, TEST_HOSTSPEC, testProps, true, connectFunc));
   }
 
   private void waitForPendingRefreshes() {
