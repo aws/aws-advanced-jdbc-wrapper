@@ -127,7 +127,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
       boolean isCachedConnection =
           currentConnection == this.writerConnection
               || (this.readerCacheItem != null && currentConnection == this.readerCacheItem.get());
-      
+
       if (!isCachedConnection) {
         closeIdleConnections();
       }
@@ -183,6 +183,12 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }
+    } else {
+      try {
+        this.switchConnectionIfRequired(methodInvokeOn, methodName, args);
+      } catch (final SQLException e) {
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+      }
     }
 
     try {
@@ -235,6 +241,13 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
             "ReadWriteSplittingPlugin.setReaderConnection",
             new Object[] {
                 host.getHostAndPort()}));
+  }
+
+  public void switchConnectionIfRequired(
+      final Object methodInvokeOn,
+      final String methodName,
+      final Object[] args) throws SQLException {
+    // do nothing
   }
 
   public void switchConnectionIfRequired(final boolean readOnly) throws SQLException {
@@ -296,7 +309,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
     throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState());
   }
 
-  private void logAndThrowException(
+  protected void logAndThrowException(
       final String logMessage, final Throwable cause)
       throws SQLException {
     LOGGER.fine(logMessage);
@@ -306,7 +319,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
     throw new ReadWriteSplittingSQLException(logMessage, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
   }
 
-  private void switchToWriterConnection()
+  protected void switchToWriterConnection()
       throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
@@ -315,7 +328,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
       return;
     }
 
-    this.inReadWriteSplit = true;
+    this.inReadWriteSplit = false;
     if (!isConnectionUsable(this.writerConnection)) {
       initializeWriterConnection();
     } else {
@@ -346,7 +359,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
             newConnectionHost.getHostAndPort()}));
   }
 
-  private void switchToReaderConnection()
+  protected void switchToReaderConnection()
       throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
