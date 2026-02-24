@@ -20,11 +20,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -178,7 +178,7 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     }
   }
 
-  private HostSpec getWriterHost(final @NonNull List<HostSpec> hosts) throws SQLException {
+  protected HostSpec getWriterHost(final @NonNull List<HostSpec> hosts) throws SQLException {
     HostSpec writerHost = Utils.getWriter(hosts);
     if (writerHost == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noWriterFound"));
@@ -191,6 +191,10 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     return this.pluginService.getHosts();
   }
 
+  protected @Nullable HostRole getReaderCandidateRole() {
+    return HostRole.READER;
+  }
+
   protected void openNewReaderConnection() throws SQLException {
     Connection conn = null;
     HostSpec readerHost = null;
@@ -199,7 +203,7 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     int connAttempts = hostCandidates.size() * 2;
     for (int i = 0; i < connAttempts; i++) {
       HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
-          hostCandidates, HostRole.READER, this.readerSelectorStrategy);
+          hostCandidates, this.getReaderCandidateRole(), this.readerSelectorStrategy);
       try {
         conn = this.pluginService.connect(hostSpec, this.properties, this);
         this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());

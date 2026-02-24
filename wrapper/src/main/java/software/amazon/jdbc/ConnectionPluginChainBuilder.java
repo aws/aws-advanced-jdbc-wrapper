@@ -49,6 +49,7 @@ import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginF
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.QueryLoadBalancingReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
@@ -86,6 +87,7 @@ public class ConnectionPluginChainBuilder {
           put("readWriteSplitting", new ReadWriteSplittingPluginFactory());
           put("srw", new SimpleReadWriteSplittingPluginFactory());
           put("gdbReadWriteSplitting", new GdbReadWriteSplittingPluginFactory());
+          put("qlb", new QueryLoadBalancingReadWriteSplittingPluginFactory());
           put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
           put("driverMetaData", new DriverMetaDataConnectionPluginFactory());
           put("connectTime", new ConnectTimeConnectionPluginFactory());
@@ -118,6 +120,7 @@ public class ConnectionPluginChainBuilder {
           put(ReadWriteSplittingPluginFactory.class, 700);
           put(SimpleReadWriteSplittingPluginFactory.class, 710);
           put(GdbReadWriteSplittingPluginFactory.class, 720);
+          put(QueryLoadBalancingReadWriteSplittingPluginFactory.class, 730);
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
