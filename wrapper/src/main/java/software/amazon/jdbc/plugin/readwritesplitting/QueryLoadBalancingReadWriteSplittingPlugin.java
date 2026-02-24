@@ -176,46 +176,4 @@ public class QueryLoadBalancingReadWriteSplittingPlugin extends ReadWriteSplitti
   protected @Nullable HostRole getReaderCandidateRole() {
     return this.includeWriterToLoadBalancing ? null : HostRole.READER;
   }
-
-//   @Override
-//   protected void openNewReaderConnection() throws SQLException {
-//     Connection conn = null;
-//     HostSpec readerHost = null;
-//
-//     final List<HostSpec> hostCandidates = this.getReaderHostCandidates();
-//     int connAttempts = hostCandidates.size() * 2;
-//     for (int i = 0; i < connAttempts; i++) {
-//       HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
-//           hostCandidates, null, this.readerSelectorStrategy);
-//       try {
-//         conn = this.pluginService.connect(hostSpec, this.properties, this);
-//         this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
-//         readerHost = hostSpec;
-//         break;
-//       } catch (final SQLException e) {
-//         if (LOGGER.isLoggable(Level.WARNING)) {
-//           LOGGER.log(Level.WARNING,
-//               Messages.get(
-//                   "ReadWriteSplittingPlugin.failedToConnectToReader",
-//                   new Object[]{
-//                       hostSpec.getHostAndPort()}),
-//               e);
-//         }
-//       }
-//     }
-//
-//     if (conn == null || readerHost == null) {
-//       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noReadersAvailable"),
-//           SqlState.CONNECTION_UNABLE_TO_CONNECT);
-//       return;
-//     }
-//
-//     final HostSpec finalReaderHost = readerHost;
-//     LOGGER.finest(
-//         () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
-//             new Object[] {finalReaderHost.getHostAndPort()}));
-//     setReaderConnection(conn, readerHost);
-//     switchCurrentConnectionTo(this.readerCacheItem.get(), this.readerHostSpec);
-//   }
-
 }
