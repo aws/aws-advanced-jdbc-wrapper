@@ -76,10 +76,18 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
     boolean iamInUse = pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
 
     if (!iamInUse) {
-      if (useForceConnect) {
-        return pluginService.forceConnect(this.substituteHostSpec, props, plugin);
-      } else {
-        return pluginService.connect(this.substituteHostSpec, props, plugin);
+      try {
+        if (useForceConnect) {
+          return pluginService.forceConnect(this.substituteHostSpec, props, plugin);
+        } else {
+          return pluginService.connect(this.substituteHostSpec, props, plugin);
+        }
+      } catch (SQLException sqlException) {
+        if (!pluginService.isLoginException(sqlException, pluginService.getTargetDriverDialect())) {
+          throw sqlException;
+        }
+        // let another routing to try
+        return null;
       }
     }
 
