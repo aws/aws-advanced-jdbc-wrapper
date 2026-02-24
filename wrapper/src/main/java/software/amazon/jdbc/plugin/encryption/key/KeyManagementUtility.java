@@ -54,7 +54,8 @@ public class KeyManagementUtility {
 
   private final KeyManager keyManager;
   private final MetadataManager metadataManager;
-  private final DataSource dataSource;
+  private final @Nullable DataSource dataSource;
+  private final @Nullable Connection connection;
   private final KmsClient kmsClient;
   private final EncryptionConfig config;
 
@@ -68,8 +69,41 @@ public class KeyManagementUtility {
     this.metadataManager =
         Objects.requireNonNull(metadataManager, "MetadataManager cannot be null");
     this.dataSource = Objects.requireNonNull(dataSource, "DataSource cannot be null");
+    this.connection = null;
     this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
     this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
+  }
+
+  public KeyManagementUtility(
+      KeyManager keyManager,
+      MetadataManager metadataManager,
+      Connection connection,
+      KmsClient kmsClient,
+      EncryptionConfig config) {
+    this.keyManager = Objects.requireNonNull(keyManager, "KeyManager cannot be null");
+    this.metadataManager =
+        Objects.requireNonNull(metadataManager, "MetadataManager cannot be null");
+    this.dataSource = null;
+    this.connection = Objects.requireNonNull(connection, "Connection cannot be null");
+    this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
+    this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
+  }
+
+  private Connection getConnection() throws SQLException {
+    if (connection != null) {
+      return connection;
+    }
+    if (dataSource != null) {
+      return dataSource.getConnection();
+    }
+    throw new SQLException("No connection or dataSource available");
+  }
+
+  private void closeConnection(Connection conn) throws SQLException {
+    if (dataSource != null && conn != null) {
+      conn.close();
+    }
+    // Don't close if using provided connection
   }
 
   private String getInsertEncryptionMetadataSql() {
@@ -378,29 +412,31 @@ public class KeyManagementUtility {
     LOGGER.info(
         () -> String.format("Removing encryption configuration for %s.%s", tableName, columnName));
 
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(getDeleteEncryptionMetadataSql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getDeleteEncryptionMetadataSql())) {
 
-      stmt.setString(1, tableName);
-      stmt.setString(2, columnName);
+        stmt.setString(1, tableName);
+        stmt.setString(2, columnName);
 
-      int rowsAffected = stmt.executeUpdate();
-      if (rowsAffected == 0) {
-        LOGGER.warning(
-            () ->
-                String.format(
-                    "No encryption configuration found for %s.%s", tableName, columnName));
-      } else {
-        LOGGER.info(
-            () ->
-                String.format(
+        int rowsAffected = stmt.executeUpdate();
+        if (rowsAffected == 0) {
+          LOGGER.warning(
+              () ->
+                  String.format(
+                      "No encryption configuration found for %s.%s", tableName, columnName));
+        } else {
+          LOGGER.info(
+              () ->
+                  String.format(
                     "Successfully removed encryption configuration for %s.%s",
                     tableName, columnName));
+        }
+
+        // Refresh metadata cache
+        metadataManager.refreshMetadata();
       }
-
-      // Refresh metadata cache
-      metadataManager.refreshMetadata();
-
     } catch (MetadataException e) {
       LOGGER.severe(
           () ->
@@ -414,6 +450,12 @@ public class KeyManagementUtility {
                   "Failed to remove encryption configuration for %s.%s", tableName, columnName, e));
       throw new KeyManagementException(
           "Failed to remove encryption configuration: " + e.getMessage(), e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 
@@ -430,25 +472,34 @@ public class KeyManagementUtility {
 
     LOGGER.finest(() -> String.format("Finding columns using key ID: %s", keyId));
 
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(getSelectColumnsWithKeySql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getSelectColumnsWithKeySql())) {
 
-      stmt.setString(1, keyId);
+        stmt.setString(1, keyId);
 
-      try (ResultSet rs = stmt.executeQuery()) {
-        List<String> columns = new ArrayList<>();
-        while (rs.next()) {
-          String tableName = rs.getString("table_name");
-          String columnName = rs.getString("column_name");
-          columns.add(tableName + "." + columnName);
+        try (ResultSet rs = stmt.executeQuery()) {
+          List<String> columns = new ArrayList<>();
+          while (rs.next()) {
+            String tableName = rs.getString("table_name");
+            String columnName = rs.getString("column_name");
+            columns.add(tableName + "." + columnName);
+          }
+          return columns;
         }
-        return columns;
       }
 
     } catch (SQLException e) {
       LOGGER.severe(
           () -> String.format("Failed to find columns using key ID: %s", keyId, e.getMessage()));
       throw new KeyManagementException("Failed to find columns using key: " + e.getMessage(), e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 
@@ -489,51 +540,69 @@ public class KeyManagementUtility {
   /** Stores encryption metadata in the database. */
   private void storeEncryptionMetadata(
       String tableName, String columnName, String algorithm, int keyId) throws SQLException {
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(getInsertEncryptionMetadataSql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getInsertEncryptionMetadataSql())) {
 
-      Timestamp now = Timestamp.from(Instant.now());
+        Timestamp now = Timestamp.from(Instant.now());
 
-      stmt.setString(1, tableName);
-      stmt.setString(2, columnName);
-      stmt.setString(3, algorithm);
-      stmt.setInt(4, keyId);
-      stmt.setTimestamp(5, now);
-      stmt.setTimestamp(6, now);
+        stmt.setString(1, tableName);
+        stmt.setString(2, columnName);
+        stmt.setString(3, algorithm);
+        stmt.setInt(4, keyId);
+        stmt.setTimestamp(5, now);
+        stmt.setTimestamp(6, now);
 
-      int rowsAffected = stmt.executeUpdate();
-      if (rowsAffected == 0) {
-        throw new SQLException("Failed to store encryption metadata - no rows affected");
+        int rowsAffected = stmt.executeUpdate();
+        if (rowsAffected == 0) {
+          throw new SQLException("Failed to store encryption metadata - no rows affected");
+        }
+
+        LOGGER.finest(
+            () ->
+                String.format(
+                    "Successfully stored encryption metadata for %s.%s", tableName, columnName));
       }
-
-      LOGGER.finest(
-          () ->
-              String.format(
-                  "Successfully stored encryption metadata for %s.%s", tableName, columnName));
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 
   /** Updates the key ID for existing encryption metadata. */
   private void updateEncryptionMetadataKey(String tableName, String columnName, String newKeyId)
       throws SQLException {
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(getUpdateEncryptionMetadataKeySql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getUpdateEncryptionMetadataKeySql())) {
 
-      stmt.setString(1, newKeyId);
-      stmt.setTimestamp(2, Timestamp.from(Instant.now()));
-      stmt.setString(3, tableName);
-      stmt.setString(4, columnName);
+        stmt.setString(1, newKeyId);
+        stmt.setTimestamp(2, Timestamp.from(Instant.now()));
+        stmt.setString(3, tableName);
+        stmt.setString(4, columnName);
 
-      int rowsAffected = stmt.executeUpdate();
-      if (rowsAffected == 0) {
-        throw new SQLException("Failed to update encryption metadata key - no rows affected");
+        int rowsAffected = stmt.executeUpdate();
+        if (rowsAffected == 0) {
+          throw new SQLException("Failed to update encryption metadata key - no rows affected");
+        }
+
+        LOGGER.finest(
+            () ->
+                String.format(
+                    "Successfully updated encryption metadata key for %s.%s to %s",
+                    tableName, columnName, newKeyId));
       }
-
-      LOGGER.finest(
-          () ->
-              String.format(
-                  "Successfully updated encryption metadata key for %s.%s to %s",
-                  tableName, columnName, newKeyId));
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 }
