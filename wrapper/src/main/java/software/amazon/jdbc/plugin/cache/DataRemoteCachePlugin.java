@@ -350,7 +350,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
     // not executed in a transaction as a transaction typically need to return consistent results.
     if (!isInTransaction && (configuredQueryTtl != null)) {
       cacheContext = telemetryFactory.openTelemetryContext(
-          TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.TOP_LEVEL);
+          TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.NESTED);
       Exception cacheException = null;
       try {
         result = fetchResultSetFromCache(mainQuery);
