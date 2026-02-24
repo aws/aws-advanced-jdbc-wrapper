@@ -525,4 +525,15 @@ public class CacheMonitor extends AbstractMonitor {
       return false;
     }
   }
+
+  // Used for integration testing only to reset singleton state between tests
+  public static void resetInstance() {
+    synchronized (INSTANCE_LOCK) {
+      if (instance != null) {
+        instance.stop.set(true);
+        instance = null;
+      }
+      clusterStates.clear();
+    }
+  }
 }

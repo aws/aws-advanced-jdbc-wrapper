@@ -76,6 +76,9 @@ public class CacheConnection {
   private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
   private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
+  private static volatile ClientResources sharedClientResources;
+  private static final ResourceLock clientResourcesLock = new ResourceLock();
+
   private final FullServicesContainer servicesContainer;
 
   private static final ResourceLock connectionInitializationLock = new ResourceLock();
@@ -401,6 +404,24 @@ public class CacheConnection {
     return poolConfig;
   }
 
+  private static ClientResources getSharedClientResources() {
+    if (sharedClientResources == null) {
+      try (ResourceLock ignored = clientResourcesLock.obtain()) {
+        if (sharedClientResources == null) {
+          sharedClientResources = ClientResources.builder()
+              .dnsResolver(new DirContextDnsResolver())
+              .reconnectDelay(
+                  Delay.fullJitter(
+                      Duration.ofMillis(100),
+                      Duration.ofSeconds(10),
+                      100, TimeUnit.MILLISECONDS))
+              .build();
+        }
+      }
+    }
+    return sharedClientResources;
+  }
+
   /**
    * Creates a Redis connection for either standalone or cluster mode.
    * Returns StatefulConnection which works for both RedisClient and RedisClusterClient.
@@ -408,14 +429,7 @@ public class CacheConnection {
   private static StatefulConnection<byte[], byte[]> createRedisConnection(
       boolean isReadOnly, RedisURI redisUri, boolean isClusterMode) {
 
-    ClientResources resources = ClientResources.builder()
-        .dnsResolver(new DirContextDnsResolver())
-        .reconnectDelay(
-            Delay.fullJitter(
-                Duration.ofMillis(100),      // minimum 100ms delay
-                Duration.ofSeconds(10),       // maximum 10s delay
-                100, TimeUnit.MILLISECONDS))  // 100ms base
-        .build();
+    ClientResources resources = getSharedClientResources();
 
     StatefulConnection<byte[], byte[]> conn;
 
@@ -832,6 +846,10 @@ public class CacheConnection {
 
   // Used for integration testing only to avoid cross tests pollution
   public static void clearEndpointPoolRegistry() {
+    CacheMonitor.resetInstance();
+    for (GenericObjectPool<StatefulConnection<byte[], byte[]>> pool : endpointToPoolRegistry.values()) {
+      pool.close();
+    }
     endpointToPoolRegistry.clear();
   }
 }
