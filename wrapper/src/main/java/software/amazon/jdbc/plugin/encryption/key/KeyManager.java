@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
@@ -56,19 +57,51 @@ public class KeyManager {
   private static final Logger LOGGER = Logger.getLogger(KeyManager.class.getName());
 
   private final KmsClient kmsClient;
-  private final PluginService pluginService;
+  private final @Nullable PluginService pluginService;
+  private final @Nullable Connection connection;
+  private final boolean isPostgreSQL;
   private final EncryptionConfig config;
   private final DataKeyCache dataKeyCache;
 
   public KeyManager(KmsClient kmsClient, PluginService pluginService, EncryptionConfig config) {
     this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
-    this.pluginService = Objects.requireNonNull(pluginService, "DataSource cannot be null");
+    this.pluginService = Objects.requireNonNull(pluginService, "PluginService cannot be null");
+    this.connection = null;
+    this.isPostgreSQL = pluginService.getTargetDriverDialect() instanceof PgTargetDriverDialect;
     this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
     this.dataKeyCache = new DataKeyCache(config);
   }
 
+  public KeyManager(
+      KmsClient kmsClient, Connection connection, boolean isPostgreSQL, EncryptionConfig config) {
+    this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
+    this.pluginService = null;
+    this.connection = Objects.requireNonNull(connection, "Connection cannot be null");
+    this.isPostgreSQL = isPostgreSQL;
+    this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
+    this.dataKeyCache = new DataKeyCache(config);
+  }
+
+  private Connection getConnection() throws SQLException {
+    if (connection != null) {
+      return connection;
+    }
+    if (pluginService != null) {
+      return pluginService.forceConnect(
+          pluginService.getCurrentHostSpec(), pluginService.getProperties());
+    }
+    throw new SQLException("No connection or pluginService available");
+  }
+
+  private void closeConnection(Connection conn) throws SQLException {
+    if (pluginService != null && conn != null) {
+      conn.close();
+    }
+    // Don't close if using provided connection
+  }
+
   private boolean isPostgreSQL() {
-    return pluginService.getTargetDriverDialect() instanceof PgTargetDriverDialect;
+    return isPostgreSQL;
   }
 
   private String getInsertKeyMetadataSql() {
@@ -232,41 +265,42 @@ public class KeyManager {
 
     LOGGER.finest(() -> String.format("Storing key metadata for %s.%s", tableName, columnName));
 
-    try (Connection conn =
-            pluginService.forceConnect(
-                pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = conn.prepareStatement(getInsertKeyMetadataSql(),
-            isPostgreSQL() ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getInsertKeyMetadataSql(),
+          isPostgreSQL() ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
 
-      stmt.setString(1, keyMetadata.getKeyName());
-      stmt.setString(2, keyMetadata.getMasterKeyArn());
-      stmt.setString(3, keyMetadata.getEncryptedDataKey());
-      stmt.setString(4, keyMetadata.getKeySpec());
-      stmt.setTimestamp(5, Timestamp.from(keyMetadata.getCreatedAt()));
-      stmt.setTimestamp(6, Timestamp.from(keyMetadata.getLastUsedAt()));
+        stmt.setString(1, keyMetadata.getKeyName());
+        stmt.setString(2, keyMetadata.getMasterKeyArn());
+        stmt.setString(3, keyMetadata.getEncryptedDataKey());
+        stmt.setString(4, keyMetadata.getKeySpec());
+        stmt.setTimestamp(5, Timestamp.from(keyMetadata.getCreatedAt()));
+        stmt.setTimestamp(6, Timestamp.from(keyMetadata.getLastUsedAt()));
 
-      int generatedId;
-      if (isPostgreSQL()) {
-        ResultSet rs = stmt.executeQuery();
-        if (!rs.next()) {
-          throw new KeyManagementException("Failed to get generated key ID");
+        int generatedId;
+        if (isPostgreSQL()) {
+          ResultSet rs = stmt.executeQuery();
+          if (!rs.next()) {
+            throw new KeyManagementException("Failed to get generated key ID");
+          }
+          generatedId = rs.getInt(1);
+        } else {
+          stmt.executeUpdate();
+          ResultSet rs = stmt.getGeneratedKeys();
+          if (!rs.next()) {
+            throw new KeyManagementException("Failed to get generated key ID");
+          }
+          generatedId = rs.getInt(1);
         }
-        generatedId = rs.getInt(1);
-      } else {
-        stmt.executeUpdate();
-        ResultSet rs = stmt.getGeneratedKeys();
-        if (!rs.next()) {
-          throw new KeyManagementException("Failed to get generated key ID");
-        }
-        generatedId = rs.getInt(1);
+
+        LOGGER.finest(
+            () ->
+                String.format(
+                    "Successfully stored key metadata for %s.%s with ID: %s",
+                    tableName, columnName, generatedId));
+        return generatedId;
       }
-
-      LOGGER.finest(
-          () ->
-              String.format(
-                  "Successfully stored key metadata for %s.%s with ID: %s",
-                  tableName, columnName, generatedId));
-      return generatedId;
 
     } catch (SQLException e) {
       LOGGER.severe(
@@ -275,6 +309,12 @@ public class KeyManager {
                   "Database error storing key metadata for %s.%s %s",
                   tableName, columnName, e.getMessage()));
       throw new KeyManagementException("Failed to store key metadata: " + e.getMessage(), e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 
@@ -290,31 +330,32 @@ public class KeyManager {
 
     LOGGER.finest(() -> String.format("Retrieving key metadata for key ID: %s", keyId));
 
-    try (Connection conn =
-            pluginService.forceConnect(
-                pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = conn.prepareStatement(getSelectKeyMetadataSql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getSelectKeyMetadataSql())) {
 
-      stmt.setString(1, keyId);
+        stmt.setString(1, keyId);
 
-      try (ResultSet rs = stmt.executeQuery()) {
-        if (rs.next()) {
-          KeyMetadata metadata =
-              KeyMetadata.builder()
-                  .keyId(rs.getString("key_id"))
-                  .masterKeyArn(rs.getString("master_key_arn"))
-                  .encryptedDataKey(rs.getString("encrypted_data_key"))
-                  .keySpec(rs.getString("key_spec"))
-                  .createdAt(rs.getTimestamp("created_at").toInstant())
-                  .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
-                  .build();
+        try (ResultSet rs = stmt.executeQuery()) {
+          if (rs.next()) {
+            KeyMetadata metadata =
+                KeyMetadata.builder()
+                    .keyId(rs.getString("key_id"))
+                    .masterKeyArn(rs.getString("master_key_arn"))
+                    .encryptedDataKey(rs.getString("encrypted_data_key"))
+                    .keySpec(rs.getString("key_spec"))
+                    .createdAt(rs.getTimestamp("created_at").toInstant())
+                    .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
+                    .build();
 
-          LOGGER.finest(
-              () -> String.format("Successfully retrieved key metadata for key ID: %s", keyId));
-          return Optional.of(metadata);
-        } else {
-          LOGGER.finest(() -> String.format("No key metadata found for key ID: %s", keyId));
-          return Optional.empty();
+            LOGGER.finest(
+                () -> String.format("Successfully retrieved key metadata for key ID: %s", keyId));
+            return Optional.of(metadata);
+          } else {
+            LOGGER.finest(() -> String.format("No key metadata found for key ID: %s", keyId));
+            return Optional.empty();
+          }
         }
       }
 
@@ -322,6 +363,12 @@ public class KeyManager {
       LOGGER.severe(
           () -> String.format("Database error retrieving key metadata for key ID: %s", keyId, e));
       throw new KeyManagementException("Failed to retrieve key metadata: " + e.getMessage(), e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 
@@ -334,15 +381,16 @@ public class KeyManager {
   public void updateLastUsed(String keyId) throws KeyManagementException {
     Objects.requireNonNull(keyId, "Key ID cannot be null");
 
-    try (Connection conn =
-            pluginService.forceConnect(
-                pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = conn.prepareStatement(getUpdateLastUsedSql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getUpdateLastUsedSql())) {
 
-      stmt.setTimestamp(1, Timestamp.from(Instant.now()));
-      stmt.setString(2, keyId);
+        stmt.setTimestamp(1, Timestamp.from(Instant.now()));
+        stmt.setString(2, keyId);
 
-      stmt.executeUpdate();
+        stmt.executeUpdate();
+      }
 
     } catch (SQLException e) {
       LOGGER.severe(
@@ -352,6 +400,12 @@ public class KeyManager {
                   keyId, e.getMessage()));
       throw new KeyManagementException(
           "Failed to update last used timestamp: " + e.getMessage(), e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 

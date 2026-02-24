@@ -31,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
+import javax.sql.DataSource;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
@@ -44,7 +46,9 @@ public class MetadataManager {
 
   private static final Logger LOGGER = Logger.getLogger(MetadataManager.class.getName());
 
-  private final PluginService pluginService;
+  private final @Nullable PluginService pluginService;
+  private final @Nullable DataSource dataSource;
+  private final @Nullable Connection connection;
   private volatile EncryptionConfig config;
   private final Map<String, ColumnEncryptionConfig> metadataCache;
   private final ReadWriteLock cacheLock;
@@ -53,11 +57,56 @@ public class MetadataManager {
 
   public MetadataManager(PluginService pluginService, EncryptionConfig config) {
     this.pluginService = pluginService;
+    this.dataSource = null;
+    this.connection = null;
     this.config = config;
     this.metadataCache = new ConcurrentHashMap<>();
     this.cacheLock = new ReentrantReadWriteLock();
     this.lastRefreshTime = Instant.EPOCH;
     this.refreshExecutor = createRefreshExecutor();
+  }
+
+  public MetadataManager(DataSource dataSource, EncryptionConfig config) {
+    this.pluginService = null;
+    this.dataSource = dataSource;
+    this.connection = null;
+    this.config = config;
+    this.metadataCache = new ConcurrentHashMap<>();
+    this.cacheLock = new ReentrantReadWriteLock();
+    this.lastRefreshTime = Instant.EPOCH;
+    this.refreshExecutor = createRefreshExecutor();
+  }
+
+  public MetadataManager(Connection connection, EncryptionConfig config) {
+    this.pluginService = null;
+    this.dataSource = null;
+    this.connection = connection;
+    this.config = config;
+    this.metadataCache = new ConcurrentHashMap<>();
+    this.cacheLock = new ReentrantReadWriteLock();
+    this.lastRefreshTime = Instant.EPOCH;
+    this.refreshExecutor = createRefreshExecutor();
+  }
+
+  private Connection getConnection() throws SQLException {
+    if (connection != null) {
+      return connection;
+    }
+    if (dataSource != null) {
+      return dataSource.getConnection();
+    }
+    if (pluginService != null) {
+      return pluginService.forceConnect(
+          pluginService.getCurrentHostSpec(), pluginService.getProperties());
+    }
+    throw new SQLException("No connection, dataSource, or pluginService available");
+  }
+
+  private void closeConnection(Connection conn) throws SQLException {
+    if ((dataSource != null || pluginService != null) && conn != null) {
+      conn.close();
+    }
+    // Don't close if using provided connection
   }
 
   private String getLoadEncryptionMetadataSql() {
@@ -102,28 +151,35 @@ public class MetadataManager {
 
     Map<String, ColumnEncryptionConfig> metadata = new ConcurrentHashMap<>();
 
-    try (Connection connection =
-            pluginService.forceConnect(
-                pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = connection.prepareStatement(getLoadEncryptionMetadataSql());
-        ResultSet rs = stmt.executeQuery()) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getLoadEncryptionMetadataSql());
+          ResultSet rs = stmt.executeQuery()) {
 
-      while (rs.next()) {
-        ColumnEncryptionConfig columnConfig = buildColumnConfigFromResultSet(rs);
-        String columnIdentifier = columnConfig.getColumnIdentifier();
-        metadata.put(columnIdentifier, columnConfig);
+        while (rs.next()) {
+          ColumnEncryptionConfig columnConfig = buildColumnConfigFromResultSet(rs);
+          String columnIdentifier = columnConfig.getColumnIdentifier();
+          metadata.put(columnIdentifier, columnConfig);
 
-        LOGGER.finest(
-            () -> String.format("Loaded encryption config for column: %s", columnIdentifier));
+          LOGGER.finest(
+              () -> String.format("Loaded encryption config for column: %s", columnIdentifier));
+        }
+
+        LOGGER.info(
+            () -> String.format("Successfully loaded %d encryption configurations", metadata.size()));
       }
-
-      LOGGER.info(
-          () -> String.format("Successfully loaded %d encryption configurations", metadata.size()));
 
     } catch (SQLException e) {
       String errorMsg = "Failed to load encryption metadata from database";
       LOGGER.severe(() -> errorMsg + e.getMessage());
       throw new MetadataException(errorMsg, e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
 
     return metadata;
@@ -328,21 +384,22 @@ public class MetadataManager {
                 "Checking encryption status for column %s.%s from database",
                 tableName, columnName));
 
-    try (Connection connection =
-            pluginService.forceConnect(
-                pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = connection.prepareStatement(getCheckColumnEncryptedSql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getCheckColumnEncryptedSql())) {
 
-      stmt.setString(1, tableName);
-      stmt.setString(2, columnName);
+        stmt.setString(1, tableName);
+        stmt.setString(2, columnName);
 
-      try (ResultSet rs = stmt.executeQuery()) {
-        boolean result = rs.next();
-        LOGGER.finest(
-            () ->
-                String.format(
-                    "Database lookup for column %s.%s: %s", tableName, columnName, result));
-        return result;
+        try (ResultSet rs = stmt.executeQuery()) {
+          boolean result = rs.next();
+          LOGGER.finest(
+              () ->
+                  String.format(
+                      "Database lookup for column %s.%s: %s", tableName, columnName, result));
+          return result;
+        }
       }
 
     } catch (SQLException e) {
@@ -351,6 +408,12 @@ public class MetadataManager {
               "Failed to check encryption status for column %s.%s", tableName, columnName);
       LOGGER.severe(() -> errorMsg + e);
       throw new MetadataException(errorMsg, e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 
@@ -362,28 +425,29 @@ public class MetadataManager {
             String.format(
                 "Loading encryption config for column %s.%s from database", tableName, columnName));
 
-    try (Connection connection =
-            pluginService.forceConnect(
-                pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = connection.prepareStatement(getColumnConfigSql())) {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getColumnConfigSql())) {
 
-      stmt.setString(1, tableName);
-      stmt.setString(2, columnName);
+        stmt.setString(1, tableName);
+        stmt.setString(2, columnName);
 
-      try (ResultSet rs = stmt.executeQuery()) {
-        if (rs.next()) {
-          ColumnEncryptionConfig result = buildColumnConfigFromResultSet(rs);
-          LOGGER.finest(
-              () ->
-                  String.format(
-                      "Database lookup for column config %s.%s: found", tableName, columnName));
-          return result;
-        } else {
-          LOGGER.finest(
-              () ->
-                  String.format(
-                      "Database lookup for column config %s.%s: not found", tableName, columnName));
-          return null;
+        try (ResultSet rs = stmt.executeQuery()) {
+          if (rs.next()) {
+            ColumnEncryptionConfig result = buildColumnConfigFromResultSet(rs);
+            LOGGER.finest(
+                () ->
+                    String.format(
+                        "Database lookup for column config %s.%s: found", tableName, columnName));
+            return result;
+          } else {
+            LOGGER.finest(
+                () ->
+                    String.format(
+                        "Database lookup for column config %s.%s: not found", tableName, columnName));
+            return null;
+          }
         }
       }
 
@@ -392,6 +456,12 @@ public class MetadataManager {
           String.format("Failed to load encryption config for column %s.%s", tableName, columnName);
       LOGGER.severe(() -> errorMsg + " " + e.getMessage());
       throw new MetadataException(errorMsg, e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+      }
     }
   }
 

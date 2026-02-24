@@ -171,8 +171,9 @@ public class KeyManagementUtilityIntegrationTest {
         .encryptionMetadataSchema("encrypt")
         .build();
     
-    KeyManager keyManager = new KeyManager(kmsClient, null, config);
-    MetadataManager metadataManager = new MetadataManager(null, config);
+    boolean isPostgreSQL = dbEngine == DatabaseEngine.PG;
+    KeyManager keyManager = new KeyManager(kmsClient, connection, isPostgreSQL, config);
+    MetadataManager metadataManager = new MetadataManager(connection, config);
     metadataManager.initialize();
     
     KeyManagementUtility keyManagementUtility = 
@@ -249,8 +250,9 @@ public class KeyManagementUtilityIntegrationTest {
         .encryptionMetadataSchema("encrypt")
         .build();
     
-    KeyManager keyManager = new KeyManager(kmsClient, null, config);
-    MetadataManager metadataManager = new MetadataManager(null, config);
+    boolean isPostgreSQL = dbEngine == DatabaseEngine.PG;
+    KeyManager keyManager = new KeyManager(kmsClient, connection, isPostgreSQL, config);
+    MetadataManager metadataManager = new MetadataManager(connection, config);
     metadataManager.initialize();
     
     KeyManagementUtility keyManagementUtility = 
