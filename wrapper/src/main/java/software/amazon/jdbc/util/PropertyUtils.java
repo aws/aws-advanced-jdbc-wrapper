@@ -153,8 +153,10 @@ public class PropertyUtils {
 
   public static @NonNull Properties maskProperties(final Properties props) {
     final Properties maskedProperties = copyProperties(props);
-    if (maskedProperties.containsKey(PropertyDefinition.PASSWORD.name)) {
-      maskedProperties.setProperty(PropertyDefinition.PASSWORD.name, "***");
+    for (Object key : maskedProperties.keySet()) {
+      if (isSecretProperty(key) || key.toString().toLowerCase().contains("password")) {
+        maskedProperties.setProperty(key.toString(), "***");
+      }
     }
     return maskedProperties;
   }
