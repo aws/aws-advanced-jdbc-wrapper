@@ -109,14 +109,22 @@ public class KeyManagementUtility {
 
   private String getInsertEncryptionMetadataSql() {
     String schema = config.getEncryptionMetadataSchema();
-    return "INSERT INTO "
+    String baseSql = "INSERT INTO "
         + schema + ".encryption_metadata"
         + " (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) "
-        + "VALUES (?, ?, ?, ?, ?, ?) "
-        + "ON CONFLICT (table_name, column_name) DO UPDATE SET "
-        + "encryption_algorithm = EXCLUDED.encryption_algorithm, "
-        + "key_id = EXCLUDED.key_id, "
-        + "updated_at = EXCLUDED.updated_at";
+        + "VALUES (?, ?, ?, ?, ?, ?)";
+    
+    if (keyManager.isPostgreSQL()) {
+      return baseSql + " ON CONFLICT (table_name, column_name) DO UPDATE SET "
+          + "encryption_algorithm = EXCLUDED.encryption_algorithm, "
+          + "key_id = EXCLUDED.key_id, "
+          + "updated_at = EXCLUDED.updated_at";
+    } else {
+      return baseSql + " ON DUPLICATE KEY UPDATE "
+          + "encryption_algorithm = VALUES(encryption_algorithm), "
+          + "key_id = VALUES(key_id), "
+          + "updated_at = VALUES(updated_at)";
+    }
   }
 
   private String getUpdateEncryptionMetadataKeySql() {

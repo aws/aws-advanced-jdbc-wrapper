@@ -100,7 +100,7 @@ public class KeyManager {
     // Don't close if using provided connection
   }
 
-  private boolean isPostgreSQL() {
+  public boolean isPostgreSQL() {
     return isPostgreSQL;
   }
 
