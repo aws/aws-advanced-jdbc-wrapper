@@ -371,7 +371,7 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for cache miss and hit scenario
     // First call: Cache miss + Database call
     verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"),
-        eq(TelemetryTraceLevel.TOP_LEVEL));
+        eq(TelemetryTraceLevel.NESTED));
     verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
         eq(TelemetryTraceLevel.NESTED));
     // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
@@ -441,7 +441,7 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for cache miss and hit scenario
     // First call: Cache miss + Database call
     verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"),
-        eq(TelemetryTraceLevel.TOP_LEVEL));
+        eq(TelemetryTraceLevel.NESTED));
     verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
         eq(TelemetryTraceLevel.NESTED));
     // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
@@ -709,7 +709,7 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, never()).inc();
     // Verify TelemetryContext behavior for cache miss and hit scenario
     verify(mockTelemetryFactory, times(11)).openTelemetryContext(eq("jdbc-cache-lookup"),
-        eq(TelemetryTraceLevel.TOP_LEVEL));
+        eq(TelemetryTraceLevel.NESTED));
     verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"),
         eq(TelemetryTraceLevel.NESTED));
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
