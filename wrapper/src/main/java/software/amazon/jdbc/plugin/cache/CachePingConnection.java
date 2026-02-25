@@ -14,24 +14,29 @@
  * limitations under the License.
  */
 
-package integration;
+package software.amazon.jdbc.plugin.cache;
 
-public enum TestEnvironmentFeatures {
-  IAM,
-  SECRETS_MANAGER,
-  FAILOVER_SUPPORTED,
-  NETWORK_OUTAGES_ENABLED,
-  AWS_CREDENTIALS_ENABLED,
-  PERFORMANCE,
-  HIKARI,
-  SKIP_MYSQL_DRIVER_TESTS,
-  SKIP_PG_DRIVER_TESTS,
-  SKIP_MARIADB_DRIVER_TESTS,
-  RUN_HIBERNATE_TESTS_ONLY,
-  RUN_AUTOSCALING_TESTS_ONLY,
-  TELEMETRY_TRACES_ENABLED,
-  TELEMETRY_METRICS_ENABLED,
-  BLUE_GREEN_DEPLOYMENT,
-  VALKEY_CACHE,
-  RUN_DB_METRICS_ONLY
+/**
+ * Abstraction for a cache connection that can be pinged.
+ * Hides cache-client implementation details (Lettuce/Glide) from CacheMonitor.
+ */
+public interface CachePingConnection {
+  /**
+   * Pings the cache server to check health.
+   *
+   * @return true if ping successful (PONG received), false otherwise
+   */
+  boolean ping();
+
+  /**
+   * Checks if the connection is open.
+   *
+   * @return true if connection is open, false otherwise
+   */
+  boolean isOpen();
+
+  /**
+   * Closes the ping connection and releases resources.
+   */
+  void close();
 }

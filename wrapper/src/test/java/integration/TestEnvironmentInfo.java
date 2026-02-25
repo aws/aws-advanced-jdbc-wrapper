@@ -30,6 +30,9 @@ public class TestEnvironmentInfo {
   private String iamUsername;
 
   private TestDatabaseInfo databaseInfo;
+  private TestDatabaseInfo valkeyServerInfo;
+  private String valkeyServerUsername;
+  private String valkeyServerPassword;
   private TestProxyDatabaseInfo proxyDatabaseInfo;
   private String databaseEngine;
   private String databaseEngineVersion;
@@ -45,6 +48,18 @@ public class TestEnvironmentInfo {
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
+  }
+
+  public TestDatabaseInfo getValkeyServerInfo() {
+    return this.valkeyServerInfo;
+  }
+
+  public String getValkeyServerUsername() {
+    return this.valkeyServerUsername;
+  }
+
+  public String getValkeyServerPassword() {
+    return this.valkeyServerPassword;
   }
 
   public TestProxyDatabaseInfo getProxyDatabaseInfo() {
@@ -117,6 +132,18 @@ public class TestEnvironmentInfo {
 
   public void setDatabaseInfo(TestDatabaseInfo databaseInfo) {
     this.databaseInfo = databaseInfo;
+  }
+
+  public void setValkeyServerInfo(TestDatabaseInfo valkeyServerInfo) {
+    this.valkeyServerInfo = valkeyServerInfo;
+  }
+
+  public void setValkeyServerUsername(String valkeyServerUsername) {
+    this.valkeyServerUsername = valkeyServerUsername;
+  }
+
+  public void setValkeyServerPassword(String valkeyServerPassword) {
+    this.valkeyServerPassword = valkeyServerPassword;
   }
 
   public void setProxyDatabaseInfo(TestProxyDatabaseInfo proxyDatabaseInfo) {

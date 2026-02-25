@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -36,6 +37,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   private static final String DRIVER_CLASS_NAME = "com.mysql.cj.jdbc.Driver";
   private static final String DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlDataSource";
   private static final String CP_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlConnectionPoolDataSource";
+  private static final String PREPARED_STATEMENT_QUERY_HEADER = "PreparedStatement:";
 
   private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -135,5 +137,11 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   public String getSQLState(Throwable throwable) {
     final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
     return helper.getSQLState(throwable);
+  }
+
+  @Override
+  public String getSQLQueryString(PreparedStatement ps) {
+    // For MySQL, this gives something like "com.mysql.cj.jdbc.ClientPreparedStatement: select * from T where A=1"
+    return this.findSQLQueryString(ps, PREPARED_STATEMENT_QUERY_HEADER);
   }
 }

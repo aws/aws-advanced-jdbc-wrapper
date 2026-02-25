@@ -56,6 +56,7 @@ public class ContainerHelper {
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.31";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
+  private static final String VALKEY_CONTAINER_IMAGE_NAME = "valkey/valkey:8.1";
   // Note: this image version may need to be occasionally updated to keep it up-to-date and prevent toxiproxy issues.
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0");
@@ -434,6 +435,23 @@ public class ContainerHelper {
         container.getHost(),
         container.getMappedPort(PROXY_CONTROL_PORT));
     this.createProxy(toxiproxyClient, hostname, port);
+    return container;
+  }
+
+  public GenericContainer<?> createValkeyContainer(Network network, String networkAlias, boolean authEnabled) {
+    GenericContainer<?> container = new GenericContainer<>(VALKEY_CONTAINER_IMAGE_NAME)
+        .withNetwork(network)
+        .withNetworkAliases(networkAlias)
+        .withExposedPorts(6379);
+    if (authEnabled) {
+      container
+          .withCopyFileToContainer(
+              MountableFile.forHostPath("./src/test/resources/valkey-acl.conf"),
+              "/etc/valkey/valkey-acl.conf")
+          .withCommand("--protected-mode no", "--aclfile /etc/valkey/valkey-acl.conf");
+    } else {
+      container.withCommand("--protected-mode no");
+    }
     return container;
   }
 

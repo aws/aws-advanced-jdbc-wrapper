@@ -20,6 +20,7 @@ import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -261,4 +262,29 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
         ? NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET
         : NETWORK_BOUND_METHODS;
   }
+
+  @Override
+  public String getSQLQueryString(PreparedStatement ps) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  // Get the SQL query string from a PreparedStatement which comes after a dialect specific header
+  protected String findSQLQueryString(PreparedStatement ps, String queryHeader) {
+    String rawStatementStr = ps.toString();
+    if (rawStatementStr == null) {
+      return null;
+    }
+    // No query header, return the entire statement string
+    if (queryHeader == null) {
+      return rawStatementStr;
+    }
+    // If the query header doesn't exist in the statement, then query string can't be found.
+    int indexOfQueryStr = rawStatementStr.indexOf(queryHeader);
+    if (indexOfQueryStr == -1) {
+      return null;
+    }
+    // Return the query string after the query header.
+    return rawStatementStr.substring(indexOfQueryStr + queryHeader.length());
+  }
+
 }
