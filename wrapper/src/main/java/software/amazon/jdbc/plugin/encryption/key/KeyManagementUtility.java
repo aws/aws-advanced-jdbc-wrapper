@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.encryption.key;
 
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -232,13 +233,17 @@ public class KeyManagementUtility {
         // Generate a unique key name
         String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
 
+        // Generate HMAC key for data integrity verification
+        byte[] hmacKey = new byte[32];
+        new SecureRandom().nextBytes(hmacKey);
+
         // Create key metadata
         KeyMetadata keyMetadata =
             KeyMetadata.builder()
-                .keyId("dummy") // Not used anymore but required by builder
                 .keyName(keyName)
                 .masterKeyArn(masterKeyArn)
                 .encryptedDataKey(dataKeyResult.getEncryptedKey())
+                .hmacKey(hmacKey)
                 .keySpec("AES_256")
                 .createdAt(Instant.now())
                 .lastUsedAt(Instant.now())
@@ -308,23 +313,30 @@ public class KeyManagementUtility {
               : currentConfig.getKeyMetadata().getMasterKeyArn();
 
       // Generate new data key
-      String newKeyId = keyManager.generateKeyId();
       KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
 
       try {
+        // Generate a unique key name
+        String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
+
+        // Generate HMAC key for data integrity verification
+        byte[] hmacKey = new byte[32];
+        new SecureRandom().nextBytes(hmacKey);
+
         // Create new key metadata
         KeyMetadata newKeyMetadata =
             KeyMetadata.builder()
-                .keyId(newKeyId)
+                .keyName(keyName)
                 .masterKeyArn(masterKeyArn)
                 .encryptedDataKey(dataKeyResult.getEncryptedKey())
+                .hmacKey(hmacKey)
                 .keySpec("AES_256")
                 .createdAt(Instant.now())
                 .lastUsedAt(Instant.now())
                 .build();
 
-        // Store new key metadata
-        keyManager.storeKeyMetadata(tableName, columnName, newKeyMetadata);
+        // Store new key metadata and get generated ID
+        int newKeyId = keyManager.storeKeyMetadata(tableName, columnName, newKeyMetadata);
 
         // Update encryption metadata to use new key
         updateEncryptionMetadataKey(tableName, columnName, newKeyId);
@@ -574,14 +586,14 @@ public class KeyManagementUtility {
   }
 
   /** Updates the key ID for existing encryption metadata. */
-  private void updateEncryptionMetadataKey(String tableName, String columnName, String newKeyId)
+  private void updateEncryptionMetadataKey(String tableName, String columnName, int newKeyId)
       throws SQLException {
     Connection conn = null;
     try {
       conn = getConnection();
       try (PreparedStatement stmt = conn.prepareStatement(getUpdateEncryptionMetadataKeySql())) {
 
-        stmt.setString(1, newKeyId);
+        stmt.setInt(1, newKeyId);
         stmt.setTimestamp(2, Timestamp.from(Instant.now()));
         stmt.setString(3, tableName);
         stmt.setString(4, columnName);

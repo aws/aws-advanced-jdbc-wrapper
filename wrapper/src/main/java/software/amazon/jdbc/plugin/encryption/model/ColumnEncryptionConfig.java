@@ -28,7 +28,7 @@ public class ColumnEncryptionConfig {
   private final String tableName;
   private final String columnName;
   private final String algorithm;
-  private final String keyId;
+  private final Integer keyId;
   private final KeyMetadata keyMetadata;
   private final Instant createdAt;
   private final Instant updatedAt;
@@ -55,7 +55,7 @@ public class ColumnEncryptionConfig {
     return algorithm;
   }
 
-  public String getKeyId() {
+  public Integer getKeyId() {
     return keyId;
   }
 
@@ -130,7 +130,7 @@ public class ColumnEncryptionConfig {
     private String tableName;
     private String columnName;
     private String algorithm = "AES-256-GCM"; // Default algorithm
-    private String keyId;
+    private Integer keyId;
     private KeyMetadata keyMetadata;
     private Instant createdAt;
     private Instant updatedAt;
@@ -150,7 +150,7 @@ public class ColumnEncryptionConfig {
       return this;
     }
 
-    public Builder keyId(String keyId) {
+    public Builder keyId(Integer keyId) {
       this.keyId = keyId;
       return this;
     }

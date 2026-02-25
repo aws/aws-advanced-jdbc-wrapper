@@ -341,7 +341,7 @@ public class KeyManager {
           if (rs.next()) {
             KeyMetadata metadata =
                 KeyMetadata.builder()
-                    .keyId(rs.getString("key_id"))
+                    .keyId(rs.getInt("id"))
                     .masterKeyArn(rs.getString("master_key_arn"))
                     .encryptedDataKey(rs.getString("encrypted_data_key"))
                     .keySpec(rs.getString("key_spec"))

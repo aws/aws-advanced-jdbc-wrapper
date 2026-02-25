@@ -470,7 +470,7 @@ public class MetadataManager {
     // Build KeyMetadata
     KeyMetadata keyMetadata =
         KeyMetadata.builder()
-            .keyId(rs.getString("key_id"))
+            .keyId(rs.getInt("key_id"))
             .keyName(rs.getString("name"))
             .masterKeyArn(rs.getString("master_key_arn"))
             .encryptedDataKey(rs.getString("encrypted_data_key"))
@@ -485,7 +485,7 @@ public class MetadataManager {
         .tableName(rs.getString("table_name"))
         .columnName(rs.getString("column_name"))
         .algorithm(rs.getString("encryption_algorithm"))
-        .keyId(rs.getString("key_id"))
+        .keyId(rs.getInt("key_id"))
         .keyMetadata(keyMetadata)
         .createdAt(convertTimestampToInstant(rs.getTimestamp("created_at")))
         .updatedAt(convertTimestampToInstant(rs.getTimestamp("updated_at")))

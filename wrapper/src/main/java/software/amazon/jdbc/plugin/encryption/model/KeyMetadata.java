@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 
 import java.time.Instant;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Metadata class for storing KMS key information including master key ARN, encrypted data key, and
@@ -25,7 +26,7 @@ import java.util.Objects;
  */
 public class KeyMetadata {
 
-  private final String keyId;
+  private final @Nullable Integer keyId;
   private final String keyName;
   private final String masterKeyArn;
   private final String encryptedDataKey;
@@ -35,7 +36,7 @@ public class KeyMetadata {
   private final Instant lastUsedAt;
 
   private KeyMetadata(Builder builder) {
-    this.keyId = Objects.requireNonNull(builder.keyId, "keyId cannot be null");
+    this.keyId = builder.keyId;
     this.keyName = Objects.requireNonNull(builder.keyName, "keyName cannot be null");
     this.masterKeyArn = Objects.requireNonNull(builder.masterKeyArn, "masterKeyArn cannot be null");
     this.encryptedDataKey =
@@ -46,7 +47,7 @@ public class KeyMetadata {
     this.lastUsedAt = builder.lastUsedAt != null ? builder.lastUsedAt : Instant.now();
   }
 
-  public String getKeyId() {
+  public @Nullable Integer getKeyId() {
     return keyId;
   }
 
@@ -101,7 +102,6 @@ public class KeyMetadata {
    */
   public boolean isValid() {
     return keyId != null
-        && !keyId.trim().isEmpty()
         && masterKeyArn != null
         && !masterKeyArn.trim().isEmpty()
         && encryptedDataKey != null
@@ -156,7 +156,7 @@ public class KeyMetadata {
   }
 
   public static class Builder {
-    private String keyId;
+    private Integer keyId;
     private String keyName;
     private String masterKeyArn;
     private String encryptedDataKey;
@@ -165,7 +165,7 @@ public class KeyMetadata {
     private Instant createdAt;
     private Instant lastUsedAt;
 
-    public Builder keyId(String keyId) {
+    public Builder keyId(Integer keyId) {
       this.keyId = keyId;
       return this;
     }
