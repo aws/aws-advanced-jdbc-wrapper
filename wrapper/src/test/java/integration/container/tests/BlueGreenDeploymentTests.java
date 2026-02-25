@@ -869,7 +869,7 @@ public class BlueGreenDeploymentTests {
             HostVerificationResult result =
                 HostVerificationResult.success(timestamp, connectedHost, capturedOriginalBlueIp);
             results.hostVerificationResults.add(result);
-            
+
             if (result.connectedToBlue) {
               LOGGER.finest(String.format(
                   "[WrapperBlueHostVerification @ %s] Connected to blue cluster! Host: %s",
@@ -1602,9 +1602,9 @@ public class BlueGreenDeploymentTests {
 
   private String getWrapperConnectionPlugins() {
     if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
-      return "bg,iam";
+      return "bg,iam,initialConnection";
     }
-    return "bg";
+    return "bg,initialConnection";
   }
 
   private int getPort() {
@@ -2127,7 +2127,7 @@ public class BlueGreenDeploymentTests {
             connectionsToBlueAfterSwitchoverStart, switchoverInProgressTime));
 
     assertTrue(totalVerificationsAfterSwitchoverStart > 0,
-        "Expected at least one successful host verification after SWITCHOVER_IN_PROGRESS."); 
+        "Expected at least one successful host verification after SWITCHOVER_IN_PROGRESS.");
   }
 
   /**
