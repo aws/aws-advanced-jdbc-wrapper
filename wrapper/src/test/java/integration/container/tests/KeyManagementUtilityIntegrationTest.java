@@ -55,6 +55,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.key.KeyManagementUtility;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
@@ -325,6 +326,64 @@ public class KeyManagementUtilityIntegrationTest {
     String keyArn = response.keyMetadata().arn();
     LOGGER.info("Created test master key: " + keyArn);
     return keyArn;
+  }
+
+  @TestTemplate
+  void testKeyRotation() throws Exception {
+    LOGGER.info("Testing key rotation using KeyManagementUtility");
+
+    String tablePrefix = getTablePrefix();
+
+    // Create components for KeyManagementUtility
+    EncryptionConfig config = EncryptionConfig.builder()
+        .kmsRegion(TestEnvironment.getCurrent().getInfo().getRegion())
+        .defaultMasterKeyArn(masterKeyArn)
+        .encryptionMetadataSchema("encrypt")
+        .build();
+
+    boolean isPostgreSQL = dbEngine == DatabaseEngine.PG;
+    KeyManager keyManager = new KeyManager(kmsClient, connection, isPostgreSQL, config);
+    MetadataManager metadataManager = new MetadataManager(connection, config);
+    metadataManager.initialize();
+
+    KeyManagementUtility keyManagementUtility =
+        new KeyManagementUtility(keyManager, metadataManager, connection, kmsClient, config);
+
+    // Initialize encryption with first key
+    keyManagementUtility.initializeEncryptionForColumn(
+        TEST_TABLE, TEST_COLUMN, masterKeyArn, TEST_ALGORITHM);
+
+    // Get initial key ID
+    ColumnEncryptionConfig initialConfig = metadataManager.getColumnConfig(TEST_TABLE, TEST_COLUMN);
+    assertNotNull(initialConfig, "Initial config should exist");
+    Integer initialKeyId = initialConfig.getKeyId();
+    assertNotNull(initialKeyId, "Initial key ID should exist");
+    LOGGER.info("Initial key ID: " + initialKeyId);
+
+    // Insert test data with first key
+    String insertSql = "INSERT INTO " + TEST_TABLE + " (name, " + TEST_COLUMN + ") VALUES (?, ?)";
+    try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
+      pstmt.setString(1, "TestUser");
+      pstmt.setString(2, "123-45-6789");
+      pstmt.executeUpdate();
+      LOGGER.info("Inserted data with initial key");
+    }
+
+    // Rotate the key
+    keyManagementUtility.rotateDataKey(TEST_TABLE, TEST_COLUMN, null);
+    LOGGER.info("Rotated data key for " + TEST_TABLE + "." + TEST_COLUMN);
+
+    // Get new key ID
+    ColumnEncryptionConfig rotatedConfig = metadataManager.getColumnConfig(TEST_TABLE, TEST_COLUMN);
+    assertNotNull(rotatedConfig, "Rotated config should exist");
+    Integer rotatedKeyId = rotatedConfig.getKeyId();
+    assertNotNull(rotatedKeyId, "Rotated key ID should exist");
+    LOGGER.info("Rotated key ID: " + rotatedKeyId);
+
+    // Verify key ID changed
+    assertTrue(rotatedKeyId > initialKeyId, "Key ID should have changed after rotation");
+
+    LOGGER.info("Key rotation test completed successfully");
   }
 
 
