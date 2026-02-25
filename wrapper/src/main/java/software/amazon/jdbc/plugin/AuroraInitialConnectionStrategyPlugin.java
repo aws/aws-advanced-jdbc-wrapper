@@ -38,6 +38,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -126,6 +127,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           });
 
   private final RdsUtils rdsUtils = new RdsUtils();
+  private final FullServicesContainer servicesContainer;
   private final PluginService pluginService;
   private final int retryDelayMs;
   private final long openConnectionRetryTimeoutNano;
@@ -137,8 +139,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     PropertyDefinition.registerPluginProperties(AuroraInitialConnectionStrategyPlugin.class);
   }
 
-  public AuroraInitialConnectionStrategyPlugin(final PluginService pluginService, final Properties properties) {
-    this.pluginService = pluginService;
+  public AuroraInitialConnectionStrategyPlugin(
+      final FullServicesContainer servicesContainer, final Properties properties) {
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.retryDelayMs = OPEN_CONNECTION_RETRY_INTERVAL_MS.getInteger(properties);
     this.openConnectionRetryTimeoutNano =
         TimeUnit.MILLISECONDS.toNanos(OPEN_CONNECTION_RETRY_TIMEOUT_MS.getInteger(properties));
@@ -232,7 +236,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           // A reader was requested but the cluster has no readers.
           // Simulate the reader cluster endpoint logic and return the current (writer) connection.
           if (RoleVerificationSetting.READER.name().equals(this.verifyRolePropValue)) {
-            LOGGER.finest(Messages.get(
+            LOGGER.finest(() -> Messages.get(
                 "AuroraInitialConnectionStrategyPlugin.verifyReaderConfiguredButNoReadersExist",
                 new Object[] {VERIFY_OPENED_CONNECTION_ROLE.name}));
           }
@@ -245,9 +249,13 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         }
 
         // Failed to verify the connection. We will try to get a verified connection again on the next iteration.
-        LOGGER.finest(Messages.get(
+        final HostSpec finalCandidateHost = candidateHost;
+        LOGGER.finest(() -> Messages.get(
             "AuroraInitialConnectionStrategyPlugin.incorrectRole",
-            new Object[]{candidateHost.getHost(), roleToVerify}));
+            new Object[]{finalCandidateHost.getHost(), roleToVerify}));
+        this.servicesContainer.getImportantEventService().registerEvent(() -> Messages.get(
+            "AuroraInitialConnectionStrategyPlugin.incorrectRole",
+            new Object[]{finalCandidateHost.getHost(), roleToVerify}));
         this.closeConnection(candidateConn);
         this.delay(this.retryDelayMs);
       } catch (SQLException ex) {

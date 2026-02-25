@@ -25,6 +25,6 @@ public class AuroraInitialConnectionStrategyPluginFactory implements ConnectionP
 
   @Override
   public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
-    return new AuroraInitialConnectionStrategyPlugin(servicesContainer.getPluginService(), props);
+    return new AuroraInitialConnectionStrategyPlugin(servicesContainer, props);
   }
 }
