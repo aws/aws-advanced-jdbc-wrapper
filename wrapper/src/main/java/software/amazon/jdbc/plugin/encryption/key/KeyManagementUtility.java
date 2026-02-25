@@ -115,7 +115,7 @@ public class KeyManagementUtility {
         + "VALUES (?, ?, ?, ?, ?, ?) "
         + "ON CONFLICT (table_name, column_name) DO UPDATE SET "
         + "encryption_algorithm = EXCLUDED.encryption_algorithm, "
-        + "key_id = EXCLUDED.key_id "
+        + "key_id = EXCLUDED.key_id, "
         + "updated_at = EXCLUDED.updated_at";
   }
 
