@@ -79,9 +79,8 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
       try {
         if (useForceConnect) {
           return pluginService.forceConnect(this.substituteHostSpec, props, plugin);
-        } else {
-          return pluginService.connect(this.substituteHostSpec, props, plugin);
         }
+        return pluginService.connect(this.substituteHostSpec, props, plugin);
       } catch (SQLException sqlException) {
         if (!pluginService.isLoginException(sqlException, pluginService.getTargetDriverDialect())) {
           throw sqlException;

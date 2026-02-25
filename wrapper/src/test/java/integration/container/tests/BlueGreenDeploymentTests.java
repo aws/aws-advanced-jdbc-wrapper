@@ -1602,9 +1602,9 @@ public class BlueGreenDeploymentTests {
 
   private String getWrapperConnectionPlugins() {
     if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
-      return "bg,iam,initialConnection";
+      return "bg,iam";
     }
-    return "bg,initialConnection";
+    return "bg";
   }
 
   private int getPort() {
