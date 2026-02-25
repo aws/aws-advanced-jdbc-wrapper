@@ -84,6 +84,7 @@ public class KeyManagementUtilityIntegrationTest {
   private static final String TEST_ALGORITHM = "AES-256-GCM";
 
   private Connection connection;
+  private Connection wrappedConnection;
   private KmsClient kmsClient;
   private String masterKeyArn;
   private boolean createdKey = false;
@@ -122,9 +123,14 @@ public class KeyManagementUtilityIntegrationTest {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     connection = DriverManager.getConnection(url, props);
+    if (connection.isWrapperFor(Connection.class)) {
+      wrappedConnection = connection.unwrap(Connection.class);
+    } else {
+      wrappedConnection = connection;
+    }
 
     if (dbEngine == DatabaseEngine.PG) {
-      EncryptedDataTypeInstaller.installEncryptedDataType(connection, "encrypt");
+      EncryptedDataTypeInstaller.installEncryptedDataType(wrappedConnection, "encrypt");
     }
     // Setup test database schema
     setupTestSchema();
@@ -135,7 +141,7 @@ public class KeyManagementUtilityIntegrationTest {
   void tearDown() throws Exception {
     if (connection != null) {
       String tablePrefix = getTablePrefix();
-      try (Statement stmt = connection.createStatement()) {
+      try (Statement stmt = wrappedConnection.createStatement()) {
         // Clean up test data
         stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
         stmt.execute(
@@ -159,7 +165,7 @@ public class KeyManagementUtilityIntegrationTest {
     String tablePrefix = getTablePrefix();
 
     // Clean up any existing metadata for this column
-    try (Statement stmt = connection.createStatement()) {
+    try (Statement stmt = wrappedConnection.createStatement()) {
       stmt.execute("DELETE FROM " + tablePrefix + "encryption_metadata WHERE table_name = '"
           + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
     }
@@ -170,24 +176,24 @@ public class KeyManagementUtilityIntegrationTest {
         .defaultMasterKeyArn(masterKeyArn)
         .encryptionMetadataSchema("encrypt")
         .build();
-    
+
     boolean isPostgreSQL = dbEngine == DatabaseEngine.PG;
-    KeyManager keyManager = new KeyManager(kmsClient, connection, isPostgreSQL, config);
-    MetadataManager metadataManager = new MetadataManager(connection, config);
+    KeyManager keyManager = new KeyManager(kmsClient, wrappedConnection, isPostgreSQL, config);
+    MetadataManager metadataManager = new MetadataManager(wrappedConnection, config);
     metadataManager.initialize();
-    
-    KeyManagementUtility keyManagementUtility = 
-        new KeyManagementUtility(keyManager, metadataManager, connection, kmsClient, config);
+
+    KeyManagementUtility keyManagementUtility =
+        new KeyManagementUtility(keyManager, metadataManager, wrappedConnection, kmsClient, config);
 
     // Use KeyManagementUtility to initialize encryption for the column
     keyManagementUtility.initializeEncryptionForColumn(
         TEST_TABLE, TEST_COLUMN, masterKeyArn, TEST_ALGORITHM);
-    
+
     LOGGER.info("KeyManagementUtility initialized encryption for " + TEST_TABLE + "." + TEST_COLUMN);
 
     // Verify the metadata was created correctly
     try (PreparedStatement checkStmt =
-        connection.prepareStatement(
+        wrappedConnection.prepareStatement(
             "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
             + "ks.master_key_arn, ks.encrypted_data_key "
             + "FROM " + tablePrefix + "encryption_metadata em "
@@ -249,19 +255,19 @@ public class KeyManagementUtilityIntegrationTest {
         .defaultMasterKeyArn(masterKeyArn)
         .encryptionMetadataSchema("encrypt")
         .build();
-    
+
     boolean isPostgreSQL = dbEngine == DatabaseEngine.PG;
     KeyManager keyManager = new KeyManager(kmsClient, connection, isPostgreSQL, config);
     MetadataManager metadataManager = new MetadataManager(connection, config);
     metadataManager.initialize();
-    
-    KeyManagementUtility keyManagementUtility = 
+
+    KeyManagementUtility keyManagementUtility =
         new KeyManagementUtility(keyManager, metadataManager, connection, kmsClient, config);
 
     // Use KeyManagementUtility to initialize encryption
     keyManagementUtility.initializeEncryptionForColumn(
         TEST_TABLE, TEST_COLUMN, masterKeyArn, TEST_ALGORITHM);
-    
+
     LOGGER.info("KeyManagementUtility initialized encryption for " + TEST_TABLE + "." + TEST_COLUMN);
 
     // Test multiple SSN values with same data key
@@ -325,7 +331,7 @@ public class KeyManagementUtilityIntegrationTest {
   private void setupTestSchema() throws SQLException {
     DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
 
-    try (Statement stmt = connection.createStatement()) {
+    try (Statement stmt = wrappedConnection.createStatement()) {
       // PostgreSQL supports CASCADE, MySQL doesn't
       if (dbEngine == DatabaseEngine.PG) {
         stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
