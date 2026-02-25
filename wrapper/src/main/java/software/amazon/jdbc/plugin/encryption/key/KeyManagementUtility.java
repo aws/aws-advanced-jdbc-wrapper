@@ -204,10 +204,9 @@ public class KeyManagementUtility {
    * @param columnName Name of the column
    * @param masterKeyArn ARN of the master key to use
    * @param algorithm Encryption algorithm (defaults to AES-256-GCM if null)
-   * @return The generated key ID
    * @throws KeyManagementException if key generation or storage fails
    */
-  public String generateAndStoreDataKey(
+  public void generateAndStoreDataKey(
       String tableName, String columnName, String masterKeyArn, String algorithm)
       throws KeyManagementException {
     Objects.requireNonNull(tableName, "Table name cannot be null");
@@ -263,8 +262,6 @@ public class KeyManagementUtility {
                 String.format(
                     "Successfully generated and stored data key for %s.%s with key ID: %s",
                     tableName, columnName, generatedKeyId));
-
-        return String.valueOf(generatedKeyId);
 
       } finally {
         // Clear sensitive data from memory
@@ -370,12 +367,11 @@ public class KeyManagementUtility {
    * @param tableName Name of the table
    * @param columnName Name of the column
    * @param masterKeyArn ARN of the master key to use
-   * @return The generated key ID
    * @throws KeyManagementException if initialization fails
    */
-  public String initializeEncryptionForColumn(
+  public void initializeEncryptionForColumn(
       String tableName, String columnName, String masterKeyArn) throws KeyManagementException {
-    return initializeEncryptionForColumn(tableName, columnName, masterKeyArn, "AES-256-GCM");
+    initializeEncryptionForColumn(tableName, columnName, masterKeyArn, "AES-256-GCM");
   }
 
   /**
@@ -385,10 +381,9 @@ public class KeyManagementUtility {
    * @param columnName Name of the column
    * @param masterKeyArn ARN of the master key to use
    * @param algorithm Encryption algorithm to use
-   * @return The generated key ID
    * @throws KeyManagementException if initialization fails
    */
-  public String initializeEncryptionForColumn(
+  public void initializeEncryptionForColumn(
       String tableName, String columnName, String masterKeyArn, String algorithm)
       throws KeyManagementException {
     LOGGER.info(
@@ -405,7 +400,7 @@ public class KeyManagementUtility {
     }
 
     // Generate and store the data key
-    return generateAndStoreDataKey(tableName, columnName, masterKeyArn, algorithm);
+    generateAndStoreDataKey(tableName, columnName, masterKeyArn, algorithm);
   }
 
   /**

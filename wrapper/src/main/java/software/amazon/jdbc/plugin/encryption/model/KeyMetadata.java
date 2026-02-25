@@ -101,8 +101,7 @@ public class KeyMetadata {
    * @return True if metadata is valid, false otherwise
    */
   public boolean isValid() {
-    return keyId != null
-        && masterKeyArn != null
+    return masterKeyArn != null
         && !masterKeyArn.trim().isEmpty()
         && encryptedDataKey != null
         && !encryptedDataKey.trim().isEmpty()

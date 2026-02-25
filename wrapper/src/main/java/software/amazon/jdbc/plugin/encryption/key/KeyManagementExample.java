@@ -71,25 +71,14 @@ public class KeyManagementExample {
     LOGGER.info(() -> String.format("Created master key: %s", masterKeyArn));
 
     // 2. Initialize encryption for sensitive columns
-    String userEmailKeyId =
-        keyManagementUtility.initializeEncryptionForColumn("users", "email", masterKeyArn);
+    keyManagementUtility.initializeEncryptionForColumn("users", "email", masterKeyArn);
+    keyManagementUtility.initializeEncryptionForColumn("users", "ssn", masterKeyArn);
+    keyManagementUtility.initializeEncryptionForColumn(
+        "orders", "credit_card_number", masterKeyArn);
 
-    String userSsnKeyId =
-        keyManagementUtility.initializeEncryptionForColumn("users", "ssn", masterKeyArn);
-
-    String orderCreditCardKeyId =
-        keyManagementUtility.initializeEncryptionForColumn(
-            "orders", "credit_card_number", masterKeyArn);
-
-    LOGGER.info(
-        () -> String.format("Initialized encryption for users.email with key: %s", userEmailKeyId));
-    LOGGER.info(
-        () -> String.format("Initialized encryption for users.ssn with key: %s", userSsnKeyId));
-    LOGGER.info(
-        () ->
-            String.format(
-                "Initialized encryption for orders.credit_card_number with key: %s",
-                orderCreditCardKeyId));
+    LOGGER.info("Initialized encryption for users.email");
+    LOGGER.info("Initialized encryption for users.ssn");
+    LOGGER.info("Initialized encryption for orders.credit_card_number");
   }
 
   /**
@@ -108,12 +97,10 @@ public class KeyManagementExample {
     }
 
     // Initialize encryption for the column
-    String keyId =
-        keyManagementUtility.initializeEncryptionForColumn(
-            "customers", "phone_number", masterKeyArn, "AES-256-GCM");
+    keyManagementUtility.initializeEncryptionForColumn(
+        "customers", "phone_number", masterKeyArn, "AES-256-GCM");
 
-    LOGGER.info(
-        () -> String.format("Added encryption to customers.phone_number with key: %s", keyId));
+    LOGGER.info("Added encryption to customers.phone_number");
   }
 
   /**
