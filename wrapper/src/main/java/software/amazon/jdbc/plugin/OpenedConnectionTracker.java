@@ -165,6 +165,9 @@ public class OpenedConnectionTracker {
   }
 
   private void trackConnection(final String instanceEndpoint, final Connection connection) {
+    if (connection == null) {
+      return;
+    }
     final Queue<WeakReference<Connection>> connectionQueue =
         openedConnections.computeIfAbsent(
             instanceEndpoint,

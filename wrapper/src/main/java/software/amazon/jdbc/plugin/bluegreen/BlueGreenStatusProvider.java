@@ -46,6 +46,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.RejectConnectRouting;
@@ -81,13 +82,17 @@ public class BlueGreenStatusProvider {
       "bgHighMs", "100",
       "High Blue/Green Deployment status checking interval (in msec).");
 
-  private static final String MONITORING_PROPERTY_PREFIX = "blue-green-monitoring-";
-  private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
-  private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
-
   public static final AwsWrapperProperty BG_SWITCHOVER_TIMEOUT_MS = new AwsWrapperProperty(
       "bgSwitchoverTimeoutMs", "180000", // 3min
       "Blue/Green Deployment switchover timeout (in msec).");
+
+  public static final AwsWrapperProperty BG_DROP_BLUE_CONNECTIONS = new AwsWrapperProperty(
+      "bgDropBlueConnections", "true",
+      "If set to true, allows to drops all connections to blue cluster when Blue/Green switchover starts.");
+
+  private static final String MONITORING_PROPERTY_PREFIX = "blue-green-monitoring-";
+  private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
+  private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
 
   protected final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
 
@@ -129,6 +134,10 @@ public class BlueGreenStatusProvider {
   protected final String clusterId;
   protected Map<String, PhaseTimeInfo> phaseTimeNano = new ConcurrentHashMap<>();
   protected final RdsUtils rdsUtils = new RdsUtils();
+  protected OpenedConnectionTracker tracker = null;
+  protected final boolean dropBlueConnectionsSetting;
+  protected boolean blueConnectionsDropped = false;
+
 
   public BlueGreenStatusProvider(
       final @NonNull FullServicesContainer servicesContainer,
@@ -155,6 +164,11 @@ public class BlueGreenStatusProvider {
     } else {
       LOGGER.warning(() -> Messages.get("bgd.unsupportedDialect",
           new Object[] {this.bgdId, dialect.getClass().getSimpleName()}));
+    }
+
+    this.dropBlueConnectionsSetting = BG_DROP_BLUE_CONNECTIONS.getBoolean(props);
+    if (dropBlueConnectionsSetting) {
+      this.tracker = new OpenedConnectionTracker(this.pluginService);
     }
   }
 
@@ -435,6 +449,7 @@ public class BlueGreenStatusProvider {
         this.updateDnsFlags(role, interimStatus);
         this.summaryStatus = this.getStatusOfInProgress();
         this.resetMonitors(this.monitorResetOnInProgressCompleted, "- start");
+        this.dropBlueConnections();
         break;
       case POST:
         this.updateDnsFlags(role, interimStatus);
@@ -532,6 +547,28 @@ public class BlueGreenStatusProvider {
       // Notify all monitors to reset if needed.
       this.servicesContainer.getEventPublisher().publish(new MonitorResetEvent(this.clusterId, blueEndpoints));
       this.storeMonitorResetTime(eventName);
+    }
+  }
+
+  protected void dropBlueConnections() {
+    if (!this.dropBlueConnectionsSetting || this.blueConnectionsDropped || this.tracker == null) {
+      return;
+    }
+
+    BlueGreenInterimStatus sourceInterimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+    if (sourceInterimStatus == null || Utils.isNullOrEmpty(sourceInterimStatus.startTopology)) {
+      return;
+    }
+
+    try {
+      sourceInterimStatus.startTopology.forEach(x -> this.tracker.invalidateAllConnections(x));
+      this.phaseTimeNano.putIfAbsent("Blue connections dropped",
+          new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
+    } catch (Exception ex) {
+      LOGGER.log(Level.WARNING, ex,
+          () -> Messages.get("bgd.failedDropBlueConnections", new Object[] {this.bgdId}));
+    } finally {
+      this.blueConnectionsDropped = true;
     }
   }
 
@@ -1139,6 +1176,7 @@ public class BlueGreenStatusProvider {
       this.greenNodeChangeNameTimes.clear();
       this.monitorResetOnInProgressCompleted.set(false);
       this.monitorResetOnTopologyCompleted.set(false);
+      this.blueConnectionsDropped = false;
 
       this.initMonitoring();
     }
