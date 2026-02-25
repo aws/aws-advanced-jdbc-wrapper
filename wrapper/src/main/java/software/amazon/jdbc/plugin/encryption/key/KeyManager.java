@@ -108,14 +108,14 @@ public class KeyManager {
     String schema = config.getEncryptionMetadataSchema();
     String sql = "INSERT INTO "
         + schema + ".key_storage"
-        + " (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) "
-        + "VALUES (?, ?, ?, ?, ?, ?)";
+        + " (name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, last_used_at) "
+        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
     return isPostgreSQL() ? sql + " RETURNING id" : sql;
   }
 
   private String getSelectKeyMetadataSql() {
     String schema = config.getEncryptionMetadataSchema();
-    return "SELECT id, name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at "
+    return "SELECT id, name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, last_used_at "
         + "FROM " + schema + ".key_storage WHERE id = ?";
   }
 
@@ -274,9 +274,10 @@ public class KeyManager {
         stmt.setString(1, keyMetadata.getKeyName());
         stmt.setString(2, keyMetadata.getMasterKeyArn());
         stmt.setString(3, keyMetadata.getEncryptedDataKey());
-        stmt.setString(4, keyMetadata.getKeySpec());
-        stmt.setTimestamp(5, Timestamp.from(keyMetadata.getCreatedAt()));
-        stmt.setTimestamp(6, Timestamp.from(keyMetadata.getLastUsedAt()));
+        stmt.setBytes(4, keyMetadata.getHmacKey());
+        stmt.setString(5, keyMetadata.getKeySpec());
+        stmt.setTimestamp(6, Timestamp.from(keyMetadata.getCreatedAt()));
+        stmt.setTimestamp(7, Timestamp.from(keyMetadata.getLastUsedAt()));
 
         int generatedId;
         if (isPostgreSQL()) {
@@ -342,8 +343,10 @@ public class KeyManager {
             KeyMetadata metadata =
                 KeyMetadata.builder()
                     .keyId(rs.getInt("id"))
+                    .keyName(rs.getString("name"))
                     .masterKeyArn(rs.getString("master_key_arn"))
                     .encryptedDataKey(rs.getString("encrypted_data_key"))
+                    .hmacKey(rs.getBytes("hmac_key"))
                     .keySpec(rs.getString("key_spec"))
                     .createdAt(rs.getTimestamp("created_at").toInstant())
                     .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
