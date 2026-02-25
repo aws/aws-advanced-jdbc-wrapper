@@ -90,7 +90,7 @@ public class PropertyDefinitionTests {
   }
 
   @Test
-  public void testMaskedProperties() {
+  public void testMaskedProperties_1() {
     final String someRandomPassword = "some_random_password";
 
     final Properties properties = new Properties();
@@ -100,4 +100,18 @@ public class PropertyDefinitionTests {
     final Properties maskedProperties = PropertyUtils.maskProperties(properties);
     assertEquals("***", maskedProperties.getProperty(PropertyDefinition.PASSWORD.name));
   }
+
+  @Test
+  public void testMaskedProperties_2() {
+    final String someRandomPassword = "some_random_password";
+    final String propertyKey = "somePropertyWithPassword";
+
+    final Properties properties = new Properties();
+    properties.setProperty(propertyKey, someRandomPassword);
+    assertEquals(someRandomPassword, properties.getProperty(propertyKey));
+
+    final Properties maskedProperties = PropertyUtils.maskProperties(properties);
+    assertEquals("***", maskedProperties.getProperty(propertyKey));
+  }
+
 }
