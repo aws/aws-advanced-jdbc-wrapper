@@ -41,6 +41,7 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:auth:2.42.19") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.19") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:sts:2.42.19")
+    optionalImplementation("software.amazon.awssdk:kms:2.42.19")
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.19")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
@@ -54,6 +55,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.60.1")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.60.1")
     optionalImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
+    optionalImplementation("com.github.jsqlparser:jsqlparser:4.5")
 
     compileOnly("org.checkerframework:checker-qual:3.52.0")
     compileOnly("com.mysql:mysql-connector-j:9.6.0")
@@ -85,6 +87,7 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
+    testImplementation("software.amazon.awssdk:kms:2.42.19")
     testImplementation("software.amazon.awssdk:rds:2.42.19", )
     testImplementation("software.amazon.awssdk:auth:2.42.19") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.42.19") // Required for IAM (light implementation)
@@ -605,6 +608,7 @@ tasks.register<Test>("test-all-multi-az") {
 tasks.register<Test>("test-all-pg-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.container.tests.KmsEncryptionIntegrationTest")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -1368,4 +1372,51 @@ tasks.register<Test>("test-metrics-pg-multi-az") {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-mysql-engine", "true")
     }
+}
+
+tasks.register<Test>("test-encryption-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.container.tests.KmsEncryptionIntegrationTest")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-bg", "true")
+        systemProperty("test-encryption-only", "true")
+    }
+}
+
+tasks.register<Test>("test-kms-encryption") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+
+    systemProperty("test-no-docker", "true")
+    systemProperty("test-no-performance", "true")
+    systemProperty("test-no-mariadb-engine", "true")
+    systemProperty("test-no-mariadb-driver", "true")
+    systemProperty("test-no-graalvm", "true")
+    systemProperty("test-no-openjdk11", "true")
+    systemProperty("test-no-openjdk17", "true")
+    systemProperty("test-no-openjdk22", "true")
+    systemProperty("test-no-multi-az-instance", "true")
+    systemProperty("test-no-failover", "true")
+    systemProperty("test-no-secrets-manager", "true")
+    systemProperty("test-no-hikari", "true")
+    systemProperty("test-no-instances-1", "true")
+    systemProperty("test-no-instances-3", "true")
+    systemProperty("test-no-instances-5", "true")
+    systemProperty("test-no-multi-az-cluster", "true")
+    systemProperty("test-no-bg", "true")
+    systemProperty("test-encryption-only", "true")
+
 }

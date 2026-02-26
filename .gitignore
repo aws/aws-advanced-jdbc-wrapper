@@ -8,6 +8,10 @@ build/
 # Log file
 *.log
 
+environment.foo
+*.py
+*.txt
+
 # BlueJ files
 *.ctxt
 
