@@ -38,6 +38,7 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:auth:2.42.0") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:sts:2.42.0")
+    optionalImplementation("software.amazon.awssdk:kms:2.42.0")
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.0")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
@@ -49,6 +50,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
+    optionalImplementation("com.github.jsqlparser:jsqlparser:4.5") // JSqlParser SQL parser (Java 8 compatible)
 
     compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("com.mysql:mysql-connector-j:9.4.0")
@@ -80,6 +82,7 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
+    testImplementation("software.amazon.awssdk:kms:2.42.0")
     testImplementation("software.amazon.awssdk:rds:2.42.0", )
     testImplementation("software.amazon.awssdk:auth:2.42.0") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
