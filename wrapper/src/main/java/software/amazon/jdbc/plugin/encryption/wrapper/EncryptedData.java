@@ -17,8 +17,10 @@
 package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import java.sql.SQLException;
+// CHECKSTYLE:OFF: IllegalImport - PostgreSQL-specific types required for encrypted_data domain
 import org.postgresql.util.PGBinaryObject;
 import org.postgresql.util.PGobject;
+// CHECKSTYLE:ON: IllegalImport
 
 /**
  * PostgreSQL-specific wrapper for encrypted_data type that extends PGobject

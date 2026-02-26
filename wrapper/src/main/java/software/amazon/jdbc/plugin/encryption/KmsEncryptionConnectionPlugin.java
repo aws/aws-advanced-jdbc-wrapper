@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -34,6 +35,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.Pair;
 
 /**
  * ConnectionPlugin implementation that integrates KmsEncryptionPlugin with AWS JDBC Wrapper. This
@@ -281,5 +283,15 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
     // No special action needed for connection changes
     return OldConnectionSuggestedAction.NO_OPINION;
+  }
+
+  /**
+   * Returns the snapshot state for debugging/monitoring purposes.
+   *
+   * @return null - no state to snapshot
+   */
+  @Override
+  public @Nullable List<Pair<String, Object>> getSnapshotState() {
+    return null;
   }
 }
