@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - kms_encryption1
       - kms_encryption_rebased
 
 concurrency:
