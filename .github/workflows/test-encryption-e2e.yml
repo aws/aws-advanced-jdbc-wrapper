@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - kms_encryption1
+      - kms_encryption_rebased
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
