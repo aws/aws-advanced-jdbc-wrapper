@@ -856,12 +856,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
               } else {
                 // Successfully updated the node monitor writer connection.
                 LOGGER.fine(() ->
-                    Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
+                    Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {this.hostSpec.getUrl()}));
                 this.servicesContainer.getImportantEventService().registerEvent(
-                    () -> Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
+                    () -> Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {this.hostSpec.getUrl()}));
 
                 this.monitor.fetchTopologyAndUpdateCache(this.connection.get());
-                this.monitor.nodeThreadsWriterHostSpec.set(hostSpec);
+                this.hostSpec.setAvailability(HostAvailability.AVAILABLE);
+                this.monitor.nodeThreadsWriterHostSpec.set(this.hostSpec);
 
                 // Connection is already assigned to this.monitor.nodeThreadsWriterConnection
                 // so we need just to reset it for this.connection without closing it.
