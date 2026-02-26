@@ -43,6 +43,7 @@ import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
@@ -476,10 +477,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     if (System.nanoTime() > this.stableTopologiesStartNano + this.stableTopologiesDurationNano) {
       // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
       this.stableTopologiesStartNano = 0;
+      this.updateHostsAvailability(readerTopology);
       LOGGER.finest(() -> LogUtils.logTopology(readerTopology, Messages.get(
           "ClusterTopologyMonitorImpl.matchingReaderTopologies",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)})));
-      updateTopologyCache(readerTopology);
+      this.updateTopologyCache(readerTopology);
     }
   }
 
@@ -719,6 +721,17 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplate);
   }
 
+  protected void updateHostsAvailability(final @NonNull List<HostSpec> hosts) {
+    if (Utils.isNullOrEmpty(hosts)) {
+      return;
+    }
+    for (HostSpec host : hosts) {
+      host.setAvailability(this.readerTopologiesById.containsKey(host.getHostId())
+          ? HostAvailability.AVAILABLE
+          : HostAvailability.NOT_AVAILABLE);
+    }
+  }
+
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
     synchronized (this.requestToUpdateTopology) {
       this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
@@ -926,6 +939,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       this.monitor.readerTopologiesById.put(this.hostSpec.getHostId(), hosts);
 
       if (this.writerChanged) {
+        this.monitor.updateHostsAvailability(hosts);
         this.monitor.updateTopologyCache(hosts);
         LOGGER.finest(() -> LogUtils.logTopology(hosts));
         return;
@@ -944,6 +958,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
             new Object[] {writerHostSpec.getHost(), latestWriterHostSpec.getHost()}));
 
         // Update the topology cache and notify all waiting threads.
+        this.monitor.updateHostsAvailability(hosts);
         this.monitor.updateTopologyCache(hosts);
         LOGGER.fine(() -> LogUtils.logTopology(hosts));
       }
