@@ -1,0 +1,186 @@
+{
+  "mcpServers": {
+    "aws-jdbc-encryption": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/davecra/projects/amazon/aws-advanced-jdbc-wrapper"],
+      "description": "AWS Advanced JDBC Wrapper with KMS Encryption - provides context for building encrypted database applications"
+    }
+  },
+  "resources": [
+    {
+      "uri": "file:///docs/DATABASE_ENCRYPTION_SETUP.md",
+      "name": "Database Encryption Setup Guide",
+      "description": "Complete guide for setting up PostgreSQL database encryption with AWS KMS"
+    },
+    {
+      "uri": "file:///docs/using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md",
+      "name": "KMS Encryption Plugin Documentation",
+      "description": "Plugin configuration and usage documentation"
+    },
+    {
+      "uri": "file:///wrapper/src/test/java/integration/container/tests/KmsEncryptionIntegrationTest.java",
+      "name": "Encryption Integration Test Example",
+      "description": "Working example of encryption setup and usage"
+    },
+    {
+      "uri": "file:///wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/",
+      "name": "Encryption Plugin Source Code",
+      "description": "Implementation reference for encryption functionality"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "setup-encrypted-database",
+      "description": "Generate SQL and Java code to set up database encryption",
+      "arguments": [
+        {
+          "name": "table_name",
+          "description": "Name of the table to encrypt",
+          "required": true
+        },
+        {
+          "name": "encrypted_columns",
+          "description": "Comma-separated list of columns to encrypt",
+          "required": true
+        },
+        {
+          "name": "kms_key_arn",
+          "description": "AWS KMS key ARN",
+          "required": true
+        },
+        {
+          "name": "metadata_schema",
+          "description": "Schema name for encryption metadata (default: encrypt)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "create-encrypted-application",
+      "description": "Generate a complete Java application with encrypted database access",
+      "arguments": [
+        {
+          "name": "application_type",
+          "description": "Type of application: spring-boot, standalone, or servlet",
+          "required": true
+        },
+        {
+          "name": "database_url",
+          "description": "PostgreSQL database URL",
+          "required": true
+        },
+        {
+          "name": "kms_key_arn",
+          "description": "AWS KMS key ARN",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "add-encryption-to-existing-column",
+      "description": "Generate migration code to add encryption to an existing column",
+      "arguments": [
+        {
+          "name": "table_name",
+          "description": "Table containing the column",
+          "required": true
+        },
+        {
+          "name": "column_name",
+          "description": "Column to encrypt",
+          "required": true
+        },
+        {
+          "name": "kms_key_arn",
+          "description": "AWS KMS key ARN",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "troubleshoot-encryption",
+      "description": "Help diagnose encryption-related issues",
+      "arguments": [
+        {
+          "name": "error_message",
+          "description": "The error message or issue description",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "generate_encryption_setup_sql",
+      "description": "Generates complete SQL script for database encryption setup",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metadata_schema": {
+            "type": "string",
+            "description": "Schema name for encryption metadata",
+            "default": "encrypt"
+          },
+          "tables": {
+            "type": "array",
+            "description": "Tables and columns to encrypt",
+            "items": {
+              "type": "object",
+              "properties": {
+                "table_name": {"type": "string"},
+                "encrypted_columns": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "required": ["tables"]
+      }
+    },
+    {
+      "name": "generate_java_encryption_code",
+      "description": "Generates Java code for encrypted database operations",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "framework": {
+            "type": "string",
+            "enum": ["spring-boot", "standalone", "hikari"],
+            "description": "Java framework to use"
+          },
+          "operations": {
+            "type": "array",
+            "description": "Database operations to generate",
+            "items": {
+              "type": "string",
+              "enum": ["insert", "select", "update", "delete"]
+            }
+          },
+          "table_name": {"type": "string"},
+          "kms_key_arn": {"type": "string"}
+        },
+        "required": ["framework", "table_name", "kms_key_arn"]
+      }
+    },
+    {
+      "name": "validate_encryption_config",
+      "description": "Validates encryption configuration and metadata setup",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "connection_properties": {
+            "type": "object",
+            "description": "JDBC connection properties to validate"
+          },
+          "metadata_schema": {
+            "type": "string",
+            "description": "Metadata schema name"
+          }
+        },
+        "required": ["connection_properties"]
+      }
+    }
+  ]
+}

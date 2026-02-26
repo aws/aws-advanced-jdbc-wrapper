@@ -1,0 +1,95 @@
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+> Task :preprocessVersion UP-TO-DATE
+> Task :compileJava NO-SOURCE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :javadoc NO-SOURCE
+> Task :aws-advanced-jdbc-wrapper:preprocessVersion UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:compileJava UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:processResources UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:classes UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:javadoc UP-TO-DATE
+> Task :benchmarks:preprocessVersion UP-TO-DATE
+> Task :benchmarks:compileJava NO-SOURCE
+> Task :benchmarks:processResources NO-SOURCE
+> Task :benchmarks:classes UP-TO-DATE
+> Task :benchmarks:javadoc NO-SOURCE
+> Task :aws-advanced-jdbc-wrapper:jar UP-TO-DATE
+> Task :dbcp:preprocessVersion UP-TO-DATE
+> Task :dbcp:compileJava UP-TO-DATE
+> Task :dbcp:processResources NO-SOURCE
+> Task :dbcp:classes UP-TO-DATE
+> Task :dbcp:javadoc UP-TO-DATE
+> Task :driverexample:preprocessVersion UP-TO-DATE
+> Task :driverexample:compileJava UP-TO-DATE
+> Task :driverexample:processResources UP-TO-DATE
+> Task :driverexample:classes UP-TO-DATE
+> Task :driverexample:javadoc UP-TO-DATE
+> Task :hibernate:preprocessVersion UP-TO-DATE
+> Task :hibernate:compileJava UP-TO-DATE
+> Task :hibernate:processResources UP-TO-DATE
+> Task :hibernate:classes UP-TO-DATE
+> Task :hibernate:javadoc UP-TO-DATE
+> Task :hikari:preprocessVersion UP-TO-DATE
+> Task :hikari:compileJava UP-TO-DATE
+> Task :hikari:processResources NO-SOURCE
+> Task :hikari:classes UP-TO-DATE
+> Task :hikari:javadoc UP-TO-DATE
+> Task :readwritesample:preprocessVersion UP-TO-DATE
+> Task :readwritesample:compileJava UP-TO-DATE
+> Task :readwritesample:processResources UP-TO-DATE
+> Task :readwritesample:classes UP-TO-DATE
+> Task :readwritesample:javadoc UP-TO-DATE
+> Task :springboothikariexample:preprocessVersion UP-TO-DATE
+> Task :springboothikariexample:compileJava UP-TO-DATE
+> Task :springboothikariexample:processResources UP-TO-DATE
+> Task :springboothikariexample:classes UP-TO-DATE
+> Task :springboothikariexample:javadoc UP-TO-DATE
+> Task :springhibernate:preprocessVersion UP-TO-DATE
+> Task :springhibernate:compileJava UP-TO-DATE
+> Task :springhibernate:processResources UP-TO-DATE
+> Task :springhibernate:classes UP-TO-DATE
+> Task :springhibernate:javadoc UP-TO-DATE
+> Task :springhibernateonedatasource:preprocessVersion UP-TO-DATE
+> Task :springhibernateonedatasource:compileJava UP-TO-DATE
+> Task :springhibernateonedatasource:processResources UP-TO-DATE
+> Task :springhibernateonedatasource:classes UP-TO-DATE
+> Task :springhibernateonedatasource:javadoc UP-TO-DATE
+> Task :springhibernatetwodatasource:preprocessVersion UP-TO-DATE
+> Task :springhibernatetwodatasource:compileJava UP-TO-DATE
+> Task :springhibernatetwodatasource:processResources UP-TO-DATE
+> Task :springhibernatetwodatasource:classes UP-TO-DATE
+> Task :springhibernatetwodatasource:javadoc UP-TO-DATE
+> Task :springtxfailover:preprocessVersion UP-TO-DATE
+> Task :springtxfailover:compileJava UP-TO-DATE
+> Task :springtxfailover:processResources UP-TO-DATE
+> Task :springtxfailover:classes UP-TO-DATE
+> Task :springtxfailover:javadoc UP-TO-DATE
+> Task :springwildfly:preprocessVersion UP-TO-DATE
+> Task :springwildfly:compileJava UP-TO-DATE
+> Task :springwildfly:processResources UP-TO-DATE
+> Task :springwildfly:classes UP-TO-DATE
+> Task :springwildfly:javadoc UP-TO-DATE
+> Task :vertxexample:preprocessVersion UP-TO-DATE
+> Task :vertxexample:compileJava UP-TO-DATE
+> Task :vertxexample:processResources NO-SOURCE
+> Task :vertxexample:classes UP-TO-DATE
+> Task :vertxexample:javadoc UP-TO-DATE
+
+[Incubating] Problems report is available at: file:///Users/davecra/projects/amazon/aws-advanced-jdbc-wrapper/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 3s
+56 actionable tasks: 56 up-to-date

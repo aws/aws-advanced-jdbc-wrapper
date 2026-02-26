@@ -1,0 +1,3 @@
+# Requirements for AWS Advanced JDBC Wrapper MCP Server
+requests>=2.25.0
+boto3>=1.18.0
