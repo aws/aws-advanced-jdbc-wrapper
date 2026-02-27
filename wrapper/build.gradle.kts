@@ -32,23 +32,29 @@ if (useJacoco) {
     apply(plugin = "org.gradle.jacoco")
 }
 
+val awsSdkVersion = "2.42.0"
+val testcontainersVersion = "1.21.4"
+val junitPlatformVersion = "1.14.3"
+val junitJupiterVersion = "5.13.1"
+val openTelemetryVersion = "1.59.0"
+
 dependencies {
 
-    optionalImplementation("software.amazon.awssdk:rds:2.42.0")
-    optionalImplementation("software.amazon.awssdk:auth:2.42.0") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:sts:2.42.0")
-    optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.0")
+    optionalImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
+    optionalImplementation("software.amazon.awssdk:auth:$awsSdkVersion") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:http-client-spi:$awsSdkVersion") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
+    optionalImplementation("software.amazon.awssdk:kms:$awsSdkVersion")
+    optionalImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.11.2")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    optionalImplementation("io.opentelemetry:opentelemetry-api:1.59.0")
-    optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
-    optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
+    optionalImplementation("io.opentelemetry:opentelemetry-api:$openTelemetryVersion")
+    optionalImplementation("io.opentelemetry:opentelemetry-sdk:$openTelemetryVersion")
+    optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:$openTelemetryVersion")
 
     compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("com.mysql:mysql-connector-j:9.4.0")
@@ -59,17 +65,17 @@ dependencies {
 
     // The following dependency will be included in federated-auth bundle jar.
     federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.42.0")
-    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.42.0")
+    federatedAuthBundleImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
+    federatedAuthBundleImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
     federatedAuthBundleImplementation("org.jsoup:jsoup:1.21.1")
 
     testImplementation("org.checkerframework:checker-qual:3.49.5")
-    testImplementation("org.junit.platform:junit-platform-commons:1.14.3")
-    testImplementation("org.junit.platform:junit-platform-engine:1.14.3")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.14.3")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:1.14.3")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.1")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.13.1")
+    testImplementation("org.junit.platform:junit-platform-commons:$junitPlatformVersion")
+    testImplementation("org.junit.platform:junit-platform-engine:$junitPlatformVersion")
+    testImplementation("org.junit.platform:junit-platform-launcher:$junitPlatformVersion")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:$junitPlatformVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitJupiterVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:$junitJupiterVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.14.0")
@@ -80,29 +86,30 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.42.0", )
-    testImplementation("software.amazon.awssdk:auth:2.42.0") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.42.0")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.42.0")
-    testImplementation("software.amazon.awssdk:sts:2.42.0")
+    testImplementation("software.amazon.awssdk:kms:$awsSdkVersion")
+    testImplementation("software.amazon.awssdk:rds:$awsSdkVersion", )
+    testImplementation("software.amazon.awssdk:auth:$awsSdkVersion") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:http-client-spi:$awsSdkVersion") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:ec2:$awsSdkVersion")
+    testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
+    testImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
     // Note: all org.testcontainers dependencies should have the same version
-    testImplementation("org.testcontainers:testcontainers:1.21.4")
-    testImplementation("org.testcontainers:mysql:1.21.4")
-    testImplementation("org.testcontainers:postgresql:1.21.4")
-    testImplementation("org.testcontainers:mariadb:1.21.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
-    testImplementation("org.testcontainers:toxiproxy:1.21.4")
+    testImplementation("org.testcontainers:testcontainers:$testcontainersVersion")
+    testImplementation("org.testcontainers:mysql:$testcontainersVersion")
+    testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
+    testImplementation("org.testcontainers:mariadb:$testcontainersVersion")
+    testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
+    testImplementation("org.testcontainers:toxiproxy:$testcontainersVersion")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    testImplementation("io.opentelemetry:opentelemetry-api:1.59.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
-    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.59.0")
-    testImplementation("org.jsoup:jsoup:1.21.1")
+    testImplementation("io.opentelemetry:opentelemetry-api:$openTelemetryVersion")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:$openTelemetryVersion")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:$openTelemetryVersion")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:$openTelemetryVersion")
+    testImplementation("org.jsoup:jsouls wrp:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
