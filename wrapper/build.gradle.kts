@@ -109,7 +109,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:$openTelemetryVersion")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:$openTelemetryVersion")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:$openTelemetryVersion")
-    testImplementation("org.jsoup:jsoup:1.21.1")
+    testImplementation("org.jsoup:jsouls wrp:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
