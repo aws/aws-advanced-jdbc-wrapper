@@ -138,7 +138,6 @@ public class BlueGreenStatusProvider {
   protected final boolean dropBlueConnectionsSetting;
   protected boolean blueConnectionsDropped = false;
 
-
   public BlueGreenStatusProvider(
       final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
