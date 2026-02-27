@@ -50,7 +50,9 @@ public class AuroraTopologyUtils extends TopologyUtils {
     while (rs.next()) {
       try {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplate);
-        hostsMap.put(host.getHost(), host);
+        // Ensure newer records replace the older ones if there are duplicated keys.
+        hostsMap.merge(host.getHost(), host, (oldValue, newValue) -> 
+            oldValue.getLastUpdateTime().before(newValue.getLastUpdateTime()) ? newValue : oldValue);
       } catch (Exception e) {
         LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
