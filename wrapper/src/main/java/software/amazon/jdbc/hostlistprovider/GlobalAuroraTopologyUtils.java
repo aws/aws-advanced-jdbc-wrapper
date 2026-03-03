@@ -85,7 +85,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
   protected @Nullable List<HostSpec> getHosts(
       ResultSet rs, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion) throws SQLException {
     // Data in the result set is ordered by last update time, so the latest records are last.
-    // We add hosts to a map to ensure newer records are not overwritten by older ones.
+    // We add hosts to a map to ensure newer records replace the older ones.
     Map<String, HostSpec> hostsMap = new HashMap<>();
     while (rs.next()) {
       try {

@@ -45,12 +45,14 @@ public class AuroraTopologyUtils extends TopologyUtils {
   protected @Nullable List<HostSpec> getHosts(
       Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate) throws SQLException {
     // Data in the result set is ordered by last update time, so the latest records are last.
-    // We add hosts to a map to ensure newer records are not overwritten by older ones.
+    // We add hosts to a map to ensure newer records replace the older ones.
     Map<String, HostSpec> hostsMap = new HashMap<>();
     while (rs.next()) {
       try {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplate);
-        hostsMap.put(host.getHost(), host);
+        // Ensure newer records replace the older ones if there are duplicated keys.
+        hostsMap.merge(host.getHost(), host, (oldValue, newValue) -> 
+            oldValue.getLastUpdateTime().before(newValue.getLastUpdateTime()) ? newValue : oldValue);
       } catch (Exception e) {
         LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
