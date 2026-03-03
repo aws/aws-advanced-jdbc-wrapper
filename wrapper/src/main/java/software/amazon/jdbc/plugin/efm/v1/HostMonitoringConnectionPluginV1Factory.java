@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm;
+package software.amazon.jdbc.plugin.efm.v1;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class HostMonitoringConnectionPluginFactory implements ConnectionPluginFactory {
+public class HostMonitoringConnectionPluginV1Factory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new HostMonitoringConnectionPlugin(servicesContainer.getPluginService(), props);
+    return new HostMonitoringConnectionPluginV1(servicesContainer, props);
   }
 }

@@ -41,7 +41,6 @@ import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.plugin.federatedauth.AuthCacheHolder;
 import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
@@ -455,7 +454,6 @@ public class Driver implements java.sql.Driver {
 
   public static void releaseResources() {
     CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
-    HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
     InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();

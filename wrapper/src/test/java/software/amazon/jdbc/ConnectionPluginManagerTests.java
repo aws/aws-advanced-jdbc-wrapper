@@ -56,7 +56,7 @@ import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
-import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -571,7 +571,7 @@ public class ConnectionPluginManagerTests {
     assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(1).getClass());
     assertEquals(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class,
         target.plugins.get(2).getClass());
-    assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(3).getClass());
+    assertEquals(HostMonitoringConnectionPluginV2.class, target.plugins.get(3).getClass());
     assertEquals(DefaultConnectionPlugin.class, target.plugins.get(4).getClass());
   }
 

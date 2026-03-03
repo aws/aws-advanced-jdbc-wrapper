@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm;
+package software.amazon.jdbc.plugin.efm.v1;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -61,13 +61,15 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.plugin.efm.base.HostMonitorService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ResourceLock;
 
-class HostMonitoringConnectionPluginTest {
+class HostMonitoringConnectionPluginV1Test {
 
   static final Class<Connection> MONITOR_METHOD_INVOKE_ON = Connection.class;
   static final String MONITOR_METHOD_NAME = JdbcMethod.STATEMENT_EXECUTEQUERY.methodName;
@@ -77,6 +79,7 @@ class HostMonitoringConnectionPluginTest {
   static final int FAILURE_DETECTION_COUNT = 5;
   private static final Object[] EMPTY_ARGS = {};
   @Mock PluginService pluginService;
+  @Mock FullServicesContainer servicesContainer;
   @Mock Dialect mockDialect;
   @Mock Connection connection;
   @Mock Statement statement;
@@ -87,18 +90,18 @@ class HostMonitoringConnectionPluginTest {
   @Mock HostSpec hostSpec2;
   @Mock Supplier<HostMonitorService> supplier;
   @Mock RdsUtils rdsUtils;
-  @Mock HostMonitorConnectionContext context;
+  @Mock HostMonitorConnectionContextV1 context;
   @Mock ResourceLock mockResourceLock;
   @Mock HostMonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
   @Mock TargetDriverDialect targetDriverDialect;
 
-  private HostMonitoringConnectionPlugin plugin;
+  private HostMonitoringConnectionPluginV1 plugin;
   private AutoCloseable closeable;
 
   /**
    * Generate different sets of method arguments where one argument is null to ensure {@link
-   * software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin#HostMonitoringConnectionPlugin(PluginService,
+   * HostMonitoringConnectionPlugin#HostMonitoringConnectionPlugin(PluginService,
    * Properties)} can handle null arguments correctly.
    *
    * @return different sets of arguments.
@@ -129,12 +132,8 @@ class HostMonitoringConnectionPluginTest {
     when(supplier.get()).thenReturn(monitorService);
     when(monitorService.startMonitoring(
             any(Connection.class),
-            anySet(),
             any(HostSpec.class),
-            any(Properties.class),
-            anyInt(),
-            anyInt(),
-            anyInt()))
+            any(Properties.class)))
         .thenReturn(context);
     when(context.getLock()).thenReturn(mockResourceLock);
 
@@ -142,6 +141,7 @@ class HostMonitoringConnectionPluginTest {
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(pluginService.getDialect()).thenReturn(mockDialect);
     when(pluginService.getTargetDriverDialect()).thenReturn(targetDriverDialect);
+    when(servicesContainer.getPluginService()).thenReturn(pluginService);
     when(targetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(
         new HashSet<>(Collections.singletonList(MONITOR_METHOD_NAME)));
     when(mockDialect.getHostAliasQuery()).thenReturn("any");
@@ -162,7 +162,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsUtils);
+    plugin = new HostMonitoringConnectionPluginV1(servicesContainer, properties, supplier, rdsUtils);
   }
 
   @Test
@@ -181,7 +181,7 @@ class HostMonitoringConnectionPluginTest {
 
     verify(supplier, never()).get();
     verify(monitorService, never())
-        .startMonitoring(any(), any(), any(), any(), anyInt(), anyInt(), anyInt());
+        .startMonitoring(any(), any(), any());
     verify(monitorService, never()).stopMonitoring(context);
     verify(sqlFunction, times(1)).call();
   }
@@ -201,7 +201,7 @@ class HostMonitoringConnectionPluginTest {
 
     verify(supplier, atMostOnce()).get();
     verify(monitorService, never())
-        .startMonitoring(any(), any(), any(), any(), anyInt(), anyInt(), anyInt());
+        .startMonitoring(any(), any(), any());
     verify(monitorService, never()).stopMonitoring(context);
     verify(sqlFunction, times(1)).call();
   }
@@ -221,58 +221,9 @@ class HostMonitoringConnectionPluginTest {
 
     verify(supplier, times(1)).get();
     verify(monitorService, times(1))
-        .startMonitoring(any(), any(), any(), any(), anyInt(), anyInt(), anyInt());
+        .startMonitoring(any(), any(), any());
     verify(monitorService, times(1)).stopMonitoring(context);
     verify(sqlFunction, times(1)).call();
-  }
-
-  /**
-   * Tests exception being thrown in the finally block when checking connection status in the execute method.
-   */
-  @Test
-  void test_executeCleanUp_whenCheckingConnectionStatus_throwsException() throws SQLException {
-    initializePlugin();
-
-    final SQLException expectedException = new SQLException("exception thrown during isClosed");
-    when(context.isNodeUnhealthy()).thenReturn(true);
-    doThrow(expectedException).when(connection).isClosed();
-    final SQLException actualException = assertThrows(SQLException.class, () -> plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        MONITOR_METHOD_INVOKE_ON,
-        MONITOR_METHOD_NAME,
-        sqlFunction,
-        EMPTY_ARGS));
-
-    assertEquals(expectedException, actualException);
-  }
-
-  /**
-   * Tests exception being thrown in the finally block
-   * when an open connection object is detected for an unavailable node in the execute method.
-   */
-  @Test
-  void test_executeCleanUp_whenAbortConnection_throwsException() throws SQLException {
-    initializePlugin();
-
-    final String errorMessage = Messages.get(
-        "HostMonitoringConnectionPlugin.unavailableNode",
-        new Object[] {"alias"});
-
-    when(hostSpec.asAlias()).thenReturn("alias");
-    when(connection.isClosed()).thenReturn(false);
-    when(context.isNodeUnhealthy()).thenReturn(true);
-    final SQLException actualException = assertThrows(SQLException.class, () -> plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        MONITOR_METHOD_INVOKE_ON,
-        MONITOR_METHOD_NAME,
-        sqlFunction,
-        EMPTY_ARGS));
-
-    assertEquals(errorMessage, actualException.getMessage());
-    verify(pluginService).setAvailability(any(), eq(HostAvailability.NOT_AVAILABLE));
-    verify(connection).close();
   }
 
   @Test
@@ -286,42 +237,12 @@ class HostMonitoringConnectionPluginTest {
     assertNotNull(conn);
   }
 
-  @ParameterizedTest
-  @MethodSource("nodeChangeOptions")
-  void test_notifyConnectionChanged_nodeWentDown(final NodeChangeOptions option) throws SQLException {
-    initializePlugin();
-    plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        MONITOR_METHOD_INVOKE_ON,
-        MONITOR_METHOD_NAME,
-        sqlFunction,
-        EMPTY_ARGS);
-
-    final Set<String> aliases1 = new HashSet<>(Arrays.asList("alias1", "alias2"));
-    final Set<String> aliases2 = new HashSet<>(Arrays.asList("alias3", "alias4"));
-    when(hostSpec.asAliases()).thenReturn(aliases1);
-    when(hostSpec2.asAliases()).thenReturn(aliases2);
-    when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
-
-    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
-    // NodeKeys should contain {"alias1", "alias2"}
-    verify(monitorService).stopMonitoringForAllConnections(aliases1);
-
-    when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec2);
-    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
-    // NotifyConnectionChanged should reset the monitoringHostSpec.
-    // NodeKeys should contain {"alias3", "alias4"}
-    verify(monitorService).stopMonitoringForAllConnections(aliases2);
-  }
-
   @Test
   void test_releaseResources() throws SQLException {
     initializePlugin();
 
     // Test releaseResources when the monitor service has not been initialized.
     plugin.releaseResources();
-    verify(monitorService, never()).releaseResources();
 
     // Test releaseResources when the monitor service has been initialized.
     plugin.execute(
@@ -332,13 +253,5 @@ class HostMonitoringConnectionPluginTest {
         sqlFunction,
         EMPTY_ARGS);
     plugin.releaseResources();
-    verify(monitorService).releaseResources();
-  }
-
-  static Stream<Arguments> nodeChangeOptions() {
-    return Stream.of(
-        Arguments.of(NodeChangeOptions.WENT_DOWN),
-        Arguments.of(NodeChangeOptions.NODE_DELETED)
-    );
   }
 }

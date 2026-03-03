@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm2;
+package software.amazon.jdbc.plugin.efm.base;
 
 import software.amazon.jdbc.util.events.EventSubscriber;
+import software.amazon.jdbc.util.monitoring.Monitor;
 
 /**
  * Interface for monitors. This class uses background threads to monitor servers with one or more
  * connections for more efficient failure detection during method execution.
  */
-public interface HostMonitor extends AutoCloseable, Runnable, EventSubscriber {
+public interface HostMonitor extends AutoCloseable, Monitor, Runnable, EventSubscriber {
 
   void startMonitoring(HostMonitorConnectionContext context);
-
-  boolean canDispose();
 }
