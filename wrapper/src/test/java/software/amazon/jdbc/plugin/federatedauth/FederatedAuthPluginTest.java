@@ -86,7 +86,7 @@ class FederatedAuthPluginTest {
     props = new Properties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "federatedAuth");
     props.setProperty(FederatedAuthPlugin.DB_USER.name, DB_USER);
-    FederatedAuthPlugin.clearCache();
+    BaseSamlAuthPlugin.clearCache();
 
     when(mockRdsUtils.getRdsRegion(anyString())).thenReturn("us-east-2");
     when(mockIamTokenUtils.generateAuthenticationToken(
@@ -117,7 +117,7 @@ class FederatedAuthPluginTest {
         new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory);
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
+    AuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -134,7 +134,7 @@ class FederatedAuthPluginTest {
     String someExpiredToken = "someExpiredToken";
     TokenInfo expiredTokenInfo = new TokenInfo(
         someExpiredToken, Instant.now().minusMillis(300000));
-    FederatedAuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
+    AuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
@@ -173,7 +173,7 @@ class FederatedAuthPluginTest {
     props.setProperty(FederatedAuthPlugin.IAM_REGION.name, expectedRegion.toString());
 
     final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
-    FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
+    AuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     FederatedAuthPlugin plugin =
         new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
@@ -195,7 +195,7 @@ class FederatedAuthPluginTest {
         new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
+    AuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
