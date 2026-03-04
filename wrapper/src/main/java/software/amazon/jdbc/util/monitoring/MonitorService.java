@@ -72,7 +72,7 @@ public interface MonitorService extends StateSnapshotProvider {
    */
   <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
-      Object key,
+      String key,
       FullServicesContainer servicesContainer,
       Properties originalProps,
       MonitorInitializer initializer) throws SQLException;
@@ -101,7 +101,7 @@ public interface MonitorService extends StateSnapshotProvider {
    */
   <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
-      Object key,
+      String key,
       StorageService storageService,
       EventPublisher eventPublisher,
       TelemetryFactory telemetryFactory,
@@ -122,7 +122,7 @@ public interface MonitorService extends StateSnapshotProvider {
    * @return the monitor stored at the given key.
    */
   @Nullable
-  <T extends Monitor> T get(Class<T> monitorClass, @NonNull Object key);
+  <T extends Monitor> T get(Class<T> monitorClass, @NonNull String key);
 
   /**
    * Removes the monitor stored at the given key. If the expected monitor class does not match the actual monitor class
@@ -135,7 +135,7 @@ public interface MonitorService extends StateSnapshotProvider {
    *     class did not match the actual monitor class.
    */
   @Nullable
-  <T extends Monitor> T remove(Class<T> monitorClass, Object key);
+  <T extends Monitor> T remove(Class<T> monitorClass, String key);
 
   /**
    * Stops the given monitor and removes it from the monitor service.
@@ -145,7 +145,7 @@ public interface MonitorService extends StateSnapshotProvider {
    *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @param <T>          the type of the monitor.
    */
-  <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key);
+  <T extends Monitor> void stopAndRemove(Class<T> monitorClass, String key);
 
   /**
    * Stops all monitors for the given type and removes them from the monitor service.

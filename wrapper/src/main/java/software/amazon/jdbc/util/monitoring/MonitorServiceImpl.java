@@ -59,21 +59,21 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
-  protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer>> defaultSuppliers;
+  protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer<String>>> defaultSuppliers;
 
   static {
-    Map<Class<? extends Monitor>, Supplier<CacheContainer>> suppliers = new HashMap<>();
+    Map<Class<? extends Monitor>, Supplier<CacheContainer<String>>> suppliers = new HashMap<>();
     EnumSet<MonitorErrorResponse> recreateOnError = EnumSet.of(MonitorErrorResponse.RECREATE);
     MonitorSettings defaultSettings = new MonitorSettings(
         TimeUnit.MINUTES.toNanos(15), TimeUnit.MINUTES.toNanos(3), recreateOnError);
 
-    suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
-    suppliers.put(NodeResponseTimeMonitor.class, () -> new CacheContainer(defaultSettings, null));
+    suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer<>(defaultSettings, Topology.class));
+    suppliers.put(NodeResponseTimeMonitor.class, () -> new CacheContainer<>(defaultSettings, null));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
   protected final EventPublisher publisher;
-  protected final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
+  protected final Map<Class<? extends Monitor>, CacheContainer<String>> monitorCaches = new ConcurrentHashMap<>();
   protected final ScheduledExecutorService cleanupExecutor =
       ExecutorFactory.newSingleThreadScheduledThreadExecutor("msi");
 
@@ -104,11 +104,11 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   protected void checkMonitors() {
     LOGGER.finest(Messages.get("MonitorServiceImpl.checkingMonitors"));
-    for (CacheContainer container : monitorCaches.values()) {
-      ExternallyManagedCache<Object, MonitorItem> cache = container.getCache();
+    for (CacheContainer<String> container : monitorCaches.values()) {
+      final ExternallyManagedCache<String, MonitorItem> cache = container.getCache();
       // Note: the map returned by getEntries is a copy of the ExternallyManagedCache map
-      for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
-        Object key = entry.getKey();
+      for (Map.Entry<String, MonitorItem> entry : cache.getEntries().entrySet()) {
+        final String key = entry.getKey();
         MonitorItem removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.STOPPED);
         if (removedItem != null) {
           removedItem.getMonitor().stop();
@@ -173,7 +173,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       @Nullable Class<?> producedDataClass) {
     monitorCaches.computeIfAbsent(
         monitorClass,
-        mc -> new CacheContainer(
+        mc -> new CacheContainer<>(
             new MonitorSettings(expirationTimeoutNanos, heartbeatTimeoutNanos, errorResponses),
             producedDataClass));
   }
@@ -181,7 +181,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   @Override
   public <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
-      Object key,
+      String key,
       FullServicesContainer servicesContainer,
       Properties originalProps,
       MonitorInitializer initializer) throws SQLException {
@@ -204,7 +204,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   @Override
   public <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
-      Object key,
+      String key,
       StorageService storageService,
       EventPublisher eventPublisher,
       TelemetryFactory telemetryFactory,
@@ -215,9 +215,9 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Dialect dbDialect,
       Properties originalProps,
       MonitorInitializer initializer) throws SQLException {
-    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+    CacheContainer<String> cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
-      Supplier<CacheContainer> supplier = defaultSuppliers.get(monitorClass);
+      Supplier<CacheContainer<String>> supplier = defaultSuppliers.get(monitorClass);
       if (supplier == null) {
         throw new IllegalStateException(
             Messages.get("MonitorServiceImpl.monitorTypeNotRegistered", new Object[] {monitorClass}));
@@ -289,8 +289,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, @NonNull Object key) {
-    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, @NonNull String key) {
+    CacheContainer<String> cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       return null;
     }
@@ -313,8 +313,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public <T extends Monitor> T remove(Class<T> monitorClass, Object key) {
-    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+  public <T extends Monitor> T remove(Class<T> monitorClass, String key) {
+    CacheContainer<String> cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       return null;
     }
@@ -329,8 +329,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key) {
-    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+  public <T extends Monitor> void stopAndRemove(Class<T> monitorClass, String key) {
+    CacheContainer<String> cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       LOGGER.fine(Messages.get("MonitorServiceImpl.stopAndRemoveMissingMonitorType", new Object[] {monitorClass, key}));
       return;
@@ -344,14 +344,14 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   @Override
   public <T extends Monitor> void stopAndRemoveMonitors(Class<T> monitorClass) {
-    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+    CacheContainer<String> cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       LOGGER.fine(Messages.get("MonitorServiceImpl.stopAndRemoveMonitorsMissingType", new Object[] {monitorClass}));
       return;
     }
 
-    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
-    for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
+    ExternallyManagedCache<String, MonitorItem> cache = cacheContainer.getCache();
+    for (Map.Entry<String, MonitorItem> entry : cache.getEntries().entrySet()) {
       MonitorItem monitorItem = cache.remove(entry.getKey());
       if (monitorItem != null) {
         monitorItem.getMonitor().stop();
@@ -375,8 +375,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   @Override
   public void processEvent(Event event) {
     if (event instanceof DataAccessEvent) {
-      DataAccessEvent accessEvent = (DataAccessEvent) event;
-      for (CacheContainer container : this.monitorCaches.values()) {
+      DataAccessEvent<String> accessEvent = (DataAccessEvent<String>) event;
+      for (CacheContainer<String> container : this.monitorCaches.values()) {
         if (container.getProducedDataClass() == null
             || !accessEvent.getDataClass().equals(container.getProducedDataClass())) {
           continue;
@@ -390,13 +390,13 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     }
 
     if (event instanceof MonitorStopEvent) {
-      MonitorStopEvent stopEvent = (MonitorStopEvent) event;
+      MonitorStopEvent<String> stopEvent = (MonitorStopEvent<String>) event;
       this.stopAndRemove(stopEvent.getMonitorClass(), stopEvent.getKey());
       return;
     }
 
     // Other event types should be propagated to monitors
-    for (CacheContainer container : this.monitorCaches.values()) {
+    for (CacheContainer<String> container : this.monitorCaches.values()) {
       for (MonitorItem item : container.getCache().getEntries().values()) {
         final Monitor monitor = item.getMonitor();
         if (monitor instanceof EventSubscriber) {
@@ -427,9 +427,9 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   /**
    * A container that holds a cache of monitors of a given type with the related settings and info for that type.
    */
-  protected static class CacheContainer {
+  protected static class CacheContainer<K> {
     private @NonNull final MonitorSettings settings;
-    private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
+    private @NonNull final ExternallyManagedCache<K, MonitorItem> cache;
     private @Nullable final Class<?> producedDataClass;
 
     /**
@@ -449,7 +449,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       return settings;
     }
 
-    public @NonNull ExternallyManagedCache<Object, MonitorItem> getCache() {
+    public @NonNull ExternallyManagedCache<K, MonitorItem> getCache() {
       return cache;
     }
 

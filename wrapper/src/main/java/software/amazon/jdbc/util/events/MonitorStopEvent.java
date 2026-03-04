@@ -20,12 +20,12 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.util.monitoring.Monitor;
 
-public class MonitorStopEvent implements Event {
+public class MonitorStopEvent<K> implements Event {
 
   protected final @NonNull Class<? extends Monitor> monitorClass;
-  protected final @NonNull Object key;
+  protected final @NonNull K key;
 
-  public MonitorStopEvent(@NonNull Class<? extends Monitor> monitorClass, @NonNull Object key) {
+  public MonitorStopEvent(@NonNull Class<? extends Monitor> monitorClass, @NonNull K key) {
     this.monitorClass = monitorClass;
     this.key = key;
   }
@@ -34,7 +34,7 @@ public class MonitorStopEvent implements Event {
     return monitorClass;
   }
 
-  public @NonNull Object getKey() {
+  public @NonNull K getKey() {
     return key;
   }
 
@@ -52,18 +52,14 @@ public class MonitorStopEvent implements Event {
       return false;
     }
 
-    MonitorStopEvent event = (MonitorStopEvent) obj;
+    MonitorStopEvent<K> event = (MonitorStopEvent<K>) obj;
     return Objects.equals(this.monitorClass, event.monitorClass)
         && Objects.equals(this.key, event.key);
   }
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + this.monitorClass.hashCode();
-    result = prime * result + this.key.hashCode();
-    return result;
+    return Objects.hash(monitorClass, key);
   }
 
   @Override
