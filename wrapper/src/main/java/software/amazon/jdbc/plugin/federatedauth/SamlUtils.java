@@ -33,10 +33,6 @@ public class SamlUtils {
 
   final RdsUtils rdsUtils;
 
-  public SamlUtils(final PluginService pluginService) {
-    this(new RdsUtils());
-  }
-
   SamlUtils(final RdsUtils rdsUtils) {
     this.rdsUtils = rdsUtils;
   }

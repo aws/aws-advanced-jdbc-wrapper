@@ -16,40 +16,16 @@
 
 package software.amazon.jdbc.plugin.federatedauth;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Properties;
-import java.util.Set;
-import java.util.logging.Logger;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
-import software.amazon.jdbc.util.GDBRegionUtils;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.RegionUtils;
-import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.telemetry.TelemetryCounter;
-import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
-public class OktaAuthPlugin extends AbstractConnectionPlugin {
+public class OktaAuthPlugin extends BaseSamlAuthPlugin {
 
-  private final CredentialsProviderFactory credentialsProviderFactory;
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
   private static final int DEFAULT_HTTP_TIMEOUT_MILLIS = 60000;
 
@@ -61,7 +37,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty("iamRoleArn", null, "The ARN of the IAM Role that is to be assumed.");
   public static final AwsWrapperProperty IAM_IDP_ARN =
       new AwsWrapperProperty("iamIdpArn", null, "The ARN of the Identity Provider");
-  public static final AwsWrapperProperty IAM_REGION = new AwsWrapperProperty("iamRegion", null,
+  public static final AwsWrapperProperty IAM_REGION = new AwsWrapperProperty(BaseSamlAuthPlugin.IAM_REGION_NAME, null,
       "Overrides AWS region that is used to generate the IAM token");
   public static final AwsWrapperProperty IAM_TOKEN_EXPIRATION = new AwsWrapperProperty("iamTokenExpiration",
       String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC), "IAM token cache expiration in seconds");
@@ -85,18 +61,6 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty DB_USER =
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
 
-  private static final Logger LOGGER = Logger.getLogger(OktaAuthPlugin.class.getName());
-  protected RegionUtils regionUtils;
-
-  protected final PluginService pluginService;
-
-  protected final RdsUtils rdsUtils;
-  protected final SamlUtils samlUtils;
-  private final IamTokenUtility iamTokenUtility;
-  private final TelemetryFactory telemetryFactory;
-  private final TelemetryGauge cacheSizeGauge;
-  private final TelemetryCounter fetchTokenCounter;
-
   public OktaAuthPlugin(PluginService pluginService, CredentialsProviderFactory credentialsProviderFactory) {
     this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
   }
@@ -106,158 +70,50 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
       final CredentialsProviderFactory credentialsProviderFactory,
       final RdsUtils rdsUtils,
       final IamTokenUtility tokenUtils) {
+    super(pluginService, credentialsProviderFactory, rdsUtils, tokenUtils);
     try {
       Class.forName("software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
       Class.forName("org.jsoup.nodes.Document");
     } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("OktaAuthPlugin.requiredDependenciesMissing"));
     }
-
-    this.pluginService = pluginService;
-    this.credentialsProviderFactory = credentialsProviderFactory;
-    this.rdsUtils = rdsUtils;
-    this.samlUtils = new SamlUtils(this.rdsUtils);
-    this.iamTokenUtility = tokenUtils;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.cacheSizeGauge = this.telemetryFactory.createGauge("oktaAuth.tokenCache.size",
-        () -> (long) OktaAuthCacheHolder.tokenCache.size());
+        () -> (long) AuthCacheHolder.tokenCache.size());
     this.fetchTokenCounter = this.telemetryFactory.createCounter("oktaAuth.fetchToken.count");
   }
 
   @Override
-  public Set<String> getSubscribedMethods() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        add("connect");
-        add("forceConnect");
-      }
-    });
+  String getDbUserProperty(Properties props) {
+    return DB_USER.getString(props);
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(hostSpec, props, connectFunc);
+  String getIamHostProperty(Properties props) {
+    return IAM_HOST.getString(props);
   }
 
   @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-    return connectInternal(hostSpec, props, forceConnectFunc);
-  }
-
-  private Connection connectInternal(final HostSpec hostSpec, final Properties props,
-      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-
-    this.samlUtils.checkIdpCredentialsWithFallback(IDP_USERNAME, IDP_PASSWORD, props);
-
-    final HostSpec host = IamAuthUtils.getIamHost(IAM_HOST.getString(props), hostSpec);
-
-    final int port = IamAuthUtils.getIamPort(
-        IAM_DEFAULT_PORT.getInteger(props),
-        hostSpec,
-        this.pluginService.getDialect().getDefaultPort());
-
-    final RdsUrlType type = rdsUtils.identifyRdsType(host.getHost());
-
-    AwsCredentialsProvider credentialsProvider = null;
-    if (RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER == type) {
-      credentialsProvider =
-          this.credentialsProviderFactory.getAwsCredentialsProvider(hostSpec.getHost(), null, props);
-      this.regionUtils = new GDBRegionUtils(credentialsProvider);
-    } else {
-      this.regionUtils = new RegionUtils();
-    }
-
-    final Region region = this.regionUtils.getRegion(host, props, IAM_REGION.name);
-    if (region == null) {
-      throw new SQLException(
-          Messages.get("OktaAuthPlugin.unableToDetermineRegion", new Object[] {IAM_REGION.name}));
-    }
-
-    final String cacheKey = IamAuthUtils.getCacheKey(
-        DB_USER.getString(props),
-        host.getHost(),
-        port,
-        region);
-
-    final TokenInfo tokenInfo = OktaAuthCacheHolder.tokenCache.get(cacheKey);
-
-    final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
-
-    if (isCachedToken) {
-      LOGGER.finest(
-          () -> Messages.get(
-              "AuthenticationToken.useCachedToken",
-              new Object[] {tokenInfo.getToken()}));
-      PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
-    } else {
-      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost(), credentialsProvider);
-    }
-
-    PropertyDefinition.USER.set(props, DB_USER.getString(props));
-
+  int getIamPortProperty(Properties props) {
     try {
-      return connectFunc.call();
-    } catch (final SQLException exception) {
-      if (!isCachedToken
-          || !this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())) {
-        throw exception;
-      }
-      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost(), credentialsProvider);
-      return connectFunc.call();
-    } catch (final Exception exception) {
-      LOGGER.warning(
-          () -> Messages.get(
-              "SamlAuthPlugin.unhandledException",
-              new Object[] {exception}));
-      throw new SQLException(exception);
+      return IAM_DEFAULT_PORT.getInteger(props);
+    } catch (NumberFormatException e) {
+      // Return 0 if IAM_DEFAULT_PORT returns null or an empty string.
+      return 0;
     }
   }
 
-  private void updateAuthenticationToken(
-      final HostSpec hostSpec,
-      final Properties props,
-      final Region region,
-      final String cacheKey,
-      final String host,
-      AwsCredentialsProvider credentialsProvider)
-      throws SQLException {
-    final int tokenExpirationSec = IAM_TOKEN_EXPIRATION.getInteger(props);
-    final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
-    final int port = IamAuthUtils.getIamPort(
-        StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props)) ? 0 : IAM_DEFAULT_PORT.getInteger(props),
-        hostSpec,
-        this.pluginService.getDialect().getDefaultPort());
-    if (credentialsProvider == null) {
-      // Assume a role early so we can use this credential to fetch region information.
-      credentialsProvider = this.credentialsProviderFactory.getAwsCredentialsProvider(hostSpec.getHost(), region,
-          props);
+  @Override
+  int getIamTokenExpiration(Properties props) {
+    try {
+      return IAM_TOKEN_EXPIRATION.getInteger(props);
+    } catch (NumberFormatException e) {
+      // Return 0 if IAM_DEFAULT_PORT returns null or an empty string.
+      return DEFAULT_TOKEN_EXPIRATION_SEC;
     }
-
-    if (this.fetchTokenCounter != null) {
-      this.fetchTokenCounter.inc();
-    }
-    final String token = IamAuthUtils.generateAuthenticationToken(
-        this.iamTokenUtility,
-        this.pluginService,
-        DB_USER.getString(props),
-        host,
-        port,
-        region,
-        credentialsProvider);
-    LOGGER.finest(
-        () -> Messages.get(
-            "AuthenticationToken.generatedNewToken",
-            new Object[] {token}));
-    PropertyDefinition.PASSWORD.set(props, token);
-    OktaAuthCacheHolder.tokenCache.put(
-        cacheKey,
-        new TokenInfo(token, tokenExpiry));
   }
 
-  public static void clearCache() {
-    OktaAuthCacheHolder.clearCache();
+  @Override
+  void checkIdpCredentialsWithFallback(Properties props) {
+    this.samlUtils.checkIdpCredentialsWithFallback(IDP_USERNAME, IDP_PASSWORD, props);
   }
 }

@@ -84,7 +84,7 @@ public abstract class TopologyUtils {
 
       return this.verifyWriter(this.getHosts(conn, rs, initialHostSpec, instanceTemplate));
     } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
+      throw new SQLException(Messages.get("TopologyUtils.invalidQuery", new Object[] { e.getMessage() }), e);
     } finally {
       if (timeoutChanged && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, originalNetworkTimeout);

@@ -88,8 +88,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected String bgdId;
   protected String clusterId;
 
-  protected boolean isIamInUse = false;
-
   protected final AtomicLong startTimeNano = new AtomicLong(0);
   protected final AtomicLong endTimeNano = new AtomicLong(0);
 
@@ -173,10 +171,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
       if (this.bgStatus == null) {
         return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
-      }
-
-      if (isInitialConnection) {
-        this.isIamInUse = this.pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
       }
 
       BlueGreenRole hostRole = this.bgStatus.getRole(hostSpec);

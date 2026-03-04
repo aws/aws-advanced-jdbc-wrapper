@@ -34,11 +34,11 @@ if (useJacoco) {
 
 dependencies {
 
-    optionalImplementation("software.amazon.awssdk:rds:2.42.0")
-    optionalImplementation("software.amazon.awssdk:auth:2.42.0") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:sts:2.42.0")
-    optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.0")
+    optionalImplementation("software.amazon.awssdk:rds:2.42.4")
+    optionalImplementation("software.amazon.awssdk:auth:2.42.4") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.4") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:sts:2.42.4")
+    optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.4")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.11.2")
@@ -51,7 +51,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
 
     compileOnly("org.checkerframework:checker-qual:3.49.5")
-    compileOnly("com.mysql:mysql-connector-j:9.4.0")
+    compileOnly("com.mysql:mysql-connector-j:9.6.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
@@ -59,8 +59,8 @@ dependencies {
 
     // The following dependency will be included in federated-auth bundle jar.
     federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.42.0")
-    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.42.0")
+    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.42.4")
+    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.42.4")
     federatedAuthBundleImplementation("org.jsoup:jsoup:1.21.1")
 
     testImplementation("org.checkerframework:checker-qual:3.49.5")
@@ -74,18 +74,18 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.14.0")
     testImplementation("org.postgresql:postgresql:42.7.7")
-    testImplementation("com.mysql:mysql-connector-j:9.4.0")
+    testImplementation("com.mysql:mysql-connector-j:9.6.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.42.0", )
-    testImplementation("software.amazon.awssdk:auth:2.42.0") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.42.0")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.42.0")
-    testImplementation("software.amazon.awssdk:sts:2.42.0")
+    testImplementation("software.amazon.awssdk:rds:2.42.4", )
+    testImplementation("software.amazon.awssdk:auth:2.42.4") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:http-client-spi:2.42.4") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:ec2:2.42.4")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.42.4")
+    testImplementation("software.amazon.awssdk:sts:2.42.4")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.21.4")
     testImplementation("org.testcontainers:mysql:1.21.4")
@@ -93,7 +93,7 @@ dependencies {
     testImplementation("org.testcontainers:mariadb:1.21.4")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4")
     testImplementation("org.testcontainers:toxiproxy:1.21.4")
-    testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
+    testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.11")
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
