@@ -89,7 +89,7 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
 
     this.servicesContainer.getStorageService().registerItemClassIfAbsent(
         TokenInfo.class,
-        true,
+        false,
         DISPOSAL_TIME_NANO,
         null,
         null
