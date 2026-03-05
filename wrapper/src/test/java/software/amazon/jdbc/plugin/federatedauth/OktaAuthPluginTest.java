@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,7 +47,9 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -64,6 +67,8 @@ class OktaAuthPluginTest {
   private static final String TEST_TOKEN = "someTestToken";
   private static final TokenInfo TEST_TOKEN_INFO = new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000));
   @Mock private PluginService mockPluginService;
+  @Mock private FullServicesContainer mockServicesContainer;
+  @Mock private StorageService mockStorageService;
   @Mock private Dialect mockDialect;
   @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock private TelemetryFactory mockTelemetryFactory;
@@ -99,6 +104,8 @@ class OktaAuthPluginTest {
     when(mockTelemetryFactory.openTelemetryContext(any(), any())).thenReturn(mockTelemetryContext);
     when(mockCredentialsProviderFactory.getAwsCredentialsProvider(any(), any(), any()))
         .thenReturn(mockAwsCredentialsProvider);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
   }
 
   @AfterEach
@@ -109,10 +116,10 @@ class OktaAuthPluginTest {
   @Test
   void testCachedToken() throws SQLException {
     final OktaAuthPlugin plugin =
-        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    AuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
+    when(mockStorageService.get(eq(TokenInfo.class), eq(key))).thenReturn(TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -123,13 +130,13 @@ class OktaAuthPluginTest {
   @Test
   void testExpiredCachedToken() throws SQLException {
     final OktaAuthPlugin spyPlugin =
-        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     final String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     final String someExpiredToken = "someExpiredToken";
     final TokenInfo expiredTokenInfo = new TokenInfo(
         someExpiredToken, Instant.now().minusMillis(300000));
-    AuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
+    when(mockStorageService.get(eq(TokenInfo.class), eq(key))).thenReturn(expiredTokenInfo);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
@@ -144,7 +151,7 @@ class OktaAuthPluginTest {
   @Test
   void testNoCachedToken() throws SQLException {
     final OktaAuthPlugin spyPlugin =
-        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(
@@ -168,10 +175,10 @@ class OktaAuthPluginTest {
     props.setProperty(OktaAuthPlugin.IAM_REGION.name, expectedRegion.toString());
 
     final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
-    AuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
+    when(mockStorageService.get(eq(TokenInfo.class), eq(key))).thenReturn(TEST_TOKEN_INFO);
 
     OktaAuthPlugin plugin =
-        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -187,10 +194,10 @@ class OktaAuthPluginTest {
     PropertyDefinition.PASSWORD.set(props, expectedPassword);
 
     final OktaAuthPlugin plugin =
-        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     final String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    AuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
+    when(mockStorageService.get(eq(TokenInfo.class), eq(key))).thenReturn(TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -204,7 +211,7 @@ class OktaAuthPluginTest {
   public void testUsingIamHost() throws SQLException {
     IamAuthConnectionPlugin.IAM_HOST.set(props, IAM_HOST);
     OktaAuthPlugin spyPlugin = Mockito.spy(
-        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 

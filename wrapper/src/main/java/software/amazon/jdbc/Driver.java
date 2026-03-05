@@ -446,7 +446,6 @@ public class Driver implements java.sql.Driver {
     OpenedConnectionTracker.clearCache();
     AwsSecretsManagerCacheHolder.clearCache();
     DataCacheConnectionPlugin.clearCache();
-    AuthCacheHolder.clearCache();
     IamAuthCacheHolder.clearCache();
     LimitlessRouterServiceImpl.clearCache();
     RoundRobinHostSelector.clearCache();

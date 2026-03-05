@@ -29,8 +29,8 @@ public class FederatedAuthPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    PluginService pluginService = servicesContainer.getPluginService();
-    return new FederatedAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
+    return new FederatedAuthPlugin(servicesContainer,
+        getCredentialsProviderFactory(servicesContainer.getPluginService(), props));
   }
 
   private CredentialsProviderFactory getCredentialsProviderFactory(final PluginService pluginService,

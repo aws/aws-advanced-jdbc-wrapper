@@ -18,8 +18,9 @@ package software.amazon.jdbc.plugin.federatedauth;
 
 import java.util.Properties;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
@@ -61,16 +62,17 @@ public class OktaAuthPlugin extends BaseSamlAuthPlugin {
   public static final AwsWrapperProperty DB_USER =
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
 
-  public OktaAuthPlugin(PluginService pluginService, CredentialsProviderFactory credentialsProviderFactory) {
-    this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
+  public OktaAuthPlugin(
+      FullServicesContainer servicesContainer, CredentialsProviderFactory credentialsProviderFactory) {
+    this(servicesContainer, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
   }
 
   OktaAuthPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final CredentialsProviderFactory credentialsProviderFactory,
       final RdsUtils rdsUtils,
       final IamTokenUtility tokenUtils) {
-    super(pluginService, credentialsProviderFactory, rdsUtils, tokenUtils);
+    super(servicesContainer, credentialsProviderFactory, rdsUtils, tokenUtils);
     try {
       Class.forName("software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
       Class.forName("org.jsoup.nodes.Document");
@@ -78,7 +80,7 @@ public class OktaAuthPlugin extends BaseSamlAuthPlugin {
       throw new RuntimeException(Messages.get("OktaAuthPlugin.requiredDependenciesMissing"));
     }
     this.cacheSizeGauge = this.telemetryFactory.createGauge("oktaAuth.tokenCache.size",
-        () -> (long) AuthCacheHolder.tokenCache.size());
+        () -> (long) this.servicesContainer.getStorageService().size(TokenInfo.class));
     this.fetchTokenCounter = this.telemetryFactory.createCounter("oktaAuth.fetchToken.count");
   }
 

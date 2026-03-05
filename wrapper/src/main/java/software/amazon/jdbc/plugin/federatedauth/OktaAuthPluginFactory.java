@@ -28,8 +28,8 @@ public class OktaAuthPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
-    PluginService pluginService = servicesContainer.getPluginService();
-    return new OktaAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
+    return new OktaAuthPlugin(servicesContainer,
+        getCredentialsProviderFactory(servicesContainer.getPluginService(), props));
   }
 
   private CredentialsProviderFactory getCredentialsProviderFactory(final PluginService pluginService,
