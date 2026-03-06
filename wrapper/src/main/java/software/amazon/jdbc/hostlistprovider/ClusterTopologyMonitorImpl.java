@@ -226,12 +226,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   }
 
   private List<HostSpec> getStoredHosts() {
-    Topology topology = this.servicesContainer.getStorageService().get(Topology.class, this.clusterId);
+    Topology topology =
+        this.servicesContainer.getStorageService().get(Topology.class, this.clusterId, false);
     return topology == null ? null : topology.getHosts();
   }
 
   @Override
   public void stop() {
+    this.stop.set(true);
     this.nodeThreadsStop.set(true);
 
     this.closeNodeMonitors();
