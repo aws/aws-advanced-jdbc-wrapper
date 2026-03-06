@@ -347,7 +347,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       String instanceName = instanceIds.getValue2();
       HostSpec foundHost = topology
           .stream()
-          .filter(host -> Objects.equals(instanceName, host.getHostId()))
+          .filter(host -> Objects.equals(instanceName, host.getHost()))
           .findAny()
           .orElse(null);
 
@@ -359,7 +359,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
 
         foundHost = topology
             .stream()
-            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .filter(host -> Objects.equals(instanceName, host.getHost()))
             .findAny()
             .orElse(null);
       }
