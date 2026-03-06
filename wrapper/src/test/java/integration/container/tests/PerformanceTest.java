@@ -20,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static software.amazon.jdbc.PropertyDefinition.CONNECT_TIMEOUT;
 import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
 import static software.amazon.jdbc.PropertyDefinition.SOCKET_TIMEOUT;
-import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
-import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
-import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_TIME;
 import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
 import integration.DatabaseEngine;
@@ -63,8 +63,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
-import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
-import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
+import software.amazon.jdbc.plugin.efm.v1.HostMonitorServiceV1Impl;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitorServiceV2Impl;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -145,8 +145,8 @@ public class PerformanceTest {
         throws IOException {
 
     OpenedConnectionTracker.clearCache();
-    HostMonitorThreadContainer.releaseInstance();
-    HostMonitorServiceImpl.closeAllMonitors();
+    HostMonitorServiceV1Impl.closeAllMonitors();
+    HostMonitorServiceV2Impl.closeAllMonitors();
 
     enhancedFailureMonitoringPerfDataList.clear();
 
@@ -225,8 +225,8 @@ public class PerformanceTest {
       throws IOException {
 
     OpenedConnectionTracker.clearCache();
-    HostMonitorThreadContainer.releaseInstance();
-    HostMonitorServiceImpl.closeAllMonitors();
+    HostMonitorServiceV1Impl.closeAllMonitors();
+    HostMonitorServiceV2Impl.closeAllMonitors();
 
     failoverWithEfmPerfDataList.clear();
 
@@ -311,8 +311,8 @@ public class PerformanceTest {
   private void test_FailoverTime_SocketTimeout(final String plugins) throws IOException {
 
     OpenedConnectionTracker.clearCache();
-    HostMonitorThreadContainer.releaseInstance();
-    HostMonitorServiceImpl.closeAllMonitors();
+    HostMonitorServiceV1Impl.closeAllMonitors();
+    HostMonitorServiceV2Impl.closeAllMonitors();
 
     failoverWithSocketTimeoutPerfDataList.clear();
 

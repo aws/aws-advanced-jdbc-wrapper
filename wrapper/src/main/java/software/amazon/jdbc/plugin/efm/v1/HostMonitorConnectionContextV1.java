@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm;
+package software.amazon.jdbc.plugin.efm.v1;
 
+import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
@@ -30,22 +32,19 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
  * Monitoring context for each connection. This contains each connection's criteria for whether a
  * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
  */
-public class HostMonitorConnectionContext {
+public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext {
 
-  private static final Logger LOGGER = Logger.getLogger(HostMonitorConnectionContext.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorConnectionContextV1.class.getName());
   private static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
 
-  private final TelemetryCounter abortedConnectionsCounter;
+  private TelemetryCounter abortedConnectionsCounter;
 
-  private final long failureDetectionIntervalMillis;
-  private final long failureDetectionTimeMillis;
-  private final long failureDetectionCount;
-  private final Connection connectionToAbort;
-  private final HostMonitor monitor;
+  private long failureDetectionIntervalMillis;
+  private long failureDetectionTimeMillis;
+  private long failureDetectionCount;
 
   private volatile boolean activeContext = true;
-  private volatile boolean nodeUnhealthy = false;
   private long startMonitorTimeNano;
   private long expectedActiveMonitoringStartTimeNano;
   private long invalidNodeStartTimeNano; // Only accessed by monitor thread
@@ -53,10 +52,16 @@ public class HostMonitorConnectionContext {
 
   private final ResourceLock lock = new ResourceLock();
 
+  public HostMonitorConnectionContextV1() {
+  }
+
+  public HostMonitorConnectionContextV1(Connection connectionToAbort) {
+    super(connectionToAbort);
+  }
+
   /**
    * Constructor.
    *
-   * @param monitor                        A reference to a monitor object.
    * @param connectionToAbort              A reference to the connection associated with this context that will
    *                                       be aborted in case of server failure.
    * @param failureDetectionTimeMillis     Grace period after which node monitoring starts.
@@ -65,15 +70,26 @@ public class HostMonitorConnectionContext {
    *                                       node as unhealthy.
    * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
-  public HostMonitorConnectionContext(
-      final HostMonitor monitor,
+  public HostMonitorConnectionContextV1(
       final Connection connectionToAbort,
       final long failureDetectionTimeMillis,
       final long failureDetectionIntervalMillis,
       final long failureDetectionCount,
       TelemetryCounter abortedConnectionsCounter) {
-    this.monitor = monitor;
-    this.connectionToAbort = connectionToAbort;
+    super(connectionToAbort);
+    this.failureDetectionTimeMillis = failureDetectionTimeMillis;
+    this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
+    this.failureDetectionCount = failureDetectionCount;
+    this.abortedConnectionsCounter = abortedConnectionsCounter;
+  }
+
+  public void initContext(final Connection connectionToAbort,
+      final long failureDetectionTimeMillis,
+      final long failureDetectionIntervalMillis,
+      final long failureDetectionCount,
+      TelemetryCounter abortedConnectionsCounter) {
+    this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
+    this.nodeUnhealthy.set(false);
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;
@@ -102,11 +118,7 @@ public class HostMonitorConnectionContext {
     return this.expectedActiveMonitoringStartTimeNano;
   }
 
-  public HostMonitor getMonitor() {
-    return this.monitor;
-  }
-
-  void setFailureCount(final long failureCount) {
+  public void setFailureCount(final long failureCount) {
     this.failureCount = failureCount;
   }
 
@@ -114,24 +126,16 @@ public class HostMonitorConnectionContext {
     this.invalidNodeStartTimeNano = invalidNodeStartTimeNano;
   }
 
-  void resetInvalidNodeStartTime() {
+  public void resetInvalidNodeStartTime() {
     this.invalidNodeStartTimeNano = 0;
   }
 
-  boolean isInvalidNodeStartTimeDefined() {
+  public boolean isInvalidNodeStartTimeDefined() {
     return this.invalidNodeStartTimeNano > 0;
   }
 
   long getInvalidNodeStartTimeNano() {
     return this.invalidNodeStartTimeNano;
-  }
-
-  public boolean isNodeUnhealthy() {
-    return this.nodeUnhealthy;
-  }
-
-  void setNodeUnhealthy(final boolean nodeUnhealthy) {
-    this.nodeUnhealthy = nodeUnhealthy;
   }
 
   public boolean isActiveContext() {
@@ -142,14 +146,20 @@ public class HostMonitorConnectionContext {
     this.activeContext = false;
   }
 
-  void abortConnection() {
-    if (this.connectionToAbort == null || !this.activeContext) {
+  public void abortConnection() {
+    final WeakReference<Connection> connRef = this.connectionToAbortRef.get();
+    if (connRef == null || !this.activeContext) {
+      return;
+    }
+
+    final Connection connectionToAbort = connRef.get();
+    if (connectionToAbort == null) {
       return;
     }
 
     try {
-      this.connectionToAbort.abort(ABORT_EXECUTOR);
-      this.connectionToAbort.close();
+      connectionToAbort.abort(ABORT_EXECUTOR);
+      connectionToAbort.close();
       if (this.abortedConnectionsCounter != null) {
         this.abortedConnectionsCounter.inc();
       }
@@ -205,7 +215,7 @@ public class HostMonitorConnectionContext {
    * @param statusCheckStartNano The time when connection status check started in nanos.
    * @param statusCheckEndNano   The time when connection status check ended in nanos.
    */
-  void setConnectionValid(
+  public void setConnectionValid(
       final String hostName,
       final boolean connectionValid,
       final long statusCheckStartNano,

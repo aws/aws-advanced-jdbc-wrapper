@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm2;
+package software.amazon.jdbc.plugin.efm.base;
 
 import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Monitoring context for each connection. This contains each connection's criteria for whether a
- * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
- */
-public class HostMonitorConnectionContext {
+public abstract class HostMonitorConnectionContext {
 
-  private final AtomicReference<WeakReference<Connection>> connectionToAbortRef;
-  private final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
+  protected final AtomicReference<WeakReference<Connection>> connectionToAbortRef = new AtomicReference<>(null);
+  protected final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
+
+  public HostMonitorConnectionContext() {
+  }
 
   /**
    * Constructor.
@@ -36,32 +36,33 @@ public class HostMonitorConnectionContext {
    * @param connectionToAbort A reference to the connection associated with this context that will be aborted.
    */
   public HostMonitorConnectionContext(final Connection connectionToAbort) {
-    this.connectionToAbortRef = new AtomicReference<>(new WeakReference<>(connectionToAbort));
+    this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
   }
 
   public boolean isNodeUnhealthy() {
     return this.nodeUnhealthy.get();
   }
 
-  void setNodeUnhealthy(final boolean nodeUnhealthy) {
+  public void setNodeUnhealthy(final boolean nodeUnhealthy) {
     this.nodeUnhealthy.set(nodeUnhealthy);
-  }
-
-  public boolean shouldAbort() {
-    return this.nodeUnhealthy.get() && this.connectionToAbortRef.get() != null;
   }
 
   public void setInactive() {
     this.connectionToAbortRef.set(null);
   }
 
-  public Connection getConnection() {
+  public @Nullable Connection getConnection() {
     WeakReference<Connection> copy = this.connectionToAbortRef.get();
     return copy == null ? null : copy.get();
   }
 
   public boolean isActive() {
     WeakReference<Connection> copy = this.connectionToAbortRef.get();
-    return copy != null && copy.get() != null;
+    final Connection conn = copy == null ? null : copy.get();
+    return conn != null;
+  }
+
+  public boolean shouldAbort() {
+    return this.nodeUnhealthy.get() && this.getConnection() != null;
   }
 }

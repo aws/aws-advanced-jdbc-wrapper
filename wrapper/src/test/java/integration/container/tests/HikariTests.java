@@ -69,7 +69,7 @@ import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -517,11 +517,11 @@ public class HikariTests {
     targetDataSourceProps.setProperty(
         FailoverConnectionPlugin.FAILOVER_MODE.name, "reader-or-writer");
     targetDataSourceProps.setProperty(
-        HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
+        HostMonitoringConnectionPluginV2.FAILURE_DETECTION_TIME.name, "2000");
     targetDataSourceProps.setProperty(
-        HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
+        HostMonitoringConnectionPluginV2.FAILURE_DETECTION_INTERVAL.name, "1000");
     targetDataSourceProps.setProperty(
-        HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+        HostMonitoringConnectionPluginV2.FAILURE_DETECTION_COUNT.name, "1");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {

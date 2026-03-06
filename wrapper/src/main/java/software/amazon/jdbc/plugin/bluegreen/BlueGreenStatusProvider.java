@@ -54,7 +54,6 @@ import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendUntilCorrespondingNodeFoundConnectRouting;
-import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -538,10 +537,6 @@ public class BlueGreenStatusProvider {
           .filter(x -> x.getValue() == BlueGreenRole.SOURCE)
           .map(Entry::getKey)
           .collect(Collectors.toSet());
-
-      // A special case for efm related monitors.
-      // TODO: remove this code as soon as efm1 monitors are migrated to MonitorService
-      HostMonitorThreadContainer.resetMonitors(blueEndpoints);
 
       // Notify all monitors to reset if needed.
       this.servicesContainer.getEventPublisher().publish(new MonitorResetEvent(this.clusterId, blueEndpoints));

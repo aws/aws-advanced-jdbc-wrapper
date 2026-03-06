@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm2;
+package software.amazon.jdbc.plugin.efm.v2;
 
 import java.lang.ref.WeakReference;
 import java.sql.Connection;
@@ -31,13 +31,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.base.HostMonitor;
+import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -56,25 +57,29 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, StateSnapshotProvider {
+public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, StateSnapshotProvider {
 
-  private static final Logger LOGGER = Logger.getLogger(HostMonitorImpl.class.getName());
-  private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorV2Impl.class.getName());
+  private static final String MONITORING_THREAD_NAME_PREFIX = "efm2-monitor";
   private static final long TERMINATION_TIMEOUT_SEC = 30;
+
+  private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
   private static final int MIN_VALIDITY_CHECK_TIMEOUT_SEC = 1;
 
-  protected static final Executor ABORT_EXECUTOR =
+  protected final Executor abortExecutor =
       ExecutorFactory.newSingleThreadExecutor("abort");
 
-  private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
-  private final Map<Long, Queue<WeakReference<HostMonitorConnectionContext>>> newContexts =
+  private final Queue<WeakReference<HostMonitorConnectionContextV2>> activeContexts = new ConcurrentLinkedQueue<>();
+  private final Map<Long, Queue<WeakReference<HostMonitorConnectionContextV2>>> newContexts =
       new ConcurrentHashMap<>();
-  private final FullServicesContainer servicesContainer;
-  private final TelemetryFactory telemetryFactory;
-  private final Properties properties;
-  private final HostSpec hostSpec;
-  private AtomicConnection monitoringConn;
+
+  protected final FullServicesContainer servicesContainer;
+  protected final TelemetryFactory telemetryFactory;
+  protected final Properties properties;
+  protected final Properties monitoringProperties;
+  protected final HostSpec hostSpec;
+  protected AtomicConnection monitoringConn;
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;
@@ -84,22 +89,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
   private final AtomicLong failureCount = new AtomicLong(0);
   private final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
 
-  private final TelemetryCounter abortedConnectionsCounter;
+  protected final TelemetryCounter abortedConnectionsCounter;
 
-  /**
-   * Store the monitoring configuration for a connection.
-   *
-   * @param servicesContainer          The telemetry factory to use to create telemetry data.
-   * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
-   *                                  instance is monitoring.
-   * @param properties                The {@link Properties} containing additional monitoring
-   *                                  configuration.
-   * @param failureDetectionTimeMillis A failure detection time in millis.
-   * @param failureDetectionIntervalMillis A failure detection interval in millis.
-   * @param failureDetectionCount A failure detection count.
-   * @param abortedConnectionsCounter Aborted connection telemetry counter.
-   */
-  public HostMonitorImpl(
+  public HostMonitorV2Impl(
       final @NonNull FullServicesContainer servicesContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties properties,
@@ -107,7 +99,36 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
-    super(TERMINATION_TIMEOUT_SEC, ExecutorFactory.newFixedThreadPool(2, "efm2-monitor"));
+    this(servicesContainer, hostSpec, properties, failureDetectionTimeMillis, failureDetectionIntervalMillis,
+        failureDetectionCount, abortedConnectionsCounter, TERMINATION_TIMEOUT_SEC, MONITORING_THREAD_NAME_PREFIX);
+  }
+
+  /**
+   * Store the monitoring configuration for a connection.
+   *
+   * @param servicesContainer          The telemetry factory to use to create telemetry data.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorV2Impl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
+   * @param failureDetectionTimeMillis A failure detection time in millis.
+   * @param failureDetectionIntervalMillis A failure detection interval in millis.
+   * @param failureDetectionCount A failure detection count.
+   * @param abortedConnectionsCounter Aborted connection telemetry counter.
+   * @param terminationTimeoutSec     The monitor termination timeout in seconds.
+   * @param threadName                The monitoring thread name
+   */
+  public HostMonitorV2Impl(
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties properties,
+      final int failureDetectionTimeMillis,
+      final int failureDetectionIntervalMillis,
+      final int failureDetectionCount,
+      final TelemetryCounter abortedConnectionsCounter,
+      final long terminationTimeoutSec,
+      final String threadName) {
+    super(terminationTimeoutSec, ExecutorFactory.newFixedThreadPool(2, threadName));
     this.servicesContainer = servicesContainer;
     this.telemetryFactory = servicesContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;
@@ -118,6 +139,17 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
     this.abortedConnectionsCounter = abortedConnectionsCounter;
     this.monitoringConn = new AtomicConnection(
         this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
+
+    this.monitoringProperties = PropertyUtils.copyProperties(this.properties);
+    this.properties.stringPropertyNames().stream()
+        .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
+        .forEach(
+            p -> {
+              this.monitoringProperties.put(
+                  p.substring(MONITORING_PROPERTY_PREFIX.length()),
+                  this.properties.getProperty(p));
+              this.monitoringProperties.remove(p);
+            });
   }
 
   @Override
@@ -138,23 +170,26 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
       LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
 
+    assert context instanceof HostMonitorConnectionContextV2;
+
+    final HostMonitorConnectionContextV2 contextV2 = (HostMonitorConnectionContextV2) context;
     final long currentTimeNano = this.getCurrentTimeNano();
     long startMonitoringTimeNano = this.truncateNanoToSeconds(
         currentTimeNano + this.failureDetectionTimeNano);
 
-    Queue<WeakReference<HostMonitorConnectionContext>> queue =
+    Queue<WeakReference<HostMonitorConnectionContextV2>> queue =
         this.newContexts.computeIfAbsent(
             startMonitoringTimeNano,
             (key) -> new ConcurrentLinkedQueue<>());
-    queue.add(new WeakReference<>(context));
+    queue.add(new WeakReference<>(contextV2));
   }
 
-  private long truncateNanoToSeconds(final long timeNano) {
+  protected long truncateNanoToSeconds(final long timeNano) {
     return TimeUnit.SECONDS.toNanos(TimeUnit.NANOSECONDS.toSeconds(timeNano));
   }
 
   // This method helps to organize unit tests.
-  long getCurrentTimeNano() {
+  protected long getCurrentTimeNano() {
     return System.nanoTime();
   }
 
@@ -174,14 +209,14 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
             // Get entries with key (that is a time in nanos) less or equal than current time.
             .filter(entry -> entry.getKey() < currentTimeNano)
             .forEach(entry -> {
-              final Queue<WeakReference<HostMonitorConnectionContext>> queue = entry.getValue();
+              final Queue<WeakReference<HostMonitorConnectionContextV2>> queue = entry.getValue();
               processedKeys.add(entry.getKey());
               // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
               // Add all contexts to an active monitoring contexts queue.
               // Ignore disposed contexts.
-              WeakReference<HostMonitorConnectionContext> contextWeakRef;
+              WeakReference<HostMonitorConnectionContextV2> contextWeakRef;
               while ((contextWeakRef = queue.poll()) != null) {
-                HostMonitorConnectionContext context = contextWeakRef.get();
+                HostMonitorConnectionContextV2 context = contextWeakRef.get();
                 if (context != null && context.isActive()) {
                   this.activeContexts.add(contextWeakRef);
                 }
@@ -235,15 +270,15 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
 
         this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
 
-        final List<WeakReference<HostMonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
-        WeakReference<HostMonitorConnectionContext> monitorContextWeakRef;
+        final List<WeakReference<HostMonitorConnectionContextV2>> tmpActiveContexts = new ArrayList<>();
+        WeakReference<HostMonitorConnectionContextV2> monitorContextWeakRef;
 
         while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
           if (this.stop.get()) {
             break;
           }
 
-          HostMonitorConnectionContext monitorContext = monitorContextWeakRef.get();
+          HostMonitorConnectionContextV2 monitorContext = monitorContextWeakRef.get();
           if (monitorContext == null) {
             continue;
           }
@@ -303,7 +338,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
    *
    * @return True, if the server is still alive.
    */
-  boolean checkConnectionStatus() {
+  private boolean checkConnectionStatus() {
     TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
         "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
 
@@ -315,21 +350,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
       final Connection copyConnection = this.monitoringConn.get();
       if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
-        final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
-
-        this.properties.stringPropertyNames().stream()
-            .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
-            .forEach(
-                p -> {
-                  monitoringConnProperties.put(
-                      p.substring(MONITORING_PROPERTY_PREFIX.length()),
-                      this.properties.getProperty(p));
-                  monitoringConnProperties.remove(p);
-                });
-
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
         this.monitoringConn.set(
-            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, monitoringConnProperties));
+            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, this.monitoringProperties));
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn.get());
         return true;
       }
@@ -349,7 +372,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
     }
   }
 
-  private void updateNodeHealthStatus(
+  protected void updateNodeHealthStatus(
       final boolean connectionValid,
       final long statusCheckStartNano,
       final long statusCheckEndNano) {
@@ -391,9 +414,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
     this.nodeUnhealthy.set(false);
   }
 
-  private void abortConnection(final @NonNull Connection connectionToAbort) {
+  protected void abortConnection(final @NonNull Connection connectionToAbort) {
     try {
-      connectionToAbort.abort(ABORT_EXECUTOR);
+      connectionToAbort.abort(abortExecutor);
       connectionToAbort.close();
     } catch (final SQLException sqlEx) {
       // ignore
@@ -432,6 +455,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, Sta
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     state.add(Pair.create("hostSpec", this.hostSpec != null ? this.hostSpec.toString() : null));
+    PropertyUtils.addSnapshotState(state, "monitoringProperties", this.monitoringProperties);
     state.add(Pair.create("monitoringConn", this.monitoringConn != null ? this.monitoringConn.get() : null));
     state.add(Pair.create("failureDetectionTimeNano", this.failureDetectionTimeNano));
     state.add(Pair.create("failureDetectionIntervalNano", this.failureDetectionIntervalNano));

@@ -20,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static software.amazon.jdbc.PropertyDefinition.CONNECT_TIMEOUT;
 import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
-import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
-import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
-import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_TIME;
 import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
 import integration.TestEnvironmentFeatures;
@@ -65,9 +65,8 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
-import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
+import software.amazon.jdbc.plugin.efm.v1.HostMonitorServiceV1Impl;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitorServiceV2Impl;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
@@ -689,8 +688,8 @@ public class AdvancedPerformanceTest {
 
     CoreServicesContainer.getInstance().getStorageService().clearAll();
     TestPluginServiceImpl.clearHostAvailabilityCache();
-    HostMonitorThreadContainer.releaseInstance();
-    HostMonitorServiceImpl.closeAllMonitors();
+    HostMonitorServiceV1Impl.closeAllMonitors();
+    HostMonitorServiceV2Impl.closeAllMonitors();
   }
 
   private static Stream<Arguments> generateParams() {

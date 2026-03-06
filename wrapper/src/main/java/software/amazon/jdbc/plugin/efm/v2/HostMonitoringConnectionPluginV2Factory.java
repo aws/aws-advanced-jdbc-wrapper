@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm;
+package software.amazon.jdbc.plugin.efm.v2;
 
-import java.util.concurrent.ExecutorService;
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-/**
- * Interface for passing a specific {@link ExecutorService} to use by the {@link
- * HostMonitorThreadContainer}.
- */
-@FunctionalInterface
-public interface ExecutorServiceInitializer {
-  ExecutorService createExecutorService();
+public class HostMonitoringConnectionPluginV2Factory implements ConnectionPluginFactory {
+
+  @Override
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new HostMonitoringConnectionPluginV2(servicesContainer, props);
+  }
 }

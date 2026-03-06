@@ -33,15 +33,17 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.plugin.efm.base.HostMonitor;
+import software.amazon.jdbc.plugin.efm.v1.HostMonitorConnectionContextV1;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
-class HostHostMonitorConnectionContextTest {
+class HostHostMonitorConnectionContextV1Test {
   private static final long FAILURE_DETECTION_TIME_MILLIS = 10;
   private static final long FAILURE_DETECTION_INTERVAL_MILLIS = 100;
   private static final long FAILURE_DETECTION_COUNT = 3;
   private static final long VALIDATION_INTERVAL_MILLIS = 50;
 
-  private HostMonitorConnectionContext context;
+  private HostMonitorConnectionContextV1 context;
   private AutoCloseable closeable;
 
   @Mock Connection connectionToAbort;
@@ -52,8 +54,7 @@ class HostHostMonitorConnectionContextTest {
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     context =
-        new HostMonitorConnectionContext(
-            monitor,
+        new HostMonitorConnectionContextV1(
             null,
             FAILURE_DETECTION_TIME_MILLIS,
             FAILURE_DETECTION_INTERVAL_MILLIS,
@@ -134,7 +135,7 @@ class HostHostMonitorConnectionContextTest {
     final long currentTime = System.nanoTime();
     final long statusCheckStartTime = System.nanoTime() - FAILURE_DETECTION_TIME_MILLIS;
 
-    final HostMonitorConnectionContext spyContext = spy(context);
+    final HostMonitorConnectionContextV1 spyContext = spy(context);
 
     spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, isValid);
 
@@ -148,7 +149,7 @@ class HostHostMonitorConnectionContextTest {
     final long statusCheckStartTime = System.nanoTime() - 1000;
     context.setInactive();
 
-    final HostMonitorConnectionContext spyContext = spy(context);
+    final HostMonitorConnectionContextV1 spyContext = spy(context);
 
     spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, true);
 
@@ -159,8 +160,7 @@ class HostHostMonitorConnectionContextTest {
   @Test
   void test_abortConnection_ignoresSqlException() throws SQLException {
     context =
-        new HostMonitorConnectionContext(
-            monitor,
+        new HostMonitorConnectionContextV1(
             connectionToAbort,
             FAILURE_DETECTION_TIME_MILLIS,
             FAILURE_DETECTION_INTERVAL_MILLIS,

@@ -46,7 +46,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -97,8 +97,8 @@ public class EFM2Test {
     props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
     props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, String.valueOf(maxDurationMs));
     props.setProperty(PropertyDefinition.PLUGINS.name, "efm2");
-    props.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "5000");
-    props.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+    props.setProperty(HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_TIME.name, "5000");
+    props.setProperty(HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_COUNT.name, "1");
 
     String url = ConnectionStringHelper.getProxyWrapperUrl();
     String instanceId = TestEnvironment.getCurrent()

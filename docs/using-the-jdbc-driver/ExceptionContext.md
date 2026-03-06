@@ -169,7 +169,7 @@ State snapshot:
             isInPanicMode: false
       software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl: 
         monitors: 
-      software.amazon.jdbc.plugin.efm2.HostMonitorImpl: 
+      software.amazon.jdbc.plugin.efm2.HostMonitorV2Impl: 
         monitors: 
 Latest events:
   [2026-02-12 03:52:18.446]: [Test worker] Current initial connection set to com.mysql.cj.jdbc.ConnectionImpl@2c35cdd1, HostSpec@7acf610 [hostId=test-mysql-j87kvt71h8-1, host=test-mysql-j87kvt71h8-1.***.proxied, port=8666, WRITER, AVAILABLE, weight=100, null]

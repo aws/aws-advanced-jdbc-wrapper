@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm2;
+package software.amazon.jdbc.plugin.efm.base;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -35,22 +37,26 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.WrapperUtils;
 
 /**
- * Monitor the server while the connection is executing methods for more sophisticated failure
+ * Base plugin class to monitor the server while the connection is executing methods for more sophisticated failure
  * detection.
  */
-public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
-    implements CanReleaseResources {
+public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnectionPlugin
+    implements CanReleaseResources, StateSnapshotProvider {
 
   private static final Logger LOGGER =
-      Logger.getLogger(HostMonitoringConnectionPlugin.class.getName());
+      Logger.getLogger(HostMonitoringConnectionBasePlugin.class.getName());
 
   public static final AwsWrapperProperty FAILURE_DETECTION_ENABLED =
       new AwsWrapperProperty(
@@ -79,15 +85,15 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   protected final Set<String> subscribedMethods;
 
   protected @NonNull Properties properties;
-  private final @NonNull Supplier<HostMonitorService> monitorServiceSupplier;
-  private final @NonNull PluginService pluginService;
-  private HostMonitorService monitorService;
-  private final RdsUtils rdsHelper;
-  private HostSpec monitoringHostSpec;
+  protected final @NonNull Supplier<HostMonitorService> monitorServiceSupplier;
+  protected final @NonNull PluginService pluginService;
+  protected HostMonitorService monitorService;
+  protected final RdsUtils rdsHelper;
+  protected HostSpec monitoringHostSpec;
   protected final boolean isEnabled;
 
   static {
-    PropertyDefinition.registerPluginProperties(HostMonitoringConnectionPlugin.class);
+    PropertyDefinition.registerPluginProperties(HostMonitoringConnectionBasePlugin.class);
     PropertyDefinition.registerPluginProperties("monitoring-");
   }
 
@@ -96,17 +102,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    *
    * @param servicesContainer The service container for the services required by this class.
    * @param properties        The property set used to initialize the active connection.
+   * @param monitorServiceSupplier A supplier for creating a {@link HostMonitorService} instance.
+   * @param rdsHelper        The RDS helper class to identify RDS instances.
    */
-  public HostMonitoringConnectionPlugin(
-      final @NonNull FullServicesContainer servicesContainer, final @NonNull Properties properties) {
-    this(
-        servicesContainer,
-        properties,
-        () -> new HostMonitorServiceImpl(servicesContainer, properties),
-        new RdsUtils());
-  }
-
-  HostMonitoringConnectionPlugin(
+  protected HostMonitoringConnectionBasePlugin(
       final @NonNull FullServicesContainer serviceContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
@@ -131,7 +130,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   /**
-   * Executes the given SQL function with {@link HostMonitorImpl} if connection monitoring is enabled.
+   * Executes the given SQL function with {@link HostMonitorV2Impl} if connection monitoring is enabled.
    * Otherwise, executes the SQL function directly.
    */
   @Override
@@ -153,13 +152,12 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     T result;
     HostMonitorConnectionContext monitorContext = null;
 
+    final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
     try {
       LOGGER.finest(
           () -> Messages.get(
               "HostMonitoringConnectionPlugin.activatedMonitoring",
               new Object[] {methodName}));
-
-      final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
 
       try {
         monitorContext = this.monitorService.startMonitoring(
@@ -174,7 +172,11 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     } finally {
       if (monitorContext != null) {
-        this.monitorService.stopMonitoring(monitorContext, this.pluginService.getCurrentConnection());
+        final boolean isUnhealthy = monitorContext.isNodeUnhealthy();
+        this.monitorService.stopMonitoring(monitorContext);
+        if (isUnhealthy) {
+          this.pluginService.setAvailability(monitoringHostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
+        }
       }
 
       LOGGER.finest(
@@ -186,7 +188,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     return result;
   }
 
-  private void initMonitorService() {
+  protected void initMonitorService() {
     if (this.monitorService == null) {
       this.monitorService = this.monitorServiceSupplier.get();
     }
@@ -197,8 +199,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    */
   @Override
   public void releaseResources() {
-    if (this.monitorService != null) {
-      this.monitorService.releaseResources();
+    if (this.monitorService != null && this.monitorService instanceof CanReleaseResources) {
+      ((CanReleaseResources) this.monitorService).releaseResources();
     }
 
     this.monitorService = null;
@@ -264,5 +266,16 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
     }
     return this.monitoringHostSpec;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    PropertyUtils.addSnapshotState(state, "properties", this.properties);
+    state.add(Pair.create("monitoringHostSpec",
+        this.monitoringHostSpec != null ? this.monitoringHostSpec.toString() : null));
+    WrapperUtils.addSnapshotState(state, "monitorService", this.monitorService);
+    state.add(Pair.create("isEnabled", this.isEnabled));
+    return state;
   }
 }

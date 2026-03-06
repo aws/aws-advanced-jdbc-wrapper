@@ -37,7 +37,7 @@ import software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin;
-import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -91,7 +91,7 @@ public class ConnectionPluginChainBuilderTests {
     assertNotNull(result);
     assertEquals(4, result.size());
     assertInstanceOf(FailoverConnectionPlugin.class, result.get(0));
-    assertInstanceOf(HostMonitoringConnectionPlugin.class, result.get(1));
+    assertInstanceOf(HostMonitoringConnectionPluginV2.class, result.get(1));
     assertInstanceOf(IamAuthConnectionPlugin.class, result.get(2));
     assertInstanceOf(DefaultConnectionPlugin.class, result.get(3));
   }
@@ -113,7 +113,7 @@ public class ConnectionPluginChainBuilderTests {
     assertNotNull(result);
     assertEquals(4, result.size());
     assertInstanceOf(IamAuthConnectionPlugin.class, result.get(0));
-    assertInstanceOf(HostMonitoringConnectionPlugin.class, result.get(1));
+    assertInstanceOf(HostMonitoringConnectionPluginV2.class, result.get(1));
     assertInstanceOf(FailoverConnectionPlugin.class, result.get(2));
     assertInstanceOf(DefaultConnectionPlugin.class, result.get(3));
   }
@@ -135,7 +135,7 @@ public class ConnectionPluginChainBuilderTests {
     assertEquals(7, result.size());
     assertInstanceOf(DeveloperConnectionPlugin.class, result.get(0));
     assertInstanceOf(FailoverConnectionPlugin.class, result.get(1));
-    assertInstanceOf(HostMonitoringConnectionPlugin.class, result.get(2));
+    assertInstanceOf(HostMonitoringConnectionPluginV2.class, result.get(2));
     assertInstanceOf(IamAuthConnectionPlugin.class, result.get(3));
     assertInstanceOf(ExecutionTimeConnectionPlugin.class, result.get(4));
     assertInstanceOf(ConnectTimeConnectionPlugin.class, result.get(5));
