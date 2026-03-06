@@ -42,6 +42,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -50,6 +51,7 @@ public class ConnectionPluginChainBuilderTests {
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
+  @Mock StorageService mockStorageService;
   @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
@@ -68,6 +70,7 @@ public class ConnectionPluginChainBuilderTests {
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
+    when(mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);

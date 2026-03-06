@@ -20,23 +20,27 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.TokenInfo;
+import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.GDBRegionUtils;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
@@ -56,11 +60,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
-          add("connect");
-          add("forceConnect");
+          add(JdbcMethod.CONNECT.methodName);
+          add(JdbcMethod.FORCECONNECT.methodName);
         }
       });
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
+  private static final long DISPOSAL_TIME_NANO = TimeUnit.MINUTES.toNanos(15);
 
   public static final AwsWrapperProperty IAM_HOST = new AwsWrapperProperty(
       "iamHost", null,
@@ -82,6 +87,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       "iamAccessTokenPropertyName", PropertyDefinition.PASSWORD.name,
       "Overrides default IAM access token property name");
 
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected RegionUtils regionUtils;
@@ -96,16 +102,26 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
 
   private final IamTokenUtility iamTokenUtility;
 
-  public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
-    this(pluginService, IamAuthUtils.getTokenUtility());
+  public IamAuthConnectionPlugin(final @NonNull FullServicesContainer servicesContainer) {
+    this(servicesContainer, IamAuthUtils.getTokenUtility());
   }
 
-  IamAuthConnectionPlugin(final @NonNull PluginService pluginService, IamTokenUtility utility) {
+  IamAuthConnectionPlugin(final @NonNull FullServicesContainer servicesContainer, IamTokenUtility utility) {
     this.iamTokenUtility = utility;
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
+
+    this.servicesContainer.getStorageService().registerItemClassIfAbsent(
+        TokenInfo.class,
+        false,
+        DISPOSAL_TIME_NANO,
+        null,
+        null
+    );
+
     this.cacheSizeGauge = this.telemetryFactory.createGauge("iam.tokenCache.size",
-        () -> (long) IamAuthCacheHolder.tokenCache.size());
+        () -> (long) this.servicesContainer.getStorageService().size(TokenInfo.class));
     this.fetchTokenCounter = this.telemetryFactory.createCounter("iam.fetchToken.count");
   }
 
@@ -157,7 +173,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
         host.getHost(),
         port,
         region);
-    final TokenInfo tokenInfo = IamAuthCacheHolder.tokenCache.get(cacheKey);
+    final TokenInfo tokenInfo = this.servicesContainer.getStorageService().get(TokenInfo.class, cacheKey);
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
     if (isCachedToken && tokenExpirationSec > 0) {
@@ -185,7 +201,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
               new Object[] {token}));
 
       props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), token);
-      IamAuthCacheHolder.tokenCache.put(
+      this.servicesContainer.getStorageService().set(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
     }
@@ -224,7 +240,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
       props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), token);
-      IamAuthCacheHolder.tokenCache.put(
+      this.servicesContainer.getStorageService().set(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
 
@@ -251,19 +267,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
   }
 
   public static void clearCache() {
-    IamAuthCacheHolder.clearCache();
+    CoreServicesContainer.getInstance().getStorageService().clear(Topology.class);
   }
 
   @Override
   public List<Pair<String, Object>> getSnapshotState() {
-    List<Pair<String, Object>> state = new ArrayList<>();
-    List<Pair<String, Object>> maskedTokenCache = new ArrayList<>();
-    for (java.util.Map.Entry<String, TokenInfo> entry : IamAuthCacheHolder.tokenCache.entrySet()) {
-      TokenInfo tokenInfo = entry.getValue();
-      String tokenInfoStr = tokenInfo != null ? tokenInfo.toString() : null;
-      maskedTokenCache.add(Pair.create(entry.getKey(), tokenInfoStr));
-    }
-    state.add(Pair.create("tokenCache", maskedTokenCache));
-    return state;
+    return null;
   }
 }

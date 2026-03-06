@@ -38,6 +38,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -53,7 +54,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -81,6 +84,8 @@ class IamAuthConnectionPluginTest {
       .host("mysql.testdb.us-east-2.rds.amazonaws.com").build();
   private Properties props;
 
+  @Mock FullServicesContainer mockServicesContainer;
+  @Mock StorageService mockStorageService;
   @Mock PluginService mockPluginService;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryCounter mockTelemetryCounter;
@@ -112,6 +117,9 @@ class IamAuthConnectionPluginTest {
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), eq(TelemetryTraceLevel.NESTED))).thenReturn(
         mockTelemetryContext);
+    when(mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
   }
 
   @AfterEach
@@ -132,8 +140,8 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testPostgresConnectValidTokenInCache() throws SQLException {
-    IamAuthCacheHolder.tokenCache.put(PG_CACHE_KEY,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(PG_CACHE_KEY)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
@@ -144,8 +152,8 @@ class IamAuthConnectionPluginTest {
   public void testMySqlConnectValidTokenInCache() throws SQLException {
     props.setProperty(PropertyDefinition.USER.name, "mysqlUser");
     props.setProperty(PropertyDefinition.PASSWORD.name, "mysqlPassword");
-    IamAuthCacheHolder.tokenCache.put(MYSQL_CACHE_KEY,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(MYSQL_CACHE_KEY)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_MYSQL_PORT);
 
@@ -159,8 +167,8 @@ class IamAuthConnectionPluginTest {
 
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
-    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
   }
@@ -174,16 +182,16 @@ class IamAuthConnectionPluginTest {
 
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + DEFAULT_PG_PORT + ":postgresqlUser";
-    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
   }
 
   @Test
   public void testConnectExpiredTokenInCache() throws SQLException {
-    IamAuthCacheHolder.tokenCache.put(PG_CACHE_KEY,
-        new TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(PG_CACHE_KEY)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
@@ -200,8 +208,8 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectWithSpecifiedPort() throws SQLException {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:" + "postgresqlUser";
-    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
   }
@@ -212,8 +220,8 @@ class IamAuthConnectionPluginTest {
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, iamDefaultPort);
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + iamDefaultPort + ":postgresqlUser";
-    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
   }
@@ -223,8 +231,8 @@ class IamAuthConnectionPluginTest {
     final String cacheKeyWithNewRegion =
         "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":" + "postgresqlUser";
     props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-west-1");
-    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewRegion,
-        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewRegion)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
@@ -256,7 +264,7 @@ class IamAuthConnectionPluginTest {
 
   public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
 
-    IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService, mockIamTokenUtils);
+    IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockServicesContainer, mockIamTokenUtils);
     doThrow(new SQLException()).when(mockLambda).call();
 
     assertThrows(SQLException.class, () -> targetPlugin.connect(protocol, hostSpec, props, true, mockLambda));
@@ -273,7 +281,7 @@ class IamAuthConnectionPluginTest {
       final String protocol,
       final HostSpec hostSpec,
       final String expectedHost) throws SQLException {
-    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService, mockIamTokenUtils);
+    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockServicesContainer, mockIamTokenUtils);
     final IamAuthConnectionPlugin spyPlugin = Mockito.spy(targetPlugin);
 
     doThrow(new SQLException()).when(mockLambda).call();
@@ -290,6 +298,13 @@ class IamAuthConnectionPluginTest {
     verify(mockLambda, times(1)).call();
 
     assertEquals(GENERATED_TOKEN, PropertyDefinition.PASSWORD.getString(props));
-    assertEquals(GENERATED_TOKEN, IamAuthCacheHolder.tokenCache.get(PG_CACHE_KEY).getToken());
+
+    final ArgumentCaptor<Object> keyArgumentCaptor = ArgumentCaptor.forClass(Object.class);
+    final ArgumentCaptor<TokenInfo> tokenArgumentCaptor = ArgumentCaptor.forClass(TokenInfo.class);
+    verify(mockStorageService, times(1)).set(keyArgumentCaptor.capture(), tokenArgumentCaptor.capture());
+    final Object actualKey = keyArgumentCaptor.getValue();
+    final TokenInfo actualToken = tokenArgumentCaptor.getValue();
+    assertEquals(PG_CACHE_KEY, actualKey);
+    assertEquals(GENERATED_TOKEN, actualToken.getToken());
   }
 }

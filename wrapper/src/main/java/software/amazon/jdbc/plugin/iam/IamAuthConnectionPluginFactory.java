@@ -25,6 +25,6 @@ public class IamAuthConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new IamAuthConnectionPlugin(servicesContainer.getPluginService());
+    return new IamAuthConnectionPlugin(servicesContainer);
   }
 }
