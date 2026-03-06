@@ -20,12 +20,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
@@ -76,8 +77,8 @@ public class FederatedAuthPlugin extends BaseSamlAuthPlugin {
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
-          add("connect");
-          add("forceConnect");
+          add(JdbcMethod.CONNECT.methodName);
+          add(JdbcMethod.FORCECONNECT.methodName);
         }
       });
 
@@ -93,17 +94,17 @@ public class FederatedAuthPlugin extends BaseSamlAuthPlugin {
     return subscribedMethods;
   }
 
-  public FederatedAuthPlugin(final PluginService pluginService,
+  public FederatedAuthPlugin(final FullServicesContainer servicesContainer,
       final CredentialsProviderFactory credentialsProviderFactory) {
-    this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
+    this(servicesContainer, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
   }
 
   FederatedAuthPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final CredentialsProviderFactory credentialsProviderFactory,
       final RdsUtils rdsUtils,
       final IamTokenUtility tokenUtils) {
-    super(pluginService, credentialsProviderFactory, rdsUtils, tokenUtils);
+    super(servicesContainer, credentialsProviderFactory, rdsUtils, tokenUtils);
     try {
       Class.forName("software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
     } catch (final ClassNotFoundException e) {
@@ -115,7 +116,7 @@ public class FederatedAuthPlugin extends BaseSamlAuthPlugin {
     }
 
     this.cacheSizeGauge = this.telemetryFactory.createGauge("federatedAuth.tokenCache.size",
-        () -> (long) AuthCacheHolder.tokenCache.size());
+        () -> (long) this.servicesContainer.getStorageService().size(TokenInfo.class));
     this.fetchTokenCounter = this.telemetryFactory.createCounter("federatedAuth.fetchToken.count");
   }
 

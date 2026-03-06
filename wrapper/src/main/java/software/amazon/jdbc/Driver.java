@@ -41,7 +41,6 @@ import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.federatedauth.AuthCacheHolder;
 import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
 import software.amazon.jdbc.profile.ConfigurationProfile;
@@ -446,7 +445,6 @@ public class Driver implements java.sql.Driver {
     OpenedConnectionTracker.clearCache();
     AwsSecretsManagerCacheHolder.clearCache();
     DataCacheConnectionPlugin.clearCache();
-    AuthCacheHolder.clearCache();
     IamAuthCacheHolder.clearCache();
     LimitlessRouterServiceImpl.clearCache();
     RoundRobinHostSelector.clearCache();

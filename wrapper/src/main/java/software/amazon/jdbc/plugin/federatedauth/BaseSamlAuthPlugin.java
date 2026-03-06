@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -34,6 +35,8 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
+import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.GDBRegionUtils;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
@@ -47,6 +50,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(BaseSamlAuthPlugin.class.getName());
+  private static final long DISPOSAL_TIME_NANO = TimeUnit.MINUTES.toNanos(30);
 
   protected static final String IAM_REGION_NAME = "iamRegion";
 
@@ -59,6 +63,7 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
       });
 
   private final IamTokenUtility iamTokenUtility;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final CredentialsProviderFactory credentialsProviderFactory;
   protected final RdsUtils rdsUtils;
@@ -70,16 +75,25 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
   protected TelemetryCounter fetchTokenCounter;
 
   BaseSamlAuthPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final CredentialsProviderFactory credentialsProviderFactory,
       final RdsUtils rdsUtils,
       final IamTokenUtility tokenUtils) {
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.credentialsProviderFactory = credentialsProviderFactory;
     this.rdsUtils = rdsUtils;
     this.samlUtils = new SamlUtils(this.rdsUtils);
     this.iamTokenUtility = tokenUtils;
     this.telemetryFactory = pluginService.getTelemetryFactory();
+
+    this.servicesContainer.getStorageService().registerItemClassIfAbsent(
+        TokenInfo.class,
+        false,
+        DISPOSAL_TIME_NANO,
+        null,
+        null
+    );
   }
 
   @Override
@@ -135,7 +149,7 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
         port,
         region);
 
-    final TokenInfo tokenInfo = AuthCacheHolder.tokenCache.get(cacheKey);
+    final TokenInfo tokenInfo = this.servicesContainer.getStorageService().get(TokenInfo.class, cacheKey);
 
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
@@ -205,13 +219,13 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
             "AuthenticationToken.generatedNewToken",
             new Object[] {token}));
     PropertyDefinition.PASSWORD.set(props, token);
-    AuthCacheHolder.tokenCache.put(
+    this.servicesContainer.getStorageService().set(
         cacheKey,
         new TokenInfo(token, tokenExpiry));
   }
 
   public static void clearCache() {
-    AuthCacheHolder.clearCache();
+    CoreServicesContainer.getInstance().getStorageService().clear(TokenInfo.class);
   }
 
   // Abstract methods to retrieve configuration parameters instead of moving them to this class.
