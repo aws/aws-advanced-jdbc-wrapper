@@ -198,12 +198,11 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
 
 
   /**
-   * Get cluster topology. It may require an extra call to database to fetch the latest topology. A
-   * cached copy of topology is returned if it's not yet outdated (controlled by {@link
-   * #refreshRateNano}).
+   * Get cluster topology. It may require an extra call to database to fetch the latest topology. A cached copy of
+   * topology is returned if it's not yet outdated (controlled by {@link #refreshRateNano}).
    *
-   * @return a list of hosts that describes cluster topology. A writer is always at position 0.
-   *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
+   * @return a list of hosts that describes cluster topology. A writer is always at position 0. Returns an empty list if
+   *     isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
    */
   protected FetchTopologyResult getTopology() throws SQLException {
@@ -235,8 +234,8 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   /**
    * Get cached topology.
    *
-   * @return list of hosts that represents topology. If there's no topology in the cache or the
-   *     cached topology is outdated, it returns null.
+   * @return list of hosts that represents topology. If there's no topology in the cache or the cached topology is
+   *     outdated, it returns null.
    */
   public @Nullable List<HostSpec> getStoredTopology() throws SQLException {
     init();
@@ -347,7 +346,11 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       String instanceName = instanceIds.getValue2();
       HostSpec foundHost = topology
           .stream()
-          .filter(host -> Objects.equals(instanceName, host.getHost()))
+          .filter(host ->
+              // Check as an endpoint first. host.getHost is most likely an endpoint.
+              Objects.equals(getHostEndpoint(instanceName), host.getHost())
+                  || Objects.equals(instanceName, host.getHost())
+                  || Objects.equals(instanceName, host.getHostId()))
           .findAny()
           .orElse(null);
 
@@ -359,7 +362,11 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
 
         foundHost = topology
             .stream()
-            .filter(host -> Objects.equals(instanceName, host.getHost()))
+            .filter(host ->
+                // Check as an endpoint first. host.getHost is most likely an endpoint.
+                Objects.equals(getHostEndpoint(instanceName), host.getHost())
+                    || Objects.equals(instanceName, host.getHost())
+                    || Objects.equals(instanceName, host.getHostId()))
             .findAny()
             .orElse(null);
       }
@@ -368,6 +375,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     } catch (final SQLException | TimeoutException e) {
       throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"), e);
     }
+  }
+
+  private String getHostEndpoint(String hostName) {
+    return this.instanceTemplate.getHost().replace("?", hostName);
   }
 
   @Override
