@@ -35,6 +35,7 @@ import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -68,6 +69,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
   private final @NonNull Properties props;
   private final @NonNull Properties monitoringConnProperties;
   private final @NonNull PluginService pluginService;
+  private final @NonNull FullServicesContainer servicesContainer;
 
   private final TelemetryFactory telemetryFactory;
   private final TelemetryGauge responseTimeMsGauge;
@@ -75,13 +77,14 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
   private AtomicConnection monitoringConn;
 
   public NodeResponseTimeMonitor(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       int intervalMs) {
     super(TERMINATION_TIMEOUT_SEC);
 
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.hostSpec = hostSpec;
     this.props = props;
     this.intervalMs = intervalMs;
@@ -159,8 +162,11 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
 
           if (count > 0) {
             this.responseTime.set((int) TimeUnit.NANOSECONDS.toMillis(responseTimeSum / count));
+            this.servicesContainer.getStorageService().set(this.hostSpec.getUrl(),
+                new ResponseTimeHolder(this.hostSpec.getUrl(), this.responseTime.get()));
           } else {
             this.responseTime.set(Integer.MAX_VALUE);
+            this.servicesContainer.getStorageService().remove(ResponseTimeHolder.class, this.hostSpec.getUrl());
           }
           this.checkTimestamp.set(this.getCurrentTime());
 
@@ -224,6 +230,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     LOGGER.finest("Reset: " + this.hostSpec.getHost());
     this.monitoringConn.set(null);
     this.responseTime.set(Integer.MAX_VALUE);
+    this.servicesContainer.getStorageService().remove(ResponseTimeHolder.class, this.hostSpec.getUrl());
     this.checkTimestamp.set(this.getCurrentTime());
   }
 

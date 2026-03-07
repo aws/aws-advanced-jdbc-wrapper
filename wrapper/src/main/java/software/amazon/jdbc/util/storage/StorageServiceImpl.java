@@ -120,6 +120,11 @@ public class StorageServiceImpl implements StorageService {
 
   @Override
   public <V> @Nullable V get(Class<V> itemClass, @NonNull Object key) {
+    return this.get(itemClass, key, true);
+  }
+
+  @Override
+  public <V> @Nullable V get(Class<V> itemClass, @NonNull Object key, boolean registerDataAccess) {
     final ExpirationCache<Object, ?> cache = caches.get(itemClass);
     if (cache == null) {
       return null;
@@ -131,8 +136,10 @@ public class StorageServiceImpl implements StorageService {
     }
 
     if (itemClass.isInstance(value)) {
-      DataAccessEvent event = new DataAccessEvent(itemClass, key);
-      this.publisher.publish(event);
+      if (registerDataAccess) {
+        DataAccessEvent event = new DataAccessEvent(itemClass, key);
+        this.publisher.publish(event);
+      }
       return itemClass.cast(value);
     }
 

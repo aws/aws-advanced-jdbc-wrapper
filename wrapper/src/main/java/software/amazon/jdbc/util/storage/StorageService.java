@@ -57,6 +57,17 @@ public interface StorageService extends StateSnapshotProvider {
    *
    * @param itemClass the expected class of the item being retrieved, eg `CustomEndpointInfo.class`.
    * @param key       the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param registerDataAccess true if accessing cached data requires registering data access.
+   * @param <V>       the type of the item being retrieved.
+   * @return the item stored at the given key for the given item class.
+   */
+  <V> @Nullable V get(Class<V> itemClass, @NonNull Object key, boolean registerDataAccess);
+
+  /**
+   * Gets an item stored in the storage service.
+   *
+   * @param itemClass the expected class of the item being retrieved, eg `CustomEndpointInfo.class`.
+   * @param key       the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @param <V>       the type of the item being retrieved.
    * @return the item stored at the given key for the given item class.
    */
