@@ -247,6 +247,22 @@ public class Driver implements java.sql.Driver {
       }
 
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
+
+      // For multi-host protocols like MySQL's loadbalance://, preserve the original
+      // hosts portion so the target driver dialect can reconstruct the full multi-host URL.
+      if (targetDriverProtocol.contains("loadbalance:")
+          || targetDriverProtocol.contains("replication:")) {
+        // Extract the hosts portion: everything between "//" and the next "/" or "?" or "#"
+        final String afterProtocol = driverUrl.substring(targetDriverProtocol.length());
+        final int endOfHosts = afterProtocol.indexOf('/');
+        final String hostsString = endOfHosts >= 0
+            ? afterProtocol.substring(0, endOfHosts)
+            : afterProtocol;
+        if (!hostsString.isEmpty()) {
+          props.setProperty(PropertyDefinition.ORIGINAL_URL_HOSTS.name, hostsString);
+        }
+      }
+
       servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
           this.storageService,
           this.monitorService,
