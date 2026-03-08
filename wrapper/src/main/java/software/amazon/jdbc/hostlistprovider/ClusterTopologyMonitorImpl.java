@@ -617,7 +617,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
                       "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                       new Object[] {this.writerHostSpec.get().getHost()}));
             } else {
-              final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
+              final Pair<String, String> pair = this.servicesContainer.getPluginService().getDialect().getHostId(
+                  this.monitoringConnection.get());
               if (pair != null) {
                 HostSpec instanceTemplate = this.getInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
                 HostSpec writerHost = this.topologyUtils.createHost(

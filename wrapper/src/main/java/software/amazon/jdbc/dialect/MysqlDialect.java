@@ -25,16 +25,24 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.Pair;
 
 public class MysqlDialect implements Dialect {
 
   protected static final String VERSION_QUERY = "SHOW VARIABLES LIKE 'version_comment'";
-  protected static final String HOST_ALIAS_QUERY = "SELECT CONCAT(@@hostname, ':', @@port)";
+  protected static final String HOST_ID_EXPRESSION = "CONCAT(@@hostname, ':', @@port)";
+  protected static final String HOST_ALIAS_QUERY = "SELECT " + HOST_ID_EXPRESSION + " AS host_alias";
+  // The host value is dependent on what was provided in the connection string, use host_id to match to HostSpec.
+  protected static final String HOST_ID_QUERY =
+      "SELECT 'host' AS host, " + HOST_ID_EXPRESSION + " AS host_id";
+  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static MySQLExceptionHandler mySQLExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
@@ -85,7 +93,8 @@ public class MysqlDialect implements Dialect {
 
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(
+            properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override
@@ -102,6 +111,16 @@ public class MysqlDialect implements Dialect {
   @Override
   public String getServerVersionQuery() {
     return VERSION_QUERY;
+  }
+
+  @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    return this.dialectUtils.getHostRole(conn, IS_READER_QUERY);
+  }
+
+  @Override
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, HOST_ID_QUERY);
   }
 
   @Override

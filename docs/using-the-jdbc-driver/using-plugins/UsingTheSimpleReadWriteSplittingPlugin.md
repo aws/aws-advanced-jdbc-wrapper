@@ -45,11 +45,15 @@ Additionally, to consistently ensure the role of connections made with the plugi
 If it is unable to return a verified initial connection, it will log a message and continue with the normal workflow of the other plugins.
 When connecting with custom endpoints and other non-standard URLs, role verification on the initial connection can also be triggered by providing the expected role through the `verifyInitialConnectionType` parameter. Set this to `writer` or `reader` accordingly.
 
-## Limitations When Verifying Connections
+The AWS Advanced JDBC Wrapper supports verifying the role of connections to PostgreSQL, MySQL, and MariaDB databases through using the following queries:
 
-#### Non-RDS clusters
-At this time, the AWS JDBC Driver only supports verifying the role of the connection for Aurora and RDS clusters. Thus, when not connecting to an Aurora or RDS cluster `verifyNewSrwConnections` must be set to `false`.
-The Simple Read/Write Splitting Plugin will continue to function, relying purely on the endpoints from the `srwWriteEndpoint` and `srwReadEndpoint` parameters. For further information on compatible endpoints see [Compatibility](../CompatibilityEndpoints.md).
+| DB Type        | Query                                   |
+|----------------|-----------------------------------------|
+| PostgreSQL     | `SELECT pg_catalog.pg_is_in_recovery()` |
+| Aurora MySQL   | `SELECT @@innodb_read_only`             |
+| MySQL, MariaDB | `SELECT @@read_only`                    |
+
+Role-verification can be disabled by setting the `verifyNewSrwConnections` parameter to `false`. The Simple Read/Write Splitting Plugin will continue to function, relying purely on the endpoints from the `srwWriteEndpoint` and `srwReadEndpoint` parameters.
 
 #### Autocommit
 The verification logic results in errors such as `Cannot change transaction read-only property in the middle of a transaction` from the underlying driver when:
@@ -66,14 +70,10 @@ If autocommit is essential to a workflow, either ensure the plugin has connected
 
 RDS Proxy provides connection pooling and management that significantly improves application scalability by reducing database connection overhead and enabling thousands of concurrent connections through
 connection multiplexing. Connecting exclusively through the proxy endpoint ensures consistent connection management, automatic failover handling, and centralized monitoring, while protecting the underlying database from connection exhaustion
-and providing a stable abstraction layer that remains consistent even when database topology changes. By providing the read/write endpoint and a read-only endpoint to the Simple Read/Write Splitting Plugin, the AWS JDBC Driver will connect using 
+and providing a stable abstraction layer that remains consistent even when database topology changes. By providing the read/write endpoint and a read-only endpoint to the Simple Read/Write Splitting Plugin, the AWS Advanced JDBC Wrapper will connect using 
 these endpoints any time setReadOnly is called. 
 
-To take full advantage of the benefits of RDS Proxy, it is recommended to only connect through RDS Proxy endpoints. See [Using the AWS JDBC Driver with RDS Proxy](./../../../README.md#rds-proxy) for limitations.
-
-## Using the Simple Read/Write Splitting Plugin against non-RDS clusters
-
-The Simple Read/Write Splitting Plugin can be used to switch between any two endpoints. If the endpoints do not direct to an RDS cluster, ensure the property `verifyNewSrwConnections` is set to `false`. See [Limitations of verifyNewSrwConnections](UsingTheSimpleReadWriteSplittingPlugin.md#non-rds-clusters) for details.
+To take full advantage of the benefits of RDS Proxy, it is recommended to only connect through RDS Proxy endpoints. See [Using the AWS Advanced JDBC Wrapper with RDS Proxy](./../../../README.md#rds-proxy) for limitations.
 
 ## Limitations
 
@@ -96,4 +96,4 @@ Following failover, endpoints that point to specific instances will be impacted 
 The plugin supports session state transfer when switching connections. All attributes mentioned in [Session State](../SessionState.md) are automatically transferred to a new connection.
 
 ## Examples
-[SimpleReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/SimpleReadWriteSplittingPostgresExample.java) and [SimpleReadWriteSplittingMySQLExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/SimpleReadWriteSplittingMySQLExample.java) demonstrate how to enable and configure Simple Read/Write Splitting with the AWS JDBC Driver.
+[SimpleReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/SimpleReadWriteSplittingPostgresExample.java) and [SimpleReadWriteSplittingMySQLExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/SimpleReadWriteSplittingMySQLExample.java) demonstrate how to enable and configure Simple Read/Write Splitting with the AWS Advanced JDBC Wrapper.
