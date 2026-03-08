@@ -23,9 +23,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * A class defining a data access event. The class specifies the class of the data that was accessed and the key for the
  * data.
  */
-public class DataAccessEvent implements Event {
+public class DataAccessEvent<K> implements Event {
   protected final @NonNull Class<?> dataClass;
-  protected final @NonNull Object key;
+  protected final @NonNull K key;
 
   /**
    * Constructor for a DataAccessEvent.
@@ -33,7 +33,7 @@ public class DataAccessEvent implements Event {
    * @param dataClass the class of the data that was accessed.
    * @param key       the key for the data that was accessed.
    */
-  public DataAccessEvent(@NonNull Class<?> dataClass, @NonNull Object key) {
+  public DataAccessEvent(@NonNull Class<?> dataClass, @NonNull K key) {
     this.dataClass = dataClass;
     this.key = key;
   }
@@ -42,7 +42,7 @@ public class DataAccessEvent implements Event {
     return dataClass;
   }
 
-  public @NonNull Object getKey() {
+  public @NonNull K getKey() {
     return key;
   }
 
@@ -60,18 +60,14 @@ public class DataAccessEvent implements Event {
       return false;
     }
 
-    DataAccessEvent event = (DataAccessEvent) obj;
+    DataAccessEvent<K> event = (DataAccessEvent<K>) obj;
     return Objects.equals(this.dataClass, event.dataClass)
         && Objects.equals(this.key, event.key);
   }
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + this.dataClass.hashCode();
-    result = prime * result + this.key.hashCode();
-    return result;
+    return Objects.hash(dataClass, key);
   }
 
   @Override

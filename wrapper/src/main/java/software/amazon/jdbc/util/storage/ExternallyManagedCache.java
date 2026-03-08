@@ -119,7 +119,7 @@ public class ExternallyManagedCache<K, V> {
    *
    * @param key the key for the value whose expiration should be extended.
    */
-  public void extendExpiration(K key) {
+  public void extendExpiration(Object key) {
     final CacheItem<V> cacheItem = cache.get(key);
     if (cacheItem != null) {
       cacheItem.extendExpiration(this.timeToLiveNanos);
