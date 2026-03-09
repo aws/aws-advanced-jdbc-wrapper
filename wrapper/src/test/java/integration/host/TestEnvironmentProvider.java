@@ -130,11 +130,14 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
               if (jvm == TargetJvm.OPENJDK17 && config.noOpenJdk17) {
                 continue;
               }
-              if (jvm == TargetJvm.OPENJDK22 && config.noOpenJdk22) {
+              if (jvm == TargetJvm.OPENJDK21 && config.noOpenJdk21) {
                 continue;
               }
-              if (jvm != TargetJvm.OPENJDK22 && config.testHibernateOnly) {
-                // Run hibernate tests with OPENJDK22 only.
+              if (jvm == TargetJvm.OPENJDK24 && config.noOpenJdk24) {
+                continue;
+              }
+              if (jvm != TargetJvm.OPENJDK24 && config.testHibernateOnly) {
+                // Run hibernate tests with OPENJDK24 only.
                 continue;
               }
               if (jvm == TargetJvm.GRAALVM && config.noGraalVm) {

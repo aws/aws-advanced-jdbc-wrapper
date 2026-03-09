@@ -1256,8 +1256,10 @@ public class TestEnvironment implements AutoCloseable {
         return "amazoncorretto:11.0.19-alpine3.17";
       case OPENJDK17:
         return "amazoncorretto:17-alpine3.21";
-      case OPENJDK22:
-        return "amazoncorretto:22-alpine3.20-full";
+      case OPENJDK21:
+        return "amazoncorretto:21-alpine-full";
+      case OPENJDK24:
+        return "amazoncorretto:24-alpine-full";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:
