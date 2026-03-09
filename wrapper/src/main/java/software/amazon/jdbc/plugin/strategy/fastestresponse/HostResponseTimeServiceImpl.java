@@ -18,9 +18,11 @@ package software.amazon.jdbc.plugin.strategy.fastestresponse;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -28,11 +30,13 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
   private static final Logger LOGGER =
       Logger.getLogger(HostResponseTimeServiceImpl.class.getName());
+  private static final long MONITOR_DISPOSAL_TIME_NANO = TimeUnit.MINUTES.toNanos(10);
 
   protected int intervalMs;
   protected List<HostSpec> hosts = new ArrayList<>();
@@ -50,17 +54,28 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
     this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.intervalMs = intervalMs;
+
+    this.servicesContainer.getStorageService().registerItemClassIfAbsent(
+        ResponseTimeHolder.class,
+        true,
+        MONITOR_DISPOSAL_TIME_NANO,
+        null,
+        null
+    );
+
+    this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
+        NodeResponseTimeMonitor.class,
+        MONITOR_DISPOSAL_TIME_NANO,
+        TimeUnit.MINUTES.toNanos(3),
+        EnumSet.of(MonitorErrorResponse.RECREATE),
+        ResponseTimeHolder.class);
   }
 
   @Override
   public int getResponseTime(HostSpec hostSpec) {
-    final NodeResponseTimeMonitor monitor =
-        this.servicesContainer.getMonitorService().get(NodeResponseTimeMonitor.class, hostSpec.getUrl());
-    if (monitor == null) {
-      return Integer.MAX_VALUE;
-    }
-
-    return monitor.getResponseTime();
+    final ResponseTimeHolder responseTimeHolder =
+        this.servicesContainer.getStorageService().get(ResponseTimeHolder.class, hostSpec.getUrl());
+    return responseTimeHolder == null ? Integer.MAX_VALUE : responseTimeHolder.getResponseTime();
   }
 
   @Override
@@ -80,7 +95,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
                 servicesContainer,
                 this.props,
                 (servicesContainer) -> new NodeResponseTimeMonitor(
-                    servicesContainer.getPluginService(), hostSpec, this.props, this.intervalMs));
+                    servicesContainer, hostSpec, this.props, this.intervalMs));
           } catch (SQLException e) {
             LOGGER.warning(
                 Messages.get("HostResponseTimeServiceImpl.errorStartingMonitor", new Object[] {hostSpec.getUrl(), e}));
