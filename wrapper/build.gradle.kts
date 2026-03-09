@@ -68,8 +68,8 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-engine:1.14.3")
     testImplementation("org.junit.platform:junit-platform-launcher:1.14.3")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.14.3")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.1")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.13.1")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.14.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.14.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.14.0")
