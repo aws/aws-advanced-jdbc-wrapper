@@ -39,9 +39,10 @@ public class MariaDbDialect implements Dialect {
   protected static final String VERSION_QUERY = "SELECT VERSION()";
   protected static final String HOST_ID_EXPRESSION = "CONCAT(@@hostname, ':', @@port)";
   protected static final String HOST_ALIAS_QUERY = "SELECT " + HOST_ID_EXPRESSION + " AS host_alias";
-  // The host value is dependent on what was provided in the connection string, use host_id to match to HostSpec.
+  // For regular MariaDB connections, the host value in a HostSpec comes from the connection string.
+  // Use host_id to match a connection to a HostSpec.
   protected static final String HOST_ID_QUERY =
-      "SELECT 'host' AS host, " + HOST_ID_EXPRESSION + " AS host_id";
+      "SELECT @@hostname AS host, " + HOST_ID_EXPRESSION + " AS host_id";
   protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static MariaDBExceptionHandler mariaDBExceptionHandler;

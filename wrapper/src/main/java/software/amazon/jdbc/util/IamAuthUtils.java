@@ -22,7 +22,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.plugin.iam.LightRdsUtility;
 import software.amazon.jdbc.plugin.iam.RegularRdsUtility;

@@ -43,9 +43,10 @@ public class PgDialect implements Dialect {
       "pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
   protected static final String HOST_ALIAS_QUERY =
       "SELECT " + HOST_ID_EXPRESSION;
-  // The host value is dependent on what was provided in the connection string, use host_id to match to HostSpec.
+  // For regular PostgreSQL connections, the host value in a HostSpec comes from the connection string.
+  // Use host_id to match a connection to a HostSpec.
   protected static final String HOST_ID_QUERY =
-      "SELECT 'host' AS host, " + HOST_ID_EXPRESSION + " AS host_id";
+      "SELECT pg_catalog.inet_server_addr() AS host, " + HOST_ID_EXPRESSION + " AS host_id";
   protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   private static PgExceptionHandler pgExceptionHandler;
