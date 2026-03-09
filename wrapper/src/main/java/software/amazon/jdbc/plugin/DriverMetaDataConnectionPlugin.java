@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
@@ -30,7 +31,6 @@ public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
       "wrapperDriverName", "Amazon Web Services (AWS) Advanced JDBC Wrapper",
       "Override this value to return a specific driver name for the DatabaseMetaData#getDriverName method");
 
-  private static final String GET_DRIVER_NAME = "DatabaseMetaData.getDriverName";
   private final Properties properties;
 
   static {
@@ -43,7 +43,8 @@ public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return new HashSet<>(Collections.singletonList(GET_DRIVER_NAME));
+    return new HashSet<>(
+        Collections.singletonList(JdbcMethod.DATABASEMETADATA_GETDRIVERNAME.methodName));
   }
 
   @Override
