@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -44,9 +45,12 @@ import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerExcept
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RegionUtils;
@@ -60,6 +64,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
   private static final String TELEMETRY_UPDATE_SECRETS = "fetch credentials";
   private static final String TELEMETRY_FETCH_CREDENTIALS_COUNTER = "secretsManager.fetchCredentials.count";
+  private static final long CACHE_DISPOSAL_TIME_NANO = TimeUnit.MINUTES.toNanos(30);
 
   private static final int DEFAULT_CREDENTIALS_EXPIRATION_SEC = 15 * 60 - 30;
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -67,8 +72,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
-          add("connect");
-          add("forceConnect");
+          add(JdbcMethod.CONNECT.methodName);
+          add(JdbcMethod.FORCECONNECT.methodName);
         }
       });
 
@@ -109,7 +114,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final String secretUsername;
   private final String secretPassword;
   private final long secretExpirationTime;
-  protected PluginService pluginService;
+  protected final PluginService pluginService;
+  protected final FullServicesContainer servicesContainer;
 
   private final TelemetryCounter fetchCredentialsCounter;
 
@@ -117,9 +123,9 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     PropertyDefinition.registerPluginProperties(AwsSecretsManagerConnectionPlugin.class);
   }
 
-  public AwsSecretsManagerConnectionPlugin(final PluginService pluginService, final Properties props) {
+  public AwsSecretsManagerConnectionPlugin(final FullServicesContainer servicesContainer, final Properties props) {
     this(
-        pluginService,
+        servicesContainer,
         props,
         (hostSpec, region) -> {
           final String endpoint = ENDPOINT_PROPERTY.getString(props);
@@ -149,11 +155,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   AwsSecretsManagerConnectionPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final Properties props,
       final BiFunction<HostSpec, Region, SecretsManagerClient> secretsManagerClientFunc,
       final Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
 
     try {
       Class.forName("software.amazon.awssdk.services.secretsmanager.SecretsManagerClient");
@@ -166,6 +173,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.jacksonDatabindNotInClasspath"));
     }
+
+    this.servicesContainer.getStorageService().registerItemClassIfAbsent(
+        Secret.class,
+        false,
+        CACHE_DISPOSAL_TIME_NANO,
+        null,
+        null
+    );
 
     final String secretId = SECRET_ID_PROPERTY.getString(props);
     if (StringUtils.isNullOrEmpty(secretId)) {
@@ -285,7 +300,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       this.fetchCredentialsCounter.inc();
     }
 
-    this.secret = AwsSecretsManagerCacheHolder.secretsCache.get(this.secretKey);
+    this.secret = this.servicesContainer.getStorageService().get(Secret.class, this.secretKey);
 
     try {
       boolean fetched = false;
@@ -294,7 +309,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           this.secret = fetchLatestCredentials(hostSpec);
           if (this.secret != null) {
             fetched = true;
-            AwsSecretsManagerCacheHolder.secretsCache.put(this.secretKey, this.secret);
+            this.servicesContainer.getStorageService().set(this.secretKey, this.secret);
           }
         } catch (final SecretsManagerException | JsonProcessingException exception) {
           LOGGER.log(
@@ -399,7 +414,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   public static void clearCache() {
-    AwsSecretsManagerCacheHolder.clearCache();
+    CoreServicesContainer.getInstance().getStorageService().clear(Secret.class);
   }
 
   static class Secret {
@@ -423,6 +438,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
     boolean isExpired() {
       return this.expirationTime != null && this.expirationTime.isBefore(Instant.now());
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Secret@%s [username=%s, password=%s, expirationTime=%s]",
+          Integer.toHexString(System.identityHashCode(this)),
+          StringUtils.mask(this.username, 1, 1),
+          this.password == null ? "<null>" : "***",
+          this.expirationTime);
     }
   }
 }
