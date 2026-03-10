@@ -493,7 +493,6 @@ public class AwsSecretsManagerConnectionPluginTest {
             Instant.now().plusSeconds(300));
     when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(nonExpiredSecret);
 
-
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
     verify(mockStorageService, never()).set(any(), any());
