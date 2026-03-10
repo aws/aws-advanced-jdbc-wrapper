@@ -36,7 +36,7 @@ dependencies {
 
     optionalImplementation("software.amazon.awssdk:rds:2.42.4")
     optionalImplementation("software.amazon.awssdk:auth:2.42.4") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.0") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.4") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:sts:2.42.4")
     optionalImplementation("software.amazon.awssdk:kms:2.42.4")
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.4")
