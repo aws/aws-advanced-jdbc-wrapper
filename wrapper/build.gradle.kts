@@ -1018,6 +1018,121 @@ tasks.register<Test>("debug-autoscaling-only") {
     }
 }
 
+tasks.register<Test>("test-all-mysql-aurora-java8") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "false")
+        systemProperty("test-no-openjdk11", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-all-mysql-aurora-java11") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk11", "false")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-all-mysql-aurora-java17") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk11", "true")
+        systemProperty("test-no-openjdk17", "false")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-all-mysql-aurora-java21") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk11", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk21", "false")
+        systemProperty("test-no-openjdk24", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-all-mysql-aurora-java24") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk11", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "false")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
 // Metrics
 
 tasks.register<Test>("test-all-metrics") {
