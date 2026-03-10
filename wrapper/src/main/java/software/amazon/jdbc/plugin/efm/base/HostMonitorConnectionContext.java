@@ -22,22 +22,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public abstract class HostMonitorConnectionContext {
+public abstract class HostMonitorConnectionContext implements ConnectionContext {
 
   protected final AtomicReference<WeakReference<Connection>> connectionToAbortRef = new AtomicReference<>(null);
   protected final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
-
-  public HostMonitorConnectionContext() {
-  }
-
-  /**
-   * Constructor.
-   *
-   * @param connectionToAbort A reference to the connection associated with this context that will be aborted.
-   */
-  public HostMonitorConnectionContext(final Connection connectionToAbort) {
-    this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
-  }
 
   public boolean isNodeUnhealthy() {
     return this.nodeUnhealthy.get();

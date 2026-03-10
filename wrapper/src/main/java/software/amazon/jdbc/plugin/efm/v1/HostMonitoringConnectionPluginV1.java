@@ -40,10 +40,10 @@ public class HostMonitoringConnectionPluginV1 extends HostMonitoringConnectionBa
   }
 
   public HostMonitoringConnectionPluginV1(
-      final @NonNull FullServicesContainer serviceContainer,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    super(serviceContainer, properties, monitorServiceSupplier, rdsHelper);
+    super(servicesContainer, properties, monitorServiceSupplier, rdsHelper);
   }
 }

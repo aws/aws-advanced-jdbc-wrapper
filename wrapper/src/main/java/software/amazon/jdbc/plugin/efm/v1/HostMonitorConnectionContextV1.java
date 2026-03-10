@@ -52,38 +52,7 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
 
   private final ResourceLock lock = new ResourceLock();
 
-  public HostMonitorConnectionContextV1() {
-  }
-
-  public HostMonitorConnectionContextV1(Connection connectionToAbort) {
-    super(connectionToAbort);
-  }
-
-  /**
-   * Constructor.
-   *
-   * @param connectionToAbort              A reference to the connection associated with this context that will
-   *                                       be aborted in case of server failure.
-   * @param failureDetectionTimeMillis     Grace period after which node monitoring starts.
-   * @param failureDetectionIntervalMillis Interval between each failed connection check.
-   * @param failureDetectionCount          Number of failed connection checks before considering database
-   *                                       node as unhealthy.
-   * @param abortedConnectionsCounter Aborted connection telemetry counter.
-   */
-  public HostMonitorConnectionContextV1(
-      final Connection connectionToAbort,
-      final long failureDetectionTimeMillis,
-      final long failureDetectionIntervalMillis,
-      final long failureDetectionCount,
-      TelemetryCounter abortedConnectionsCounter) {
-    super(connectionToAbort);
-    this.failureDetectionTimeMillis = failureDetectionTimeMillis;
-    this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
-    this.failureDetectionCount = failureDetectionCount;
-    this.abortedConnectionsCounter = abortedConnectionsCounter;
-  }
-
-  public void initContext(final Connection connectionToAbort,
+  public void init(final Connection connectionToAbort,
       final long failureDetectionTimeMillis,
       final long failureDetectionIntervalMillis,
       final long failureDetectionCount,
@@ -144,6 +113,7 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
 
   public void setInactive() {
     this.activeContext = false;
+    this.connectionToAbortRef.set(null);
   }
 
   public void abortConnection() {

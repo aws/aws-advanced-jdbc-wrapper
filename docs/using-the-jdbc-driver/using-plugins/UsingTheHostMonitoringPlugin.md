@@ -98,3 +98,25 @@ The `efm2` plugin is designed to address [some of the issues](https://github.com
 - Reviewed and simplified monitoring logic
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
+## Context Pool Configuration
+
+The Host Monitoring plugins use an internal context pool to manage monitoring connection contexts. The pool behavior can be configured using the following JVM system properties:
+
+| System Property                      | Type    | Required | Description                                                                                                                                                                                                     | Default Value |
+|--------------------------------------|---------|:--------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `efm.contextPool.maxIdleCount`       | Integer |    No    | Maximum number of idle connection contexts to keep in the pool. Must be at least 1.                                                                                                                             | `30`          |
+| `efm.contextPool.lazyInitialization` | Boolean |    No    | When `true`, idle contexts are created on-demand as needed, unitil `maxIdleCount` is reached. When `false`, the pool is pre-populated with idle contexts (determined by the `maxIdleCount` setting) at startup. | `false`       |
+
+These properties can be set via JVM arguments:
+
+```bash
+java -Defm.contextPool.maxIdleCount=50 -Defm.contextPool.lazyInitialization=true -jar your-application.jar
+```
+
+Or programmatically before establishing connections:
+
+```java
+System.setProperty("efm.contextPool.maxIdleCount", "50");
+System.setProperty("efm.contextPool.lazyInitialization", "true");
+```
