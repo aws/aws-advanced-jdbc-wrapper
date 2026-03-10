@@ -75,7 +75,18 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
         PropertyDefinition.DATABASE.getString(props) != null
             ? PropertyDefinition.DATABASE.getString(props)
             : "";
-    String urlBuilder = protocol + hostSpec.getUrl() + databaseName;
+
+    String urlBuilder;
+
+    // For multi-host protocols like loadbalance:// or replication://, use the original
+    // hosts string so the MySQL driver can create its internal load-balanced connection.
+    final String originalHosts = PropertyDefinition.ORIGINAL_URL_HOSTS.getString(props);
+    if (originalHosts != null
+        && (protocol.contains("loadbalance:") || protocol.contains("replication:"))) {
+      urlBuilder = protocol + originalHosts + "/" + databaseName;
+    } else {
+      urlBuilder = protocol + hostSpec.getUrl() + databaseName;
+    }
 
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
