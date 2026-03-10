@@ -1110,7 +1110,7 @@ tasks.register<Test>("test-all-mysql-aurora-java21") {
     }
 }
 
-tasks.register<Test>("test-all-mysql-aurora-java25") {
+tasks.register<Test>("test-all-mysql-aurora-java24") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
