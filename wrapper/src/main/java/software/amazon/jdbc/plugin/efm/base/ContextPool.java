@@ -16,14 +16,35 @@
 
 package software.amazon.jdbc.plugin.efm.base;
 
-import software.amazon.jdbc.util.events.EventSubscriber;
-import software.amazon.jdbc.util.monitoring.Monitor;
-
 /**
- * Interface for monitors. This class uses background threads to monitor servers with one or more
- * connections for more efficient failure detection during method execution.
+ * Pool for managing reusable connection context objects.
  */
-public interface HostMonitor extends AutoCloseable, Monitor, Runnable, EventSubscriber {
+public interface ContextPool {
 
-  void startMonitoring(ConnectionContext context);
+  /**
+   * Acquire a connection context from the pool.
+   *
+   * @return a connection context
+   */
+  ConnectionContext acquire();
+
+  /**
+   * Release a connection context back to the pool.
+   *
+   * @param context the context to release
+   * @return true if successfully released, false otherwise
+   */
+  boolean release(ConnectionContext context);
+
+  /**
+   * Get the current size of the pool.
+   *
+   * @return the number of contexts in the pool
+   */
+  int size();
+
+  /**
+   * Clear all contexts from the pool.
+   */
+  void clearPool();
 }
