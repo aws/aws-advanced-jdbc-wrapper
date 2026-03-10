@@ -52,8 +52,8 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     this.dialect = dialect;
   }
 
-  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate)
-      throws SQLException {
+  public @Nullable List<HostSpec> queryForTopology(
+      Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate) {
     // This method should not be called on this class.
     throw new UnsupportedOperationException();
   }

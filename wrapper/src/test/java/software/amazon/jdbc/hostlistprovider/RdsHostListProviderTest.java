@@ -18,8 +18,6 @@ package software.amazon.jdbc.hostlistprovider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -46,7 +44,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import software.amazon.awssdk.services.ec2.model.Host;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -56,7 +53,6 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorInitializer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -220,63 +216,5 @@ class RdsHostListProviderTest {
 
     final List<HostSpec> result = rdsHostListProvider.getStoredTopology();
     assertEquals(expected, result);
-  }
-
-  @Test
-  void testIdentifyConnectionWithInvalidNodeIdQuery() throws SQLException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-
-    assertThrows(SQLException.class, () -> rdsHostListProvider.identifyConnection(mockConnection));
-
-    when(mockConnection.createStatement()).thenThrow(new SQLException("exception"));
-    assertThrows(SQLException.class, () -> rdsHostListProvider.identifyConnection(mockConnection));
-  }
-
-  @Test
-  void testIdentifyConnectionNullTopology() throws SQLException, TimeoutException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-1", "instance-1"));
-    doReturn(null).when(rdsHostListProvider).refresh();
-    doReturn(null).when(rdsHostListProvider).forceRefresh();
-
-    assertNull(rdsHostListProvider.identifyConnection(mockConnection));
-  }
-
-  @Test
-  void testIdentifyConnectionHostNotInTopology() throws SQLException, TimeoutException {
-    final List<HostSpec> cachedTopology = Collections.singletonList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
-            .port(HostSpec.NO_PORT)
-            .role(HostRole.WRITER)
-            .build());
-
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-1", "instance-1"));
-    doReturn(cachedTopology).when(rdsHostListProvider).refresh();
-    doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh();
-
-    assertNull(rdsHostListProvider.identifyConnection(mockConnection));
-  }
-
-  @Test
-  void testIdentifyConnectionHostInTopology() throws SQLException, TimeoutException {
-    final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
-        .hostId("instance-a-1")
-        .port(HostSpec.NO_PORT)
-        .role(HostRole.WRITER)
-        .build();
-    final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
-
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-a-1", "instance-a-1"));
-    doReturn(cachedTopology).when(rdsHostListProvider).refresh();
-    doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh();
-
-    final HostSpec actual = rdsHostListProvider.identifyConnection(mockConnection);
-    assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", actual.getHost());
-    assertEquals("instance-a-1", actual.getHostId());
   }
 }

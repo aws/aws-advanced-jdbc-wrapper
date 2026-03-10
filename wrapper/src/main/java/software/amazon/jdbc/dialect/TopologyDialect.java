@@ -19,9 +19,5 @@ package software.amazon.jdbc.dialect;
 public interface TopologyDialect extends Dialect {
   String getTopologyQuery();
 
-  String getInstanceIdQuery();
-
   String getWriterIdQuery();
-
-  String getIsReaderQuery();
 }

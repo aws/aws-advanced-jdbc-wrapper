@@ -17,12 +17,15 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
+import software.amazon.jdbc.util.Pair;
 
 public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
 
@@ -72,8 +75,8 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public String getInstanceIdQuery() {
-    return INSTANCE_ID_QUERY;
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 
   @Override
@@ -82,8 +85,8 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    return this.dialectUtils.getHostRole(conn, IS_READER_QUERY);
   }
 
   @Override

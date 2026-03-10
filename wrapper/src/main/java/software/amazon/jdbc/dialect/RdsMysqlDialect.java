@@ -22,6 +22,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StringUtils;
 
 public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
@@ -30,6 +32,9 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
   protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
+  protected static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
+      + " FROM mysql.rds_topology"
+      + " WHERE id = @@server_id";
 
   protected static final String BG_STATUS_QUERY = "SELECT * FROM mysql.rds_topology";
 
@@ -97,5 +102,10 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
   @Override
   public String getBlueGreenStatusQuery() {
     return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 }

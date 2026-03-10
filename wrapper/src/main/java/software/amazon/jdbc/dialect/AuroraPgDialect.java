@@ -23,11 +23,13 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 
 public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
 
@@ -52,7 +54,6 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() "
           + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "AND SERVER_ID OPERATOR(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()";
-  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
       "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";
@@ -116,18 +117,13 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public String getInstanceIdQuery() {
-    return INSTANCE_ID_QUERY;
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 
   @Override
   public String getWriterIdQuery() {
     return WRITER_ID_QUERY;
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
   }
 
   @Override

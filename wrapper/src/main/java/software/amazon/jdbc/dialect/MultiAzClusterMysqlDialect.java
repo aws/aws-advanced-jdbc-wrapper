@@ -24,6 +24,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
@@ -32,6 +33,7 @@ import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -51,7 +53,6 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
   protected static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
-  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static final EnumSet<FailoverRestriction> FAILOVER_RESTRICTIONS =
       EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
@@ -113,13 +114,8 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   }
 
   @Override
-  public String getInstanceIdQuery() {
-    return INSTANCE_ID_QUERY;
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 
   @Override

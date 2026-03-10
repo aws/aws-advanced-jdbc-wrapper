@@ -25,16 +25,25 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MariaDBExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.Pair;
 
 public class MariaDbDialect implements Dialect {
 
   protected static final String VERSION_QUERY = "SELECT VERSION()";
-  protected static final String HOST_ALIAS_QUERY = "SELECT CONCAT(@@hostname, ':', @@port)";
+  protected static final String HOST_ID_EXPRESSION = "CONCAT(@@hostname, ':', @@port)";
+  protected static final String HOST_ALIAS_QUERY = "SELECT " + HOST_ID_EXPRESSION + " AS host_alias";
+  // For regular MariaDB connections, the host value in a HostSpec comes from the connection string.
+  // Use host_id to match a connection to a HostSpec.
+  protected static final String HOST_ID_QUERY =
+      "SELECT @@hostname AS host, " + HOST_ID_EXPRESSION + " AS host_id";
+  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static MariaDBExceptionHandler mariaDBExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
@@ -44,6 +53,8 @@ public class MariaDbDialect implements Dialect {
       DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
       DialectCodes.RDS_MYSQL,
       DialectCodes.MYSQL);
+
+  protected final DialectUtils dialectUtils = new DialectUtils();
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -82,7 +93,8 @@ public class MariaDbDialect implements Dialect {
 
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(
+            properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override
@@ -99,6 +111,16 @@ public class MariaDbDialect implements Dialect {
   @Override
   public String getServerVersionQuery() {
     return VERSION_QUERY;
+  }
+
+  @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    return this.dialectUtils.getHostRole(conn, IS_READER_QUERY);
+  }
+
+  @Override
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, HOST_ID_QUERY);
   }
 
   @Override
