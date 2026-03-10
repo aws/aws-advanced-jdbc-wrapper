@@ -9,26 +9,26 @@ Successfully created a new KMS Encryption Plugin for the AWS Advanced JDBC Wrapp
 ### Core Plugin Files
 
 1. **KmsEncryptionConnectionPlugin.java**
-   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/kmsencryption/KmsEncryptionConnectionPlugin.java`
+   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/KmsEncryptionConnectionPlugin.java`
    - Main plugin class that implements the ConnectionPlugin interface
    - Integrates with AWS JDBC Wrapper plugin system
    - Defines configuration properties for KMS encryption
 
 2. **KmsEncryptionConnectionPluginFactory.java**
-   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/kmsencryption/KmsEncryptionConnectionPluginFactory.java`
+   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/KmsEncryptionConnectionPluginFactory.java`
    - Factory class for creating plugin instances
    - Used by AWS JDBC Wrapper to instantiate the plugin
 
 3. **KmsEncryptionPlugin.java**
-   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/kmsencryption/KmsEncryptionPlugin.java`
+   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/KmsEncryptionPlugin.java`
    - Core encryption logic implementation
    - Handles initialization, configuration, and resource management
    - Provides methods for wrapping PreparedStatement and ResultSet objects
 
 ### Documentation
 
-4. **README.md**
-   - Location: `wrapper/src/main/java/software/amazon/jdbc/plugin/kmsencryption/README.md`
+4. **Plugin Documentation**
+   - Location: `docs/using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md`
    - Comprehensive documentation for the KMS encryption plugin
    - Includes configuration options, usage examples, and troubleshooting
 
