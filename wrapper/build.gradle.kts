@@ -23,7 +23,7 @@ plugins {
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
     id("com.kncept.junit.reporter")
-    id("com.gradleup.shadow") version "8.3.5" // 8.3.5 is the last version that is compatible with Java 8
+    id("com.gradleup.shadow") version "9.3.2" // 9.3.2 is the last version that is compatible with Java 8
 }
 
 var useJacoco = (!project.hasProperty("jacocoEnabled") || project.property("jacocoEnabled").toString().toBoolean())
