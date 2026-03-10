@@ -25,6 +25,6 @@ public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPlugi
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new AwsSecretsManagerConnectionPlugin(servicesContainer.getPluginService(), props);
+    return new AwsSecretsManagerConnectionPlugin(servicesContainer, props);
   }
 }

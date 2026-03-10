@@ -67,13 +67,16 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.Secret;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -121,6 +124,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock GetSecretValueRequest mockGetValueRequest;
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
   @Mock PluginServiceImpl mockService;
+  @Mock StorageService mockStorageService;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
   @Mock Dialect mockTopologyAwareDialect;
   @Mock DialectManager mockDialectManager;
@@ -144,6 +148,8 @@ public class AwsSecretsManagerConnectionPluginTest {
         .thenReturn(mockTopologyAwareDialect);
 
     when(mockServicesContainer.getConnectionPluginManager()).thenReturn(mockConnectionPluginManager);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockService);
+    when(mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
     when(mockService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
@@ -153,7 +159,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
 
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        mockService,
+        mockServicesContainer,
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -167,7 +173,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
-    AwsSecretsManagerCacheHolder.clearCache();
+    CoreServicesContainer.getInstance().getStorageService().clear(Secret.class);
     TEST_PROPS.clear();
   }
 
@@ -177,11 +183,10 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithCachedSecrets() throws SQLException {
     // Add initial cached secret to be used for a connection.
-    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -199,7 +204,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, times(1)).set(any(), any());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -210,7 +215,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @MethodSource("missingArguments")
   public void testMissingRequiredParameters(final Properties properties) {
     assertThrows(RuntimeException.class, () -> new AwsSecretsManagerConnectionPlugin(
-        mockService,
+        mockServicesContainer,
         properties,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -222,7 +227,7 @@ public class AwsSecretsManagerConnectionPluginTest {
    */
   @Test
   public void testFailedInitialConnectionWithUnhandledError() throws SQLException {
-    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
     final SQLException failedFirstConnectionGenericException = new SQLException(TEST_SQL_ERROR, UNHANDLED_ERROR_CODE);
     doThrow(failedFirstConnectionGenericException).when(connectFunc).call();
 
@@ -252,15 +257,17 @@ public class AwsSecretsManagerConnectionPluginTest {
       String accessError,
       String protocol,
       ExceptionHandler exceptionHandler) throws SQLException {
+    PluginServiceImpl pluginServiceImpl = getPluginService(protocol);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        getPluginService(protocol),
+        mockServicesContainer,
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
 
     // Fail the initial connection attempt with cached secret.
     // Second attempt should be successful.
-    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
     final SQLException failedFirstConnectionAccessException = new SQLException(TEST_SQL_ERROR,
         accessError);
     doThrow(failedFirstConnectionAccessException).when(connectFunc).call();
@@ -278,7 +285,6 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(connectFunc, times(2)).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -321,7 +327,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         readSecretsFailedException.getMessage(),
         Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-    assertEquals(0, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, never()).set(any(), any());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
   }
@@ -348,7 +354,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         getSecretsFailedException.getMessage(),
         Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-    assertEquals(0, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, never()).set(any(), any());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
   }
@@ -356,8 +362,10 @@ public class AwsSecretsManagerConnectionPluginTest {
   @ParameterizedTest
   @ValueSource(strings = {"28000", "28P01"})
   public void testFailedInitialConnectionWithWrappedGenericError(final String accessError) throws SQLException {
+    PluginServiceImpl pluginServiceImpl = getPluginService(TEST_PG_PROTOCOL);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        getPluginService(TEST_PG_PROTOCOL),
+        mockServicesContainer,
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -381,7 +389,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, times(1)).set(any(), any());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -389,8 +397,10 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   @Test
   public void testConnectWithWrappedMySQLException() throws SQLException {
+    PluginServiceImpl pluginServiceImpl = getPluginService(TEST_MYSQL_PROTOCOL);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        getPluginService(TEST_MYSQL_PROTOCOL),
+        mockServicesContainer,
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -413,7 +423,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, times(1)).set(any(), any());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -421,8 +431,10 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   @Test
   public void testConnectWithWrappedPostgreSQLException() throws SQLException {
+    PluginServiceImpl pluginServiceImpl = getPluginService(TEST_PG_PROTOCOL);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        getPluginService(TEST_PG_PROTOCOL),
+        mockServicesContainer,
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -445,7 +457,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, times(1)).set(any(), any());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -458,14 +470,14 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_EXPIRED_USERNAME,
             TEST_EXPIRED_PASSWORD,
             Instant.now().minusSeconds(1));
-    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, expiredSecret);
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(expiredSecret);
 
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, times(1)).set(any(), any());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -479,11 +491,11 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_USERNAME,
             TEST_PASSWORD,
             Instant.now().plusSeconds(300));
-    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, nonExpiredSecret);
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(nonExpiredSecret);
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(mockStorageService, never()).set(any(), any());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -498,8 +510,11 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     SECRET_ID_PROPERTY.set(props, arn);
 
+    PluginServiceImpl pluginServiceImpl = new PluginServiceImpl(
+        mockServicesContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockServicesContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        mockServicesContainer,
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -518,8 +533,12 @@ public class AwsSecretsManagerConnectionPluginTest {
     SECRET_ID_PROPERTY.set(props, arn);
     REGION_PROPERTY.set(props, expectedRegion.toString());
 
+    PluginServiceImpl pluginServiceImpl = new PluginServiceImpl(
+        mockServicesContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
+
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockServicesContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        mockServicesContainer,
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));

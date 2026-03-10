@@ -34,6 +34,7 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -51,11 +52,11 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
-          add("connect");
-          add("forceConnect");
-          add("notifyNodeListChanged");
-          add("acceptsStrategy");
-          add("getHostSpecByStrategy");
+          add(JdbcMethod.CONNECT.methodName);
+          add(JdbcMethod.FORCECONNECT.methodName);
+          add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
+          add(JdbcMethod.ACCEPTSSTRATEGY.methodName);
+          add(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName);
         }
       });
 
