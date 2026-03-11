@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Management</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .form-group { margin: 15px 0; }
+        input { padding: 8px; width: 300px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .user { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>User Management</h1>
+    
+    <h2>Create User</h2>
+    <div class="form-group">
+        <input id="name" placeholder="Name">
+    </div>
+    <div class="form-group">
+        <input id="ssn" placeholder="SSN (e.g., 123-45-6789)">
+    </div>
+    <button onclick="createUser()">Create</button>
+    
+    <h2>Users</h2>
+    <div id="users"></div>
+    
+    <script>
+        async function loadUsers() {
+            const res = await fetch('/users');
+            const users = await res.json();
+            document.getElementById('users').innerHTML = users.map(u => `
+                <div class="user">
+                    <strong>ID:</strong> ${u.id}<br>
+                    <strong>Name:</strong> <input id="name-${u.id}" value="${u.name}"><br>
+                    <strong>SSN:</strong> <input id="ssn-${u.id}" value="${u.ssn}"><br>
+                    <button onclick="updateUser(${u.id})">Update</button>
+                    <button onclick="deleteUser(${u.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+        
+        async function createUser() {
+            await fetch('/users', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: document.getElementById('name').value,
+                    ssn: document.getElementById('ssn').value
+                })
+            });
+            document.getElementById('name').value = '';
+            document.getElementById('ssn').value = '';
+            loadUsers();
+        }
+        
+        async function updateUser(id) {
+            await fetch(`/users/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: document.getElementById(`name-${id}`).value,
+                    ssn: document.getElementById(`ssn-${id}`).value
+                })
+            });
+            loadUsers();
+        }
+        
+        async function deleteUser(id) {
+            if (confirm('Delete this user?')) {
+                await fetch(`/users/${id}`, {method: 'DELETE'});
+                loadUsers();
+            }
+        }
+        
+        loadUsers();
+    </script>
+</body>
+</html>
