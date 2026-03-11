@@ -56,7 +56,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: junit-report-java${{ matrix.testTask }}-latest
+          name: junit-report-java${{ matrix.javaVersion }}-latest
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: Archive html summary report for Java${{ matrix.javaVersion }} latest
