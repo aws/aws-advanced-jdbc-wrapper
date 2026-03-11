@@ -65,7 +65,7 @@ class ExpirationCacheTest {
     // wait for item to expire.
     TimeUnit.MILLISECONDS.sleep(150);
 
-    assertEquals(item, cache.get(key));
+    assertNull(cache.get(key));
   }
 
   @Test
