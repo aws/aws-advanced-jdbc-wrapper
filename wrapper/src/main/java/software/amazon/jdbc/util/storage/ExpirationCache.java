@@ -161,10 +161,10 @@ public class ExpirationCache<K, V> {
       return null;
     }
 
-    if (this.isRenewableExpiration) {
-      cacheItem.extendExpiration(this.timeToLiveNanos);
-    } else if (cacheItem.shouldCleanup()) {
+    if (cacheItem.shouldCleanup()) {
       return null;
+    } else if (this.isRenewableExpiration) {
+      cacheItem.extendExpiration(this.timeToLiveNanos);
     }
 
     return cacheItem.item;

@@ -72,29 +72,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   private static final Logger LOGGER = Logger.getLogger(FailoverConnectionPlugin.class.getName());
   private static final String TELEMETRY_WRITER_FAILOVER = "failover to writer node";
   private static final String TELEMETRY_READER_FAILOVER = "failover to replica";
-  private static final Set<String> METHODS_REQUIRING_UPDATED_TOPOLOGY = Collections.unmodifiableSet(
-      new HashSet<>(Arrays.asList(
-          JdbcMethod.CONNECTION_COMMIT.methodName,
-          JdbcMethod.CONNECT.methodName,
-          JdbcMethod.CONNECTION_ISVALID.methodName,
-          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
-          JdbcMethod.CONNECTION_SETREADONLY.methodName,
-          JdbcMethod.STATEMENT_EXECUTE.methodName,
-          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName
-      )));
 
   private final Set<String> subscribedMethods;
   private final PluginService pluginService;
@@ -265,10 +242,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
     }
 
+    boolean isCloseOrAbortMethod = JdbcMethod.CONNECTION_ABORT.methodName.equals(methodName)
+        || JdbcMethod.CONNECTION_CLOSE.methodName.equals(methodName);
+
     if (!this.enableFailoverSetting || canDirectExecute(methodName)) {
       T result = jdbcMethodFunc.call();
-      if (JdbcMethod.CONNECTION_ABORT.methodName.equals(methodName)
-          || JdbcMethod.CONNECTION_CLOSE.methodName.equals(methodName)) {
+      if (isCloseOrAbortMethod) {
         this.closedExplicitly.set(true);
       }
 
@@ -286,12 +265,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     T result = null;
 
     try {
-      if (canUpdateTopology(methodName)) {
-        updateTopology(false);
-      }
       result = jdbcMethodFunc.call();
-      if (JdbcMethod.CONNECTION_ABORT.methodName.equals(methodName)
-          || JdbcMethod.CONNECTION_CLOSE.methodName.equals(methodName)) {
+      if (isCloseOrAbortMethod) {
         this.closedExplicitly.set(true);
       }
     } catch (final IllegalStateException e) {
@@ -470,18 +445,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   private boolean allowedOnClosedConnection(final String methodName) {
     TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
     return dialect.getAllowedOnConnectionMethodNames().contains(methodName);
-  }
-
-  /**
-   * Updating topology requires creating and executing a new statement.
-   * This may cause interruptions during certain workflows. For instance,
-   * the driver should not be updating topology while the connection is fetching a large streaming result set.
-   *
-   * @param methodName the method to check.
-   * @return true if the driver should update topology before executing the method; false otherwise.
-   */
-  private boolean canUpdateTopology(final String methodName) {
-    return METHODS_REQUIRING_UPDATED_TOPOLOGY.contains(methodName);
   }
 
   /**
