@@ -37,8 +37,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
-import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -165,7 +165,7 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
   }
 
   @Override
-  public void startMonitoring(final HostMonitorConnectionContext context) {
+  public void startMonitoring(final ConnectionContext context) {
     if (this.stop.get()) {
       LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
@@ -287,7 +287,7 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
             // Kill connection.
             monitorContext.setNodeUnhealthy(true);
             final Connection connectionToAbort = monitorContext.getConnection();
-            monitorContext.setInactive();
+            this.servicesContainer.getConnectionContextService().release(monitorContext);
             if (connectionToAbort != null) {
               this.abortConnection(connectionToAbort);
               if (this.abortedConnectionsCounter != null) {

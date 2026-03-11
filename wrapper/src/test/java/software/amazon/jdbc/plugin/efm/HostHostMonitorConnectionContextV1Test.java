@@ -53,13 +53,13 @@ class HostHostMonitorConnectionContextV1Test {
   @BeforeEach
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
-    context =
-        new HostMonitorConnectionContextV1(
-            null,
-            FAILURE_DETECTION_TIME_MILLIS,
-            FAILURE_DETECTION_INTERVAL_MILLIS,
-            FAILURE_DETECTION_COUNT,
-            abortedConnectionsCounter);
+    context = new HostMonitorConnectionContextV1();
+    context.init(
+        null,
+        FAILURE_DETECTION_TIME_MILLIS,
+        FAILURE_DETECTION_INTERVAL_MILLIS,
+        FAILURE_DETECTION_COUNT,
+        abortedConnectionsCounter);
   }
 
   @AfterEach
@@ -159,13 +159,13 @@ class HostHostMonitorConnectionContextV1Test {
 
   @Test
   void test_abortConnection_ignoresSqlException() throws SQLException {
-    context =
-        new HostMonitorConnectionContextV1(
-            connectionToAbort,
-            FAILURE_DETECTION_TIME_MILLIS,
-            FAILURE_DETECTION_INTERVAL_MILLIS,
-            FAILURE_DETECTION_COUNT,
-            abortedConnectionsCounter);
+    context = new HostMonitorConnectionContextV1();
+    context.init(
+        connectionToAbort,
+        FAILURE_DETECTION_TIME_MILLIS,
+        FAILURE_DETECTION_INTERVAL_MILLIS,
+        FAILURE_DETECTION_COUNT,
+        abortedConnectionsCounter);
 
     doThrow(new SQLException("unexpected SQLException during abort")).when(connectionToAbort)
         .close();

@@ -21,6 +21,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -30,6 +31,7 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   private StorageService storageService;
   private MonitorService monitorService;
   private EventPublisher eventPublisher;
+  private ConnectionContextService connectionContextService;
   private ConnectionProvider defaultConnProvider;
   private TelemetryFactory telemetryFactory;
   private ConnectionPluginManager connectionPluginManager;
@@ -86,6 +88,11 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   }
 
   @Override
+  public ConnectionContextService getConnectionContextService() {
+    return this.connectionContextService;
+  }
+
+  @Override
   public ConnectionProvider getDefaultConnectionProvider() {
     return this.defaultConnProvider;
   }
@@ -133,6 +140,14 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public void setEventPublisher(EventPublisher eventPublisher) {
     this.eventPublisher = eventPublisher;
+  }
+
+  @Override
+  public void setConnectionContextService(ConnectionContextService connectionContextService) {
+    if (this.connectionContextService == null) {
+      // Only sets the connection context service if it hasn't been initialized.
+      this.connectionContextService = connectionContextService;
+    }
   }
 
   @Override

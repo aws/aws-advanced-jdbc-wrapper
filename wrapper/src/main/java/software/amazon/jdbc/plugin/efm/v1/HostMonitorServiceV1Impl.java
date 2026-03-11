@@ -33,9 +33,11 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
-import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorService;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitorConnectionContextV2;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -60,6 +62,7 @@ public class HostMonitorServiceV1Impl implements HostMonitorService, StateSnapsh
 
   protected final FullServicesContainer serviceContainer;
   protected final PluginService pluginService;
+  protected final ConnectionContextService connectionContextService;
   protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
@@ -75,6 +78,7 @@ public class HostMonitorServiceV1Impl implements HostMonitorService, StateSnapsh
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
+    this.connectionContextService = serviceContainer.getConnectionContextService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm.connections.aborted");
 
@@ -95,27 +99,29 @@ public class HostMonitorServiceV1Impl implements HostMonitorService, StateSnapsh
   }
 
   @Override
-  public HostMonitorConnectionContext startMonitoring(
+  public ConnectionContext startMonitoring(
       Connection connectionToAbort,
       HostSpec hostSpec,
       Properties properties) throws SQLException {
 
     final HostMonitor monitor = this.getMonitor(hostSpec, properties);
-    final HostMonitorConnectionContextV1 context = new HostMonitorConnectionContextV1(
+    final ConnectionContext context = this.connectionContextService.acquire(
+        HostMonitorConnectionContextV1.class,
+        (connectionContext) -> connectionContext.init(
         connectionToAbort,
         this.failureDetectionTimeMillis,
         this.failureDetectionIntervalMillis,
         this.failureDetectionCount,
-        this.abortedConnectionsCounter);
+        this.abortedConnectionsCounter));
     monitor.startMonitoring(context);
     return context;
   }
 
   @Override
-  public void stopMonitoring(@NonNull final HostMonitorConnectionContext context) {
+  public void stopMonitoring(final @NonNull ConnectionContext context) {
     if (context.shouldAbort()) {
       final Connection connectionToAbort = context.getConnection();
-      context.setInactive();
+      this.connectionContextService.release(context);
       if (connectionToAbort != null) {
         try {
           connectionToAbort.abort(ABORT_EXECUTOR);
@@ -128,18 +134,18 @@ public class HostMonitorServiceV1Impl implements HostMonitorService, StateSnapsh
           LOGGER.finest(
               () -> Messages.get(
                   "HostMonitorConnectionContext.exceptionAbortingConnection",
-                  new Object[]{sqlEx.getMessage()}));
+                  new Object[] {sqlEx.getMessage()}));
         }
       }
     } else {
-      context.setInactive();
+      this.connectionContextService.release(context);
     }
   }
 
   /**
    * Get or create a {@link HostMonitorV1Impl} for a server.
    *
-   * @param hostSpec Information such as hostname of the server.
+   * @param hostSpec   Information such as hostname of the server.
    * @param properties The user configuration for the current connection.
    * @return A {@link HostMonitorV1Impl} object associated with a specific server.
    * @throws SQLException if there's errors getting or creating a monitor

@@ -33,8 +33,9 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
-import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorService;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -47,8 +48,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * This class handles the creation and clean up of monitoring threads to servers with one or more
- * active connections.
+ * This class handles the creation and clean up of monitoring threads to servers with one or more active connections.
  */
 public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapshotProvider {
 
@@ -63,6 +63,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
 
   protected final FullServicesContainer serviceContainer;
   protected final PluginService pluginService;
+  protected final ConnectionContextService connectionContextService;
   protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
@@ -79,6 +80,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
   public HostMonitorServiceV2Impl(final @NonNull FullServicesContainer serviceContainer, final Properties props) {
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
+    this.connectionContextService = serviceContainer.getConnectionContextService();
     this.pluginService = serviceContainer.getPluginService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
@@ -100,22 +102,24 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
   }
 
   @Override
-  public HostMonitorConnectionContext startMonitoring(
+  public ConnectionContext startMonitoring(
       Connection connectionToAbort,
       HostSpec hostSpec,
       Properties properties) throws SQLException {
 
     final HostMonitor monitor = this.getMonitor(hostSpec, properties);
-    final HostMonitorConnectionContextV2 context = new HostMonitorConnectionContextV2(connectionToAbort);
+    final ConnectionContext context = this.connectionContextService.acquire(
+        HostMonitorConnectionContextV2.class,
+        (connectionContext) -> connectionContext.init(connectionToAbort));
     monitor.startMonitoring(context);
     return context;
   }
 
   @Override
-  public void stopMonitoring(@NonNull final HostMonitorConnectionContext context) {
+  public void stopMonitoring(final @NonNull ConnectionContext context) {
     if (context.shouldAbort()) {
       final Connection connectionToAbort = context.getConnection();
-      context.setInactive();
+      this.connectionContextService.release(context);
       if (connectionToAbort != null) {
         try {
           connectionToAbort.abort(ABORT_EXECUTOR);
@@ -128,18 +132,18 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
           LOGGER.finest(
               () -> Messages.get(
                   "HostMonitorConnectionContext.exceptionAbortingConnection",
-                  new Object[]{sqlEx.getMessage()}));
+                  new Object[] {sqlEx.getMessage()}));
         }
       }
     } else {
-      context.setInactive();
+      this.connectionContextService.release(context);
     }
   }
 
   /**
    * Get or create a {@link HostMonitorV2Impl} for a server.
    *
-   * @param hostSpec Information such as hostname of the server.
+   * @param hostSpec   Information such as hostname of the server.
    * @param properties The user configuration for the current connection.
    * @return A {@link HostMonitorV2Impl} object associated with a specific server.
    * @throws SQLException if there's errors getting or creating a monitor
@@ -186,6 +190,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
   }
 
   protected static class HostMonitorKey {
+
     private final String url;
     private final String keyValue;
 

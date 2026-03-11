@@ -19,9 +19,7 @@ package software.amazon.jdbc.plugin.efm.base;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.Set;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
 
 /**
  * Interface for monitor services. This class implements ways to start and stop monitoring servers
@@ -29,7 +27,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
  */
 public interface HostMonitorService {
 
-  HostMonitorConnectionContext startMonitoring(
+  ConnectionContext startMonitoring(
       Connection connectionToAbort,
       HostSpec hostSpec,
       Properties properties) throws SQLException;
@@ -40,5 +38,5 @@ public interface HostMonitorService {
    *
    * @param context The {@link HostMonitorConnectionContext} representing a connection.
    */
-  void stopMonitoring(HostMonitorConnectionContext context);
+  void stopMonitoring(ConnectionContext context);
 }

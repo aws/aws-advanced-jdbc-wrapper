@@ -19,7 +19,9 @@ package software.amazon.jdbc.plugin.efm.v2;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContextServiceImpl;
 import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
+import software.amazon.jdbc.plugin.efm.v1.HostMonitorConnectionContextV1;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
 

@@ -106,11 +106,11 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
    * @param rdsHelper        The RDS helper class to identify RDS instances.
    */
   protected HostMonitoringConnectionBasePlugin(
-      final @NonNull FullServicesContainer serviceContainer,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = servicesContainer.getPluginService();
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;
@@ -122,6 +122,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
       methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
+    servicesContainer.setConnectionContextService(new ConnectionContextServiceImpl());
   }
 
   @Override
@@ -130,7 +131,8 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   }
 
   /**
-   * Executes the given SQL function with {@link HostMonitorV2Impl} if connection monitoring is enabled.
+   * Executes the given SQL function with {@link software.amazon.jdbc.plugin.efm.v2.HostMonitorV2Impl}
+   * if connection monitoring is enabled.
    * Otherwise, executes the SQL function directly.
    */
   @Override
@@ -150,7 +152,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     initMonitorService();
 
     T result;
-    HostMonitorConnectionContext monitorContext = null;
+    ConnectionContext monitorContext = null;
 
     final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
     try {
