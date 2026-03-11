@@ -17,7 +17,6 @@
 package software.amazon.jdbc.plugin.efm.base;
 
 import java.sql.Connection;
-import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
 /**
  * Interface for connection context that manages connection state and health monitoring.

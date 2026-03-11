@@ -20,10 +20,8 @@ import java.util.Properties;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.plugin.efm.base.ConnectionContextServiceImpl;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorService;
 import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
-import software.amazon.jdbc.plugin.efm.v2.HostMonitorConnectionContextV2;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
 

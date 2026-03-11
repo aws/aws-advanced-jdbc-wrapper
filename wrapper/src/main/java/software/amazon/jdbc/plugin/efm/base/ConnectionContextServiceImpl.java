@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.efm.base;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -33,12 +34,14 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
   private static final Logger LOGGER = Logger.getLogger(ConnectionContextServiceImpl.class.getName());
 
   protected static final Map<Class<? extends ConnectionContext>, Supplier<ConnectionContext>> defaultSuppliers;
-  protected static final int DEFAULT_INITIAL_CAPACITY = 30;
-  protected static final int DEFAULT_MAX_IDLE_COUNT = 10;
-  protected static ContextPool contextPool;
-  protected Supplier<ConnectionContext> contextSupplier;
-  protected final int initialCapacity;
+  protected static final int DEFAULT_MAX_IDLE_COUNT = 30;
+  protected static final boolean DEFAULT_LAZY_INITIALIZATION = false;
+  protected static final String MAX_IDLE_COUNT_PROPERTY = "efm.contextPool.maxIdleCount";
+  protected static final String LAZY_INIT_PROPERTY = "efm.contextPool.lazyInitialization";
+  protected static final Map<Class<? extends ConnectionContext>, ContextPool> contextPoolMap =
+      new ConcurrentHashMap<>();
   protected final int maxIdleCount;
+  protected final boolean lazyInitialization;
 
   static {
     Map<Class<? extends ConnectionContext>, Supplier<ConnectionContext>> suppliers = new HashMap<>();
@@ -48,20 +51,12 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
   }
 
   public ConnectionContextServiceImpl() {
-    initialCapacity = Integer.parseInt(
-        System.getProperty("aws.jdbc.efm.contextPool.initialCapacity",
-            String.valueOf(DEFAULT_INITIAL_CAPACITY)));
     maxIdleCount = Integer.parseInt(
-        System.getProperty("aws.jdbc.efm.contextPool.maxIdleCount",
+        System.getProperty(MAX_IDLE_COUNT_PROPERTY,
             String.valueOf(DEFAULT_MAX_IDLE_COUNT)));
-
-    if (initialCapacity < 1) {
-      final String errMsg = Messages.get(
-          "ConnectionContextServiceImpl.invalidInitialCapacity",
-          new Object[] {initialCapacity, DEFAULT_INITIAL_CAPACITY});
-      LOGGER.warning(errMsg);
-      throw new IllegalArgumentException(errMsg);
-    }
+    lazyInitialization = Boolean.parseBoolean(
+        System.getProperty(LAZY_INIT_PROPERTY,
+            String.valueOf(DEFAULT_LAZY_INITIALIZATION)));
 
     if (maxIdleCount < 1) {
       final String errMsg = Messages.get(
@@ -73,19 +68,20 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
   }
 
   @Override
-  public ConnectionContext acquire(@NotNull Class<? extends ConnectionContext> contextClass) {
+  public <T extends ConnectionContext> T acquire(@NotNull Class<T> contextClass) {
     return this.acquire(contextClass, null);
   }
 
   @Override
-  public ConnectionContext acquire(
-      @NotNull Class<? extends ConnectionContext> contextClass,
-      @Nullable Consumer<ConnectionContext> initializer) {
-    if (contextPool == null) {
-      this.contextSupplier = defaultSuppliers.get(contextClass);
-      contextPool = new ContextPoolImpl(initialCapacity, maxIdleCount, contextSupplier);
-    }
-    final ConnectionContext context = contextPool.acquire();
+  public <T extends ConnectionContext> T acquire(
+      @NotNull Class<T> contextClass,
+      @Nullable Consumer<T> initializer) {
+    final Supplier<ConnectionContext> supplier = defaultSuppliers.get(contextClass);
+    final ContextPool contextPool = contextPoolMap.computeIfAbsent(
+        contextClass,
+        ctxClass -> new ContextPoolImpl(maxIdleCount, lazyInitialization, supplier));
+
+    final T context = (T) contextPool.acquire();
     if (initializer != null) {
       initializer.accept(context);
     }
@@ -94,10 +90,18 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
 
   @Override
   public boolean release(ConnectionContext context) {
-    return contextPool.release(context);
+    if (context == null) {
+      return false;
+    }
+    final ContextPool contextPool = contextPoolMap.get(context.getClass());
+    if (contextPool != null) {
+      return contextPool.release(context);
+    }
+    return false;
   }
 
   public static void clear() {
-    contextPool.clearPool();
+    contextPoolMap.values().forEach(ContextPool::clearPool);
+    contextPoolMap.clear();
   }
 }

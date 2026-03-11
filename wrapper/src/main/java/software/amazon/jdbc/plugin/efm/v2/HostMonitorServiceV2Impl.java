@@ -110,7 +110,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
     final HostMonitor monitor = this.getMonitor(hostSpec, properties);
     final ConnectionContext context = this.connectionContextService.acquire(
         HostMonitorConnectionContextV2.class,
-        (connectionContext) -> ((HostMonitorConnectionContextV2) connectionContext).init(connectionToAbort));
+        (connectionContext) -> connectionContext.init(connectionToAbort));
     monitor.startMonitoring(context);
     return context;
   }

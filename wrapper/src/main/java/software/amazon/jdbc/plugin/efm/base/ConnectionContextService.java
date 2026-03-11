@@ -30,20 +30,22 @@ public interface ConnectionContextService {
   /**
    * Acquire a connection context from the pool. If the pool is empty, a new context is created.
    *
+   * @param <T> the type of connection context
    * @param contextClass the class type of the connection context to acquire
    * @return a connection context ready for use
    */
-  ConnectionContext acquire(@NonNull Class<? extends ConnectionContext> contextClass);
+  <T extends ConnectionContext> T acquire(@NonNull Class<T> contextClass);
 
   /**
    * Acquire a connection context from the pool with optional initialization. If the pool is empty,
    * a new context is created. The initializer is invoked on the context before returning it.
    *
+   * @param <T> the type of connection context
    * @param contextClass the class type of the connection context to acquire
    * @param initializer optional consumer to initialize the context before use; may be null
    * @return a connection context ready for use
    */
-  ConnectionContext acquire(@NonNull Class<? extends ConnectionContext> contextClass, @Nullable Consumer<ConnectionContext> initializer);
+  <T extends ConnectionContext> T acquire(@NonNull Class<T> contextClass, @Nullable Consumer<T> initializer);
 
   /**
    * Release a connection context back to the pool for reuse. The context is reset and made

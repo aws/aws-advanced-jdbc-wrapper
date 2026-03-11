@@ -26,6 +26,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,61 +49,90 @@ class ContextPoolImplTest {
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_initialCapacity(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(5, 3, supplier);
-    assertEquals(5, pool.size());
+  void test_lazyInitializationDisabled(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(3, supplier);
+    assertEquals(0, pool.size());
+    pool.acquire();
+    assertEquals(2, pool.size());
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_acquireFromPool(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(3, 2, supplier);
+  void test_lazyInitializationEnabled(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(5, true, supplier);
+    assertEquals(0, pool.size());
+
+    pool.acquire();
+    assertEquals(2, pool.size());
+
+    pool.acquire();
     assertEquals(3, pool.size());
 
-    ConnectionContext context = pool.acquire();
-    assertNotNull(context);
-    assertEquals(2, pool.size());
-  }
-
-  @ParameterizedTest
-  @MethodSource("contextSuppliers")
-  void test_acquireWhenEmpty(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(1, 1, supplier);
     pool.acquire();
-    assertEquals(0, pool.size());
+    assertEquals(4, pool.size());
 
-    ConnectionContext context = pool.acquire();
-    assertNotNull(context);
-    assertEquals(0, pool.size());
+    pool.acquire();
+    assertEquals(5, pool.size());
+
+    // maxIdleCount has been reached.
+    pool.acquire();
+    assertEquals(4, pool.size());
+    // acquire should no longer refill idle context pool.
+    pool.acquire();
+    assertEquals(3, pool.size());
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_releaseToPool(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(2, 2, supplier);
-    ConnectionContext context = pool.acquire();
-    assertEquals(1, pool.size());
+  void test_releaseNull_returnsFalse(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(2, supplier);
+    pool.acquire();
+    int sizeBeforeRelease = pool.size();
 
-    boolean released = pool.release(context);
-    assertTrue(released);
-    assertEquals(2, pool.size());
-  }
-
-  @ParameterizedTest
-  @MethodSource("contextSuppliers")
-  void test_releaseNull(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(2, 2, supplier);
     boolean released = pool.release(null);
     assertFalse(released);
-    assertEquals(2, pool.size());
+    assertEquals(sizeBeforeRelease, pool.size());
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_contextReuse(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(1, 1, supplier);
+  void test_contextReuse_diffInstanceReturnedForLazyInitialization(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(1, true, supplier);
+
     ConnectionContext context1 = pool.acquire();
-    pool.release(context1);
+
+    // Another idle context should have been created due to the lazy initialization method.
+    assertEquals(1, pool.size());
+
+    // maxIdleCount has already been reached. Release should be no-op.
+    assertFalse(pool.release(context1));
+
+    ConnectionContext context2 = pool.acquire();
+    assertNotSame(context1, context2);
+  }
+
+  @ParameterizedTest
+  @MethodSource("contextSuppliers")
+  void test_contextReuse_sameInstanceReturnedForLazyInitialization(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(3, true, supplier);
+
+    ConnectionContext context1 = pool.acquire();
+
+    // 2 more idle contexts should have been created due to the lazy initialization method.
+    assertEquals(2, pool.size());
+
+    // Should create 2 more idle contexts to reach maxIdleCount
+    pool.acquire();
+    assertEquals(3, pool.size());
+
+    // Exhaust the pool.
+    pool.acquire();
+    pool.acquire();
+    pool.acquire();
+
+    // Release original context back to pool.
+    assertTrue(pool.release(context1));
+    assertEquals(1, pool.size());
 
     ConnectionContext context2 = pool.acquire();
     assertSame(context1, context2);
@@ -107,59 +140,50 @@ class ContextPoolImplTest {
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_shrinkingWhenExceedsMaxIdle(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(5, 2, supplier);
-    assertEquals(5, pool.size());
+  void test_contextReuse_multipleContextsReused(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(3, supplier);
 
-    pool.acquire();
-    assertEquals(3, pool.size());
-  }
-
-  @ParameterizedTest
-  @MethodSource("contextSuppliers")
-  void test_shrinkingMultipleAcquires(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(10, 3, supplier);
-    assertEquals(10, pool.size());
-
-    pool.acquire();
-    // Current pool size is over the maxIdleCount, acquire should release one extra context every call.
-    assertEquals(8, pool.size());
-
-    pool.acquire();
-    assertEquals(6, pool.size());
-
-    pool.acquire();
-    assertEquals(4, pool.size());
-  }
-
-  @ParameterizedTest
-  @MethodSource("contextSuppliers")
-  void test_noShrinkingWhenBelowMaxIdle(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(2, 5, supplier);
-    assertEquals(2, pool.size());
-
-    pool.acquire();
-    assertEquals(1, pool.size());
-
-    pool.acquire();
+    // Acquire all contexts.
+    ConnectionContext context1 = pool.acquire();
+    ConnectionContext context2 = pool.acquire();
+    ConnectionContext context3 = pool.acquire();
     assertEquals(0, pool.size());
+
+    pool.release(context1);
+    pool.release(context2);
+    pool.release(context3);
+    assertEquals(3, pool.size());
+
+    Set<ConnectionContext> originalContexts = new HashSet<>();
+    originalContexts.add(context1);
+    originalContexts.add(context2);
+    originalContexts.add(context3);
+    ConnectionContext reacquired1 = pool.acquire();
+    ConnectionContext reacquired2 = pool.acquire();
+    ConnectionContext reacquired3 = pool.acquire();
+
+    assertTrue(originalContexts.contains(reacquired1));
+    assertTrue(originalContexts.contains(reacquired2));
+    assertTrue(originalContexts.contains(reacquired3));
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_releaseCallsSetInactive(Supplier<ConnectionContext> supplier) {
     ConnectionContext mockContext = mock(ConnectionContext.class);
-    ContextPool pool = new ContextPoolImpl(1, 1, supplier);
+    ContextPool pool = new ContextPoolImpl(1, supplier);
 
-    pool.release(mockContext);
+    final boolean released = pool.release(mockContext);
+    assertTrue(released);
     verify(mockContext, times(1)).setInactive();
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_clearPool(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(5, 3, supplier);
-    assertEquals(5, pool.size());
+    ContextPool pool = new ContextPoolImpl(5, supplier);
+    pool.acquire();
+    assertEquals(4, pool.size());
 
     pool.clearPool();
     assertEquals(0, pool.size());
@@ -167,47 +191,45 @@ class ContextPoolImplTest {
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_acquireAfterClear(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(3, 2, supplier);
-    ConnectionContext context1 = pool.acquire();
-    pool.clearPool();
-
-    ConnectionContext context2 = pool.acquire();
-    assertNotNull(context2);
-    assertNotSame(context1, context2);
-  }
-
-  @ParameterizedTest
-  @MethodSource("contextSuppliers")
-  void test_multipleReleaseAndAcquire(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(2, 2, supplier);
+  void test_releaseWhenAtCapacity_doesNotAddToPool(Supplier<ConnectionContext> supplier) {
+    ContextPool pool = new ContextPoolImpl(2, supplier);
     ConnectionContext ctx1 = pool.acquire();
     ConnectionContext ctx2 = pool.acquire();
+    ConnectionContext ctx3 = pool.acquire();
     assertEquals(0, pool.size());
 
-    pool.release(ctx1);
-    assertEquals(1, pool.size());
-
-    pool.release(ctx2);
+    assertTrue(pool.release(ctx1));
+    assertTrue(pool.release(ctx2));
     assertEquals(2, pool.size());
 
-    ConnectionContext ctx3 = pool.acquire();
-    assertSame(ctx1, ctx3);
-    assertEquals(1, pool.size());
+    // Pool is at capacity, this release does not update pool.
+    assertFalse(pool.release(ctx3));
+    assertEquals(2, pool.size());
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
-  void test_poolGrowthBeyondInitialCapacity(Supplier<ConnectionContext> supplier) {
-    ContextPool pool = new ContextPoolImpl(2, 5, supplier);
-    ConnectionContext ctx1 = pool.acquire();
-    ConnectionContext ctx2 = pool.acquire();
-    ConnectionContext ctx3 = pool.acquire();
+  void test_threadSafety_concurrentAcquireRelease(Supplier<ConnectionContext> supplier) throws Exception {
+    final int maxIdleCount = 5;
+    final int threadCount = 10;
+    final int operationsPerThread = 100;
 
-    pool.release(ctx1);
-    pool.release(ctx2);
-    pool.release(ctx3);
+    ContextPool pool = new ContextPoolImpl(maxIdleCount, supplier);
 
-    assertEquals(3, pool.size());
+    CompletableFuture<?>[] futures = new CompletableFuture[threadCount];
+    for (int i = 0; i < threadCount; i++) {
+      futures[i] = CompletableFuture.runAsync(() -> {
+        for (int j = 0; j < operationsPerThread; j++) {
+          ConnectionContext ctx = pool.acquire();
+          assertNotNull(ctx);
+          Thread.yield();
+          pool.release(ctx);
+        }
+      });
+    }
+
+    CompletableFuture.allOf(futures).get(30, TimeUnit.SECONDS);
+
+    assertTrue(pool.size() <= maxIdleCount);
   }
 }

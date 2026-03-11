@@ -144,7 +144,10 @@ public class FullServicesContainerImpl implements FullServicesContainer {
 
   @Override
   public void setConnectionContextService(ConnectionContextService connectionContextService) {
-    this.connectionContextService = connectionContextService;
+    if (this.connectionContextService == null) {
+      // Only sets the connection context service if it hasn't been initialized.
+      this.connectionContextService = connectionContextService;
+    }
   }
 
   @Override

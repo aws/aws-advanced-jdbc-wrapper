@@ -39,7 +39,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.plugin.efm.v1.HostMonitorConnectionContextV1;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -123,9 +122,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
       methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
-    if (servicesContainer.getConnectionContextService() == null) {
-      servicesContainer.setConnectionContextService(new ConnectionContextServiceImpl());
-    }
+    servicesContainer.setConnectionContextService(new ConnectionContextServiceImpl());
   }
 
   @Override
