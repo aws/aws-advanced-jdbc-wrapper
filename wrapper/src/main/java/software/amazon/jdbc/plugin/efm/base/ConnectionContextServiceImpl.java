@@ -35,7 +35,7 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
 
   protected static final Map<Class<? extends ConnectionContext>, Supplier<ConnectionContext>> defaultSuppliers;
   protected static final int DEFAULT_MAX_IDLE_COUNT = 30;
-  protected static final boolean DEFAULT_LAZY_INITIALIZATION = false;
+  protected static final boolean DEFAULT_LAZY_INITIALIZATION = true;
   protected static final String MAX_IDLE_COUNT_PROPERTY = "efm.contextPool.maxIdleCount";
   protected static final String LAZY_INIT_PROPERTY = "efm.contextPool.lazyInitialization";
   protected static final Map<Class<? extends ConnectionContext>, ContextPool> contextPoolMap =

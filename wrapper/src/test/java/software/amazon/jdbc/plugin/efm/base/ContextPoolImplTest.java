@@ -113,6 +113,7 @@ class ContextPoolImplTest {
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
+  @SuppressWarnings("checkstyle:VariableDeclarationUsageDistance")
   void test_contextReuse_sameInstanceReturnedForLazyInitialization(Supplier<ConnectionContext> supplier) {
     ContextPool pool = new ContextPoolImpl(3, true, supplier);
 
@@ -140,6 +141,7 @@ class ContextPoolImplTest {
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
+  @SuppressWarnings("checkstyle:VariableDeclarationUsageDistance")
   void test_contextReuse_multipleContextsReused(Supplier<ConnectionContext> supplier) {
     ContextPool pool = new ContextPoolImpl(3, supplier);
 
@@ -191,6 +193,7 @@ class ContextPoolImplTest {
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
+  @SuppressWarnings("checkstyle:VariableDeclarationUsageDistance")
   void test_releaseWhenAtCapacity_doesNotAddToPool(Supplier<ConnectionContext> supplier) {
     ContextPool pool = new ContextPoolImpl(2, supplier);
     ConnectionContext ctx1 = pool.acquire();
