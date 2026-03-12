@@ -16,6 +16,9 @@
 
 package software.amazon.jdbc.plugin.encryption.key;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -518,10 +521,17 @@ public class KeyManager {
     return Math.max(baseMs, exponentialBackoff + jitter);
   }
 
-  /** Creates a cache key from an encrypted data key. */
+  /** Creates a cache key from an encrypted data key using SHA-256. */
   private String createCacheKey(String encryptedDataKey) {
-    // Use a hash of the encrypted data key as cache key for security
-    return "datakey_" + Math.abs(encryptedDataKey.hashCode());
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(encryptedDataKey.getBytes(StandardCharsets.UTF_8));
+      return "datakey_" + Base64.getEncoder().encodeToString(hash);
+    } catch (NoSuchAlgorithmException e) {
+      // SHA-256 should always be available, fallback to hashCode if not
+      LOGGER.warning("SHA-256 not available, falling back to hashCode");
+      return "datakey_" + Math.abs(encryptedDataKey.hashCode());
+    }
   }
 
   /** Functional interface for KMS operations that can be retried. */
