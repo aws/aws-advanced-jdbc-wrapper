@@ -22,19 +22,19 @@ jobs:
 
     steps:
       - name: 'Clone repository'
-        uses: actions/checkout@de0fac2e # v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
 
       - name: 'Set up JDK 8'
-        uses: actions/setup-java@be666c2fcd # v5.2.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: 'corretto'
           java-version: 8
 
       - name: 'Configure AWS credentials'
         id: creds
-        uses: aws-actions/configure-aws-credentials@8df584756 # v6.0.0
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: encryption_e2e_test
@@ -117,7 +117,7 @@ jobs:
           # Mask sensitive values in logs
           echo "::add-mask::$PLAINTEXT_KEY"
           echo "::add-mask::$CIPHERTEXT_BLOB"
-          
+
           # Store in environment variables (available to subsequent steps)
           echo "PLAINTEXT_KEY=$PLAINTEXT_KEY" >> $GITHUB_ENV
           echo "CIPHERTEXT_BLOB=$CIPHERTEXT_BLOB" >> $GITHUB_ENV
@@ -182,7 +182,7 @@ jobs:
       - name: Get Github Action IP
         if: always()
         id: ip
-        uses: haythem/public-ip@bdddd92c # v1.3.0
+        uses: haythem/public-ip@bdddd92c198b0955f0b494a8ebeac529754262ff # v1.3.0
 
       - name: Remove Github Action IP
         if: always()
