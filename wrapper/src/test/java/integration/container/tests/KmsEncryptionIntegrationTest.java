@@ -589,4 +589,52 @@ public class KmsEncryptionIntegrationTest {
       LOGGER.info("Successfully verified annotation-based update");
     }
   }
+
+  @TestTemplate
+  void testAwsProfileSupport() throws Exception {
+    LOGGER.info("Starting testAwsProfileSupport");
+
+    // Test that awsProfile property is accepted and doesn't cause errors
+    // Note: We can't test actual profile switching in integration tests,
+    // but we can verify the property is processed without errors
+    
+    Properties propsWithProfile = ConnectionStringHelper.getDefaultProperties();
+    propsWithProfile.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    propsWithProfile.setProperty("kms.region", region);
+    propsWithProfile.setProperty("kms.MasterKeyArn", kmsKeyArn);
+    propsWithProfile.setProperty("encryption.metadataSchema", "encrypt");
+    
+    // Set awsProfile property (will use default credentials if profile doesn't exist)
+    propsWithProfile.setProperty(PropertyDefinition.AWS_PROFILE.name, "default");
+
+    String url = ConnectionStringHelper.getWrapperUrl();
+    
+    // Should not throw exception even with awsProfile set
+    try (Connection connWithProfile = DriverManager.getConnection(url, propsWithProfile)) {
+      LOGGER.info("Successfully created connection with awsProfile property");
+      
+      // Verify encryption still works with profile property set
+      try (PreparedStatement stmt = connWithProfile.prepareStatement(
+          "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+        stmt.setString(1, "Profile Test");
+        stmt.setString(2, "999-99-9999");
+        stmt.setString(3, "profile@test.com");
+        stmt.executeUpdate();
+        LOGGER.info("Successfully inserted data with awsProfile property");
+      }
+      
+      // Verify decryption works
+      try (PreparedStatement stmt = connWithProfile.prepareStatement(
+          "SELECT ssn FROM users WHERE name = ?")) {
+        stmt.setString(1, "Profile Test");
+        ResultSet rs = stmt.executeQuery();
+        
+        assertTrue(rs.next(), "Should find inserted row");
+        assertEquals("999-99-9999", rs.getString("ssn"), 
+            "Should decrypt SSN correctly with awsProfile property");
+        
+        LOGGER.info("Successfully verified encryption/decryption with awsProfile property");
+      }
+    }
+  }
 }

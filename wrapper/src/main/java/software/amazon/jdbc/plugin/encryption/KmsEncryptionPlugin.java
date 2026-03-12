@@ -404,7 +404,16 @@ public class KmsEncryptionPlugin {
   private KmsClient createKmsClient(EncryptionConfig config) {
     LOGGER.fine(() -> String.format("Creating KMS client for region: %s", config.getKmsRegion()));
 
-    return KmsClient.builder().region(Region.of(config.getKmsRegion())).build();
+    // Get AWS credentials provider using the awsProfile property if specified
+    software.amazon.awssdk.auth.credentials.AwsCredentialsProvider credentialsProvider =
+        software.amazon.jdbc.authentication.AwsCredentialsManager.getProvider(
+            null, // HostSpec not needed for KMS
+            this.pluginProperties);
+
+    return KmsClient.builder()
+        .region(Region.of(config.getKmsRegion()))
+        .credentialsProvider(credentialsProvider)
+        .build();
   }
 
   // Getters for testing and monitoring
