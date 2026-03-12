@@ -174,13 +174,12 @@ public class KeyManager {
 
       GenerateDataKeyResponse response = executeWithRetry(() -> kmsClient.generateDataKey(request));
 
-      byte[] plaintextKey = response.plaintext().asByteArray();
       String encryptedKey =
           Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray());
 
       LOGGER.finest(
           () -> String.format("Successfully generated data key for master key: %s", masterKeyArn));
-      return new DataKeyResult(plaintextKey, encryptedKey);
+      return new DataKeyResult(encryptedKey);
 
     } catch (Exception e) {
       LOGGER.severe(
@@ -533,27 +532,15 @@ public class KeyManager {
 
   /** Result class for data key generation operations. */
   public static class DataKeyResult {
-    private final byte[] plaintextKey;
     private final String encryptedKey;
 
-    public DataKeyResult(byte[] plaintextKey, String encryptedKey) {
-      this.plaintextKey = Objects.requireNonNull(plaintextKey, "Plaintext key cannot be null");
+    public DataKeyResult(String encryptedKey) {
       this.encryptedKey = Objects.requireNonNull(encryptedKey, "Encrypted key cannot be null");
-    }
-
-    public byte[] getPlaintextKey() {
-      return plaintextKey.clone(); // Return copy for security
     }
 
     public String getEncryptedKey() {
       return encryptedKey;
     }
 
-    /** Clears the plaintext key from memory for security. */
-    public void clearPlaintextKey() {
-      if (plaintextKey != null) {
-        java.util.Arrays.fill(plaintextKey, (byte) 0);
-      }
-    }
   }
 }

@@ -113,7 +113,7 @@ public class KeyManagementUtility {
         + schema + ".encryption_metadata"
         + " (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) "
         + "VALUES (?, ?, ?, ?, ?, ?)";
-    
+
     if (keyManager.isPostgreSQL()) {
       return baseSql + " ON CONFLICT (table_name, column_name) DO UPDATE SET "
           + "encryption_algorithm = EXCLUDED.encryption_algorithm, "
@@ -236,45 +236,40 @@ public class KeyManagementUtility {
       // Generate the data key using KMS
       KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
 
-      try {
-        // Generate a unique key name
-        String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
+      // Generate a unique key name
+      String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
 
-        // Generate HMAC key for data integrity verification
-        byte[] hmacKey = new byte[32];
-        new SecureRandom().nextBytes(hmacKey);
+      // Generate HMAC key for data integrity verification
+      byte[] hmacKey = new byte[32];
+      new SecureRandom().nextBytes(hmacKey);
 
-        // Create key metadata
-        KeyMetadata keyMetadata =
-            KeyMetadata.builder()
-                .keyName(keyName)
-                .masterKeyArn(masterKeyArn)
-                .encryptedDataKey(dataKeyResult.getEncryptedKey())
-                .hmacKey(hmacKey)
-                .keySpec("AES_256")
-                .createdAt(Instant.now())
-                .lastUsedAt(Instant.now())
-                .build();
+      // Create key metadata
+      KeyMetadata keyMetadata =
+          KeyMetadata.builder()
+              .keyName(keyName)
+              .masterKeyArn(masterKeyArn)
+              .encryptedDataKey(dataKeyResult.getEncryptedKey())
+              .hmacKey(hmacKey)
+              .keySpec("AES_256")
+              .createdAt(Instant.now())
+              .lastUsedAt(Instant.now())
+              .build();
 
-        // Store key metadata in database and get the generated integer ID
-        int generatedKeyId = keyManager.storeKeyMetadata(tableName, columnName, keyMetadata);
+      // Store key metadata in database and get the generated integer ID
+      int generatedKeyId = keyManager.storeKeyMetadata(tableName, columnName, keyMetadata);
 
-        // Store encryption metadata using the generated integer key ID
-        storeEncryptionMetadata(tableName, columnName, algorithm, generatedKeyId);
+      // Store encryption metadata using the generated integer key ID
+      storeEncryptionMetadata(tableName, columnName, algorithm, generatedKeyId);
 
-        // Refresh metadata cache
-        metadataManager.refreshMetadata();
+      // Refresh metadata cache
+      metadataManager.refreshMetadata();
 
-        LOGGER.info(
-            () ->
-                String.format(
-                    "Successfully generated and stored data key for %s.%s with key ID: %s",
-                    tableName, columnName, generatedKeyId));
+      LOGGER.info(
+          () ->
+              String.format(
+                  "Successfully generated and stored data key for %s.%s with key ID: %s",
+                  tableName, columnName, generatedKeyId));
 
-      } finally {
-        // Clear sensitive data from memory
-        dataKeyResult.clearPlaintextKey();
-      }
 
     } catch (Exception e) {
       LOGGER.severe(
@@ -320,44 +315,37 @@ public class KeyManagementUtility {
       // Generate new data key
       KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
 
-      try {
-        // Generate a unique key name
-        String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
+      // Generate a unique key name
+      String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
 
-        // Generate HMAC key for data integrity verification
-        byte[] hmacKey = new byte[32];
-        new SecureRandom().nextBytes(hmacKey);
+      // Generate HMAC key for data integrity verification
+      byte[] hmacKey = new byte[32];
+      new SecureRandom().nextBytes(hmacKey);
 
-        // Create new key metadata
-        KeyMetadata newKeyMetadata =
-            KeyMetadata.builder()
-                .keyName(keyName)
-                .masterKeyArn(masterKeyArn)
-                .encryptedDataKey(dataKeyResult.getEncryptedKey())
-                .hmacKey(hmacKey)
-                .keySpec("AES_256")
-                .createdAt(Instant.now())
-                .lastUsedAt(Instant.now())
-                .build();
+      // Create new key metadata
+      KeyMetadata newKeyMetadata =
+          KeyMetadata.builder()
+              .keyName(keyName)
+              .masterKeyArn(masterKeyArn)
+              .encryptedDataKey(dataKeyResult.getEncryptedKey())
+              .hmacKey(hmacKey)
+              .keySpec("AES_256")
+              .createdAt(Instant.now())
+              .lastUsedAt(Instant.now())
+              .build();
 
-        // Store new key metadata and get generated ID
-        int newKeyId = keyManager.storeKeyMetadata(tableName, columnName, newKeyMetadata);
+      // Store new key metadata and get generated ID
+      int newKeyId = keyManager.storeKeyMetadata(tableName, columnName, newKeyMetadata);
 
-        // Update encryption metadata to use new key
-        updateEncryptionMetadataKey(tableName, columnName, newKeyId);
+      // Update encryption metadata to use new key
+      updateEncryptionMetadataKey(tableName, columnName, newKeyId);
 
-        // Refresh metadata cache
-        metadataManager.refreshMetadata();
 
-        LOGGER.info(
-            () ->
-                String.format(
-                    "Successfully rotated data key for %s.%s from %s to %s",
-                    tableName, columnName, currentConfig.getKeyId(), newKeyId));
-
-      } finally {
-        dataKeyResult.clearPlaintextKey();
-      }
+      LOGGER.info(
+          () ->
+              String.format(
+                  "Successfully rotated data key for %s.%s from %s to %s",
+                  tableName, columnName, currentConfig.getKeyId(), newKeyId));
 
     } catch (Exception e) {
       LOGGER.severe(
