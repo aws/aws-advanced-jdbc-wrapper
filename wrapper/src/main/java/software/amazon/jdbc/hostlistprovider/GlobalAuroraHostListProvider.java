@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
@@ -86,6 +87,16 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
   @Override
   public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
     init();
-    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplatesByRegion);
+    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.hostListProviderService);
+  }
+
+  @Override
+  public HostSpec getInstanceTemplate(@Nullable String region) {
+    if (region == null) {
+      // throw error
+      return null;
+    }
+
+    return instanceTemplatesByRegion.get(region);
   }
 }

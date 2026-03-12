@@ -180,7 +180,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   @Override
   public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
     init();
-    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplate);
+    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.hostListProviderService);
   }
 
   protected List<HostSpec> forceRefreshMonitor(boolean verifyTopology, long timeoutMs) throws SQLException {
@@ -324,5 +324,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   public void stopMonitor() {
     this.servicesContainer.getEventPublisher().publish(
         new MonitorStopEvent(ClusterTopologyMonitorImpl.class, this.clusterId));
+  }
+
+  @Override
+  public HostSpec getInstanceTemplate(@Nullable String region) {
+    return this.instanceTemplate;
   }
 }

@@ -771,7 +771,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     if (!hostSpec.getAliases().isEmpty()) {
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[]{hostSpec.getAliases()}));
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
       return;
     }
 
@@ -792,7 +792,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
     final HostSpec host = this.identifyConnection(connection);
     if (host != null) {
-      hostSpec.addAlias(host.asAliases().toArray(new String[]{}));
+      hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
     }
   }
 
@@ -886,5 +886,19 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     state.add(Pair.create("dialect", this.dialect != null ? this.dialect.getClass().getName() : null));
     state.add(Pair.create("pooledConnection", this.pooledConnection));
     return state;
+  }
+
+  @Override
+  public HostSpec getInstanceTemplate() {
+    return this.getInstanceTemplate(null);
+  }
+
+  @Override
+  public HostSpec getInstanceTemplate(String region) {
+    if (this.isStaticHostListProvider()) {
+      // error out
+      return null;
+    }
+    return this.hostListProvider.getInstanceTemplate(region);
   }
 }

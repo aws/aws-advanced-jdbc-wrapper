@@ -40,4 +40,7 @@ public interface HostListProviderService {
   Dialect getDialect();
 
   HostSpecBuilder getHostSpecBuilder();
+
+  HostSpec getInstanceTemplate();
+  HostSpec getInstanceTemplate(String region);
 }

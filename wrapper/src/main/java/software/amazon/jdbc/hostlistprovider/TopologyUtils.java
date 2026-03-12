@@ -64,12 +64,10 @@ public abstract class TopologyUtils {
    *
    * @param conn             the connection to use to query the database.
    * @param initialHostSpec  the {@link HostSpec} that was used to initially connect.
-   * @param instanceTemplate the template {@link HostSpec} to use when constructing new {@link HostSpec} objects from
-   *                         the data returned by the topology query.
    * @return a list of {@link HostSpec} objects representing the results of the topology query.
    * @throws SQLException if an error occurs when executing the topology or processing the results.
    */
-  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate)
+  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostListProviderService hostListProviderService)
       throws SQLException {
     final Pair<Integer, Boolean> networkTimeoutPair = this.setNetworkTimeout(conn);
     int originalNetworkTimeout = networkTimeoutPair.getValue1();
@@ -82,7 +80,8 @@ public abstract class TopologyUtils {
         return null;
       }
 
-      return this.verifyWriter(this.getHosts(conn, rs, initialHostSpec, instanceTemplate));
+      final HostSpec template = hostListProviderService.getInstanceTemplate();
+      return this.verifyWriter(this.getHosts(conn, rs, initialHostSpec, template));
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery", new Object[] { e.getMessage() }), e);
     } finally {

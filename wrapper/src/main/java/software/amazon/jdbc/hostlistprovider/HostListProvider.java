@@ -69,4 +69,6 @@ public interface HostListProvider {
   String getClusterId() throws UnsupportedOperationException, SQLException;
 
   void stopMonitor();
+
+  HostSpec getInstanceTemplate(String region);
 }

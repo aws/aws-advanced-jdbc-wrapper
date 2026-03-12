@@ -193,7 +193,7 @@ class RdsHostListProviderTest {
     when(mockMonitor.forceRefresh(anyBoolean(), anyLong()))
         .thenReturn(expectedMySQL).thenReturn(expectedPostgres);
 
-    when(mockTopologyUtils.queryForTopology(eq(mockConnection), eq(currentHostSpec), any(HostSpec.class)))
+    when(mockTopologyUtils.queryForTopology(eq(mockConnection), eq(currentHostSpec), any(HostListProviderService.class)))
         .thenReturn(expectedMySQL).thenReturn(expectedPostgres);
 
 

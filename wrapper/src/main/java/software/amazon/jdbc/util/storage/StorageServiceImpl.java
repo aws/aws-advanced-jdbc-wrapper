@@ -34,7 +34,6 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.EventPublisher;

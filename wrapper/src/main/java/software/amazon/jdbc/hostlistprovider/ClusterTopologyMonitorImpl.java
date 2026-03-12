@@ -721,7 +721,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   }
 
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
-    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplate);
+    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.servicesContainer.getHostListProviderService());
   }
 
   protected void updateHostsAvailability(final @NonNull List<HostSpec> hosts) {

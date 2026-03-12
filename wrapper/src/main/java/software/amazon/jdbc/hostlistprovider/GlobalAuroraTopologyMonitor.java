@@ -74,7 +74,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
 
   @Override
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
-    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
+    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.servicesContainer.getHostListProviderService());
   }
 
   @Override
