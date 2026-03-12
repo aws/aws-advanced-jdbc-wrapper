@@ -114,20 +114,25 @@ jobs:
           PLAINTEXT_KEY=$(echo "$DATA_KEY_RESPONSE" | jq -r '.Plaintext')
           CIPHERTEXT_BLOB=$(echo "$DATA_KEY_RESPONSE" | jq -r '.CiphertextBlob')
 
-          echo "plaintext_key=$PLAINTEXT_KEY" >> $GITHUB_OUTPUT
-          echo "ciphertext_blob=$CIPHERTEXT_BLOB" >> $GITHUB_OUTPUT
+          # Mask sensitive values in logs
+          echo "::add-mask::$PLAINTEXT_KEY"
+          echo "::add-mask::$CIPHERTEXT_BLOB"
+          
+          # Store in environment variables (available to subsequent steps)
+          echo "PLAINTEXT_KEY=$PLAINTEXT_KEY" >> $GITHUB_ENV
+          echo "CIPHERTEXT_BLOB=$CIPHERTEXT_BLOB" >> $GITHUB_ENV
           echo "Data key generated successfully"
 
       - name: 'Test Data Key Decryption'
         run: |
           # Decrypt the data key to verify it works
           DECRYPTED_KEY=$(aws kms decrypt \
-            --ciphertext-blob fileb://<(echo "${{ steps.generate-data-key.outputs.ciphertext_blob }}" | base64 -d) \
+            --ciphertext-blob fileb://<(echo "$CIPHERTEXT_BLOB" | base64 -d) \
             --key-id ${{ steps.active-key.outputs.key_id }} \
             --query 'Plaintext' \
             --output text)
 
-          if [ "$DECRYPTED_KEY" == "${{ steps.generate-data-key.outputs.plaintext_key }}" ]; then
+          if [ "$DECRYPTED_KEY" == "$PLAINTEXT_KEY" ]; then
             echo "✓ Data key decryption successful"
           else
             echo "✗ Data key decryption failed"
