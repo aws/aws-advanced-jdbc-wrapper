@@ -101,7 +101,7 @@ public class EncryptionService {
 
       // Combine type marker + IV + ciphertext
       ByteBuffer buffer = ByteBuffer.allocate(1 + iv.length + ciphertext.length);
-      buffer.put(getTypeMarker(value));
+      buffer.put(TypeMarker.fromObject(value).getValue());
       buffer.put(iv);
       buffer.put(ciphertext);
       byte[] encryptedData = buffer.array();
@@ -222,7 +222,7 @@ public class EncryptionService {
       ByteBuffer dataBuffer = ByteBuffer.wrap(encryptedData);
 
       // Extract type marker
-      final byte typeMarker = dataBuffer.get();
+      final TypeMarker typeMarker = TypeMarker.fromValue(dataBuffer.get());
 
       // Extract IV
       byte[] iv = new byte[GCM_IV_LENGTH];
@@ -376,62 +376,15 @@ public class EncryptionService {
     }
   }
 
-  /** Gets a type marker byte for the value type. */
-  private byte getTypeMarker(Object value) {
-    if (value instanceof String) {
-      return 1;
-    }
-    if (value instanceof Integer) {
-      return 2;
-    }
-    if (value instanceof Long) {
-      return 3;
-    }
-    if (value instanceof Double) {
-      return 4;
-    }
-    if (value instanceof Float) {
-      return 5;
-    }
-    if (value instanceof Boolean) {
-      return 6;
-    }
-    if (value instanceof BigDecimal) {
-      return 7;
-    }
-    if (value instanceof Date) {
-      return 8;
-    }
-    if (value instanceof Time) {
-      return 9;
-    }
-    if (value instanceof Timestamp) {
-      return 10;
-    }
-    if (value instanceof LocalDate) {
-      return 11;
-    }
-    if (value instanceof LocalTime) {
-      return 12;
-    }
-    if (value instanceof LocalDateTime) {
-      return 13;
-    }
-    if (value instanceof byte[]) {
-      return 14;
-    }
-    return 99; // Generic object serialization
-  }
-
   /** Deserializes bytes to the appropriate type. */
-  private Object deserializeValue(byte[] data, byte typeMarker, Class<?> targetType)
+  private Object deserializeValue(byte[] data, TypeMarker typeMarker, Class<?> targetType)
       throws Exception {
     switch (typeMarker) {
-      case 1: // String
+      case STRING:
         String str = new String(data, StandardCharsets.UTF_8);
         return convertToTargetType(str, targetType);
 
-      case 2: // Integer
+      case INTEGER:
         if (data.length != 4) {
           throw EncryptionException.decryptionFailed("Invalid Integer data length", null)
               .withContext("expectedLength", 4)
@@ -440,7 +393,7 @@ public class EncryptionService {
         int intVal = ByteBuffer.wrap(data).getInt();
         return convertToTargetType(intVal, targetType);
 
-      case 3: // Long
+      case LONG:
         if (data.length != 8) {
           throw EncryptionException.decryptionFailed("Invalid Long data length", null)
               .withContext("expectedLength", 8)
@@ -449,7 +402,7 @@ public class EncryptionService {
         long longVal = ByteBuffer.wrap(data).getLong();
         return convertToTargetType(longVal, targetType);
 
-      case 4: // Double
+      case DOUBLE:
         if (data.length != 8) {
           throw EncryptionException.decryptionFailed("Invalid Double data length", null)
               .withContext("expectedLength", 8)
@@ -458,7 +411,7 @@ public class EncryptionService {
         double doubleVal = ByteBuffer.wrap(data).getDouble();
         return convertToTargetType(doubleVal, targetType);
 
-      case 5: // Float
+      case FLOAT:
         if (data.length != 4) {
           throw EncryptionException.decryptionFailed("Invalid Float data length", null)
               .withContext("expectedLength", 4)
@@ -467,7 +420,7 @@ public class EncryptionService {
         float floatVal = ByteBuffer.wrap(data).getFloat();
         return convertToTargetType(floatVal, targetType);
 
-      case 6: // Boolean
+      case BOOLEAN:
         if (data.length != 1) {
           throw EncryptionException.decryptionFailed("Invalid Boolean data length", null)
               .withContext("expectedLength", 1)
@@ -476,12 +429,12 @@ public class EncryptionService {
         boolean boolVal = data[0] == 1;
         return convertToTargetType(boolVal, targetType);
 
-      case 7: // BigDecimal
+      case BIG_DECIMAL:
         String decStr = new String(data, StandardCharsets.UTF_8);
         BigDecimal decVal = new BigDecimal(decStr);
         return convertToTargetType(decVal, targetType);
 
-      case 8: // Date
+      case DATE:
         if (data.length != 8) {
           throw EncryptionException.decryptionFailed("Invalid Date data length", null)
               .withContext("expectedLength", 8)
@@ -491,7 +444,7 @@ public class EncryptionService {
         Date dateVal = new Date(dateTime);
         return convertToTargetType(dateVal, targetType);
 
-      case 9: // Time
+      case TIME:
         if (data.length != 8) {
           throw EncryptionException.decryptionFailed("Invalid Time data length", null)
               .withContext("expectedLength", 8)
@@ -501,7 +454,7 @@ public class EncryptionService {
         Time timeVal = new Time(timeTime);
         return convertToTargetType(timeVal, targetType);
 
-      case 10: // Timestamp
+      case TIMESTAMP:
         if (data.length != 8) {
           throw EncryptionException.decryptionFailed("Invalid Timestamp data length", null)
               .withContext("expectedLength", 8)
@@ -511,30 +464,23 @@ public class EncryptionService {
         Timestamp tsVal = new Timestamp(tsTime);
         return convertToTargetType(tsVal, targetType);
 
-      case 11: // LocalDate
+      case LOCAL_DATE:
         String ldStr = new String(data, StandardCharsets.UTF_8);
         LocalDate ldVal = LocalDate.parse(ldStr);
         return convertToTargetType(ldVal, targetType);
 
-      case 12: // LocalTime
+      case LOCAL_TIME:
         String ltStr = new String(data, StandardCharsets.UTF_8);
         LocalTime ltVal = LocalTime.parse(ltStr);
         return convertToTargetType(ltVal, targetType);
 
-      case 13: // LocalDateTime
+      case LOCAL_DATE_TIME:
         String ldtStr = new String(data, StandardCharsets.UTF_8);
         LocalDateTime ldtVal = LocalDateTime.parse(ldtStr);
         return convertToTargetType(ldtVal, targetType);
 
-      case 14: // byte[]
+      case BYTE_ARRAY:
         return convertToTargetType(data, targetType);
-
-      case 99: // Generic object
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-            ObjectInputStream ois = new ObjectInputStream(bais)) {
-          Object obj = ois.readObject();
-          return convertToTargetType(obj, targetType);
-        }
 
       default:
         throw EncryptionException.decryptionFailed("Unknown type marker: " + typeMarker, null)

@@ -219,6 +219,27 @@ public class EncryptionConfig {
     if (metadataRefreshInterval.isNegative()) {
       throw new IllegalArgumentException("Metrics reporting interval cannot be negative");
     }
+    validateSchemaName(encryptionMetadataSchema);
+  }
+
+  private void validateSchemaName(String schemaName) {
+    if (schemaName == null || schemaName.trim().isEmpty()) {
+      throw new IllegalArgumentException("Schema name cannot be null or empty");
+    }
+
+    // Only allow alphanumeric, underscore, and dollar sign (valid SQL identifiers)
+    if (!schemaName.matches("^[a-zA-Z_$][a-zA-Z0-9_$]*$")) {
+      throw new IllegalArgumentException(
+          "Invalid schema name: must start with letter/underscore/$ and contain only alphanumeric/underscore/$ characters");
+    }
+
+    // Prevent SQL keywords that could be dangerous
+    String upper = schemaName.toUpperCase();
+    if (upper.equals("DROP") || upper.equals("DELETE") || upper.equals("UPDATE")
+        || upper.equals("INSERT") || upper.equals("SELECT") || upper.equals("TRUNCATE")
+        || upper.equals("ALTER") || upper.equals("CREATE")) {
+      throw new IllegalArgumentException("Schema name cannot be a SQL keyword: " + schemaName);
+    }
   }
 
   @Override
@@ -424,6 +445,8 @@ public class EncryptionConfig {
       this.encryptionMetadataSchema = encryptionMetadataSchema;
       return this;
     }
+
+
 
     public EncryptionConfig build() {
       return new EncryptionConfig(this);
