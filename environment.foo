@@ -1,2 +1,0 @@
-AWS_KMS_KEY_ARN=arn:aws:kms:us-east-1:000579002577:key/d69090ec-8a8c-48ca-a1bc-36333d551e01
-TEST_ENV_INFO_JSON={"request":{"features":[]},"databaseInfo":{"username":"postgres","password":"password","defaultDbName":"postgres","clusterEndpoint":"database-1.cgnh50a2ovor.us-east-1.rds.amazonaws.com","clusterEndpointPort":5432,"instances":[]},"region":"us-east-1","databaseEngine":"postgresql"}
