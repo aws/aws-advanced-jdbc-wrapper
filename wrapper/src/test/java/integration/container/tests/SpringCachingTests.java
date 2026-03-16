@@ -142,7 +142,7 @@ public class SpringCachingTests {
 
     Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");
-    props.setProperty(PropertyDefinition.PLUGINS.name, "dataRemoteCache");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "remoteQueryCache");
 
     // Fetch the cache server information
     List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();

@@ -540,7 +540,7 @@ public class CachedResultSet implements ResultSet {
       return (Time) timeObj;
     }
     if (timeObj instanceof Number) {
-      return new Time(((Number) timeObj).longValue()); // TODO: test
+      return new Time(((Number) timeObj).longValue());
     }
     if (timeObj instanceof LocalTime) {
       // Convert the LocalTime for the specified time zone into Time representing

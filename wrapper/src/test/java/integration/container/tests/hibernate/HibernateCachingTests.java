@@ -422,7 +422,7 @@ public class HibernateCachingTests {
 
     // Caching enablement and configuration
     configuration.setProperty("hibernate.use_sql_comments", "true");
-    configuration.setProperty("hibernate.connection.wrapperPlugins", "dataRemoteCache");
+    configuration.setProperty("hibernate.connection.wrapperPlugins", "remoteQueryCache");
     configuration.setProperty("hibernate.connection.cacheEndpointAddrRw", cacheEndpoint);
     configuration.setProperty("hibernate.connection.cacheUseSSL", "false");
 

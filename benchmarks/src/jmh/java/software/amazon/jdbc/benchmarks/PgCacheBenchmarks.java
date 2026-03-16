@@ -77,7 +77,7 @@ public class PgCacheBenchmarks {
       System.out.println("exception during register() is " + e.getMessage());
     }
     Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "dataRemoteCache");
+    properties.setProperty("wrapperPlugins", "remoteQueryCache");
     properties.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR);
     properties.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
     properties.setProperty("wrapperLogUnclosedConnections", "true");

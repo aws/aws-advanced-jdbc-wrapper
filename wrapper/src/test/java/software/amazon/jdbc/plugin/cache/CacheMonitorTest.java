@@ -79,22 +79,22 @@ public class CacheMonitorTest {
   void setUp() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
     props = new Properties();
-    props.setProperty("wrapperPlugins", "dataRemoteCache");
+    props.setProperty("wrapperPlugins", "remoteQueryCache");
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheEndpointAddrRo", "localhost:6380");
 
     // Setup telemetry mocks
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.stateTransition"))
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.stateTransition"))
         .thenReturn(mockStateTransitionCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.success"))
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.healthCheck.success"))
         .thenReturn(mockHealthCheckSuccessCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.failure"))
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.healthCheck.failure"))
         .thenReturn(mockHealthCheckFailureCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.error"))
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.error"))
         .thenReturn(mockErrorCounter);
-    when(mockTelemetryFactory.createGauge(eq("dataRemoteCache.cache.healthCheck.consecutiveSuccess"), any()))
+    when(mockTelemetryFactory.createGauge(eq("remoteQueryCache.cache.healthCheck.consecutiveSuccess"), any()))
         .thenReturn(mockConsecutiveSuccessGauge);
-    when(mockTelemetryFactory.createGauge(eq("dataRemoteCache.cache.healthCheck.consecutiveFailure"), any()))
+    when(mockTelemetryFactory.createGauge(eq("remoteQueryCache.cache.healthCheck.consecutiveFailure"), any()))
         .thenReturn(mockConsecutiveFailureGauge);
 
     // Reset singleton state between tests

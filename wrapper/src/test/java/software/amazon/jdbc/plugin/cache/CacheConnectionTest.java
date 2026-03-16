@@ -94,7 +94,7 @@ public class CacheConnectionTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     Properties props = new Properties();
-    props.setProperty("wrapperPlugins", "dataRemoteCache");
+    props.setProperty("wrapperPlugins", "remoteQueryCache");
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheEndpointAddrRo", "localhost:6380");
     cacheConnection = new CacheConnection(props);
@@ -195,7 +195,7 @@ public class CacheConnectionTest {
   @Test
   void testConstructor_NoRwAddress() {
     Properties props = new Properties();
-    props.setProperty("wrapperPlugins", "dataRemoteCache");
+    props.setProperty("wrapperPlugins", "remoteQueryCache");
     props.setProperty("cacheEndpointAddrRo", "localhost:6379");
 
     assertThrows(IllegalArgumentException.class, () -> new CacheConnection(props));

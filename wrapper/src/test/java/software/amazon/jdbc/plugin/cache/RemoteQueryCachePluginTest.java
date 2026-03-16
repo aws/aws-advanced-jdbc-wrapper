@@ -54,12 +54,12 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class DataRemoteCachePluginTest {
+public class RemoteQueryCachePluginTest {
   private Properties props;
   private final String methodName = "Statement.executeQuery";
   private AutoCloseable closeable;
 
-  private DataRemoteCachePlugin plugin;
+  private RemoteQueryCachePlugin plugin;
   @Mock
   FullServicesContainer mockServicesContainer;
   @Mock
@@ -103,18 +103,18 @@ public class DataRemoteCachePluginTest {
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     props = new Properties();
-    props.setProperty("wrapperPlugins", "dataRemoteCache");
+    props.setProperty("wrapperPlugins", "remoteQueryCache");
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     // Setup mock services container
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.hit")).thenReturn(mockCacheHitCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.miss")).thenReturn(mockCacheMissCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.totalQueries")).thenReturn(mockTotalQueryCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.malformedHints"))
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.hit")).thenReturn(mockCacheHitCounter);
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.miss")).thenReturn(mockCacheMissCounter);
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.totalQueries")).thenReturn(mockTotalQueryCounter);
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.malformedHints"))
         .thenReturn(mockMalformedHintCounter);
-    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.bypass")).thenReturn(mockCacheBypassCounter);
+    when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.bypass")).thenReturn(mockCacheBypassCounter);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
@@ -128,7 +128,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_getTTLFromQueryHint() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Null and empty query hint content are not cacheable
     assertNull(plugin.getTtlForQuery(null));
@@ -180,7 +180,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_getTTLFromQueryHint_MalformedHints() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Test malformed cases
     assertNull(plugin.getTtlForQuery("CACHE_PARAM()"));
@@ -201,7 +201,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_execute_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -228,7 +228,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_execute_emptyQuery_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -255,7 +255,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_execute_emptyPreparedStatement_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -290,7 +290,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_execute_noCachingLongQuery() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -317,7 +317,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_execute_cachingMissAndHit() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -383,7 +383,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_cachingMissAndHit_preparedStatement() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is a cache miss
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -454,7 +454,7 @@ public class DataRemoteCachePluginTest {
   @Test
   void test_transaction_cacheQuery() throws Exception {
     props.setProperty("user", "dbuser");
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -505,7 +505,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_transaction_cacheQuery_multiple_query_params() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -555,7 +555,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_transaction_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(true);
@@ -584,7 +584,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_JdbcCacheBypassCount_malformed_hint() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Setup - not in transaction with malformed cache hint
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -614,7 +614,7 @@ public class DataRemoteCachePluginTest {
   @Test
   void test_JdbcCacheBypassCount_double_bypass_prevention() throws Exception {
     props.setProperty("user", "testuser");
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Setup - query that meets MULTIPLE bypass conditions
     when(mockPluginService.isInTransaction()).thenReturn(true); // Bypass condition #1
@@ -654,7 +654,7 @@ public class DataRemoteCachePluginTest {
   @Test
   void test_execute_multipleCacheHits() throws Exception {
     props.setProperty("user", "user");
-    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);

@@ -286,16 +286,16 @@ public class CacheMonitor extends AbstractMonitor {
     this.healthCheckInHealthyState = healthCheckInHealthyState;
 
     if (telemetryFactory != null && stateTransitionCounter == null) {
-      stateTransitionCounter = telemetryFactory.createCounter("dataRemoteCache.cache.stateTransition");
-      healthCheckSuccessCounter = telemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.success");
-      healthCheckFailureCounter = telemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.failure");
-      errorCounter = telemetryFactory.createCounter("dataRemoteCache.cache.error");
+      stateTransitionCounter = telemetryFactory.createCounter("remoteQueryCache.cache.stateTransition");
+      healthCheckSuccessCounter = telemetryFactory.createCounter("remoteQueryCache.cache.healthCheck.success");
+      healthCheckFailureCounter = telemetryFactory.createCounter("remoteQueryCache.cache.healthCheck.failure");
+      errorCounter = telemetryFactory.createCounter("remoteQueryCache.cache.error");
 
-      consecutiveSuccessGauge = telemetryFactory.createGauge("dataRemoteCache.cache.healthCheck.consecutiveSuccess",
+      consecutiveSuccessGauge = telemetryFactory.createGauge("remoteQueryCache.cache.healthCheck.consecutiveSuccess",
           () -> clusterStates.values().stream()
               .mapToLong(c -> Math.max(c.consecutiveRwSuccesses, c.consecutiveRoSuccesses))
               .max().orElse(0L));
-      consecutiveFailureGauge = telemetryFactory.createGauge("dataRemoteCache.cache.healthCheck.consecutiveFailure",
+      consecutiveFailureGauge = telemetryFactory.createGauge("remoteQueryCache.cache.healthCheck.consecutiveFailure",
           () -> clusterStates.values().stream()
               .mapToLong(c -> Math.max(c.consecutiveRwFailures, c.consecutiveRoFailures))
               .max().orElse(0L));

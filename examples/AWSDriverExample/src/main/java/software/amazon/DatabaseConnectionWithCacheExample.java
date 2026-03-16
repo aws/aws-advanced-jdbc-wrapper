@@ -58,7 +58,7 @@ public class DatabaseConnectionWithCacheExample {
     properties.setProperty("password", PASSWORD);
 
     // Configuring connection properties for the JDBC Wrapper.
-    properties.setProperty("wrapperPlugins", "dataRemoteCache");
+    properties.setProperty("wrapperPlugins", "remoteQueryCache");
     properties.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR);
     properties.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
     // If the cache server is authenticated with IAM
@@ -128,7 +128,7 @@ public class DatabaseConnectionWithCacheExample {
     Properties properties1 = new Properties();
     properties1.setProperty("user", USERNAME);
     properties1.setProperty("password", PASSWORD);
-    properties1.setProperty("wrapperPlugins", "dataRemoteCache");
+    properties1.setProperty("wrapperPlugins", "remoteQueryCache");
     properties1.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR);
     properties1.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
     properties1.setProperty("cacheUseSSL", CACHE_USE_SSL);
@@ -149,7 +149,7 @@ public class DatabaseConnectionWithCacheExample {
     Properties properties2 = new Properties();
     properties2.setProperty("user", USERNAME);
     properties2.setProperty("password", PASSWORD);
-    properties2.setProperty("wrapperPlugins", "dataRemoteCache");
+    properties2.setProperty("wrapperPlugins", "remoteQueryCache");
     properties2.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR2);
     properties2.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR2);
     properties2.setProperty("cacheUseSSL", CACHE_USE_SSL);

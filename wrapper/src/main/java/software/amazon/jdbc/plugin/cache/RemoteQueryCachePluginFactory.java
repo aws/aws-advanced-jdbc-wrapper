@@ -21,10 +21,10 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class DataRemoteCachePluginFactory implements ConnectionPluginFactory {
+public class RemoteQueryCachePluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new DataRemoteCachePlugin(servicesContainer, props);
+    return new RemoteQueryCachePlugin(servicesContainer, props);
   }
 }

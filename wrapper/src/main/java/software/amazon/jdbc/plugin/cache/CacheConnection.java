@@ -96,7 +96,7 @@ public class CacheConnection {
       new AwsWrapperProperty(
           "cacheEndpointAddrRo",
           null,
-          "The cache read-only server endpoint address.");
+          "The cache read-only server endpoint address. This is an optional parameter to allow performing read operations from read replica cache nodes.");
 
   protected static final AwsWrapperProperty CACHE_USE_SSL =
       new AwsWrapperProperty(
@@ -252,7 +252,7 @@ public class CacheConnection {
   }
 
   // for unit testing only
-  public CacheConnection(final Properties properties) {
+  CacheConnection(final Properties properties) {
     this(properties, null, null);
   }
 
@@ -298,10 +298,10 @@ public class CacheConnection {
     }
   }
 
-  /* Here we check if we need to initialise connection pool for read or write to cache.
-  With isRead we check if we need to initialise connection pool for read or write to cache.
-  If isRead is true, we initialise connection pool for read.
-  If isRead is false, we initialise connection pool for write.
+  /**
+   * Initializes the connection pool for reading from or writing to the cache, if not already initialized.
+   *
+   * @param isRead if {@code true}, initializes the read connection pool; otherwise, initializes the write connection pool
    */
   private void initializeCacheConnectionIfNeeded(boolean isRead) {
     if (StringUtils.isNullOrEmpty(this.cacheRwServerAddr)) {

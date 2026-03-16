@@ -51,7 +51,7 @@ import software.amazon.jdbc.plugin.cache.CachedResultSet;
 @DisableOnTestFeature({TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @Order(26)
 
-public class DataRemoteCachePluginTests {
+public class RemoteQueryCachePluginTests {
 
   @AfterEach
   public void afterEach() throws Exception {
@@ -211,7 +211,7 @@ public class DataRemoteCachePluginTests {
     final String cacheEndpoint = instance.getHost() + ":" + instance.getPort();
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "dataRemoteCache");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "remoteQueryCache");
     props.setProperty("cacheEndpointAddrRw", cacheEndpoint);
     props.setProperty("cacheUseSSL", "false");
 
