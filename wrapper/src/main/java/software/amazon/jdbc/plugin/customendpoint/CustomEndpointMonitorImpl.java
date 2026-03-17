@@ -84,6 +84,8 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    * @param region                 The region of the custom endpoint to be monitored.
    * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
    *                               changes. The value specified should be in nanoseconds.
+   * @param maxRefreshRateNano     The maximum refresh rate allowed for the custom endpoint monitor.
+   * @param refreshRateBackoffFactor The backoff factor to use when slowing down the refresh rate.
    * @param rdsClientFunc          The function to call to create the RDS client that will fetch custom endpoint
    *                               information.
    */

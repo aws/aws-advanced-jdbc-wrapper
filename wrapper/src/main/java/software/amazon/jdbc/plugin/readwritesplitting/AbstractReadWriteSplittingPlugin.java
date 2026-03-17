@@ -127,7 +127,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
       boolean isCachedConnection =
           currentConnection == this.writerConnection
               || (this.readerCacheItem != null && currentConnection == this.readerCacheItem.get());
-      
+
       if (!isCachedConnection) {
         closeIdleConnections();
       }
@@ -465,6 +465,8 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
 
   /**
    * Methods for testing purposes only.
+   *
+   * @return the writer connection for testing purposes only.
    */
   public Connection getWriterConnection() {
     return this.writerConnection;

@@ -131,6 +131,14 @@ public class SimpleReadWriteSplittingPlugin extends AbstractReadWriteSplittingPl
 
   /**
    * For testing purposes only.
+   *
+   * @param pluginService          The PluginService implementation.
+   * @param properties               The properties to be used for this plugin.
+   * @param hostListProviderService  The HostListProviderService implementation.
+   * @param writerConnection         The writer connection.
+   * @param readerConnection         The reader connection.
+   * @param writeEndpointHostSpec    The writer HostSpec.
+   * @param readEndpointHostSpec     The reader HostSpec.
    */
   public SimpleReadWriteSplittingPlugin(
       final PluginService pluginService,

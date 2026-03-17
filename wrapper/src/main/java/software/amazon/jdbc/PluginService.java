@@ -265,6 +265,8 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
   * is processed, or another {@link PluginService#connect} or {@link PluginService#forceConnect}
   * is made.
   *
+   * @return true if the most recent connection was obtained from a connection pool,
+   *        false if it was newly created, null if the information is not available
   */
   @Nullable Boolean isPooledConnection();
 }

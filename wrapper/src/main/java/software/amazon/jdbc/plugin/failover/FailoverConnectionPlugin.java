@@ -601,6 +601,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
    * instance in the topology.
    *
    * @param failedHost The host with network errors.
+   * @param isInitialConnection The flag that indicates whether it is an initial connection
    * @throws SQLException if an error occurs
    */
   protected void failover(@Nullable final HostSpec failedHost, boolean isInitialConnection) throws SQLException {

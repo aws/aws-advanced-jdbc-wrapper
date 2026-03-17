@@ -52,6 +52,7 @@ public class DialectUtils {
    * Evaluate the database role of the given connection, either {@link HostRole#WRITER} or {@link HostRole#READER}.
    *
    * @param conn the connection to evaluate.
+   * @param isReaderQuery it's a query to check if the connection is to a reader instance.
    * @return the database role of the given connection.
    * @throws SQLException if an exception occurs when querying the database or processing the database response.
    */
@@ -79,6 +80,11 @@ public class DialectUtils {
    * Example:
    * instanceId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
    * instanceName: "test-multiaz-instance-1"
+   *
+   * @param connection the connection to use for executing the query.
+   * @param instanceIdQuery the query to execute to retrieve the instance identifiers.
+
+   * @return a pair of instanceId and instanceName if successful, null otherwise.
    */
   public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(
       final Connection connection, String instanceIdQuery) {

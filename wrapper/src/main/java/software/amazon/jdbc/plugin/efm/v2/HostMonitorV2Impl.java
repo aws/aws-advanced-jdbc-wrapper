@@ -416,8 +416,8 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
 
   protected void abortConnection(final @NonNull Connection connectionToAbort) {
     try {
-      connectionToAbort.abort(abortExecutor);
-      connectionToAbort.close();
+      this.servicesContainer.getPluginService().getTargetDriverDialect()
+          .abortConnection(connectionToAbort, abortExecutor);
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(

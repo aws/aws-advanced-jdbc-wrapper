@@ -233,6 +233,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
    *
    * @return list of hosts that represents topology. If there's no topology in the cache or the
    *     cached topology is outdated, it returns null.
+   * @throws SQLException if errors occurred while retrieving the topology.
    */
   public @Nullable List<HostSpec> getStoredTopology() throws SQLException {
     init();

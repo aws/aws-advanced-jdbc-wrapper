@@ -26,14 +26,18 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
+
+  private static final Logger LOGGER = Logger.getLogger(PgTargetDriverDialect.class.getName());
 
   private static final String DRIVER_CLASS_NAME = "org.postgresql.Driver";
   private static final String SIMPLE_DS_CLASS_NAME = "org.postgresql.ds.PGSimpleDataSource";
@@ -171,6 +175,17 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   @Override
   public void abortConnection(@NonNull Connection connectionToAbort, @NonNull Executor abortExecutor)
       throws SQLException {
-    connectionToAbort.abort(abortExecutor);
+    try {
+      connectionToAbort.abort(abortExecutor);
+    } catch (final SecurityException secEx) {
+      // JDK 24 fully removed the Java Security Manager (deprecated since JDK 17, removed in JDK 24 per JEP 486).
+      // abort() is not supported on JDK 24+ (Security Manager removed); fall back to close()
+      LOGGER.finest(
+          () -> Messages.get(
+              "PgTargetDriverDialect.exceptionAbortingConnection",
+              new Object[] {secEx.getMessage()}));
+
+      connectionToAbort.close();
+    }
   }
 }

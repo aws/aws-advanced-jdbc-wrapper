@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -260,5 +261,11 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     return properties != null && PropertyDefinition.ASSUME_FETCH_ENTIRE_RESULT_SET.getBoolean(properties)
         ? NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET
         : NETWORK_BOUND_METHODS;
+  }
+
+  @Override
+  public void abortConnection(@NonNull Connection connectionToAbort, @NonNull Executor abortExecutor)
+      throws SQLException {
+    connectionToAbort.abort(abortExecutor);
   }
 }

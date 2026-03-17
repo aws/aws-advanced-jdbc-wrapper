@@ -145,7 +145,9 @@ public abstract class TopologyUtils {
   /**
    * Creates a {@link HostSpec} from the given topology information.
    *
-   * @param instanceId       the database instance identifier, e.g. "mydb-instance-1".
+   * @param instanceId       the database instance identifier, e.g. "mydb-instance-1"
+   *                         or "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ".
+   * @param instanceName     the database instance name, e.g. "mydb-instance-1.cluster-xxxxx.region.rds.amazonaws.com".
    * @param isWriter         true if this is a writer instance, false for reader.
    * @param weight           the instance weight for load balancing.
    * @param lastUpdateTime   the timestamp of the last update to this instance's information.

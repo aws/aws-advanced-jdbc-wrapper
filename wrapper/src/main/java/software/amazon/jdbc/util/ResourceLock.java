@@ -22,6 +22,8 @@ public class ResourceLock extends ReentrantLock implements AutoCloseable {
 
   /**
    * Obtain a lock and return the ResourceLock for use in try-with-resources block.
+   *
+   * @return resource lock object
    */
   public ResourceLock obtain() {
     lock();

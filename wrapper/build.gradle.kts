@@ -50,9 +50,9 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
 
-    compileOnly("org.checkerframework:checker-qual:3.49.5")
+    compileOnly("org.checkerframework:checker-qual:3.52.0")
     compileOnly("com.mysql:mysql-connector-j:9.6.0")
-    compileOnly("org.postgresql:postgresql:42.7.7")
+    compileOnly("org.postgresql:postgresql:42.7.10")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
@@ -140,10 +140,6 @@ val java11 = sourceSets.create("java11") {
     compileClasspath += sourceSets.main.get().output
 }
 
-dependencies {
-    add(java11.implementationConfigurationName, "org.checkerframework:checker-qual:3.52.0")
-}
-
 // Configure the java11 source set to compile with Java 11
 tasks.named<JavaCompile>(java11.compileJavaTaskName) {
     javaCompiler.set(javaToolchains.compilerFor {
@@ -154,9 +150,33 @@ tasks.named<JavaCompile>(java11.compileJavaTaskName) {
     dependsOn(tasks.compileJava)
 }
 
+// Create a separate source set for Java 24+ specific code (e.g., PgTargetDriverDialect)
+val java24 = sourceSets.create("java24") {
+    java {
+        srcDir("src/main/java24")
+    }
+    // Make java24 source set depend on main source set
+    compileClasspath += sourceSets.main.get().output
+}
+
+// java24 source set presents an alternative implementation to be executed under java24 environment.
+// However java24 source set is compiled with java8.
+tasks.named<JavaCompile>(java24.compileJavaTaskName) {
+    // Ensure main classes are compiled before java24 classes
+    dependsOn(tasks.compileJava)
+}
+
+dependencies {
+    add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+    add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+}
+
 fun CopySpec.addMultiReleaseContents() {
     into("META-INF/versions/11") {
         from(java11.output)
+    }
+    into("META-INF/versions/24") {
+        from(java24.output)
     }
 }
 
@@ -262,6 +282,7 @@ if (useJacoco) {
 
 tasks.jar {
     dependsOn(tasks.named(java11.compileJavaTaskName))
+    dependsOn(tasks.named(java24.compileJavaTaskName))
 
     from("${project.rootDir}") {
         include("README")
@@ -316,6 +337,14 @@ tasks.jar {
                 }
             }
         }
+        val java24Dir = java24.output.classesDirs.files.first()
+        if (java24Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java24Dir, "prefix" to "META-INF/versions/24")
+                }
+            }
+        }
     }
 }
 
@@ -328,6 +357,7 @@ configurations {
 tasks.shadowJar {
 
     dependsOn(tasks.named(java11.compileJavaTaskName))
+    dependsOn(tasks.named(java24.compileJavaTaskName))
 
     configurations = listOf(project.configurations.federatedAuthBundleImplementation.get())
     from(sourceSets.main.get().output)
@@ -368,6 +398,14 @@ tasks.shadowJar {
             ant.withGroovyBuilder {
                 "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
                     "zipfileset"("dir" to java11Dir, "prefix" to "META-INF/versions/11")
+                }
+            }
+        }
+        val java24Dir = java24.output.classesDirs.files.first()
+        if (java24Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java24Dir, "prefix" to "META-INF/versions/24")
                 }
             }
         }
@@ -504,7 +542,8 @@ tasks.register<Test>("test-all-multi-az") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-bg", "true")
     }
@@ -525,7 +564,8 @@ tasks.register<Test>("test-all-pg-aurora") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -543,7 +583,8 @@ tasks.register<Test>("test-all-pg-multi-az") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-bg", "true")
     }
@@ -562,7 +603,8 @@ tasks.register<Test>("test-all-mysql-aurora") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
         systemProperty("test-no-bg", "true")
@@ -582,7 +624,8 @@ tasks.register<Test>("test-all-mysql-aurora-mariadb-driver") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
         systemProperty("test-no-bg", "true")
@@ -601,7 +644,8 @@ tasks.register<Test>("test-all-mysql-multi-az") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-bg", "true")
     }
@@ -620,7 +664,8 @@ tasks.register<Test>("test-bgd-mysql-rds-instance-mysql-driver") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -646,7 +691,8 @@ tasks.register<Test>("test-bgd-mysql-rds-instance-mariadb-driver") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -672,7 +718,8 @@ tasks.register<Test>("test-bgd-mysql-aurora-mysql-driver") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-multi-az-instance", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -699,7 +746,8 @@ tasks.register<Test>("test-bgd-mysql-aurora-mariadb-driver") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-multi-az-instance", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -726,7 +774,8 @@ tasks.register<Test>("test-bgd-pg-aurora") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-multi-az-instance", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -753,7 +802,8 @@ tasks.register<Test>("test-bgd-pg-rds-instance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")
@@ -796,7 +846,8 @@ tasks.register<Test>("debug-all-aurora") {
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-bg", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
     }
 }
 
@@ -830,7 +881,8 @@ tasks.register<Test>("test-all-aurora-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-instances-1", "true")
         systemProperty("test-no-instances-2", "true")
         systemProperty("test-exclude-tags", "advanced,rw-splitting")
@@ -851,7 +903,8 @@ tasks.register<Test>("test-aurora-pg-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-mysql-driver", "true")
         systemProperty("test-no-mysql-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
@@ -876,7 +929,8 @@ tasks.register<Test>("debug-aurora-pg-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-mysql-driver", "true")
         systemProperty("test-no-mysql-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
@@ -901,7 +955,8 @@ tasks.register<Test>("test-aurora-mysql-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-pg-driver", "true")
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
@@ -926,7 +981,8 @@ tasks.register<Test>("debug-aurora-mysql-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-pg-driver", "true")
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
@@ -951,7 +1007,8 @@ tasks.register<Test>("test-aurora-pg-advanced-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-mysql-driver", "true")
         systemProperty("test-no-mysql-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
@@ -976,7 +1033,8 @@ tasks.register<Test>("test-aurora-mysql-advanced-performance") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-pg-driver", "true")
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
@@ -1000,7 +1058,8 @@ tasks.register<Test>("test-autoscaling-only") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-bg", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
     }
 }
 
@@ -1014,7 +1073,8 @@ tasks.register<Test>("debug-autoscaling-only") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-bg", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
     }
 }
 
@@ -1146,7 +1206,8 @@ tasks.register<Test>("test-all-metrics") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk11", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")
@@ -1169,7 +1230,8 @@ tasks.register<Test>("test-metrics-mysql-aurora") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk11", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")
@@ -1195,7 +1257,8 @@ tasks.register<Test>("test-metrics-mysql-multi-az") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk11", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")
@@ -1221,7 +1284,8 @@ tasks.register<Test>("test-metrics-pg-aurora") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk11", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")
@@ -1247,7 +1311,8 @@ tasks.register<Test>("test-metrics-pg-multi-az") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk11", "true")
         systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")

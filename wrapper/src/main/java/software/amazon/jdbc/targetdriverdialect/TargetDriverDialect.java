@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -61,4 +62,7 @@ public interface TargetDriverDialect {
   String getSQLState(final Throwable throwable);
 
   Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties);
+
+  void abortConnection(final @NonNull Connection connectionToAbort, final @NonNull Executor abortExecutor)
+      throws SQLException;
 }

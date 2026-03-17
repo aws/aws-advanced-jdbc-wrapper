@@ -39,6 +39,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.v2.HostMonitorV2Impl;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -100,7 +101,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   /**
    * Initialize the node monitoring plugin.
    *
-   * @param servicesContainer The service container for the services required by this class.
+   * @param serviceContainer The service container for the services required by this class.
    * @param properties        The property set used to initialize the active connection.
    * @param monitorServiceSupplier A supplier for creating a {@link HostMonitorService} instance.
    * @param rdsHelper        The RDS helper class to identify RDS instances.
