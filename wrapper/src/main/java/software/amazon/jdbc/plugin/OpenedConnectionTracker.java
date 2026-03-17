@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
@@ -46,8 +47,9 @@ public class OpenedConnectionTracker {
 
   static final Map<String, Queue<WeakReference<Connection>>> openedConnections = new ConcurrentHashMap<>();
   private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
-  private static final ExecutorService pruneConnectionsExecutorService =
-      ExecutorFactory.newSingleThreadExecutor("pruneConnection");
+  private static final int PRUNE_INTERVAL_SEC = 30;
+  private static final ScheduledExecutorService pruneConnectionsExecutorService =
+      ExecutorFactory.newSingleThreadScheduledThreadExecutor("pruneConnection");
   private static final ExecutorService invalidateConnectionsExecutorService =
       ExecutorFactory.newCachedThreadPool("invalidateConnection");
   private static final Executor abortConnectionExecutor = new SynchronousExecutor();
@@ -64,21 +66,8 @@ public class OpenedConnectionTracker {
   private final PluginService pluginService;
 
   static {
-    pruneConnectionsExecutorService.submit(() -> {
-      while (!Thread.currentThread().isInterrupted()) {
-        try {
-          pruneConnections();
-          TimeUnit.SECONDS.sleep(30);
-
-        } catch (InterruptedException ex) {
-          Thread.currentThread().interrupt();
-          return;
-        } catch (Exception ex) {
-          // do nothing
-        }
-      }
-    });
-    pruneConnectionsExecutorService.shutdown();
+    pruneConnectionsExecutorService.scheduleAtFixedRate(
+        OpenedConnectionTracker::pruneConnections, PRUNE_INTERVAL_SEC, PRUNE_INTERVAL_SEC, TimeUnit.SECONDS);
   }
 
   public OpenedConnectionTracker(final PluginService pluginService) {
@@ -90,7 +79,7 @@ public class OpenedConnectionTracker {
 
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
-      trackConnection(hostSpec.getHostAndPort(), conn);
+      trackConnection(hostSpec.asAlias(), conn);
       logOpenedConnections();
       return;
     }
@@ -226,10 +215,6 @@ public class OpenedConnectionTracker {
     }
     builder.append("\n]");
     LOGGER.finest(Messages.get("OpenedConnectionTracker.invalidatingConnections", new Object[] {builder.toString()}));
-  }
-
-  public void pruneNullConnections() {
-    pruneConnections();
   }
 
   protected static void pruneConnections() {
