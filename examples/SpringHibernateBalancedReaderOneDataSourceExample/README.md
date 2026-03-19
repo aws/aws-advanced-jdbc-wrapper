@@ -3,12 +3,12 @@
 In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use a single datasource to fetch and update data from an Aurora PostgreSQL database. The datasource is configured to provide a writer connection or a reader connection to off-load a writer node from read-only queries. It provides pooled connections through the AWS Advanced JDBC Wrapper internal connection pool configuration.
 
 > Note: this tutorial was written using the following technologies:
->    - Spring Boot 2.7.1
->    - Hibernate
->    - AWS Advanced JDBC Wrapper 2.3.2
->    - Postgresql 42.5.4
->    - Gradle 7
->    - Java 11
+>    - Spring Boot 3.4.4
+>    - Hibernate 6.x (via Spring Boot)
+>    - AWS Advanced JDBC Wrapper 3.2.0
+>    - Postgresql 42.7.10
+>    - Gradle 8
+>    - Java 17
 
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
@@ -68,7 +68,7 @@ Configure Spring to use the AWS Advanced JDBC Wrapper as the default datasource.
           driver-class-name: software.amazon.jdbc.Driver
           type: org.springframework.jdbc.datasource.SimpleDriverDataSource
     ```
-2. The datasource mentioned above does not use Hikari datasource that is default for Spring 2+ application. The AWS Advanced JDBC Wrapper manages its own internal connection pool (or several connection pools, if needed), which increases overall efficiency and helps facilitate failover support. All necessary configuration parameters are defined in the `F0` configuration profile. Other configuration presets `D`, `E` and `F` can be used as well. Any configuration profile or preset specified should use the [Read/Write Splitting Plugin](../../docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md). More details are available at [Configuration Profiles](../../docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles) and [Configuration Presets](../../docs/using-the-jdbc-driver/ConfigurationPresets.md).
+2. The datasource mentioned above does not use Hikari datasource that is default for Spring Boot 3+ application. The AWS Advanced JDBC Wrapper manages its own internal connection pool (or several connection pools, if needed), which increases overall efficiency and helps facilitate failover support. All necessary configuration parameters are defined in the `F0` configuration profile. Other configuration presets `D`, `E` and `F` can be used as well. Any configuration profile or preset specified should use the [Read/Write Splitting Plugin](../../docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md). More details are available at [Configuration Profiles](../../docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles) and [Configuration Presets](../../docs/using-the-jdbc-driver/ConfigurationPresets.md).
    <br><br>
    Including the optional configuration parameter `readerHostSelectorStrategy` in the connection string helps to set up a strategy to select a reader node. Possible values are `random`, `roundRobin` and `leastConnections`. More details are available at [Reader Selection Strategies](../../docs/using-the-jdbc-driver/HostSelectionStrategies.md).
 

@@ -3,12 +3,12 @@
 In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use the IAM Authentication plugin to fetch some data from an Aurora PostgreSQL database.
 
 > Note: this tutorial was written using the following technologies:
->    - Spring Boot 2.7.1
->    - Hibernate
+>    - Spring Boot 3.4.4
+>    - Hibernate 6.x (via Spring Boot)
 >    - AWS Advanced JDBC Wrapper 3.2.0
->    - Postgresql 42.5.4
->    - Gradle 7
->    - Java 11
+>    - Postgresql 42.7.10
+>    - Gradle 8
+>    - Java 17
 
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
@@ -62,9 +62,9 @@ public class SpringHibernateExampleApplication implements CommandLineRunner {
 ```java
 package example.data;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 
 @Entity
 public class Example {
@@ -157,7 +157,7 @@ spring:
       exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
       max-lifetime: 1260000
 ```
-   Since Spring 2+ uses Hikari to manage datasources, to configure the driver we would need to specify the `data-source-properties` under `hikari`.
+   Since Spring Boot 3+ uses Hikari to manage datasources, to configure the driver we would need to specify the `data-source-properties` under `hikari`.
    Whenever Hikari is used, we also need to ensure failover exceptions are handled correctly so connections will not be discarded from the pool after failover has occurred. This can be done by overriding the exception handling class. For more information on this, please see [the documentation on HikariCP](../../docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#hikaricp).
    
    This example contains some very simple configurations for the IAM Authentication plugin, if you are interested in other configurations related to failover, please visit [the documentation for failover parameters](../../docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#failover-parameters)

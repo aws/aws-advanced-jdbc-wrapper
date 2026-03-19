@@ -16,7 +16,7 @@
 
 package integration.container.tests.hibernate;
 
-import static org.hibernate.annotations.QueryHints.COMMENT;
+import static org.hibernate.jpa.HibernateHints.HINT_COMMENT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -31,16 +31,15 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import java.io.File;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -51,7 +50,6 @@ import org.hibernate.query.Query;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -60,9 +58,8 @@ import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Null
 import software.amazon.jdbc.plugin.cache.CacheConnection;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
+@EnableOnTestFeature({TestEnvironmentFeatures.VALKEY_CACHE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
-@Order(24)
 @Tag("caching")
 
 public class HibernateCachingTests {
@@ -480,7 +477,7 @@ public class HibernateCachingTests {
     criteriaQuery.select(root).where(criteriaBuilder.equal(root.get("id"), id));
 
     Query<Book> query = session.createQuery(criteriaQuery);
-    query.setHint(COMMENT, "CACHE_PARAM(ttl=50s)");
+    query.setHint(HINT_COMMENT, "CACHE_PARAM(ttl=50s)");
     Book book = query.uniqueResult();
     if (book != null) {
       Hibernate.initialize(book.getAuthors());
@@ -505,7 +502,7 @@ public class HibernateCachingTests {
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         break;
       case MYSQL:
-        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
         break;
       case MARIADB:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect");

@@ -60,8 +60,6 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
-    testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
-    testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
     val arch = System.getProperty("os.arch").let {
         when (it) {
@@ -82,10 +80,35 @@ dependencies {
     testImplementation("io.valkey:valkey-glide:2.3.0:$glideClassifier")
 }
 
-tasks.withType<Test> {
+// Hibernate v7.3 requires at least Java 17
+// Create a separate source set for Hibernate tests compiled with Java 17
+val hibernateTest: SourceSet by sourceSets.creating {
+    java {
+        srcDir("java17")
+    }
+    compileClasspath += sourceSets.test.get().output + sourceSets.test.get().compileClasspath
+    runtimeClasspath += sourceSets.test.get().output + sourceSets.test.get().runtimeClasspath
+}
 
-    testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test")
-    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test")
+tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+    options.release.set(17)
+    dependsOn(tasks.compileTestJava)
+}
+
+dependencies {
+    // Hibernate test dependencies (Java 17+)
+    add(hibernateTest.implementationConfigurationName, "org.hibernate:hibernate-core:7.3.0.Final")
+    add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
+}
+
+tasks.withType<Test> {
+    dependsOn(tasks.named(hibernateTest.compileJavaTaskName))
+
+    testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test") + hibernateTest.output.classesDirs
+    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test") + hibernateTest.output
     outputs.upToDateWhen { false }
 
     useJUnitPlatform {

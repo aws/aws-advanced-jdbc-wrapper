@@ -23,9 +23,6 @@ include(
     "hikari",
     "dbcp",
     "driverexample",
-    "springhibernate",
-    "springhibernateonedatasource",
-    "springhibernatetwodatasource",
     "springwildfly",
     "springboothikariexample",
     "springtxfailover",
@@ -33,19 +30,32 @@ include(
     "readwritesample"
 )
 
+// Submodules that require Java 17+
+if (JavaVersion.current() >= JavaVersion.VERSION_17) {
+    include(
+        "springhibernate",
+        "springhibernateonedatasource",
+        "springhibernatetwodatasource"
+    )
+}
+
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
 project(":hibernate").projectDir = file("examples/HibernateExample")
 project(":hikari").projectDir = file("examples/HikariExample")
 project(":dbcp").projectDir = file("examples/DBCPExample")
 project(":driverexample").projectDir = file("examples/AWSDriverExample")
-project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
-project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
-project(":springhibernatetwodatasource").projectDir = file("examples/SpringHibernateBalancedReaderTwoDataSourceExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
 project(":vertxexample").projectDir = file("examples/VertxExample")
 project(":readwritesample").projectDir = file("examples/ReadWriteSplittingSample")
+
+// Only include these submodules is the current configured Java version is greater or equal to Java 17
+if (JavaVersion.current() >= JavaVersion.VERSION_17) {
+    project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
+    project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
+    project(":springhibernatetwodatasource").projectDir = file("examples/SpringHibernateBalancedReaderTwoDataSourceExample")
+}
 
 pluginManagement {
     plugins {

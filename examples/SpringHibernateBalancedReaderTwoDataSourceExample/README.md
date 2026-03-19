@@ -3,12 +3,12 @@
 In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use two datasources to fetch and update data from an Aurora PostgreSQL database. One datasource is configured to provide a writer connection. The other datasource is configured to provide a reader connection to off load a writer node from read-only queries. Both datasources provide pooled connections through AWS Advanced JDBC Wrapper internal connection pool configuration.
 
 > Note: this tutorial was written using the following technologies:
->    - Spring Boot 2.7.1
->    - Hibernate
->    - AWS Advanced JDBC Wrapper 2.3.2
->    - Postgresql 42.5.4
->    - Gradle 7
->    - Java 11
+>    - Spring Boot 3.4.4
+>    - Hibernate 6.x (via Spring Boot)
+>    - AWS Advanced JDBC Wrapper 3.2.0
+>    - Postgresql 42.7.10
+>    - Gradle 8
+>    - Java 17
 
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
@@ -78,7 +78,7 @@ Configure Spring to use the AWS Advanced JDBC Wrapper as the default datasource.
           driver-class-name: software.amazon.jdbc.Driver
           type: org.springframework.jdbc.datasource.SimpleDriverDataSource
     ```
-2. The datasources mentioned above do not use Hikari datasources which are the default for Spring 2+ applications. The AWS Advanced JDBC Wrapper manages its own internal connection pool (or several connection pools, if needed), which increases overall efficiency and helps facilitate failover support. All necessary configuration parameters are defined in `SF_F0` configuration profile. Other configuration presets from `SF_` family can be used as well. More details are available at [Configuration Profiles](../../docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles) and [Configuration Presets](../../docs/using-the-jdbc-driver/ConfigurationPresets.md).
+2. The datasources mentioned above do not use Hikari datasources which are the default for Spring Boot 3+ applications. The AWS Advanced JDBC Wrapper manages its own internal connection pool (or several connection pools, if needed), which increases overall efficiency and helps facilitate failover support. All necessary configuration parameters are defined in `SF_F0` configuration profile. Other configuration presets from `SF_` family can be used as well. More details are available at [Configuration Profiles](../../docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles) and [Configuration Presets](../../docs/using-the-jdbc-driver/ConfigurationPresets.md).
  <br><br>
    Optional configuration parameter `readerInitialConnectionHostSelectorStrategy` in connection string helps to setup a strategy selecting a reader node. Possible values are `random`, `roundRobin` and `leastConnections`. More details are available at [Reader Selection Strategies](../../docs/using-the-jdbc-driver/HostSelectionStrategies.md).
 

@@ -15,14 +15,20 @@
  */
 
 plugins {
-    id("org.springframework.boot") version "2.7.0"
+    id("org.springframework.boot") version "3.4.4"
     id("io.spring.dependency-management") version "1.1.7"
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.postgresql:postgresql:42.7.7")
-    implementation("software.amazon.awssdk:rds:2.42.4")
+    implementation("org.postgresql:postgresql:42.7.10")
+    implementation("software.amazon.awssdk:rds:2.42.15")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }

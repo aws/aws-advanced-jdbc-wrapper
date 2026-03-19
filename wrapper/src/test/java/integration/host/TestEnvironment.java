@@ -74,7 +74,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
-  private static final String HIBERNATE_VERSION = "7.0.2"; // branch or tag name
+  private static final String HIBERNATE_VERSION = "7.3.0"; // branch or tag name
 
   // Valkey cache
   private static final String VALKEY_CONTAINER_NAME_PREFIX = "valkey-container-";
@@ -1204,6 +1204,16 @@ public class TestEnvironment implements AutoCloseable {
                       .run("rm -f /app/hibernate-orm/drivers/*-bundle-*.jar"))
               .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"),
                   "app/hibernate-orm/drivers")
+              // Need to overwrite the gradle.properties to override the minimum JDK version from 25 to 17.
+              // Could also just run the tests with -PjdkVersions.min=17
+              .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/gradle.properties"),
+                  "app/hibernate-orm/gradle.properties")
+              // Need to overwrite the setting.gradle to override the derby version from 10.17.1.0 to 10.16.1.1.
+              // 10.16.1.1 is the last version compatible with Java 17.
+              .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/settings.gradle"),
+                  "app/hibernate-orm/settings.gradle")
               .withCopyFileToContainer(MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/local.databases.gradle"),
                   "app/hibernate-orm/local-build-plugins/src/main/groovy/local.databases.gradle")

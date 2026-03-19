@@ -110,8 +110,6 @@ dependencies {
     testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.jsoup:jsoup:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
-    testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
-    testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
     testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
 }
@@ -173,9 +171,33 @@ tasks.named<JavaCompile>(java24.compileJavaTaskName) {
     dependsOn(tasks.compileJava)
 }
 
+// Hibernate v7.3 requires at least Java 17
+// Create a source set for these tests and compile the Hibernate tests against Java 17
+val hibernateTest = sourceSets.create("hibernateTest") {
+    java {
+        srcDir("src/test/java17")
+    }
+    // Include main output and test output (excluding Hibernate) for dependencies
+    val paths = sourceSets.main.get().output + sourceSets.test.get().output + sourceSets.test.get().compileClasspath
+    compileClasspath += paths
+    runtimeClasspath += paths
+}
+
+tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+    options.release.set(17)
+    // Ensure test classes are compiled before Hibernate test classes
+    dependsOn(tasks.compileTestJava)
+}
+
 dependencies {
     add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
     add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+    // Hibernate test dependencies (Java 17+)
+    add(hibernateTest.implementationConfigurationName, "org.hibernate:hibernate-core:7.3.0.Final")
+    add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
 }
 
 fun CopySpec.addMultiReleaseContents() {
@@ -440,11 +462,16 @@ junitHtmlReport {
 
 tasks.withType<Test> {
     dependsOn("jar")
+    dependsOn(tasks.named(hibernateTest.compileJavaTaskName))
     testLogging {
         this.showStandardStreams = true
     }
     useJUnitPlatform()
     outputs.upToDateWhen { false }
+
+    // Include hibernate test classes in the test classpath
+    testClassesDirs += hibernateTest.output.classesDirs
+    classpath += hibernateTest.output
 
     System.getProperties().forEach {
         if (it.key.toString().startsWith("test-no-")
@@ -531,7 +558,11 @@ tasks.register<Test>("test-hibernate-only") {
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
+        // Test hibernate against Java 17+
+        systemProperty("test-no-openjdk17", "false")
+        systemProperty("test-no-openjdk21", "false")
+        systemProperty("test-no-openjdk22", "false")
+        systemProperty("test-no-openjdk24", "false")
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-hibernate-only", "true")
         systemProperty("test-no-bg", "true")

@@ -9,7 +9,10 @@ import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hibernate.dialect.Dialect;
+import org.hibernate.engine.jdbc.Size;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.metamodel.mapping.JdbcMappingContainer;
 import org.hibernate.sql.ast.SqlAstTranslator;
@@ -73,11 +76,17 @@ public class PostgreSQLCastingIntervalSecondJdbcType implements AdjustableJdbcTy
   @Override
   public void appendWriteExpression(
       String writeExpression,
+      @Nullable Size size,
       SqlAppender appender,
       Dialect dialect) {
     appender.append( '(' );
     appender.append( writeExpression );
     appender.append( "*interval'1 second')" );
+  }
+
+  @Override
+  public boolean isWriteExpressionTyped(Dialect dialect) {
+    return true;
   }
 
   @Override

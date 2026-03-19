@@ -16,21 +16,21 @@
 
 package integration.container.tests.hibernate;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQuery;
-import javax.persistence.QueryHint;
-import javax.persistence.Table;
-import org.hibernate.jpa.QueryHints;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.QueryHint;
+import jakarta.persistence.Table;
+import org.hibernate.jpa.HibernateHints;
 
 @Entity
 @NamedQuery(
     name = "Plane.findAll",
     query = "SELECT p FROM Plane p",
-    hints = @QueryHint(name = QueryHints.HINT_COMMENT, value = "+CACHE_PARAM(ttl=250s)")
+    hints = @QueryHint(name = HibernateHints.HINT_COMMENT, value = "+CACHE_PARAM(ttl=250s)")
 )
 @Table(name = "Plane")
 public class Plane {

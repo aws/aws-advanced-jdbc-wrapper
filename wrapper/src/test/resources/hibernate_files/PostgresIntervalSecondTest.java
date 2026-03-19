@@ -6,34 +6,39 @@ package org.hibernate.orm.test.type;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.Duration;
+
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.dialect.type.PostgreSQLCastingIntervalSecondJdbcType;
 import org.hibernate.dialect.type.PostgreSQLIntervalSecondJdbcType;
 import org.hibernate.metamodel.spi.MappingMetamodelImplementor;
 import org.hibernate.persister.entity.EntityPersister;
+import org.hibernate.type.SqlTypes;
+import org.hibernate.type.descriptor.jdbc.JdbcType;
+import org.hibernate.type.descriptor.jdbc.NumericJdbcType;
+import org.hibernate.type.descriptor.jdbc.spi.JdbcTypeRegistry;
+
 import org.hibernate.testing.orm.junit.DomainModel;
 import org.hibernate.testing.orm.junit.RequiresDialect;
 import org.hibernate.testing.orm.junit.ServiceRegistry;
 import org.hibernate.testing.orm.junit.SessionFactory;
 import org.hibernate.testing.orm.junit.SessionFactoryScope;
 import org.hibernate.testing.orm.junit.Setting;
-import org.hibernate.type.SqlTypes;
-import org.hibernate.type.descriptor.jdbc.JdbcType;
-import org.hibernate.type.descriptor.jdbc.NumericJdbcType;
-import org.hibernate.type.descriptor.jdbc.spi.JdbcTypeRegistry;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 /**
  * Test to see if using `@org.hibernate.annotations.JdbcTypeCode` or `@org.hibernate.annotations.JdbcType`
  * will override a default JdbcType set by a {@link AvailableSettings#PREFERRED_DURATION_JDBC_TYPE config property}.
  */
+@SuppressWarnings("JUnitMalformedDeclaration")
 @SessionFactory
 @DomainModel(annotatedClasses = { PostgresIntervalSecondTest.EntityWithIntervalSecondDuration.class })
 @ServiceRegistry(settings = @Setting(name = AvailableSettings.PREFERRED_DURATION_JDBC_TYPE, value = "NUMERIC"))
@@ -58,7 +63,7 @@ public class PostgresIntervalSecondTest {
     assertThat( durationJdbcType ).isEqualTo( NumericJdbcType.INSTANCE );
 
     final JdbcType intervalType = jdbcTypeRegistry.getDescriptor( SqlTypes.INTERVAL_SECOND );
-    assertThat( intervalType ).isOfAnyClassIn( PostgreSQLIntervalSecondJdbcType.class );
+    assertThat( intervalType ).isOfAnyClassIn( PostgreSQLIntervalSecondJdbcType.class, PostgreSQLCastingIntervalSecondJdbcType.class );
 
     // a simple duration field with no overrides - so should be using a default JdbcType
     assertThat( entityDescriptor.findAttributeMapping( "duration" )

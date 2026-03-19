@@ -9,32 +9,34 @@ ext {
     db = project.getProperty('db')
     dbHost = System.getProperty( 'dbHost', 'localhost' )
     dbService = System.getProperty( 'dbService', '' )
+    dbPassword = System.getProperty( 'dbPassword', '' ).replace('"', '')
+    dbConnectionStringSuffix = System.getProperty( 'dbConnectionStringSuffix', '' ).replace('"', '')
     runID = System.getProperty( 'runID', '' )
-    dbUser = System.getProperty( 'dbUser', 'hibernate_orm_test' )
-    dbPass = System.getProperty( 'dbPass', 'hibernate_orm_test' )
-    dbName = System.getProperty( 'dbName', 'hibernate_orm_test' )
+    dbUser = System.getProperty('dbUser', 'hibernate_orm_test')
+    dbPass = System.getProperty('dbPass', 'hibernate_orm_test')
+    dbName = System.getProperty('dbName', 'hibernate_orm_test')
 
     dbBundle = [
-            pg_amazon_ci : [
-                    'db.dialect' : 'org.hibernate.dialect.PostgreSQLDialect',
-                    'jdbc.driver': 'software.amazon.jdbc.Driver',
-                    'jdbc.user'  : dbUser,
-                    'jdbc.pass'  : dbPass,
+            pg_amazon_ci   : [
+                    'db.dialect'         : 'org.hibernate.dialect.PostgreSQLDialect',
+                    'jdbc.driver'        : 'software.amazon.jdbc.Driver',
+                    'jdbc.user'          : dbUser,
+                    'jdbc.pass'          : dbPass,
                     // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
-                    'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn&wrapperPlugins=',
-                    'jdbc.datasource' : 'software.amazon.jdbc.Driver',
+                    'jdbc.url'           : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn&wrapperPlugins=',
+                    'jdbc.datasource'    : 'software.amazon.jdbc.Driver',
 //                        'jdbc.datasource' : 'org.postgresql.ds.PGSimpleDataSource',
-                    'connection.init_sql' : ''
+                    'connection.init_sql': ''
             ],
-            mysql_amazon_ci : [
-                    'db.dialect' : 'org.hibernate.dialect.MySQLDialect',
-                    'jdbc.driver': 'software.amazon.jdbc.Driver',
-                    'jdbc.user'  : dbUser,
-                    'jdbc.pass'  : dbPass,
-                    'jdbc.url'   : 'jdbc:aws-wrapper:mysql://' + dbHost + '/' + dbName + '?wrapperPlugins=',
-                    'jdbc.datasource' : 'software.amazon.jdbc.Driver',
+            mysql_amazon_ci: [
+                    'db.dialect'         : 'org.hibernate.dialect.MySQLDialect',
+                    'jdbc.driver'        : 'software.amazon.jdbc.Driver',
+                    'jdbc.user'          : dbUser,
+                    'jdbc.pass'          : dbPass,
+                    'jdbc.url'           : 'jdbc:aws-wrapper:mysql://' + dbHost + '/' + dbName + '?wrapperPlugins=',
+                    'jdbc.datasource'    : 'software.amazon.jdbc.Driver',
 //                        'jdbc.datasource' : 'com.mysql.cj.jdbc.MysqlDataSource',
-                    'connection.init_sql' : ''
+                    'connection.init_sql': ''
             ],
             h2 : [
                     'db.dialect' : 'org.hibernate.dialect.H2Dialect',
@@ -58,7 +60,7 @@ ext {
                     'connection.init_sql' : ''
             ],
             derby : [
-                    'db.dialect' : 'org.hibernate.dialect.DerbyDialect',
+                    'db.dialect' : 'org.hibernate.community.dialect.DerbyDialect',
                     'jdbc.driver': 'org.apache.derby.iapi.jdbc.AutoloadedDriver',
                     'jdbc.user'  : 'hibernate_orm_test',
                     'jdbc.pass'  : 'hibernate_orm_test',
@@ -77,37 +79,37 @@ ext {
 //                        'jdbc.datasource' : 'org.apache.derby.jdbc.EmbeddedDataSource',
                     'connection.init_sql' : ''
             ],
-            pgsql : [
-                    'db.dialect' : 'org.hibernate.dialect.PostgreSQLDialect',
-                    'jdbc.driver': 'org.postgresql.Driver',
-                    'jdbc.user'  : dbUser,
-                    'jdbc.pass'  : dbPass,
-                    // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
-                    'jdbc.url'   : 'jdbc:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
-                    'jdbc.datasource' : 'org.postgresql.Driver',
-//                        'jdbc.datasource' : 'org.postgresql.ds.PGSimpleDataSource',
-                    'connection.init_sql' : ''
-            ],
             pgsql_ci : [
                     'db.dialect' : 'org.hibernate.dialect.PostgreSQLDialect',
-                    'jdbc.driver': 'org.postgresql.Driver',
-                    'jdbc.user'  : dbUser,
-                    'jdbc.pass'  : dbPass,
-                    // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
-                    'jdbc.url'   : 'jdbc:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
-                    'jdbc.datasource' : 'org.postgresql.Driver',
-//                        'jdbc.datasource' : 'org.postgresql.ds.PGSimpleDataSource',
-                    'connection.init_sql' : ''
-            ],
-            edb_ci : [
-                    'db.dialect' : 'org.hibernate.dialect.PostgresPlusDialect',
                     'jdbc.driver': 'org.postgresql.Driver',
                     'jdbc.user'  : 'hibernate_orm_test',
                     'jdbc.pass'  : 'hibernate_orm_test',
                     // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
-                    'jdbc.url'   : 'jdbc:postgresql://' + dbHost + '/hibernate_orm_test?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
+                    'jdbc.url'   : 'jdbc:postgresql://' + dbHost + '/hibernate_orm_test_$worker?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
                     'jdbc.datasource' : 'org.postgresql.Driver',
 //                        'jdbc.datasource' : 'org.postgresql.ds.PGSimpleDataSource',
+                    'connection.init_sql' : ''
+            ],
+            gaussdb: [
+                    'db.dialect'         : 'org.hibernate.community.dialect.GaussDBDialect',
+                    'jdbc.driver'        : 'com.huawei.gaussdb.jdbc.Driver',
+                    'jdbc.user'          : 'hibernate_orm_test',
+                    'jdbc.pass'          : 'Hibernate_orm_test@1234',
+                    // Disable prepared statement caching to avoid issues with changing schemas
+                    // Make batch verification work, see https://bbs.huaweicloud.com/forum/thread-02104174303512776081-1-1.html
+                    'jdbc.url'           : 'jdbc:gaussdb://' + dbHost + '/hibernate_orm_test?currentSchema=test&preparedStatementCacheQueries=0&batchMode=off',
+                    'jdbc.datasource'    : 'com.huawei.gaussdb.jdbc.Driver',
+                    'connection.init_sql': ''
+            ],
+            edb_ci : [
+                    'db.dialect' : 'org.hibernate.dialect.PostgresPlusDialect',
+                    'jdbc.driver': 'com.edb.Driver',
+                    'jdbc.user'  : 'hibernate_orm_test',
+                    'jdbc.pass'  : 'hibernate_orm_test',
+                    // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
+                    'jdbc.url'   : 'jdbc:edb://' + dbHost + '/hibernate_orm_test_$worker?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
+                    'jdbc.datasource' : 'com.edb.Driver',
+//                        'jdbc.datasource' : 'com.edb.ds.PGSimpleDataSource',
                     'connection.init_sql' : ''
             ],
             sybase_ci : [
@@ -132,34 +134,23 @@ ext {
 //                        'jdbc.datasource' : 'com.sybase.jdbc4.jdbc.SybDataSource',
                     'connection.init_sql' : 'set ansinull on set quoted_identifier on'
             ],
-            mysql : [
-                    'db.dialect' : 'org.hibernate.dialect.MySQLDialect',
-                    'jdbc.driver': 'com.mysql.cj.jdbc.Driver',
-                    'jdbc.user'  : dbUser,
-                    'jdbc.pass'  : dbPass,
-                    'jdbc.url'   : 'jdbc:mysql://' + dbHost + '/' + dbName,
-                    'jdbc.datasource' : 'com.mysql.jdbc.Driver',
-//                        'jdbc.datasource' : 'com.mysql.cj.jdbc.MysqlDataSource',
+            teradata: [
+                    'db.dialect' : 'org.hibernate.community.dialect.TeradataDialect',
+                    'jdbc.driver': 'com.teradata.jdbc.TeraDriver',
+                    'jdbc.user'  : 'hibernate_orm_test',
+                    'jdbc.pass'  : 'hibernate_orm_test',
+                    'jdbc.url'   : 'jdbc:teradata://' + dbHost + '/STRICT_NAMES=OFF,DATABASE=hibernate_orm_test',
+                    'jdbc.datasource' : 'com.teradata.jdbc.TeraDriver',
                     'connection.init_sql' : ''
             ],
             mysql_ci : [
                     'db.dialect' : 'org.hibernate.dialect.MySQLDialect',
                     'jdbc.driver': 'com.mysql.cj.jdbc.Driver',
-                    'jdbc.user'  : dbUser,
-                    'jdbc.pass'  : dbPass,
-                    'jdbc.url'   : 'jdbc:mysql://' + dbHost + '/' + dbName + '?allowPublicKeyRetrieval=true',
-                    'jdbc.datasource' : 'com.mysql.jdbc.Driver',
-//                        'jdbc.datasource' : 'com.mysql.cj.jdbc.MysqlDataSource',
-                    'connection.init_sql' : ''
-            ],
-            mariadb : [
-                    'db.dialect' : 'org.hibernate.dialect.MariaDBDialect',
-                    'jdbc.driver': 'org.mariadb.jdbc.Driver',
                     'jdbc.user'  : 'hibernate_orm_test',
                     'jdbc.pass'  : 'hibernate_orm_test',
-                    'jdbc.url'   : 'jdbc:mariadb://' + dbHost + '/hibernate_orm_test',
-                    'jdbc.datasource' : 'org.mariadb.jdbc.Driver',
-//                        'jdbc.datasource' : 'org.mariadb.jdbc.MariaDbDataSource',
+                    'jdbc.url'   : 'jdbc:mysql://' + dbHost + '/hibernate_orm_test_$worker?allowPublicKeyRetrieval=true',
+                    'jdbc.datasource' : 'com.mysql.jdbc.Driver',
+//                        'jdbc.datasource' : 'com.mysql.cj.jdbc.MysqlDataSource',
                     'connection.init_sql' : ''
             ],
             mariadb_ci : [
@@ -167,35 +158,25 @@ ext {
                     'jdbc.driver': 'org.mariadb.jdbc.Driver',
                     'jdbc.user'  : 'root',
                     'jdbc.pass'  : 'hibernate_orm_test',
-                    'jdbc.url'   : 'jdbc:mariadb://' + dbHost + '/hibernate_orm_test',
+                    'jdbc.url'   : 'jdbc:mariadb://' + dbHost + '/hibernate_orm_test_$worker',
                     'jdbc.datasource' : 'org.mariadb.jdbc.Driver',
 //                        'jdbc.datasource' : 'org.mariadb.jdbc.MariaDbDataSource',
                     'connection.init_sql' : ''
             ],
             tidb : [
-                    'db.dialect' : 'org.hibernate.dialect.TiDBDialect',
-                    'jdbc.driver': 'com.mysql.jdbc.Driver',
+                    'db.dialect' : 'org.hibernate.community.dialect.TiDBDialect',
+                    'jdbc.driver': 'com.mysql.cj.jdbc.Driver',
                     'jdbc.user'  : 'hibernate_orm_test',
                     'jdbc.pass'  : 'hibernate_orm_test',
-                    'jdbc.url'   : 'jdbc:mysql://' + dbHost + ':4000/hibernate_orm_test',
-                    'jdbc.datasource' : 'com.mysql.jdbc.Driver',
+                    'jdbc.url'   : 'jdbc:mysql://' + dbHost + ':4000/hibernate_orm_test?readOnlyPropagatesToServer=false',
+                    'jdbc.datasource' : 'com.mysql.cj.jdbc.Driver',
 //                        'jdbc.datasource' : 'com.mysql.cj.jdbc.MysqlDataSource',
-                    'connection.init_sql' : ''
-            ],
-            oracle : [
-                    'db.dialect' : 'org.hibernate.dialect.OracleDialect',
-                    'jdbc.driver': 'oracle.jdbc.OracleDriver',
-                    'jdbc.user'  : 'hibernate_orm_test',
-                    'jdbc.pass'  : 'hibernate_orm_test',
-                    'jdbc.url'   : 'jdbc:oracle:thin:@' + dbHost + ':1521/xepdb1',
-                    'jdbc.datasource' : 'oracle.jdbc.OracleDriver',
-//                        'jdbc.datasource' : 'oracle.jdbc.datasource.impl.OracleDataSource',
                     'connection.init_sql' : ''
             ],
             oracle_ci : [
                     'db.dialect' : 'org.hibernate.dialect.OracleDialect',
                     'jdbc.driver': 'oracle.jdbc.OracleDriver',
-                    'jdbc.user'  : 'hibernate_orm_test',
+                    'jdbc.user'  : 'hibernate_orm_test_$worker',
                     'jdbc.pass'  : 'hibernate_orm_test',
                     'jdbc.url'   : 'jdbc:oracle:thin:@' + dbHost + ':1521/freepdb1',
                     'jdbc.datasource' : 'oracle.jdbc.OracleDriver',
@@ -205,7 +186,7 @@ ext {
             oracle_xe_ci : [
                     'db.dialect' : 'org.hibernate.dialect.OracleDialect',
                     'jdbc.driver': 'oracle.jdbc.OracleDriver',
-                    'jdbc.user'  : 'hibernate_orm_test',
+                    'jdbc.user'  : 'hibernate_orm_test_$worker',
                     'jdbc.pass'  : 'hibernate_orm_test',
                     'jdbc.url'   : 'jdbc:oracle:thin:@' + dbHost + ':1521/xepdb1',
                     'jdbc.datasource' : 'oracle.jdbc.OracleDriver',
@@ -292,14 +273,13 @@ ext {
 //                        'jdbc.datasource' : 'oracle.jdbc.datasource.impl.OracleDataSource',
                     'connection.init_sql' : ''
             ],
-            mssql : [
-                    'db.dialect' : 'org.hibernate.dialect.SQLServerDialect',
-                    'jdbc.driver': 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
-                    'jdbc.user'  : 'hibernate_orm_test',
-                    'jdbc.pass'  : 'hibernate_orm_test',
-                    'jdbc.url'   : 'jdbc:sqlserver://' + dbHost + ';instance=SQLEXPRESS;databaseName=hibernate_orm_test;trustServerCertificate=true',
-                    'jdbc.datasource' : 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
-//                        'jdbc.datasource' : 'com.microsoft.sqlserver.jdbc.SQLServerDataSource',
+            oracle_test_pilot_database: [
+                    'db.dialect' : 'org.hibernate.dialect.OracleDialect',
+                    'jdbc.driver': 'oracle.jdbc.OracleDriver',
+                    'jdbc.user'  : 'hibernate_orm_test_$worker_' + runID,
+                    'jdbc.pass'  : dbPassword,
+                    'jdbc.url'   : 'jdbc:oracle:thin:@' + dbConnectionStringSuffix + '?oracle.jdbc.enableQueryResultCache=false',
+                    'jdbc.datasource' : 'oracle.jdbc.OracleDriver',
                     'connection.init_sql' : ''
             ],
             mssql_ci : [
@@ -307,7 +287,7 @@ ext {
                     'jdbc.driver': 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
                     'jdbc.user'  : 'sa',
                     'jdbc.pass'  : 'Hibernate_orm_test',
-                    'jdbc.url'   : 'jdbc:sqlserver://' + dbHost + ';databaseName=hibernate_orm_test;sendTimeAsDatetime=false;trustServerCertificate=true',
+                    'jdbc.url'   : 'jdbc:sqlserver://' + dbHost + ';databaseName=hibernate_orm_test_$worker;sendTimeAsDatetime=false;trustServerCertificate=true',
                     'jdbc.datasource' : 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
 //                        'jdbc.datasource' : 'com.microsoft.sqlserver.jdbc.SQLServerDataSource',
                     'connection.init_sql' : ''
@@ -322,11 +302,11 @@ ext {
 //                        'jdbc.datasource' : 'com.informix.jdbcx.IfxDataSource',
                     'connection.init_sql' : ''
             ],
-            db2 : [
+            db2_old_ci : [
                     'db.dialect' : 'org.hibernate.dialect.DB2Dialect',
                     'jdbc.driver': 'com.ibm.db2.jcc.DB2Driver',
-                    'jdbc.user'  : 'db2inst1',
-                    'jdbc.pass'  : 'db2inst1-pwd',
+                    'jdbc.user'  : 'orm_test',
+                    'jdbc.pass'  : 'orm_test',
                     'jdbc.url'   : 'jdbc:db2://' + dbHost + ':50000/orm_test',
                     'jdbc.datasource' : 'com.ibm.db2.jcc.DB2Driver',
 //                        'jdbc.datasource' : 'com.ibm.db2.jcc.DB2SimpleDataSource',
@@ -337,7 +317,7 @@ ext {
                     'jdbc.driver': 'com.ibm.db2.jcc.DB2Driver',
                     'jdbc.user'  : 'orm_test',
                     'jdbc.pass'  : 'orm_test',
-                    'jdbc.url'   : 'jdbc:db2://' + dbHost + ':50000/orm_test',
+                    'jdbc.url'   : 'jdbc:db2://' + dbHost + ':50000/orm_test:specialRegisters=TENANT=\'ORM_$worker\';',
                     'jdbc.datasource' : 'com.ibm.db2.jcc.DB2Driver',
 //                        'jdbc.datasource' : 'com.ibm.db2.jcc.DB2SimpleDataSource',
                     'connection.init_sql' : ''
@@ -345,7 +325,7 @@ ext {
             hana_cloud : [
                     'db.dialect' : 'org.hibernate.dialect.HANADialect',
                     'jdbc.driver': 'com.sap.db.jdbc.Driver',
-                    'jdbc.user'  : 'HIBERNATE_TEST',
+                    'jdbc.user'  : 'hibernate_orm_test_$worker',
                     'jdbc.pass'  : 'H1bernate_test',
                     // Disable prepared statement caching due to https://help.sap.com/viewer/0eec0d68141541d1b07893a39944924e/2.0.04/en-US/78f2163887814223858e4369d18e2847.html
                     'jdbc.url'   : 'jdbc:sap://' + dbHost + ':443/?encrypt=true&validateCertificate=false&statementCacheSize=0',
@@ -356,7 +336,7 @@ ext {
             hana_ci : [
                     'db.dialect' : 'org.hibernate.dialect.HANADialect',
                     'jdbc.driver': 'com.sap.db.jdbc.Driver',
-                    'jdbc.user'  : 'SYSTEM',
+                    'jdbc.user'  : 'hibernate_orm_test_$worker',
                     'jdbc.pass'  : 'H1bernate_test',
                     // Disable prepared statement caching due to https://help.sap.com/viewer/0eec0d68141541d1b07893a39944924e/2.0.04/en-US/78f2163887814223858e4369d18e2847.html
                     'jdbc.url'   : 'jdbc:sap://' + dbHost + ':39017/?statementCacheSize=0',
@@ -371,10 +351,11 @@ ext {
                     'jdbc.user'  : 'root',
                     'jdbc.pass'  : '',
                     // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
-                    'jdbc.url'   : 'jdbc:postgresql://' + dbHost + ':26257/defaultdb?sslmode=disable&preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
+                    'jdbc.url'   : 'jdbc:postgresql://' + dbHost + ':26257/hibernate_orm_test_$worker?sslmode=disable&preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
                     'jdbc.datasource' : 'org.postgresql.Driver',
 //                        'jdbc.datasource' : 'org.postgresql.ds.PGSimpleDataSource',
-                    'connection.init_sql' : ''
+                    // Configure the for-update clause to use proper locks: https://github.com/cockroachdb/cockroach/issues/88995
+                    'connection.init_sql' : 'set enable_durable_locking_for_serializable = on; set optimizer_use_lock_op_for_serializable = on;'
             ],
             firebird : [
                     'db.dialect' : 'org.hibernate.community.dialect.FirebirdDialect',
@@ -397,6 +378,25 @@ ext {
                     'connection.init_sql' : '',
                     'jdbc.url'   : 'jdbc:Altibase://' + dbHost + ':20300/mydb?force_clob_bind=true',
                     'jdbc.datasource' : 'Altibase.jdbc.driver.AltibaseDriver'
+            ],
+            spanner : [
+                    'db.dialect'      : 'org.hibernate.dialect.SpannerDialect',
+                    'jdbc.driver'     : 'com.google.cloud.spanner.jdbc.JdbcDriver',
+                    'jdbc.user'       : '',        // Not used by Spanner
+                    'jdbc.pass'       : '',        // Not used by Spanner
+                    'connection.init_sql' : '',
+                    // autoConfigEmulator=true creates the necessary instances and DBs if they don't exist already
+                    'jdbc.url'        : 'jdbc:cloudspanner:/projects/orm-test-project/instances/orm-test-instance/databases/orm-test-db?autoConfigEmulator=true;lenient=true',
+                    'jdbc.datasource' : 'com.google.cloud.spanner.jdbc.JdbcDriver'
+            ],
+            spannerpgsql : [
+                    'db.dialect' : 'org.hibernate.community.dialect.SpannerPostgreSQLDialect',
+                    'jdbc.driver': 'com.google.cloud.spanner.jdbc.JdbcDriver',
+                    'jdbc.user'  : 'root',
+                    'jdbc.pass'  : '',
+                    'jdbc.url'   : 'jdbc:cloudspanner://' + dbHost + ':9010/projects/orm-test-project/instances/orm-test-instance/databases/orm-test-db?lenient=true;autoconfigemulator=true;dialect=postgresql;defaultsequencekind=bit_reversed_positive;unknownLength=255;',
+                    'jdbc.datasource': 'com.google.cloud.spanner.jdbc.JdbcDriver',
+                    'connection.init_sql' : '',
             ],
     ]
 }
