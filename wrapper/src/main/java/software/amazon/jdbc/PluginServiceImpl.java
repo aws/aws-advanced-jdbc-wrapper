@@ -17,9 +17,7 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Wrapper;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -32,7 +30,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -54,6 +51,7 @@ import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.HostIdCacheService;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -82,6 +80,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
+  protected HostSpec routedHostSpec;
   private boolean isInTransaction;
   private boolean isDialectConfirmed;
   private final ExceptionManager exceptionManager;
@@ -354,6 +353,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
   }
 
+  @Override
+  public @Nullable HostSpec getRoutedHostSpec() {
+    return this.routedHostSpec;
+  }
+
+  @Override
+  public void setRoutedHostSpec(final @Nullable HostSpec routedHostSpec) {
+    this.routedHostSpec = routedHostSpec;
+  }
+
   protected EnumSet<NodeChangeOptions> compare(
       final @NonNull Connection connA,
       final @NonNull HostSpec hostSpecA,
@@ -440,15 +449,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void setAvailability(final @NonNull Set<String> hostAliases, final @NonNull HostAvailability availability) {
-
-    if (hostAliases.isEmpty()) {
-      return;
-    }
+  public void setAvailability(final @NonNull HostSpec hostSpec, final @NonNull HostAvailability availability) {
 
     final List<HostSpec> hostsToChange = this.getAllHosts().stream()
-        .filter((host) -> hostAliases.contains(host.asAlias())
-            || host.getAliases().stream().anyMatch(hostAliases::contains))
+        .filter((host) -> hostSpec.getHostId() != null && hostSpec.getHostId().equals(host.getHostId())
+            || hostSpec.getHost() != null && hostSpec.getHost().equalsIgnoreCase(host.getHost()))
         .distinct()
         .collect(Collectors.toList());
 
@@ -720,18 +725,27 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public HostSpec identifyConnection(Connection connection) throws SQLException {
+  public @Nullable HostSpec identifyConnection(Connection connection, final @NonNull HostSpec connectionHostSpec)
+      throws SQLException {
+
+    final HostIdCacheService hostIdCacheService = this.servicesContainer.getHostIdCacheService();
+    if (hostIdCacheService == null) {
+      return this.identifyConnection(connection);
+    }
+    return hostIdCacheService.identifyConnection(connection, connectionHostSpec, this);
+  }
+
+  @Override
+  public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
     try {
       Pair<String, String> instanceIds = this.dialect.getHostId(connection);
       if (instanceIds == null) {
-        throw new SQLException(Messages.get("PluginServiceImpl.errorIdentifyConnection"));
+        return null;
       }
 
       List<HostSpec> topology = this.hostListProvider.refresh();
-      boolean isForcedRefresh = false;
       if (topology == null) {
         topology = this.hostListProvider.forceRefresh();
-        isForcedRefresh = true;
       }
 
       if (topology == null) {
@@ -740,64 +754,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
       String instanceId = instanceIds.getValue1();
       String instanceName = instanceIds.getValue2();
-      HostSpec foundHost = topology
-          .stream()
+      return topology.stream()
           .filter(host -> Objects.equals(instanceId, host.getHostId())
-              || Objects.equals(instanceName, host.getHostId())
               || Objects.equals(instanceName, host.getHost()))
           .findAny()
           .orElse(null);
 
-      if (foundHost == null && !isForcedRefresh) {
-        topology = this.hostListProvider.forceRefresh();
-        if (topology == null) {
-          return null;
-        }
-
-        foundHost = topology
-            .stream()
-            .filter(host -> Objects.equals(instanceId, host.getHostId())
-                || Objects.equals(instanceName, host.getHostId())
-                || Objects.equals(instanceName, host.getHost()))
-            .findAny()
-            .orElse(null);
-      }
-
-      return foundHost;
     } catch (final SQLException | TimeoutException e) {
       throw new SQLException(Messages.get("PluginServiceImpl.errorIdentifyConnection"), e);
-    }
-  }
-
-  @Override
-  public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
-    if (hostSpec == null) {
-      return;
-    }
-
-    if (!hostSpec.getAliases().isEmpty()) {
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[]{hostSpec.getAliases()}));
-      return;
-    }
-
-    hostSpec.addAlias(hostSpec.asAlias());
-
-    // Add the host name and port, this host name is usually the internal IP address.
-    try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet rs = stmt.executeQuery(this.getDialect().getHostAliasQuery())) {
-        while (rs.next()) {
-          hostSpec.addAlias(rs.getString(1));
-        }
-      }
-    } catch (final SQLException sqlException) {
-      // log and ignore
-      LOGGER.log(Level.FINEST, sqlException, () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
-    }
-
-    // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
-    final HostSpec host = this.identifyConnection(connection);
-    if (host != null) {
-      hostSpec.addAlias(host.asAliases().toArray(new String[]{}));
     }
   }
 

@@ -148,6 +148,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
     try {
       context.setConnection(this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
+      context.setConnectionHostSpec(selectedHostSpec);
     } catch (SQLException e) {
       if (this.isLoginException(e)) {
         throw e;
@@ -227,6 +228,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       try {
         context.setConnection(pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
         if (context.getConnection() != null) {
+          context.setConnectionHostSpec(selectedHostSpec);
           return;
         }
       } catch (final SQLException e) {

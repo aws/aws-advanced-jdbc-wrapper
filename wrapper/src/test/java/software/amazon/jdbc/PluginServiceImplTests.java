@@ -97,6 +97,7 @@ public class PluginServiceImplTests {
   @Mock Connection oldConnection;
   @Mock HostListProvider hostListProvider;
   @Mock DialectManager dialectManager;
+  @Mock Dialect mockDialect;
   @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock Statement statement;
   @Mock ResultSet resultSet;
@@ -551,9 +552,11 @@ public class PluginServiceImplTests {
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
             .build());
 
-    Set<String> aliases = new HashSet<>();
-    aliases.add("hostA");
-    target.setAvailability(aliases, HostAvailability.AVAILABLE);
+    HostSpec testHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA")
+        .port(HostSpec.NO_PORT)
+        .build();
+    target.setAvailability(testHost, HostAvailability.AVAILABLE);
 
     assertEquals(1, target.getAllHosts().size());
     assertEquals(HostAvailability.AVAILABLE, target.getAllHosts().get(0).getAvailability());
@@ -580,9 +583,11 @@ public class PluginServiceImplTests {
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
             .build());
 
-    Set<String> aliases = new HashSet<>();
-    aliases.add("hostA");
-    target.setAvailability(aliases, HostAvailability.NOT_AVAILABLE);
+    HostSpec testHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA")
+        .port(HostSpec.NO_PORT)
+        .build();
+    target.setAvailability(testHost, HostAvailability.NOT_AVAILABLE);
 
     assertEquals(1, target.getAllHosts().size());
     assertEquals(HostAvailability.NOT_AVAILABLE, target.getAllHosts().get(0).getAvailability());
@@ -616,9 +621,11 @@ public class PluginServiceImplTests {
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
             .build());
 
-    Set<String> aliases = new HashSet<>();
-    aliases.add("hostA");
-    target.setAvailability(aliases, HostAvailability.AVAILABLE);
+    HostSpec testHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA")
+        .port(HostSpec.NO_PORT)
+        .build();
+    target.setAvailability(testHost, HostAvailability.AVAILABLE);
 
     assertEquals(1, target.getAllHosts().size());
     assertEquals(HostAvailability.AVAILABLE, target.getAllHosts().get(0).getAvailability());
@@ -630,102 +637,6 @@ public class PluginServiceImplTests {
     assertEquals(2, hostAChanges.size());
     assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
     assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_UP));
-  }
-
-  @Test
-  public void testNodeAvailabilityChanged_WentUp_ByAlias() throws SQLException {
-    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
-
-    final HostSpec hostA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
-        .build();
-    hostA.addAlias("ip-10-10-10-10");
-    hostA.addAlias("hostA.custom.domain.com");
-    final HostSpec hostB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("hostB").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
-        .build();
-    hostB.addAlias("ip-10-10-10-10");
-    hostB.addAlias("hostB.custom.domain.com");
-
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(
-            servicesContainer,
-            new ExceptionManager(),
-            PROPERTIES,
-            URL,
-            DRIVER_PROTOCOL,
-            dialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            sessionStateService));
-
-    target.allHosts = Arrays.asList(hostA, hostB);
-
-    Set<String> aliases = new HashSet<>();
-    aliases.add("hostA.custom.domain.com");
-    target.setAvailability(aliases, HostAvailability.AVAILABLE);
-
-    assertEquals(HostAvailability.AVAILABLE, hostA.getAvailability());
-    assertEquals(HostAvailability.NOT_AVAILABLE, hostB.getAvailability());
-    verify(pluginManager, times(1)).notifyNodeListChanged(any());
-
-    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
-    assertTrue(notifiedChanges.containsKey("hostA/"));
-    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
-    assertEquals(2, hostAChanges.size());
-    assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
-    assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_UP));
-  }
-
-  @Test
-  public void testNodeAvailabilityChanged_WentUp_MultipleHostsByAlias() throws SQLException {
-    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
-
-    final HostSpec hostA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
-        .build();
-    hostA.addAlias("ip-10-10-10-10");
-    hostA.addAlias("hostA.custom.domain.com");
-    final HostSpec hostB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("hostB").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
-        .build();
-    hostB.addAlias("ip-10-10-10-10");
-    hostB.addAlias("hostB.custom.domain.com");
-
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(
-            servicesContainer,
-            new ExceptionManager(),
-            PROPERTIES,
-            URL,
-            DRIVER_PROTOCOL,
-            dialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            sessionStateService));
-
-    target.allHosts = Arrays.asList(hostA, hostB);
-
-    Set<String> aliases = new HashSet<>();
-    aliases.add("ip-10-10-10-10");
-    target.setAvailability(aliases, HostAvailability.AVAILABLE);
-
-    assertEquals(HostAvailability.AVAILABLE, hostA.getAvailability());
-    assertEquals(HostAvailability.AVAILABLE, hostB.getAvailability());
-    verify(pluginManager, times(1)).notifyNodeListChanged(any());
-
-    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
-    assertTrue(notifiedChanges.containsKey("hostA/"));
-    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
-    assertEquals(2, hostAChanges.size());
-    assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
-    assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_UP));
-
-    assertTrue(notifiedChanges.containsKey("hostB/"));
-    EnumSet<NodeChangeOptions> hostBChanges = notifiedChanges.get("hostB/");
-    assertEquals(2, hostBChanges.size());
-    assertTrue(hostBChanges.contains(NodeChangeOptions.NODE_CHANGED));
-    assertTrue(hostBChanges.contains(NodeChangeOptions.WENT_UP));
   }
 
   @Test
@@ -867,125 +778,8 @@ public class PluginServiceImplTests {
     target.dialect = dialect;
     doReturn(null).when(dialect).getHostId(newConnection);
 
-    // When getHostId returns null, identifyConnection should throw SQLException
-    assertThrows(SQLException.class, () -> target.identifyConnection(newConnection));
-  }
-
-  @Test
-  void testIdentifyConnectionHostFoundAfterForceRefresh() throws SQLException, TimeoutException {
-    final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("instance-b-1.xyz.us-east-2.rds.amazonaws.com")
-        .hostId("instance-b-1")
-        .port(HostSpec.NO_PORT)
-        .role(HostRole.READER)
-        .build();
-    final List<HostSpec> staleTopology = Collections.singletonList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
-            .hostId("instance-a-1")
-            .port(HostSpec.NO_PORT)
-            .role(HostRole.WRITER)
-            .build());
-    final List<HostSpec> freshTopology = Collections.singletonList(expectedHost);
-
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(
-            servicesContainer,
-            new ExceptionManager(),
-            PROPERTIES,
-            URL,
-            DRIVER_PROTOCOL,
-            dialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            sessionStateService));
-    target.hostListProvider = hostListProvider;
-
-    final Dialect dialect = spy(new AuroraPgDialect());
-    target.dialect = dialect;
-    doReturn(Pair.create("instance-b-1", "instance-b-1")).when(dialect).getHostId(newConnection);
-    when(hostListProvider.refresh()).thenReturn(staleTopology);
-    when(hostListProvider.forceRefresh()).thenReturn(freshTopology);
-
-    final HostSpec actual = target.identifyConnection(newConnection);
-    verify(hostListProvider).refresh();
-    verify(hostListProvider).forceRefresh();
-    assertEquals(expectedHost, actual);
-  }
-
-  @Test
-  void testFillAliasesNonEmptyAliases() throws SQLException {
-    final HostSpec oneAlias = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo")
-        .build();
-    oneAlias.addAlias(oneAlias.asAlias());
-
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(
-            servicesContainer,
-            new ExceptionManager(),
-            PROPERTIES,
-            URL,
-            DRIVER_PROTOCOL,
-            dialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            sessionStateService));
-
-    assertEquals(1, oneAlias.getAliases().size());
-    target.fillAliases(newConnection, oneAlias);
-    // Fill aliases should return directly and no additional aliases should be added.
-    assertEquals(1, oneAlias.getAliases().size());
-  }
-
-  @ParameterizedTest
-  @MethodSource("fillAliasesDialects")
-  void testFillAliasesWithInstanceEndpoint(Dialect dialectParam, String[] expectedInstanceAliases) throws SQLException {
-    final HostSpec empty = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
-    final HostSpec instanceHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .hostId("instance")
-        .host("instance")
-        .build();
-    final List<HostSpec> topology = Collections.singletonList(instanceHost);
-
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(
-            servicesContainer,
-            new ExceptionManager(),
-            PROPERTIES,
-            URL,
-            DRIVER_PROTOCOL,
-            dialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            sessionStateService));
-    target.hostListProvider = hostListProvider;
-    
-    final Dialect dialect = Mockito.mock(dialectParam.getClass());
-    target.dialect = dialect;
-    doReturn(true).doReturn(false).when(resultSet).next(); // Result set contains 1 row.
-    when(resultSet.getString(eq(1))).thenReturn("ip");
-
-    if (dialectParam instanceof AuroraPgDialect) {
-      doReturn(Pair.create("instance", "instance")).when(dialect).getHostId(newConnection);
-      when(hostListProvider.refresh()).thenReturn(topology);
-    } else {
-      // For non-Aurora dialects, getHostId should return a value that won't be found in topology
-      // so identifyConnection returns null without throwing an exception
-      doReturn(Pair.create("not-found", "not-found")).when(dialect).getHostId(newConnection);
-      when(hostListProvider.refresh()).thenReturn(Collections.emptyList());
-    }
-
-    target.fillAliases(newConnection, empty);
-
-    final String[] aliases = empty.getAliases().toArray(new String[] {});
-    assertArrayEquals(expectedInstanceAliases, aliases);
-  }
-
-  private static Stream<Arguments> fillAliasesDialects() {
-    return Stream.of(
-        Arguments.of(new AuroraPgDialect(), new String[]{"instance", "foo", "ip"}),
-        Arguments.of(new MysqlDialect(), new String[]{"foo", "ip"})
-    );
+    // When getHostId returns null, identifyConnection should return null
+    assertNull(target.identifyConnection(newConnection));
   }
 
   @Test

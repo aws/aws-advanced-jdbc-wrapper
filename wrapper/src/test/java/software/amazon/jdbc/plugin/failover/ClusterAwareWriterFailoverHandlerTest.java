@@ -91,10 +91,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockTask2Container.getPluginService()).thenReturn(mockPluginService);
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockPluginService.getInitialConnectionHostSpec()).thenReturn(mockInitialHostSpec);
-    writer.addAlias("writer-host");
-    newWriterHost.addAlias("new-writer-host");
-    readerA.addAlias("reader-a-host");
-    readerB.addAlias("reader-b-host");
   }
 
   @AfterEach

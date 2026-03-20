@@ -37,15 +37,13 @@ public class HostSpec {
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
 
-  protected final String host;
+  protected final String host; // full domain name
   protected final int port;
   protected final HostRole role;
   protected final Timestamp lastUpdateTime;
-  protected final Set<String> aliases = ConcurrentHashMap.newKeySet();
-  protected final Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
-  protected final String hostId;
+  protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
   protected final ResourceLock resourceLock = new ResourceLock();
@@ -80,7 +78,6 @@ public class HostSpec {
     this.hostId = hostId;
     this.availability = availability;
     this.role = role;
-    this.allAliases.add(this.asAlias());
     this.weight = weight;
     this.lastUpdateTime = lastUpdateTime;
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
@@ -146,10 +143,6 @@ public class HostSpec {
     return this.lastUpdateTime;
   }
 
-  public Set<String> getAliases() {
-    return Collections.unmodifiableSet(this.aliases);
-  }
-
   public long getWeight() {
     return this.weight;
   }
@@ -159,37 +152,6 @@ public class HostSpec {
       this.toString = null;
       this.weight = weight;
     }
-  }
-
-  public void addAlias(final String... alias) {
-    if (alias == null || alias.length < 1) {
-      return;
-    }
-
-    Arrays.asList(alias).forEach(x -> {
-      if (!StringUtils.isNullOrEmpty(x)) {
-        this.aliases.add(x);
-        this.allAliases.add(x);
-      }
-    });
-  }
-
-  public void removeAlias(final String... alias) {
-    if (alias == null || alias.length < 1) {
-      return;
-    }
-    Arrays.asList(alias).forEach(x -> {
-      if (!StringUtils.isNullOrEmpty(x)) {
-        this.aliases.remove(x);
-        this.allAliases.remove(x);
-      }
-    });
-  }
-
-  public void resetAliases() {
-    this.aliases.clear();
-    this.allAliases.clear();
-    this.allAliases.add(this.asAlias());
   }
 
   public String getUrl() {
@@ -216,14 +178,6 @@ public class HostSpec {
 
   public String getHostId() {
     return this.hostId;
-  }
-
-  public String asAlias() {
-    return this.getHostAndPort();
-  }
-
-  public Set<String> asAliases() {
-    return Collections.unmodifiableSet(this.allAliases);
   }
 
   public String toString() {

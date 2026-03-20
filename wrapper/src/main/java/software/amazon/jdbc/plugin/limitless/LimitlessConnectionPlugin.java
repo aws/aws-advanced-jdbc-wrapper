@@ -148,6 +148,9 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     this.limitlessRouterService.establishConnection(context);
 
     if (context.getConnection() != null) {
+      if (context.getConnectionHostSpec() != null) {
+        this.pluginService.setRoutedHostSpec(context.getConnectionHostSpec());
+      }
       return context.getConnection();
     }
     throw new SQLException(Messages.get(

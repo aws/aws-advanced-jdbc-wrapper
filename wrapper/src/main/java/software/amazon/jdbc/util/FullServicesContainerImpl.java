@@ -42,6 +42,7 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   private PluginManagerService pluginManagerService;
   private ImportantEventService importantEventService;
   private @Nullable ConfigurationProfile configurationProfile;
+  private HostIdCacheService hostIdCacheService;
 
   public FullServicesContainerImpl(
       StorageService storageService,
@@ -191,5 +192,15 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public void setConfigurationProfile(@Nullable ConfigurationProfile configurationProfile) {
     this.configurationProfile = configurationProfile;
+  }
+
+  @Override
+  public HostIdCacheService getHostIdCacheService() {
+    return this.hostIdCacheService;
+  }
+
+  @Override
+  public void setHostIdCacheService(HostIdCacheService hostIdCacheService) {
+    this.hostIdCacheService = hostIdCacheService;
   }
 }

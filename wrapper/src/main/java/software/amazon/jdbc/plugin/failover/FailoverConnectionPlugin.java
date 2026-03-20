@@ -348,12 +348,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         return;
       }
 
-      for (final String alias : currentHost.getAliases()) {
-        if (isNodeStillValid(alias + "/", changes)) {
-          return;
-        }
-      }
-
       LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
     } finally {
       this.staleDnsHelper.notifyNodeListChanged(changes);
@@ -520,7 +514,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
         this.pluginService.setAvailability(
-            this.pluginService.getCurrentHostSpec().getAliases(), HostAvailability.NOT_AVAILABLE);
+            this.pluginService.getCurrentHostSpec(), HostAvailability.NOT_AVAILABLE);
         try {
           pickNewConnection();
         } catch (final SQLException e) {
@@ -569,7 +563,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
    */
   protected void failover(@Nullable final HostSpec failedHost, boolean isInitialConnection) throws SQLException {
     if (failedHost != null) {
-      this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+      this.pluginService.setAvailability(failedHost, HostAvailability.NOT_AVAILABLE);
     }
 
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
@@ -602,7 +596,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           () -> Messages.get("Failover.startReaderFailover"));
 
       HostSpec failedHost = null;
-      final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
       if (failedHostSpec != null && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
         failedHost = failedHostSpec;
       }
@@ -624,8 +617,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       }
 
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
-
-      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
       updateTopology(true);
 
       LOGGER.info(

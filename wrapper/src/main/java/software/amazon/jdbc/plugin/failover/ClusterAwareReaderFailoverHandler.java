@@ -195,7 +195,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected ReaderFailoverResult failoverInternal(final List<HostSpec> hosts, final HostSpec currentHost)
       throws SQLException {
     if (currentHost != null) {
-      this.pluginService.setAvailability(currentHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+      this.pluginService.setAvailability(currentHost, HostAvailability.NOT_AVAILABLE);
       this.hostAvailabilityMap.put(currentHost.getHost(), HostAvailability.NOT_AVAILABLE);
     }
 

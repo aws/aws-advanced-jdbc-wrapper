@@ -39,6 +39,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
@@ -138,7 +139,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }
 
-      this.pluginService.setCurrentConnection(conn, this.pluginService.getInitialConnectionHostSpec());
+      final HostSpec connectedHostSpec = this.pluginService.getRoutedHostSpec() != null
+          ? this.pluginService.getRoutedHostSpec()
+          : this.pluginService.getInitialConnectionHostSpec();
+      this.pluginService.setCurrentConnection(conn, connectedHostSpec);
+      this.pluginService.setRoutedHostSpec(null);
       this.pluginService.refreshHostList();
     }
   }

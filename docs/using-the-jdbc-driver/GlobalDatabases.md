@@ -102,6 +102,11 @@ public class GlobalDatabaseExample {
 
 ## Important Considerations
 
+### Database instance names
+
+> [!WARNING]
+> The plugin does not support duplicate instance names across regions. Ensure that all instance names are unique across all GDB regions.
+
 ### Plugin Selection
 - **Connection Pooling**: Include `auroraConnectionTracker` plugin when using connection pooling
 - `gdbFailover` plugin has extended failover functionality and supports application home region

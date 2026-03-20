@@ -178,7 +178,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
         final boolean isUnhealthy = monitorContext.isNodeUnhealthy();
         this.monitorService.stopMonitoring(monitorContext);
         if (isUnhealthy) {
-          this.pluginService.setAvailability(monitoringHostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
+          this.pluginService.setAvailability(monitoringHostSpec, HostAvailability.NOT_AVAILABLE);
         }
       }
 
@@ -233,10 +233,15 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     final Connection conn = connectFunc.call();
 
     if (conn != null) {
-      final RdsUrlType type = this.rdsHelper.identifyRdsType(hostSpec.getHost());
+      HostSpec connectionHostSpec = this.pluginService.getRoutedHostSpec() != null
+          ? this.pluginService.getRoutedHostSpec()
+          : hostSpec;
+      final RdsUrlType type = this.rdsHelper.identifyRdsType(connectionHostSpec.getHost());
       if (type.isRdsCluster()) {
-        hostSpec.resetAliases();
-        this.pluginService.fillAliases(conn, hostSpec);
+        final HostSpec identifiedHostSpec = this.pluginService.identifyConnection(conn, connectionHostSpec);
+        if (identifiedHostSpec != null) {
+          this.pluginService.setRoutedHostSpec(identifiedHostSpec);
+        }
       }
     }
 
@@ -245,14 +250,17 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
 
   public HostSpec getMonitoringHostSpec() {
     if (this.monitoringHostSpec == null) {
-      this.monitoringHostSpec = this.pluginService.getCurrentHostSpec();
+      this.monitoringHostSpec = this.pluginService.getRoutedHostSpec() != null
+          ? this.pluginService.getRoutedHostSpec()
+          : this.pluginService.getCurrentHostSpec();
       final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(monitoringHostSpec.getHost());
 
       try {
-        if (rdsUrlType.isRdsCluster()) {
+        if (rdsUrlType != RdsUrlType.RDS_INSTANCE) {
           LOGGER.finest("Monitoring HostSpec is associated with a cluster endpoint, "
               + "plugin needs to identify the cluster connection.");
-          this.monitoringHostSpec = this.pluginService.identifyConnection(this.pluginService.getCurrentConnection());
+          this.monitoringHostSpec = this.pluginService.identifyConnection(
+              this.pluginService.getCurrentConnection(), this.pluginService.getCurrentHostSpec());
           if (this.monitoringHostSpec == null) {
             throw new RuntimeException(Messages.get(
                 "HostMonitoringConnectionPlugin.unableToIdentifyConnection",
@@ -260,7 +268,8 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
                     this.pluginService.getCurrentHostSpec().getHost(),
                     this.pluginService.getHostListProvider()}));
           }
-          this.pluginService.fillAliases(this.pluginService.getCurrentConnection(), monitoringHostSpec);
+          // Update identified HostSpec for the current connection
+          this.pluginService.setCurrentConnection(this.pluginService.getCurrentConnection(), this.monitoringHostSpec);
         }
       } catch (SQLException e) {
         // Log and throw.

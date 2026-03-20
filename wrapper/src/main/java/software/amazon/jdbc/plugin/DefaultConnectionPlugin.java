@@ -219,7 +219,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     this.connProviderManager.initConnection(connectionInfo.getConnection(), driverProtocol, hostSpec, props);
 
     if (connectionInfo.getConnection() != null) {
-      this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
+      this.pluginService.setAvailability(hostSpec, HostAvailability.AVAILABLE);
     }
     if (isInitialConnection) {
       this.pluginService.updateDialect(connectionInfo.getConnection());

@@ -119,7 +119,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
           "GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
     }
 
-    return createHost(
+    return this.createHost(
         hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 

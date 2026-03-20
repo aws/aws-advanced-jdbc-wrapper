@@ -59,6 +59,7 @@ public class ServiceUtility {
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, defaultConnectionProvider, telemetryFactory);
     servicesContainer.setImportantEventService(new ImportantEventService());
+    servicesContainer.setHostIdCacheService(new HostIdCacheServiceImpl());
 
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
@@ -109,6 +110,7 @@ public class ServiceUtility {
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, connectionProvider, telemetryFactory);
     serviceContainer.setImportantEventService(DriverImportantEventService.getInstance());
+    serviceContainer.setHostIdCacheService(new HostIdCacheServiceImpl());
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     serviceContainer.setConnectionPluginManager(pluginManager);

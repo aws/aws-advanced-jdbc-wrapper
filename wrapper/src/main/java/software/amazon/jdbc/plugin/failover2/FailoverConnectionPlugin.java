@@ -317,7 +317,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         this.invalidateCurrentConnection();
         this.pluginService.setAvailability(
-            this.pluginService.getCurrentHostSpec().getAliases(), HostAvailability.NOT_AVAILABLE);
+            this.pluginService.getCurrentHostSpec(), HostAvailability.NOT_AVAILABLE);
         try {
           this.pickNewConnection();
         } catch (final SQLException e) {
@@ -843,7 +843,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           throw e;
         }
 
-        this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
+        this.pluginService.setAvailability(hostSpec, HostAvailability.NOT_AVAILABLE);
 
         try {
           this.failover();

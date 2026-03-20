@@ -67,6 +67,10 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
 
+  @Nullable HostSpec getRoutedHostSpec();
+
+  void setRoutedHostSpec(final @Nullable HostSpec routedHostSpec);
+
   /**
    * Get host information for all hosts in the cluster.
    *
@@ -154,7 +158,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    */
   HostRole getHostRole(Connection conn) throws SQLException;
 
-  void setAvailability(Set<String> hostAliases, HostAvailability availability);
+  void setAvailability(@NonNull HostSpec hostSpec, @NonNull HostAvailability availability);
 
   boolean isInTransaction();
 
@@ -230,7 +234,8 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
 
   @Nullable HostSpec identifyConnection(final Connection connection) throws SQLException;
 
-  void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
+  @Nullable HostSpec identifyConnection(final Connection connection, final @NonNull HostSpec connectionHostSpec)
+      throws SQLException;
 
   HostSpecBuilder getHostSpecBuilder();
 

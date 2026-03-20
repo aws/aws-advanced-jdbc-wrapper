@@ -120,8 +120,6 @@ public class AuroraConnectionTrackerPluginTest {
 
     assertEquals(mockConnection, actualConnection);
     verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
-    final Set<String> aliases = hostSpec.getAliases();
-    assertEquals(0, aliases.size());
   }
 
   @Test

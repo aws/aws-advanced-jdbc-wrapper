@@ -75,29 +75,23 @@ public class OpenedConnectionTracker {
   }
 
   public void populateOpenedConnectionQueue(final HostSpec hostSpec, final Connection conn) {
-    final Set<String> aliases = hostSpec.asAliases();
+    if (hostSpec == null || conn == null) {
+      return;
+    }
 
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
-      trackConnection(hostSpec.asAlias(), conn);
+      trackConnection(hostSpec.getUrl(), conn);
       logOpenedConnections();
       return;
     }
 
-    final String instanceEndpoint = aliases.stream()
-        .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
-        .max(String::compareToIgnoreCase)
-        .orElse(null);
-
-    if (instanceEndpoint != null) {
-      trackConnection(instanceEndpoint, conn);
-      logOpenedConnections();
-      return;
+    // It might be a custom domain name. Let's track by hostId and custom domain name
+    if (!StringUtils.isNullOrEmpty(hostSpec.getHostId())) {
+      trackConnection(hostSpec.getHostId(), conn);
     }
-
-    // It seems there's no RDS instance host found. It might be a custom domain name. Let's track by all aliases
-    for (String alias : aliases) {
-      trackConnection(alias, conn);
+    if (!StringUtils.isNullOrEmpty(hostSpec.getHostAndPort())) {
+      trackConnection(hostSpec.getHostAndPort(), conn);
     }
     logOpenedConnections();
   }
@@ -108,8 +102,10 @@ public class OpenedConnectionTracker {
    * @param hostSpec The {@link HostSpec} object containing the url of the node.
    */
   public void invalidateAllConnections(final HostSpec hostSpec) {
-    invalidateAllConnections(hostSpec.asAlias());
-    invalidateAllConnections(hostSpec.getAliases().toArray(new String[] {}));
+    if (hostSpec == null) {
+      return;
+    }
+    invalidateAllConnections(hostSpec.getHostId(), hostSpec.getHost());
   }
 
   public void invalidateAllConnections(final String... keys) {
@@ -119,6 +115,9 @@ public class OpenedConnectionTracker {
 
     try {
       for (String key : keys) {
+        if (key == null) {
+          continue;
+        }
         try {
           final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(key);
           logConnectionQueue(key, connectionQueue);
@@ -136,11 +135,8 @@ public class OpenedConnectionTracker {
 
   public void removeConnectionTracking(final HostSpec hostSpec, final Connection connection) {
     final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
-        ? hostSpec.asAlias()
-        : hostSpec.getAliases().stream()
-            .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
-            .findFirst()
-            .orElse(null);
+        ? hostSpec.getHost()
+        : null;
 
     if (StringUtils.isNullOrEmpty(host)) {
       return;
@@ -194,7 +190,10 @@ public class OpenedConnectionTracker {
           builder.append(key).append(" :");
           builder.append("\n\t{");
           for (final WeakReference<Connection> connection : queue) {
-            builder.append("\n\t\t").append(connection.get());
+            final Connection tmpConn = connection.get();
+            if (tmpConn != null) {
+              builder.append("\n\t\t").append(tmpConn);
+            }
           }
           builder.append("\n\t}\n");
         }

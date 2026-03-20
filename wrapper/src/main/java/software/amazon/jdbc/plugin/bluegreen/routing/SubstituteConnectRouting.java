@@ -100,7 +100,6 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
           .hostId(iamHost.getHostId())
           .availability(HostAvailability.AVAILABLE)
           .build();
-      reroutedHostSpec.addAlias(iamHost.getHost());
 
       final Properties rerouteProperties = PropertyUtils.copyProperties(props);
       IamAuthConnectionPlugin.IAM_HOST.set(rerouteProperties, iamHost.getHost());

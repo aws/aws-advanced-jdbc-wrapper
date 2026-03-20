@@ -82,4 +82,8 @@ public interface FullServicesContainer {
   @Nullable ConfigurationProfile getConfigurationProfile();
 
   void setConfigurationProfile(@Nullable ConfigurationProfile configurationProfile);
+
+  HostIdCacheService getHostIdCacheService();
+
+  void setHostIdCacheService(HostIdCacheService hostIdCacheService);
 }

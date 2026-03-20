@@ -178,7 +178,6 @@ public abstract class TopologyUtils {
         .weight(weight)
         .lastUpdateTime(lastUpdateTime)
         .build();
-    hostSpec.addAlias(instanceName);
     return hostSpec;
   }
 

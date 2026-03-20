@@ -147,10 +147,8 @@ class HostMonitoringConnectionPluginV1Test {
     when(mockDialect.getHostAliasQuery()).thenReturn("any");
     when(hostSpec.getHost()).thenReturn("host");
     when(hostSpec.getHost()).thenReturn("port");
-    when(hostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
     when(hostSpec2.getHost()).thenReturn("host");
     when(hostSpec2.getHost()).thenReturn("port");
-    when(hostSpec2.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
     when(connection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(rdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);

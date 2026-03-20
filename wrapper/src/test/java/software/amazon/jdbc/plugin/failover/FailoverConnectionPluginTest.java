@@ -154,7 +154,6 @@ class FailoverConnectionPluginTest {
     spyPlugin.notifyNodeListChanged(changes);
 
     verify(mockPluginService, never()).getCurrentHostSpec();
-    verify(mockHostSpec, never()).getAliases();
   }
 
   @Test
@@ -167,10 +166,8 @@ class FailoverConnectionPluginTest {
     spyPlugin.notifyNodeListChanged(changes);
 
     when(mockHostSpec.getUrl()).thenReturn("cluster-url/");
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("instance")));
 
     verify(mockPluginService).getCurrentHostSpec();
-    verify(mockHostSpec, never()).getAliases();
   }
 
   @Test
@@ -242,7 +239,6 @@ class FailoverConnectionPluginTest {
 
   @Test
   void test_failoverReader_withValidFailedHostSpec_successFailover() throws SQLException {
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
     when(mockHostSpec.getRawAvailability()).thenReturn(HostAvailability.AVAILABLE);
     when(mockReaderResult.isConnected()).thenReturn(true);
     when(mockReaderResult.getConnection()).thenReturn(mockConnection);
@@ -270,7 +266,6 @@ class FailoverConnectionPluginTest {
         .build();
     final List<HostSpec> hosts = Collections.singletonList(hostSpec);
 
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
     when(mockHostSpec.getAvailability()).thenReturn(HostAvailability.AVAILABLE);
     when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
@@ -294,7 +289,6 @@ class FailoverConnectionPluginTest {
         .build();
     final List<HostSpec> hosts = Collections.singletonList(hostSpec);
 
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
     when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockWriterResult.getException()).thenReturn(new SQLException());
@@ -316,7 +310,6 @@ class FailoverConnectionPluginTest {
         .build();
     final List<HostSpec> hosts = Collections.singletonList(hostSpec);
 
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
     when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockWriterResult.isConnected()).thenReturn(false);
@@ -338,8 +331,6 @@ class FailoverConnectionPluginTest {
 
   @Test
   void test_failoverWriter_successFailover() throws SQLException {
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
-
     initializePlugin();
     spyPlugin.initHostProvider(
         mockHostListProviderService,

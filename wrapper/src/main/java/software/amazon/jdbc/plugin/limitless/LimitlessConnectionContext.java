@@ -29,6 +29,7 @@ public class LimitlessConnectionContext {
   private HostSpec hostSpec;
   private Properties props;
   private Connection connection;
+  private HostSpec connectionHostSpec;
   private JdbcCallable<Connection, SQLException> connectFunc;
   private List<HostSpec> limitlessRouters;
 
@@ -48,6 +49,7 @@ public class LimitlessConnectionContext {
     this.connectFunc = connectFunc;
     this.limitlessRouters = limitlessRouters;
     this.plugin = plugin;
+    this.connectionHostSpec = null;
   }
 
   public HostSpec getHostSpec() {
@@ -71,6 +73,14 @@ public class LimitlessConnectionContext {
       }
     }
     this.connection = connection;
+  }
+
+  public HostSpec getConnectionHostSpec() {
+    return connectionHostSpec;
+  }
+
+  public void setConnectionHostSpec(HostSpec connectionHostSpec) {
+    this.connectionHostSpec = connectionHostSpec;
   }
 
   public JdbcCallable<Connection, SQLException> getConnectFunc() {

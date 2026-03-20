@@ -211,20 +211,16 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
         if (roleToVerify == null) {
           // No verification required.
-          if (isInitialConnection) {
-            hostListProviderService.setInitialConnectionHostSpec(candidateHost);
-          }
 
+          this.pluginService.setRoutedHostSpec(candidateHost);
           return candidateConn;
         }
 
         HostRole connRole = this.pluginService.getHostRole(candidateConn);
         if (connRole == roleToVerify) {
           // Verification succeeded.
-          if (isInitialConnection) {
-            hostListProviderService.setInitialConnectionHostSpec(candidateHost);
-          }
 
+          this.pluginService.setRoutedHostSpec(candidateHost);
           return candidateConn;
         }
 
@@ -241,10 +237,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
                 new Object[] {VERIFY_OPENED_CONNECTION_ROLE.name}));
           }
 
-          if (isInitialConnection) {
-            hostListProviderService.setInitialConnectionHostSpec(candidateHost);
-          }
-
+          this.pluginService.setRoutedHostSpec(candidateHost);
           return candidateConn;
         }
 
@@ -265,7 +258,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         }
 
         if (candidateHost != null) {
-          this.pluginService.setAvailability(candidateHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+          this.pluginService.setAvailability(candidateHost, HostAvailability.NOT_AVAILABLE);
         }
 
         if (this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect())) {

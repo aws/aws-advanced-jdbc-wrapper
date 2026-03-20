@@ -88,12 +88,18 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     final Connection conn = connectFunc.call();
 
     if (conn != null && !Boolean.TRUE.equals(this.pluginService.isPooledConnection())) {
-      final RdsUrlType type = this.rdsHelper.identifyRdsType(hostSpec.getHost());
+      HostSpec connectionHostSpec = this.pluginService.getRoutedHostSpec() == null
+          ? hostSpec
+          : this.pluginService.getRoutedHostSpec();
+      final RdsUrlType type = this.rdsHelper.identifyRdsType(connectionHostSpec.getHost());
       if (type.isRdsCluster() || type == RdsUrlType.OTHER || type == RdsUrlType.IP_ADDRESS) {
-        hostSpec.resetAliases();
-        this.pluginService.fillAliases(conn, hostSpec);
+        final HostSpec identifiedHostSpec = this.pluginService.identifyConnection(conn, connectionHostSpec);
+        if (identifiedHostSpec != null) {
+          connectionHostSpec = identifiedHostSpec;
+          this.pluginService.setRoutedHostSpec(identifiedHostSpec);
+        }
       }
-      tracker.populateOpenedConnectionQueue(hostSpec, conn);
+      tracker.populateOpenedConnectionQueue(connectionHostSpec, conn);
     }
 
     return conn;
