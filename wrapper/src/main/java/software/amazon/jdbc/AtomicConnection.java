@@ -73,6 +73,10 @@ public class AtomicConnection {
       final boolean closePreviousConnection) {
 
     if (this.cleanupAction == null) {
+      if (connection == null) {
+        // Everything is already cleaned up
+        return;
+      }
       throw new IllegalStateException(Messages.get("AtomicConnection.alreadyClean"));
     }
 
