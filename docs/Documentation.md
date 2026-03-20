@@ -19,6 +19,7 @@
     - [Failover Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
       - [Failover Configuration Guide](./using-the-jdbc-driver/FailoverConfigurationGuide.md)
     - [Failover Plugin v2](./using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md)
+    - [Remote Query Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md)
     - [Federated Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md)
     - [Host Monitoring Plugin](./using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
     - [IAM Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)

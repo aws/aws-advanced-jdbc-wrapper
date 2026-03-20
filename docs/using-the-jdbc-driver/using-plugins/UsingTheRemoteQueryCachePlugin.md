@@ -361,4 +361,4 @@ public void main(String status) {
 ```
 
 ## Other Example Programs
-[DatabaseConnectionWithCacheExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/DatabaseConnectionWithCacheExample.java) demonstrates how to enable and configure Remote Query Cache Plugin with the AWS Advanced JDBC Wrapper.
+[DatabaseConnectionWithCacheExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/DatabaseConnectionWithCacheExample.java) demonstrates how to enable and configure Remote Query Cache Plugin with the AWS Advanced JDBC Wrapper.
