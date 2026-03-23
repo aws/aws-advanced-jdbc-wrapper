@@ -118,7 +118,11 @@ public class AuroraStaleDnsHelper {
     if (this.writerHostSpec == null) {
       final HostSpec writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());
       if (writerCandidate != null && this.rdsUtils.isRdsClusterDns(writerCandidate.getHost())) {
-        return null;
+        // Topology has not resolved to instance-level DNS yet — stale DNS detection
+        // cannot be performed. Return the already-established connection as-is.
+        // Previously this returned null, which caused connection pools (e.g. HikariCP)
+        // to silently fail to create connections, eventually draining the pool to zero.
+        return conn;
       }
       this.writerHostSpec = writerCandidate;
     }
