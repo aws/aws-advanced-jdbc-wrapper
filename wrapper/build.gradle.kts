@@ -23,7 +23,7 @@ plugins {
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
     id("com.kncept.junit.reporter")
-    id("com.gradleup.shadow") version "8.3.5" // 8.3.5 is the last version that is compatible with Java 8
+    id("com.gradleup.shadow") version "8.3.10" // 8.3.10 is the last version that is compatible with Java 8
     id("com.google.osdetector") version "1.7.3" // Plugin used to detect OS and use for GLIDE
 }
 
