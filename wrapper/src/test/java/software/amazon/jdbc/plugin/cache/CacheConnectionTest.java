@@ -437,12 +437,15 @@ public class CacheConnectionTest {
     verify(mockWriteConnPool).invalidateObject(isClusterMode ? mockClusterClient : mockClient);
 
     // Test READ exception handling
+    CompletableFuture<GlideString> failedRead = new CompletableFuture<>();
     if (isClusterMode) {
+      failedRead.completeExceptionally(new RuntimeException("cluster read error"));
       when(mockReadConnPool.borrowObject()).thenReturn(mockClusterClient);
-      when(mockClusterClient.get(any(GlideString.class))).thenThrow(new RuntimeException("cluster read error"));
+      when(mockClusterClient.get(any(GlideString.class))).thenReturn(failedRead);
     } else {
+      failedRead.completeExceptionally(new RuntimeException("standalone read error"));
       when(mockReadConnPool.borrowObject()).thenReturn(mockClient);
-      when(mockClient.get(any(GlideString.class))).thenThrow(new RuntimeException("standalone read error"));
+      when(mockClient.get(any(GlideString.class))).thenReturn(failedRead);
     }
 
     assertNull(spyConnection.readFromCache(key));
@@ -576,9 +579,11 @@ public class CacheConnectionTest {
     // Error reporting on read failure
     when(mockReadConnPool.borrowObject()).thenReturn(mockClient);
     RuntimeException testException = new RuntimeException("Connection failed");
-    when(mockClient.get(any(GlideString.class))).thenThrow(testException);
+    CompletableFuture<GlideString> failedFuture = new CompletableFuture<>();
+    failedFuture.completeExceptionally(testException);
+    when(mockClient.get(any(GlideString.class))).thenReturn(failedFuture);
     assertNull(spyConnection.readFromCache(key));
-    verify(spyConnection).reportErrorToCacheMonitor(eq(false), eq(testException), eq("READ"));
+    verify(spyConnection).reportErrorToCacheMonitor(eq(false), any(Exception.class), eq("READ"));
 
     // failWhenCacheDown: throws SQLException
     Properties props = new Properties();

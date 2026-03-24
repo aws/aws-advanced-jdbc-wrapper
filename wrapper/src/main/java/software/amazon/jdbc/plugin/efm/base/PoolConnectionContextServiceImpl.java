@@ -29,12 +29,12 @@ import software.amazon.jdbc.plugin.efm.v1.HostMonitorConnectionContextV1;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitorConnectionContextV2;
 import software.amazon.jdbc.util.Messages;
 
-public class ConnectionContextServiceImpl implements ConnectionContextService {
+public class PoolConnectionContextServiceImpl implements ConnectionContextService {
 
-  private static final Logger LOGGER = Logger.getLogger(ConnectionContextServiceImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(PoolConnectionContextServiceImpl.class.getName());
 
   protected static final Map<Class<? extends ConnectionContext>, Supplier<ConnectionContext>> defaultSuppliers;
-  protected static final int DEFAULT_MAX_IDLE_COUNT = 30;
+  protected static final int DEFAULT_MAX_IDLE_COUNT = 5;
   protected static final boolean DEFAULT_LAZY_INITIALIZATION = true;
   protected static final String MAX_IDLE_COUNT_PROPERTY = "efm.contextPool.maxIdleCount";
   protected static final String LAZY_INIT_PROPERTY = "efm.contextPool.lazyInitialization";
@@ -50,7 +50,7 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
-  public ConnectionContextServiceImpl() {
+  public PoolConnectionContextServiceImpl() {
     maxIdleCount = Integer.parseInt(
         System.getProperty(MAX_IDLE_COUNT_PROPERTY,
             String.valueOf(DEFAULT_MAX_IDLE_COUNT)));
@@ -77,11 +77,16 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
       @NotNull Class<T> contextClass,
       @Nullable Consumer<T> initializer) {
     final Supplier<ConnectionContext> supplier = defaultSuppliers.get(contextClass);
+    if (supplier == null) {
+      throw new IllegalArgumentException(
+          Messages.get("ConnectionContextService.noSupplierRegistered",
+              new Object[] {contextClass.getName()}));
+    }
     final ContextPool contextPool = contextPoolMap.computeIfAbsent(
         contextClass,
         ctxClass -> new ContextPoolImpl(maxIdleCount, lazyInitialization, supplier));
 
-    final T context = (T) contextPool.acquire();
+    final T context = contextClass.cast(contextPool.acquire());
     if (initializer != null) {
       initializer.accept(context);
     }
@@ -95,6 +100,7 @@ public class ConnectionContextServiceImpl implements ConnectionContextService {
     }
     final ContextPool contextPool = contextPoolMap.get(context.getClass());
     if (contextPool != null) {
+      context.setInactive();
       return contextPool.release(context);
     }
     return false;

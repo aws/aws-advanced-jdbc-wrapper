@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -39,6 +40,16 @@ import software.amazon.jdbc.plugin.efm.v1.HostMonitorConnectionContextV1;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitorConnectionContextV2;
 
 class ContextPoolImplTest {
+
+  private ContextPool pool;
+
+  @BeforeEach
+  void setUp() {
+    if (pool != null) {
+      pool.clearPool();
+    }
+    pool = null;
+  }
 
   static Stream<Arguments> contextSuppliers() {
     return Stream.of(
@@ -167,17 +178,6 @@ class ContextPoolImplTest {
     assertTrue(originalContexts.contains(reacquired1));
     assertTrue(originalContexts.contains(reacquired2));
     assertTrue(originalContexts.contains(reacquired3));
-  }
-
-  @ParameterizedTest
-  @MethodSource("contextSuppliers")
-  void test_releaseCallsSetInactive(Supplier<ConnectionContext> supplier) {
-    ConnectionContext mockContext = mock(ConnectionContext.class);
-    ContextPool pool = new ContextPoolImpl(1, supplier);
-
-    final boolean released = pool.release(mockContext);
-    assertTrue(released);
-    verify(mockContext, times(1)).setInactive();
   }
 
   @ParameterizedTest

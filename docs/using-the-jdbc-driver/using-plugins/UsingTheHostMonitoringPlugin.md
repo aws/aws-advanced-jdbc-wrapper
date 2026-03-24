@@ -105,18 +105,20 @@ The Host Monitoring plugins use an internal context pool to manage monitoring co
 
 | System Property                      | Type    | Required | Description                                                                                                                                                                                                     | Default Value |
 |--------------------------------------|---------|:--------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `efm.contextPool.maxIdleCount`       | Integer |    No    | Maximum number of idle connection contexts to keep in the pool. Must be at least 1.                                                                                                                             | `30`          |
-| `efm.contextPool.lazyInitialization` | Boolean |    No    | When `true`, idle contexts are created on-demand as needed, unitil `maxIdleCount` is reached. When `false`, the pool is pre-populated with idle contexts (determined by the `maxIdleCount` setting) at startup. | `false`       |
+| `efm.contextPool.enabled`            | Boolean |    No    | When `true`, contexts are pooled and reused to reduce allocation overhead. When `false`, a new context instance is created on each acquire call.                                                                | `true`        |
+| `efm.contextPool.maxIdleCount`       | Integer |    No    | Maximum number of idle connection contexts to keep in the pool. Must be at least 1. Only applies when pooling is enabled.                                                                                       | `30`          |
+| `efm.contextPool.lazyInitialization` | Boolean |    No    | When `true`, idle contexts are created on-demand as needed, until `maxIdleCount` is reached. When `false`, the pool is pre-populated with idle contexts (determined by the `maxIdleCount` setting) at startup. Only applies when pooling is enabled. | `false`       |
 
 These properties can be set via JVM arguments:
 
 ```bash
-java -Defm.contextPool.maxIdleCount=50 -Defm.contextPool.lazyInitialization=true -jar your-application.jar
+java -Defm.contextPool.enabled=true -Defm.contextPool.maxIdleCount=50 -Defm.contextPool.lazyInitialization=true -jar your-application.jar
 ```
 
 Or programmatically before establishing connections:
 
 ```java
+System.setProperty("efm.contextPool.enabled", "true");
 System.setProperty("efm.contextPool.maxIdleCount", "50");
 System.setProperty("efm.contextPool.lazyInitialization", "true");
 ```

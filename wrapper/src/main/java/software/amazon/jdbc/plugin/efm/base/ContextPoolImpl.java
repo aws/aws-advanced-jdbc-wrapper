@@ -117,8 +117,6 @@ public class ContextPoolImpl implements ContextPool {
       return false;
     }
 
-    context.setInactive();
-
     lock.lock();
     try {
       if (contextQueue.size() < maxIdleCount) {

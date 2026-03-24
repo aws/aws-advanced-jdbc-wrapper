@@ -25,13 +25,14 @@ import static org.mockito.Mockito.verify;
 
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.plugin.efm.v1.HostMonitorConnectionContextV1;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitorConnectionContextV2;
 
-class ConnectionContextServiceImplTest {
+class PoolConnectionContextServiceImplTest {
 
   static Stream<Arguments> contextSuppliers() {
     return Stream.of(
@@ -40,17 +41,21 @@ class ConnectionContextServiceImplTest {
     );
   }
 
+  @BeforeEach
+  void beforeEach() {
+    System.setProperty("efm.contextPool.maxIdleCount", "1");
+  }
+
   @AfterEach
   void cleanUp() {
-    System.clearProperty("aws.jdbc.efm.contextPool.initialCapacity");
-    System.clearProperty("aws.jdbc.efm.contextPool.maxIdleCount");
-    ConnectionContextServiceImpl.clear();
+    System.clearProperty("efm.contextPool.maxIdleCount");
+    PoolConnectionContextServiceImpl.clear();
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_defaultConfiguration(Class<? extends ConnectionContext> contextClass) {
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
     ConnectionContext context = service.acquire(contextClass);
     assertNotNull(context);
   }
@@ -58,8 +63,11 @@ class ConnectionContextServiceImplTest {
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_acquireAndRelease(Class<? extends ConnectionContext> contextClass) {
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
     ConnectionContext context = service.acquire(contextClass);
+
+    // Grab the idle context out of the pool so has capacity for new idle contexts.
+    service.acquire(contextClass);
 
     boolean released = service.release(context);
     assertTrue(released);
@@ -68,8 +76,13 @@ class ConnectionContextServiceImplTest {
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_contextReuse(Class<? extends ConnectionContext> contextClass) {
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
+    // This call will create a new context and initialize an idle context in the pool.
     ConnectionContext context1 = service.acquire(contextClass);
+
+    // Grab the idle context out of the pool.
+    service.acquire(contextClass);
+
     service.release(context1);
 
     ConnectionContext context2 = service.acquire(contextClass);
@@ -79,8 +92,13 @@ class ConnectionContextServiceImplTest {
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_releaseCallsSetInactive(Class<? extends ConnectionContext> contextClass) {
-    ConnectionContext mockContext = mock(ConnectionContext.class);
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    System.setProperty("efm.contextPool.maxIdleCount", "2");
+    ConnectionContext mockContext = mock(contextClass);
+
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
+
+    // Initialize pool
+    service.acquire(contextClass);
 
     service.release(mockContext);
     verify(mockContext, times(1)).setInactive();
@@ -89,24 +107,24 @@ class ConnectionContextServiceImplTest {
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_customInitialCapacity(Class<? extends ConnectionContext> contextClass) {
-    System.setProperty("aws.jdbc.efm.contextPool.initialCapacity", "5");
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    System.setProperty("efm.contextPool.maxIdleCount", "5");
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
     assertNotNull(service);
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_customMaxIdleCount(Class<? extends ConnectionContext> contextClass) {
-    System.setProperty("aws.jdbc.efm.contextPool.maxIdleCount", "3");
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    System.setProperty("efm.contextPool.maxIdleCount", "3");
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
     assertNotNull(service);
   }
 
   @ParameterizedTest
   @MethodSource("contextSuppliers")
   void test_multipleAcquireAndRelease(Class<? extends ConnectionContext> contextClass) {
-    System.setProperty("aws.jdbc.efm.contextPool.initialCapacity", "1");
-    ConnectionContextService service = new ConnectionContextServiceImpl();
+    System.setProperty("efm.contextPool.maxIdleCount", "1");
+    ConnectionContextService service = new PoolConnectionContextServiceImpl();
     ConnectionContext ctx1 = service.acquire(contextClass);
     ConnectionContext ctx2 = service.acquire(contextClass);
     ConnectionContext ctx3 = service.acquire(contextClass);

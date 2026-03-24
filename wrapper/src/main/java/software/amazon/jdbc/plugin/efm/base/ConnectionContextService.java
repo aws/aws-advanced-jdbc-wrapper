@@ -21,14 +21,29 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Service for managing a pool of reusable connection contexts to reduce memory allocation overhead.
- * This service provides efficient context lifecycle management through pooling, minimizing the cost
- * of repeated allocations during monitoring operations.
+ * Service for managing connection contexts used during host monitoring.
+ *
+ * <p>Implementing classes may choose to use pooling to reduce memory allocation overhead,
+ * or may create new context instances on each acquire call (non-pooled). The choice of
+ * implementation affects memory usage and allocation patterns:
+ *
+ * <ul>
+ *   <li><b>Pooled implementations</b> reuse context objects to minimize garbage collection
+ *       pressure and allocation overhead. Released contexts are returned to the pool for
+ *       subsequent reuse.</li>
+ *   <li><b>Non-pooled implementations</b> create a new context instance on each acquire call.
+ *       The release operation may simply mark the context as inactive without retaining it.</li>
+ * </ul>
+ *
+ * <p>The Host Monitoring Plugins use a pooled connection context service by default.
+ *
+ * @see PoolConnectionContextServiceImpl
  */
 public interface ConnectionContextService {
 
   /**
-   * Acquire a connection context from the pool. If the pool is empty, a new context is created.
+   * Acquire a connection context. Depending on the implementation, this may return a context
+   * from a pool or create a new instance.
    *
    * @param <T> the type of connection context
    * @param contextClass the class type of the connection context to acquire
@@ -37,8 +52,9 @@ public interface ConnectionContextService {
   <T extends ConnectionContext> T acquire(@NonNull Class<T> contextClass);
 
   /**
-   * Acquire a connection context from the pool with optional initialization. If the pool is empty,
-   * a new context is created. The initializer is invoked on the context before returning it.
+   * Acquire a connection context with optional initialization. Depending on the implementation,
+   * this may return a context from a pool or create a new instance. The initializer is invoked
+   * on the context before returning it.
    *
    * @param <T> the type of connection context
    * @param contextClass the class type of the connection context to acquire
@@ -48,8 +64,9 @@ public interface ConnectionContextService {
   <T extends ConnectionContext> T acquire(@NonNull Class<T> contextClass, @Nullable Consumer<T> initializer);
 
   /**
-   * Release a connection context back to the pool for reuse. The context is reset and made
-   * available for subsequent acquire operations.
+   * Release a connection context. For pooled implementations, the context is reset and made
+   * available for subsequent acquire operations. For non-pooled implementations, the context
+   * may simply be marked as inactive.
    *
    * @param context the context to release
    * @return true if the context was successfully released, false otherwise

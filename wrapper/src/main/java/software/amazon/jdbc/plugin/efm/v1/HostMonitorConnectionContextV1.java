@@ -59,10 +59,13 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
       TelemetryCounter abortedConnectionsCounter) {
     this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
     this.nodeUnhealthy.set(false);
+    this.activeContext = true;
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;
     this.abortedConnectionsCounter = abortedConnectionsCounter;
+    this.failureCount = 0;
+    this.invalidNodeStartTimeNano = 0;
   }
 
   void setStartMonitorTimeNano(final long startMonitorTimeNano) {
