@@ -35,7 +35,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.21.1")
     implementation("com.mchange:c3p0:0.11.2")
     implementation("org.apache.commons:commons-pool2:2.11.1")
-    implementation("io.github.cdimascio:dotenv-java:2.3.2")
+    implementation("io.github.cdimascio:dotenv-java:3.2.0")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
 }
 
