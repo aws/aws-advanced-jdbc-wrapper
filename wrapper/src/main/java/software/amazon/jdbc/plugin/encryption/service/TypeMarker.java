@@ -67,20 +67,48 @@ public enum TypeMarker {
   }
 
   public static TypeMarker fromObject(Object obj) {
-    if (obj instanceof String) return STRING;
-    if (obj instanceof Integer) return INTEGER;
-    if (obj instanceof Long) return LONG;
-    if (obj instanceof Double) return DOUBLE;
-    if (obj instanceof Float) return FLOAT;
-    if (obj instanceof Boolean) return BOOLEAN;
-    if (obj instanceof BigDecimal) return BIG_DECIMAL;
-    if (obj instanceof Date) return DATE;
-    if (obj instanceof Time) return TIME;
-    if (obj instanceof Timestamp) return TIMESTAMP;
-    if (obj instanceof LocalDate) return LOCAL_DATE;
-    if (obj instanceof LocalTime) return LOCAL_TIME;
-    if (obj instanceof LocalDateTime) return LOCAL_DATE_TIME;
-    if (obj instanceof byte[]) return BYTE_ARRAY;
+    if (obj instanceof String) {
+      return STRING;
+    }
+    if (obj instanceof Integer) {
+      return INTEGER;
+    }
+    if (obj instanceof Long) {
+      return LONG;
+    }
+    if (obj instanceof Double) {
+      return DOUBLE;
+    }
+    if (obj instanceof Float) {
+      return FLOAT;
+    }
+    if (obj instanceof Boolean) {
+      return BOOLEAN;
+    }
+    if (obj instanceof BigDecimal) {
+      return BIG_DECIMAL;
+    }
+    if (obj instanceof Date) {
+      return DATE;
+    }
+    if (obj instanceof Time) {
+      return TIME;
+    }
+    if (obj instanceof Timestamp) {
+      return TIMESTAMP;
+    }
+    if (obj instanceof LocalDate) {
+      return LOCAL_DATE;
+    }
+    if (obj instanceof LocalTime) {
+      return LOCAL_TIME;
+    }
+    if (obj instanceof LocalDateTime) {
+      return LOCAL_DATE_TIME;
+    }
+    if (obj instanceof byte[]) {
+      return BYTE_ARRAY;
+    }
     return GENERIC;
   }
 }
