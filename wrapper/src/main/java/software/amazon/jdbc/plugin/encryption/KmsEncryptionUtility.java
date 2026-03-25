@@ -226,7 +226,8 @@ public class KmsEncryptionUtility {
       }
       TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
       try {
-        targetDriverDialect.registerDataType(conn, "encrypted_data", "software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData");
+        targetDriverDialect.registerDataType(conn, "encrypted_data",
+            "software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData");
         LOGGER.fine("Registered encrypted_data type for PostgreSQL connection");
       } catch (SQLException e) {
         LOGGER.fine(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());

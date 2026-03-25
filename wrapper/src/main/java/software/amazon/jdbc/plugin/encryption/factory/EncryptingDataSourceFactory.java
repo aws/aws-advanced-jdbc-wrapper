@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 /**
@@ -77,7 +78,8 @@ public class EncryptingDataSourceFactory {
       copyAwsWrapperProperties(encryptionProperties, awsWrapperProperties);
 
       // Create AWS Wrapper DataSource using reflection to avoid compile-time dependency
-      DataSource awsDataSource = createAwsWrapperDataSource(awsWrapperProperties);
+      AwsWrapperDataSource awsDataSource = new AwsWrapperDataSource();
+      awsDataSource.setTargetDataSourceProperties(awsWrapperProperties);
 
       // Wrap with encryption
       return create(awsDataSource, encryptionProperties);
@@ -140,59 +142,6 @@ public class EncryptingDataSourceFactory {
         awsWrapperProperties.setProperty(key, value);
       }
     }
-  }
-
-  /**
-   * Creates an AWS Wrapper DataSource using reflection to avoid compile-time dependency issues.
-   *
-   * @param properties Properties for the AWS Wrapper DataSource
-   * @return DataSource instance
-   * @throws Exception if DataSource creation fails
-   */
-  private static DataSource createAwsWrapperDataSource(Properties properties) throws Exception {
-    try {
-      // Try to create AWS Wrapper DataSource using reflection
-      Class<?> awsDataSourceClass = Class.forName("software.amazon.jdbc.AwsWrapperDataSource");
-      return (DataSource)
-          awsDataSourceClass.getConstructor(Properties.class).newInstance(properties);
-    } catch (ClassNotFoundException e) {
-      logger.warning("AWS JDBC Wrapper not found, falling back to direct PostgreSQL DataSource");
-      return createPostgreSqlDataSource(properties);
-    }
-  }
-
-  /**
-   * Creates a PostgreSQL DataSource as fallback when AWS Wrapper is not available.
-   *
-   * @param properties Properties for the DataSource
-   * @return DataSource instance
-   * @throws Exception if DataSource creation fails
-   */
-  private static DataSource createPostgreSqlDataSource(Properties properties) throws Exception {
-    // Create a basic PostgreSQL DataSource
-    Class<?> pgDataSourceClass = Class.forName("org.postgresql.ds.PGSimpleDataSource");
-    DataSource dataSource = (DataSource) pgDataSourceClass.getDeclaredConstructor().newInstance();
-
-    // Set properties using reflection
-    String jdbcUrl = properties.getProperty("jdbcUrl");
-    String username = properties.getProperty("username");
-    String password = properties.getProperty("password");
-
-    if (jdbcUrl != null) {
-      // Parse URL to extract host, port, database
-      // This is a simplified implementation
-      pgDataSourceClass.getMethod("setUrl", String.class).invoke(dataSource, jdbcUrl);
-    }
-
-    if (username != null) {
-      pgDataSourceClass.getMethod("setUser", String.class).invoke(dataSource, username);
-    }
-
-    if (password != null) {
-      pgDataSourceClass.getMethod("setPassword", String.class).invoke(dataSource, password);
-    }
-
-    return dataSource;
   }
 
   /**

@@ -182,7 +182,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className) throws SQLException {
+  public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className)
+      throws SQLException {
     org.postgresql.PGConnection pgConn = connection.unwrap(org.postgresql.PGConnection.class);
     pgConn.addDataType(
         "encrypted_data",

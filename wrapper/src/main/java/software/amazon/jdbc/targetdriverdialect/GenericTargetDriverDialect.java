@@ -276,7 +276,8 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className) throws SQLException {
+  public void registerDataType(@NonNull Connection connection, @NonNull String typeName,
+      @NonNull String className) throws SQLException {
   }
 
   // Get the SQL query string from a PreparedStatement which comes after a dialect specific header
