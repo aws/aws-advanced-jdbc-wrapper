@@ -22,7 +22,7 @@ import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.logging.Logger;
-import software.amazon.jdbc.plugin.encryption.KmsEncryptionPlugin;
+import software.amazon.jdbc.plugin.encryption.KmsEncryptionUtility;
 
 /**
  * A Statement wrapper that provides transparent encryption/decryption functionality. This wrapper
@@ -34,7 +34,7 @@ public class EncryptingStatement implements Statement {
   private static final Logger LOGGER = Logger.getLogger(EncryptingStatement.class.getName());
 
   private final Statement delegate;
-  private final KmsEncryptionPlugin encryptionPlugin;
+  private final KmsEncryptionUtility encryptionPlugin;
 
   /**
    * Creates an encrypting statement wrapper.
@@ -42,7 +42,7 @@ public class EncryptingStatement implements Statement {
    * @param delegate The underlying Statement to wrap
    * @param encryptionPlugin The encryption plugin to use
    */
-  public EncryptingStatement(Statement delegate, KmsEncryptionPlugin encryptionPlugin) {
+  public EncryptingStatement(Statement delegate, KmsEncryptionUtility encryptionPlugin) {
     this.delegate = delegate;
     this.encryptionPlugin = encryptionPlugin;
 
@@ -305,7 +305,7 @@ public class EncryptingStatement implements Statement {
    *
    * @return The KmsEncryptionPlugin instance
    */
-  public KmsEncryptionPlugin getEncryptionPlugin() {
+  public KmsEncryptionUtility getEncryptionPlugin() {
     return encryptionPlugin;
   }
 }

@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
-import software.amazon.jdbc.plugin.encryption.KmsEncryptionPlugin;
+import software.amazon.jdbc.plugin.encryption.KmsEncryptionUtility;
 
 /**
  * A Connection wrapper that provides transparent encryption/decryption functionality by wrapping
@@ -46,7 +46,7 @@ public class EncryptingConnection implements Connection {
   private static final Logger LOGGER = Logger.getLogger(EncryptingConnection.class.getName());
 
   private final Connection delegate;
-  private final KmsEncryptionPlugin encryptionPlugin;
+  private final KmsEncryptionUtility encryptionPlugin;
 
   /**
    * Creates an encrypting connection wrapper.
@@ -54,7 +54,7 @@ public class EncryptingConnection implements Connection {
    * @param delegate The underlying Connection to wrap
    * @param encryptionPlugin The encryption plugin to use
    */
-  public EncryptingConnection(Connection delegate, KmsEncryptionPlugin encryptionPlugin) {
+  public EncryptingConnection(Connection delegate, KmsEncryptionUtility encryptionPlugin) {
     this.delegate = delegate;
     this.encryptionPlugin = encryptionPlugin;
 
@@ -370,7 +370,7 @@ public class EncryptingConnection implements Connection {
    *
    * @return The KmsEncryptionPlugin instance
    */
-  public KmsEncryptionPlugin getEncryptionPlugin() {
+  public KmsEncryptionUtility getEncryptionPlugin() {
     return encryptionPlugin;
   }
 }

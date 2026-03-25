@@ -47,7 +47,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   private static final Logger LOGGER =
       Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
 
-  private final KmsEncryptionPlugin encryptionPlugin;
+  private final KmsEncryptionUtility encryptionPlugin;
   private final PluginService pluginService;
 
   public static final String KMS_ENCRYPTION_PLUGIN_CODE = "kmsEncryption";
@@ -60,7 +60,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    */
   public KmsEncryptionConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
-    this.encryptionPlugin = new KmsEncryptionPlugin(pluginService);
+    this.encryptionPlugin = new KmsEncryptionUtility(pluginService);
 
     try {
       this.encryptionPlugin.initialize(properties);
@@ -79,7 +79,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    *
    * @return KmsEncryptionPlugin instance
    */
-  public KmsEncryptionPlugin getEncryptionPlugin() {
+  public KmsEncryptionUtility getEncryptionPlugin() {
     return encryptionPlugin;
   }
 

@@ -23,7 +23,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import software.amazon.jdbc.plugin.encryption.KmsEncryptionPlugin;
+import software.amazon.jdbc.plugin.encryption.KmsEncryptionUtility;
 
 /**
  * A DataSource wrapper that integrates encryption capabilities with the AWS Advanced JDBC Wrapper.
@@ -34,7 +34,7 @@ public class EncryptingDataSource implements DataSource {
   private static final Logger LOGGER = Logger.getLogger(EncryptingDataSource.class.getName());
 
   private final DataSource delegate;
-  private final KmsEncryptionPlugin encryptionPlugin;
+  private final KmsEncryptionUtility encryptionPlugin;
   private final Properties encryptionProperties;
   private volatile boolean closed = false;
 
@@ -52,7 +52,7 @@ public class EncryptingDataSource implements DataSource {
     this.encryptionProperties.putAll(encryptionProperties);
 
     // Initialize the encryption plugin
-    this.encryptionPlugin = new KmsEncryptionPlugin();
+    this.encryptionPlugin = new KmsEncryptionUtility();
     this.encryptionPlugin.initialize(encryptionProperties);
 
     LOGGER.info("EncryptingDataSource initialized with encryption plugin");
@@ -173,7 +173,7 @@ public class EncryptingDataSource implements DataSource {
    *
    * @return The KmsEncryptionPlugin instance
    */
-  public KmsEncryptionPlugin getEncryptionPlugin() {
+  public KmsEncryptionUtility getEncryptionPlugin() {
     return encryptionPlugin;
   }
 

@@ -40,9 +40,9 @@ import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
  * <p>This plugin intercepts JDBC operations to automatically encrypt data before storage and
  * decrypt data upon retrieval based on metadata configuration.
  */
-public class KmsEncryptionPlugin {
+public class KmsEncryptionUtility {
 
-  private static final Logger LOGGER = Logger.getLogger(KmsEncryptionPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(KmsEncryptionUtility.class.getName());
 
   // Plugin configuration
   private EncryptionConfig config;
@@ -77,7 +77,7 @@ public class KmsEncryptionPlugin {
    *
    * @param pluginService The PluginService instance from AWS JDBC Wrapper
    */
-  public KmsEncryptionPlugin(PluginService pluginService) {
+  public KmsEncryptionUtility(PluginService pluginService) {
     this.pluginService = pluginService;
     LOGGER.fine(
         () ->
@@ -87,7 +87,7 @@ public class KmsEncryptionPlugin {
   }
 
   /** Default constructor for backward compatibility. */
-  public KmsEncryptionPlugin() {
+  public KmsEncryptionUtility() {
     this.pluginService = null;
     LOGGER.warning(
         "KmsEncryptionPlugin created without PluginService - connection parameter extraction may fail");
@@ -321,7 +321,7 @@ public class KmsEncryptionPlugin {
     LOGGER.finest(() -> "Wrapping ResultSet");
 
     return software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSetFactory.create(
-        resultSet, metadataManager, encryptionService, keyManager, 
+        resultSet, metadataManager, encryptionService, keyManager,
         pluginService.getTargetDriverDialect());
   }
 
