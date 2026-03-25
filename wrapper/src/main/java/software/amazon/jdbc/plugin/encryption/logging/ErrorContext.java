@@ -16,8 +16,11 @@
 
 package software.amazon.jdbc.plugin.encryption.logging;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Utility class for building detailed error messages with context information. Helps provide clear
@@ -317,17 +320,13 @@ public class ErrorContext {
     }
 
     // Add additional context in brackets
+    Set<String> excludedKeys = new HashSet<>(Arrays.asList(
+        "table", "column", "operation", "parameterIndex",
+        "columnIndex", "retryAttempt", "maxRetryAttempts"));
     Map<String, Object> additionalContext = new HashMap<>();
     for (Map.Entry<String, Object> entry : context.entrySet()) {
-      String key = entry.getKey();
-      if (!key.equals("table")
-          && !key.equals("column")
-          && !key.equals("operation")
-          && !key.equals("parameterIndex")
-          && !key.equals("columnIndex")
-          && !key.equals("retryAttempt")
-          && !key.equals("maxRetryAttempts")) {
-        additionalContext.put(key, entry.getValue());
+      if (!excludedKeys.contains(entry.getKey())) {
+        additionalContext.put(entry.getKey(), entry.getValue());
       }
     }
 
