@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 
 import java.time.Instant;
 import java.util.Objects;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
 
 /**
  * Configuration class that represents encryption settings for a specific database column. Contains
@@ -129,7 +130,7 @@ public class ColumnEncryptionConfig {
   public static class Builder {
     private String tableName;
     private String columnName;
-    private String algorithm = "AES-256-GCM"; // Default algorithm
+    private String algorithm = EncryptionAlgorithm.AES_256_GCM;
     private Integer keyId;
     private KeyMetadata keyMetadata;
     private Instant createdAt;

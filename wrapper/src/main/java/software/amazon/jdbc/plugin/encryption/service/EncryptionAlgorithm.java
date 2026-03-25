@@ -16,58 +16,41 @@
 
 package software.amazon.jdbc.plugin.encryption.service;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Supported encryption algorithms for the KMS encryption plugin.
  */
-public enum EncryptionAlgorithm {
-  /** AES-256 with Galois/Counter Mode. */
-  AES_256_GCM("AES-256-GCM", 32),
-  
-  /** AES-128 with Galois/Counter Mode. */
-  AES_128_GCM("AES-128-GCM", 16);
+public final class EncryptionAlgorithm {
 
-  private final String algorithmName;
-  private final int keyLength;
+  public static final String AES_256_GCM = "AES-256-GCM";
+  public static final String AES_128_GCM = "AES-128-GCM";
 
-  EncryptionAlgorithm(String algorithmName, int keyLength) {
-    this.algorithmName = algorithmName;
-    this.keyLength = keyLength;
+  private static final Map<String, Integer> KEY_LENGTHS = new HashMap<>();
+
+  static {
+    KEY_LENGTHS.put(AES_256_GCM, 32);
+    KEY_LENGTHS.put(AES_128_GCM, 16);
+  }
+
+  private EncryptionAlgorithm() {
+    // utility class
   }
 
   /**
-   * Returns the algorithm name.
-   *
-   * @return the algorithm name
-   */
-  public String getAlgorithmName() {
-    return algorithmName;
-  }
-
-  /**
-   * Returns the required key length in bytes.
-   *
-   * @return the key length
-   */
-  public int getKeyLength() {
-    return keyLength;
-  }
-
-  /**
-   * Finds an algorithm by name.
+   * Returns the required key length in bytes for the given algorithm.
    *
    * @param algorithmName the algorithm name
-   * @return the matching algorithm, or null if not found
+   * @return the key length in bytes
+   * @throws IllegalArgumentException if the algorithm is not supported
    */
-  public static EncryptionAlgorithm fromString(String algorithmName) {
-    if (algorithmName == null) {
-      return null;
+  public static int getKeyLength(String algorithmName) {
+    Integer length = KEY_LENGTHS.get(algorithmName);
+    if (length == null) {
+      throw new IllegalArgumentException("Unknown algorithm: " + algorithmName);
     }
-    for (EncryptionAlgorithm algorithm : values()) {
-      if (algorithm.algorithmName.equals(algorithmName)) {
-        return algorithm;
-      }
-    }
-    return null;
+    return length;
   }
 
   /**
@@ -77,11 +60,6 @@ public enum EncryptionAlgorithm {
    * @return true if supported, false otherwise
    */
   public static boolean isSupported(String algorithmName) {
-    return fromString(algorithmName) != null;
-  }
-
-  @Override
-  public String toString() {
-    return algorithmName;
+    return KEY_LENGTHS.containsKey(algorithmName);
   }
 }

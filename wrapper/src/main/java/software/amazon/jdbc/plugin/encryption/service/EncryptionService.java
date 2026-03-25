@@ -251,7 +251,7 @@ public class EncryptionService {
    * @return the default algorithm name
    */
   public String getDefaultAlgorithm() {
-    return EncryptionAlgorithm.AES_256_GCM.getAlgorithmName();
+    return EncryptionAlgorithm.AES_256_GCM;
   }
 
   /**
@@ -291,14 +291,7 @@ public class EncryptionService {
 
   /** Gets the expected key length for the algorithm. */
   private int getExpectedKeyLength(String algorithm) {
-    switch (algorithm) {
-      case "AES-256-GCM":
-        return 32; // 256 bits
-      case "AES-128-GCM":
-        return 16; // 128 bits
-      default:
-        throw new IllegalArgumentException("Unknown algorithm: " + algorithm);
-    }
+    return EncryptionAlgorithm.getKeyLength(algorithm);
   }
 
   /** Serializes a value to bytes based on its type. */

@@ -24,6 +24,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
 
 /**
  * Example demonstrating how to use the KeyManagementUtility for administrative tasks. This class
@@ -98,7 +99,7 @@ public class KeyManagementExample {
 
     // Initialize encryption for the column
     keyManagementUtility.initializeEncryptionForColumn(
-        "customers", "phone_number", masterKeyArn, "AES-256-GCM");
+        "customers", "phone_number", masterKeyArn, EncryptionAlgorithm.AES_256_GCM);
 
     LOGGER.info("Added encryption to customers.phone_number");
   }

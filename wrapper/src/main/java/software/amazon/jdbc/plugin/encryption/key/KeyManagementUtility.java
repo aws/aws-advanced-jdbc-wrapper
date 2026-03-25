@@ -44,6 +44,7 @@ import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
 
 /**
  * Utility class providing administrative functions for key management operations. This class offers
@@ -223,7 +224,7 @@ public class KeyManagementUtility {
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
     if (algorithm == null || algorithm.trim().isEmpty()) {
-      algorithm = "AES-256-GCM";
+      algorithm = EncryptionAlgorithm.AES_256_GCM;
     }
 
     LOGGER.info(
@@ -368,7 +369,7 @@ public class KeyManagementUtility {
    */
   public void initializeEncryptionForColumn(
       String tableName, String columnName, String masterKeyArn) throws KeyManagementException {
-    initializeEncryptionForColumn(tableName, columnName, masterKeyArn, "AES-256-GCM");
+    initializeEncryptionForColumn(tableName, columnName, masterKeyArn, EncryptionAlgorithm.AES_256_GCM);
   }
 
   /**
