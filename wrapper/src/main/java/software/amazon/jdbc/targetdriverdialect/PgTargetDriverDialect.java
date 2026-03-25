@@ -180,4 +180,13 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     // For PG, this gives the raw query string itself. i.e. "select * from T where A = 1".
     return this.findSQLQueryString(ps, null);
   }
+
+  @Override
+  public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className) throws SQLException {
+    org.postgresql.PGConnection pgConn = connection.unwrap(org.postgresql.PGConnection.class);
+    pgConn.addDataType(
+        "encrypted_data",
+        software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData.class);
+  }
+
 }

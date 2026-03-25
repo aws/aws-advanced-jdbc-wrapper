@@ -275,6 +275,10 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     throw new UnsupportedOperationException("Not implemented");
   }
 
+  @Override
+  public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className) throws SQLException {
+  }
+
   // Get the SQL query string from a PreparedStatement which comes after a dialect specific header
   protected String findSQLQueryString(PreparedStatement ps, String queryHeader) {
     String rawStatementStr = ps.toString();

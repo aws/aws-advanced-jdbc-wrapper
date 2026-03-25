@@ -68,4 +68,7 @@ public interface TargetDriverDialect {
       throws SQLException;
 
   String getSQLQueryString(PreparedStatement ps);
+
+  void registerDataType(final @NonNull Connection connection,  final @NonNull String typeName, final @NonNull String className)
+      throws SQLException;
 }

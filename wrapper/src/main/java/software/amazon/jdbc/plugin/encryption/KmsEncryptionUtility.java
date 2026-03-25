@@ -32,6 +32,8 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ResourceLock;
 
 /**
  * Main encryption plugin that integrates with the AWS Advanced JDBC Wrapper to provide transparent
@@ -43,6 +45,7 @@ import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 public class KmsEncryptionUtility {
 
   private static final Logger LOGGER = Logger.getLogger(KmsEncryptionUtility.class.getName());
+  private final ResourceLock resourceLock = new ResourceLock();
 
   // Plugin configuration
   private EncryptionConfig config;
@@ -217,37 +220,21 @@ public class KmsEncryptionUtility {
       return;
     }
 
-    synchronized (registeredConnections) {
+    try (ResourceLock lock = resourceLock.obtain()) {
       if (registeredConnections.containsKey(conn)) {
         return; // Already registered for this connection
       }
-
-      // Only PostgreSQL needs custom type registration
-      if (isPostgreSqlDriver(pluginService.getTargetDriverDialect())) {
-        try {
-          org.postgresql.PGConnection pgConn = conn.unwrap(org.postgresql.PGConnection.class);
-          pgConn.addDataType(
-              "encrypted_data",
-              software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData.class);
-          registeredConnections.put(conn, Boolean.TRUE);
-          LOGGER.fine("Registered encrypted_data type for PostgreSQL connection");
-        } catch (Exception e) {
-          LOGGER.fine(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
-        }
-      } else {
-        // MySQL/MariaDB don't need type registration
-        registeredConnections.put(conn, Boolean.TRUE);
-        LOGGER.fine("Skipped type registration for non-PostgreSQL database");
+      TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
+      try {
+        targetDriverDialect.registerDataType(conn, "encrypted_data", "software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData");
+        LOGGER.fine("Registered encrypted_data type for PostgreSQL connection");
+      } catch (SQLException e) {
+        LOGGER.fine(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
       }
+      registeredConnections.put(conn, Boolean.TRUE);
     }
   }
 
-  private boolean isPostgreSqlDriver(software.amazon.jdbc.targetdriverdialect.TargetDriverDialect targetDriverDialect) {
-    if (targetDriverDialect == null) {
-      return false;
-    }
-    return targetDriverDialect instanceof software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
-  }
 
   /**
    * Wraps a PreparedStatement to add encryption capabilities.
