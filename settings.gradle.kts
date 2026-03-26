@@ -36,7 +36,8 @@ if (JavaVersion.current() >= JavaVersion.VERSION_17) {
     include(
         "springhibernate",
         "springhibernateonedatasource",
-        "springhibernatetwodatasource"
+        "springhibernatetwodatasource",
+        "encryptspring"
     )
 }
 
@@ -57,6 +58,7 @@ if (JavaVersion.current() >= JavaVersion.VERSION_17) {
     project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
     project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
     project(":springhibernatetwodatasource").projectDir = file("examples/SpringHibernateBalancedReaderTwoDataSourceExample")
+    project(":encryptspring").projectDir = file("examples/EncryptSpring")
 }
 
 pluginManagement {
