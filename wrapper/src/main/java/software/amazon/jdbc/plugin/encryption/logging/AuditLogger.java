@@ -27,7 +27,7 @@ import java.util.logging.Logger;
  */
 public class AuditLogger {
 
-  private static final Logger auditLogger = Logger.getLogger(AuditLogger.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(AuditLogger.class.getName());
 
   // Thread-local context for audit information
   private static final ThreadLocal<Map<String, String>> auditContext =
@@ -74,13 +74,13 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "KMS master key created successfully - ARN: %s, Description: %s",
                     sanitizeArn(masterKeyArn), sanitizeDescription(description)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "KMS master key creation failed - Description: %s, Error: %s",
@@ -111,13 +111,13 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Data key generated successfully - Master Key: %s, Key ID: %s",
                     sanitizeArn(masterKeyArn), sanitizeKeyId(keyId)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "()->String.format(Data key generation failed - Master Key: %s, Error: %s",
@@ -148,13 +148,13 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Data key decrypted successfully - Master Key: %s, Key ID: %s",
                     sanitizeArn(masterKeyArn), sanitizeKeyId(keyId)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Data key decryption failed - Master Key: %s, Key ID: %s, Error: %s",
@@ -188,7 +188,7 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Data encrypted successfully - Table: %s, Column: %s, Key ID: %s",
@@ -196,7 +196,7 @@ public class AuditLogger {
                     sanitizeColumnName(columnName),
                     sanitizeKeyId(keyId)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Data encryption failed - Table: %s, Column: %s, Key ID: %s, Error: %s",
@@ -231,7 +231,7 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Data decrypted successfully - Table: %s, Column: %s, Key ID: %s",
@@ -239,7 +239,7 @@ public class AuditLogger {
                     sanitizeColumnName(columnName),
                     sanitizeKeyId(keyId)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Data decryption failed - Table: %s, Column: %s, Key ID: %s, Error: %s",
@@ -274,13 +274,13 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Metadata operation completed - Operation: %s, Table: %s, Column: %s",
                     operation, sanitizeTableName(tableName), sanitizeColumnName(columnName)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Metadata operation failed - Operation: %s, Table: %s, Column: %s, Error: %s",
@@ -314,13 +314,13 @@ public class AuditLogger {
       setContext("success", String.valueOf(success));
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Configuration changed successfully - Type: %s, Details: %s",
                     configType, sanitizeConfigDetails(details)));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Configuration change failed - Type: %s, Details: %s, Error: %s",
@@ -355,13 +355,13 @@ public class AuditLogger {
       setContext("connectionType", connectionType);
 
       if (success) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Connection parameter extraction successful - Strategy: %s, Type: %s",
                     strategy, connectionType));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Connection parameter extraction failed - Strategy: %s, Type: %s, Error: %s",
@@ -396,18 +396,18 @@ public class AuditLogger {
 
       if (success) {
         if (usedFallback) {
-          auditLogger.warning(
+          LOGGER.warning(
               () ->
                   String.format(
                       "Independent connection created using fallback - URL: %s", sanitizedUrl));
         } else {
-          auditLogger.info(
+          LOGGER.info(
               () ->
                   String.format(
                       "Independent connection created successfully - URL: %s", sanitizedUrl));
         }
       } else {
-        auditLogger.fine(
+        LOGGER.fine(
             () ->
                 String.format(
                     "Independent connection creation failed - URL: %s, Error: %s",
@@ -437,18 +437,18 @@ public class AuditLogger {
       setContext("isActive", String.valueOf(isActive));
 
       if (isActive) {
-        auditLogger.fine(
+        LOGGER.fine(
             () ->
                 String.format(
                     "CONNECTION SHARING FALLBACK ACTIVATED - Reason: %s, Original Failure: %s",
                     sanitizeErrorMessage(reason), sanitizeErrorMessage(originalFailure)));
-        auditLogger.fine(
+        LOGGER.fine(
             () -> "WARNING: MetadataManager will share connections with client application!");
-        auditLogger.fine(
+        LOGGER.fine(
             () ->
                 "This may cause connection closure issues when MetadataManager operations complete.");
       } else {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Connection sharing fallback deactivated - Reason: %s",
@@ -488,14 +488,14 @@ public class AuditLogger {
       setContext("successRate", String.format("%.2f", successRate * 100));
 
       if (isHealthy) {
-        auditLogger.info(
+        LOGGER.info(
             () ->
                 String.format(
                     "Connection health check passed - Type: %s, Success Rate: {:.2f}%, "
                         + "Successful: %s, Failed: %s",
                     dataSourceType, successRate * 100, successCount, failureCount));
       } else {
-        auditLogger.warning(
+        LOGGER.warning(
             () ->
                 String.format(
                     "Connection health check failed - Type: %s, Success Rate: {:.2f}%, "

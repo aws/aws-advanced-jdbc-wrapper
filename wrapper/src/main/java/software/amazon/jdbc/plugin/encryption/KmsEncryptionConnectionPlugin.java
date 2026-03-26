@@ -35,6 +35,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 
 /**
@@ -64,13 +65,11 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
     try {
       this.encryptionPlugin.initialize(properties);
-      LOGGER.info(() -> "KmsEncryptionConnectionPlugin initialized successfully");
+      LOGGER.info(() -> Messages.get("KmsEncryptionConnectionPlugin.initialized"));
     } catch (SQLException e) {
       LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to initialize KmsEncryptionConnectionPlugin %s", e.getMessage()));
-      throw new RuntimeException("Failed to initialize encryption plugin", e);
+          () -> Messages.get("KmsEncryptionConnectionPlugin.initFailed", new Object[]{e.getMessage()}));
+      throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.exc_0"), e);
     }
   }
 
@@ -132,7 +131,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         throw exception;
       } else {
         // Otherwise wrap in RuntimeException
-        throw new RuntimeException("Failed to wrap JDBC object with encryption", e);
+        throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.exc_1"), e);
       }
     }
 
@@ -233,7 +232,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    */
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
-    throw new UnsupportedOperationException("Encryption plugin does not provide host selection");
+    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.exc_2"));
   }
 
   /**
@@ -247,7 +246,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    */
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
       throws SQLException {
-    throw new UnsupportedOperationException("Encryption plugin does not provide host selection");
+    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.exc_3"));
   }
 
   /**

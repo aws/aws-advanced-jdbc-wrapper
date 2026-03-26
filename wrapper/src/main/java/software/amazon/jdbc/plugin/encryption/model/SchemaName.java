@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.encryption.model;
 
 import java.util.Objects;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * A validated schema name that is safe for use in SQL identifier positions.
@@ -42,13 +43,13 @@ public final class SchemaName {
    */
   public static SchemaName of(String name) {
     if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Schema name must not be null or empty.");
+      throw new IllegalArgumentException(Messages.get("SchemaName.exc_0"));
     }
     if (!name.matches(VALID_PATTERN)) {
       throw new IllegalArgumentException(
-          "Invalid schema name: '" + name
+          Messages.get("SchemaName.exc_1", new Object[]{name
               + "'. Must start with a letter or underscore and contain only"
-              + " letters, digits, and underscores.");
+              + " letters, digits, and underscores."}));
     }
     return new SchemaName(name);
   }

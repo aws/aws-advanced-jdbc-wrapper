@@ -30,6 +30,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Thread-safe cache for data keys with configurable expiration and size limits. Provides metrics
@@ -66,12 +67,9 @@ public class DataKeyCache {
         this::cleanupExpiredEntries, cleanupIntervalMs, cleanupIntervalMs, TimeUnit.MILLISECONDS);
 
     LOGGER.info(
-        () ->
-            String.format(
-                "DataKeyCache initialized with maxSize=%s, expiration=%s, cleanupInterval=%sms",
-                config.getDataKeyCacheMaxSize(),
-                config.getDataKeyCacheExpiration(),
-                cleanupIntervalMs));
+        () -> Messages.get("DataKeyCache.initialized",
+            new Object[]{config.getDataKeyCacheMaxSize(),
+                config.getDataKeyCacheExpiration(), cleanupIntervalMs}));
   }
 
   /**
@@ -90,18 +88,18 @@ public class DataKeyCache {
       CacheEntry entry = cache.get(keyId);
       if (entry == null) {
         missCount.incrementAndGet();
-        LOGGER.finest(() -> String.format("Cache miss for key: %s", keyId));
+        LOGGER.finest(() -> Messages.get("DataKeyCache.cacheMiss", new Object[]{keyId}));
         return null;
       }
 
       if (entry.isExpired(config.getDataKeyCacheExpiration())) {
         missCount.incrementAndGet();
-        LOGGER.finest(() -> String.format("Cache entry expired for key: %s", keyId));
+        LOGGER.finest(() -> Messages.get("DataKeyCache.cacheExpired", new Object[]{keyId}));
         return null;
       }
 
       hitCount.incrementAndGet();
-      LOGGER.finest(() -> String.format("Cache hit for key: %s", keyId));
+      LOGGER.finest(() -> Messages.get("DataKeyCache.cacheHit", new Object[]{keyId}));
       return entry.getDataKey();
     } finally {
       lock.readLock().unlock();
@@ -129,7 +127,7 @@ public class DataKeyCache {
       CacheEntry entry = new CacheEntry(dataKey.clone());
       cache.put(keyId, entry);
 
-      LOGGER.finest(() -> String.format("Cached data key for: %s", keyId));
+      LOGGER.finest(() -> Messages.get("DataKeyCache.cached", new Object[]{keyId}));
     } finally {
       lock.writeLock().unlock();
     }
@@ -150,7 +148,7 @@ public class DataKeyCache {
       CacheEntry removed = cache.remove(keyId);
       if (removed != null) {
         removed.clear();
-        LOGGER.finest(() -> String.format("Removed key from cache: %s", keyId));
+        LOGGER.finest(() -> Messages.get("DataKeyCache.removed", new Object[]{keyId}));
       }
     } finally {
       lock.writeLock().unlock();
@@ -164,7 +162,7 @@ public class DataKeyCache {
       // Clear sensitive data before removing entries
       cache.values().forEach(CacheEntry::clear);
       cache.clear();
-      LOGGER.info("Cache cleared");
+      LOGGER.info(Messages.get("DataKeyCache.cleared"));
     } finally {
       lock.writeLock().unlock();
     }
@@ -187,7 +185,7 @@ public class DataKeyCache {
 
   /** Shuts down the cache and cleans up resources. */
   public void shutdown() {
-    LOGGER.info("Shutting down DataKeyCache");
+    LOGGER.info(Messages.get("DataKeyCache.shuttingDown"));
 
     cleanupExecutor.shutdown();
     try {
@@ -226,7 +224,7 @@ public class DataKeyCache {
       if (removedCount > 0) {
         int finalRemovedCount = removedCount;
         LOGGER.finest(
-            () -> String.format("Cleaned up %d expired cache entries", finalRemovedCount));
+            () -> Messages.get("DataKeyCache.cleanedUp", new Object[]{finalRemovedCount}));
       }
     } finally {
       lock.writeLock().unlock();
@@ -256,7 +254,7 @@ public class DataKeyCache {
         removed.clear();
         evictionCount.incrementAndGet();
         String finalOldestKey = oldestKey;
-        LOGGER.finest(() -> String.format("Evicted oldest cache entry: %s", finalOldestKey));
+        LOGGER.finest(() -> Messages.get("DataKeyCache.evicted", new Object[]{finalOldestKey}));
       }
     }
   }

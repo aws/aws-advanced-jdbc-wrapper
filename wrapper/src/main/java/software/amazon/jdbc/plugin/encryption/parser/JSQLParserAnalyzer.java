@@ -36,6 +36,7 @@ import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 import net.sf.jsqlparser.util.TablesNamesFinder;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * SQL analyzer using JSQLParser library for multi-dialect support.
@@ -124,7 +125,7 @@ public final class JSQLParserAnalyzer {
       }
 
     } catch (JSQLParserException e) {
-      LOGGER.fine(() -> String.format("Failed to parse SQL: %s", e.getMessage()));
+      LOGGER.fine(() -> Messages.get("JSQLParserAnalyzer.failedToParse", new Object[]{e.getMessage()}));
       // Fallback to simple string parsing
       analysis.queryType = detectQueryType(sql);
     }

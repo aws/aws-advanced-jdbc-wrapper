@@ -17,34 +17,50 @@
 package software.amazon.jdbc.plugin.encryption.key;
 
 import java.security.SecureRandom;
+import java.security.SecureRandom;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.List;
 import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.CreateAliasRequest;
 import software.amazon.awssdk.services.kms.model.CreateAliasRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
+import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
+import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyState;
+import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Utility class providing administrative functions for key management operations. This class offers
@@ -99,7 +115,7 @@ public class KeyManagementUtility {
     if (dataSource != null) {
       return dataSource.getConnection();
     }
-    throw new SQLException("No connection or dataSource available");
+    throw new SQLException(Messages.get("KeyManagementUtility.exc_0"));
   }
 
   private void closeConnection(Connection conn) throws SQLException {
@@ -157,7 +173,7 @@ public class KeyManagementUtility {
       throws KeyManagementException {
     Objects.requireNonNull(description, "Description cannot be null");
 
-    LOGGER.info(() -> String.format("Creating KMS master key with permissions: %s", description));
+    LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_0", new Object[]{description}));
 
     try {
       CreateKeyRequest.Builder requestBuilder =
@@ -169,7 +185,7 @@ public class KeyManagementUtility {
       // Add key policy if provided
       if (keyPolicy != null && !keyPolicy.trim().isEmpty()) {
         requestBuilder.policy(keyPolicy);
-        LOGGER.finest(() -> "Using custom key policy for master key creation");
+        LOGGER.finest(() -> Messages.get("KeyManagementUtility.msg_1"));
       }
 
       CreateKeyResponse response = kmsClient.createKey(requestBuilder.build());
@@ -182,16 +198,13 @@ public class KeyManagementUtility {
 
       kmsClient.createAlias(aliasRequest);
 
-      LOGGER.info(
-          () ->
-              String.format(
-                  "Successfully created KMS master key: %s with alias: %s", keyArn, aliasName));
+      LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_2", new Object[]{keyArn, aliasName}));
       return keyArn;
 
     } catch (Exception e) {
-      LOGGER.severe(
-          () -> String.format("Failed to create KMS master key with permissions", e.getMessage()));
-      throw new KeyManagementException("Failed to create KMS master key: " + e.getMessage(), e);
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.msg_3", new Object[]{e.getMessage()}));
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.exc_1", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -227,11 +240,7 @@ public class KeyManagementUtility {
       algorithm = EncryptionAlgorithm.AES_256_GCM;
     }
 
-    LOGGER.info(
-        () ->
-            String.format(
-                "Generating and storing data key for %s.%s using master key: %s",
-                tableName, columnName, masterKeyArn));
+    LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_4", new Object[]{tableName, columnName, masterKeyArn}));
 
     try {
 
@@ -266,21 +275,16 @@ public class KeyManagementUtility {
       // Refresh metadata cache
       metadataManager.refreshMetadata();
 
-      LOGGER.info(
-          () ->
-              String.format(
-                  "Successfully generated and stored data key for %s.%s with key ID: %s",
-                  tableName, columnName, generatedKeyId));
+      LOGGER.info(() -> Messages.get(
+          "KeyManagementUtility.msg_5", new Object[]{tableName, columnName, generatedKeyId}));
 
 
     } catch (Exception e) {
-      LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to generate and store data key for %s.%s",
-                  tableName, columnName, e.getMessage()));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManagementUtility.msg_6", new Object[]{tableName, columnName, e.getMessage()}));
       throw new KeyManagementException(
-          "Failed to generate and store data key: " + e.getMessage(), e);
+          Messages.get("KeyManagementUtility.exc_2",
+              new Object[]{e.getMessage()}), e);
     }
   }
 
@@ -298,14 +302,14 @@ public class KeyManagementUtility {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
 
-    LOGGER.info(() -> String.format("Rotating data key for %s.%s", tableName, columnName));
+    LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_7", new Object[]{tableName, columnName}));
 
     try {
       // Get current encryption configuration
       ColumnEncryptionConfig currentConfig = metadataManager.getColumnConfig(tableName, columnName);
       if (currentConfig == null) {
         throw new KeyManagementException(
-            "No encryption configuration found for " + tableName + "." + columnName);
+            Messages.get("KeyManagementUtility.exc_3", new Object[]{tableName + "." + columnName}));
       }
 
       // Use existing master key if new one not provided
@@ -343,18 +347,14 @@ public class KeyManagementUtility {
       updateEncryptionMetadataKey(tableName, columnName, newKeyId);
 
 
-      LOGGER.info(
-          () ->
-              String.format(
-                  "Successfully rotated data key for %s.%s from %s to %s",
-                  tableName, columnName, currentConfig.getKeyId(), newKeyId));
+      LOGGER.info(() -> Messages.get(
+          "KeyManagementUtility.msg_8", new Object[]{tableName, columnName, currentConfig.getKeyId(), newKeyId}));
 
     } catch (Exception e) {
-      LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to rotate data key for %s.%s", tableName, columnName, e.getMessage()));
-      throw new KeyManagementException("Failed to rotate data key: " + e.getMessage(), e);
+      LOGGER.severe(() -> Messages.get(
+          "KeyManagementUtility.msg_9", new Object[]{tableName, columnName, e.getMessage()}));
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.exc_4", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -384,17 +384,18 @@ public class KeyManagementUtility {
   public void initializeEncryptionForColumn(
       String tableName, String columnName, String masterKeyArn, String algorithm)
       throws KeyManagementException {
-    LOGGER.info(
-        () -> String.format("Initializing encryption for column %s.%s", tableName, columnName));
+    LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_10", new Object[]{tableName, columnName}));
 
     // Check if column is already encrypted
     try {
       if (metadataManager.isColumnEncrypted(tableName, columnName)) {
-        throw new KeyManagementException(
-            "Column " + tableName + "." + columnName + " is already encrypted");
+        throw new KeyManagementException(Messages.get(
+            "KeyManagementUtility.exc_5",
+            new Object[]{tableName + "." + columnName
+                + " is already encrypted"}));
       }
     } catch (MetadataException e) {
-      throw new KeyManagementException("Failed to check existing encryption status", e);
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.exc_6"), e);
     }
 
     // Generate and store the data key
@@ -414,8 +415,7 @@ public class KeyManagementUtility {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
 
-    LOGGER.info(
-        () -> String.format("Removing encryption configuration for %s.%s", tableName, columnName));
+    LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_11", new Object[]{tableName, columnName}));
 
     Connection conn = null;
     try {
@@ -427,39 +427,28 @@ public class KeyManagementUtility {
 
         int rowsAffected = stmt.executeUpdate();
         if (rowsAffected == 0) {
-          LOGGER.warning(
-              () ->
-                  String.format(
-                      "No encryption configuration found for %s.%s", tableName, columnName));
+          LOGGER.warning(() -> Messages.get("KeyManagementUtility.msg_12", new Object[]{tableName, columnName}));
         } else {
-          LOGGER.info(
-              () ->
-                  String.format(
-                    "Successfully removed encryption configuration for %s.%s",
-                    tableName, columnName));
+          LOGGER.info(() -> Messages.get("KeyManagementUtility.msg_13", new Object[]{tableName, columnName}));
         }
 
         // Refresh metadata cache
         metadataManager.refreshMetadata();
       }
     } catch (MetadataException e) {
-      LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to refresh metadata after removing encryption configuration", e));
-      throw new KeyManagementException("Failed to refresh metadata: " + e.getMessage(), e);
-    } catch (SQLException e) {
-      LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to remove encryption configuration for %s.%s", tableName, columnName, e));
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.msg_14", new Object[]{e}));
       throw new KeyManagementException(
-          "Failed to remove encryption configuration: " + e.getMessage(), e);
+          Messages.get("KeyManagementUtility.exc_7", new Object[]{e.getMessage(), e}));
+    } catch (SQLException e) {
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.msg_15", new Object[]{tableName, columnName, e}));
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.exc_8",
+              new Object[]{e.getMessage()}), e);
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+        LOGGER.warning(() -> Messages.get("KeyManagementUtility.msg_16", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -475,7 +464,7 @@ public class KeyManagementUtility {
   public List<String> getColumnsUsingKey(String keyId) throws KeyManagementException {
     Objects.requireNonNull(keyId, "Key ID cannot be null");
 
-    LOGGER.finest(() -> String.format("Finding columns using key ID: %s", keyId));
+    LOGGER.finest(() -> Messages.get("KeyManagementUtility.msg_17", new Object[]{keyId}));
 
     Connection conn = null;
     try {
@@ -496,14 +485,14 @@ public class KeyManagementUtility {
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(
-          () -> String.format("Failed to find columns using key ID: %s", keyId, e.getMessage()));
-      throw new KeyManagementException("Failed to find columns using key: " + e.getMessage(), e);
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.msg_18", new Object[]{keyId, e.getMessage()}));
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.exc_9", new Object[]{e.getMessage(), e}));
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+        LOGGER.warning(() -> Messages.get("KeyManagementUtility.msg_19", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -518,7 +507,7 @@ public class KeyManagementUtility {
   public boolean validateMasterKey(String masterKeyArn) throws KeyManagementException {
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    LOGGER.finest(() -> String.format("Validating master key: %s", masterKeyArn));
+    LOGGER.finest(() -> Messages.get("KeyManagementUtility.msg_20", new Object[]{masterKeyArn}));
 
     try {
       DescribeKeyRequest request = DescribeKeyRequest.builder().keyId(masterKeyArn).build();
@@ -531,14 +520,13 @@ public class KeyManagementUtility {
               && keyMetadata.keyState() == KeyState.ENABLED
               && keyMetadata.keyUsage() == KeyUsageType.ENCRYPT_DECRYPT;
 
-      LOGGER.finest(
-          () -> String.format("Master key %s validation result: %s", masterKeyArn, isValid));
+      LOGGER.finest(() -> Messages.get("KeyManagementUtility.msg_21", new Object[]{masterKeyArn, isValid}));
       return isValid;
 
     } catch (Exception e) {
-      LOGGER.severe(
-          () -> String.format("Failed to validate master key: %s", masterKeyArn, e.getMessage()));
-      throw new KeyManagementException("Failed to validate master key: " + e.getMessage(), e);
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.msg_22", new Object[]{masterKeyArn, e.getMessage()}));
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.exc_10", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -561,19 +549,16 @@ public class KeyManagementUtility {
 
         int rowsAffected = stmt.executeUpdate();
         if (rowsAffected == 0) {
-          throw new SQLException("Failed to store encryption metadata - no rows affected");
+          throw new SQLException(Messages.get("KeyManagementUtility.exc_11"));
         }
 
-        LOGGER.finest(
-            () ->
-                String.format(
-                    "Successfully stored encryption metadata for %s.%s", tableName, columnName));
+        LOGGER.finest(() -> Messages.get("KeyManagementUtility.msg_23", new Object[]{tableName, columnName}));
       }
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+        LOGGER.warning(() -> Messages.get("KeyManagementUtility.msg_24", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -593,20 +578,16 @@ public class KeyManagementUtility {
 
         int rowsAffected = stmt.executeUpdate();
         if (rowsAffected == 0) {
-          throw new SQLException("Failed to update encryption metadata key - no rows affected");
+          throw new SQLException(Messages.get("KeyManagementUtility.exc_12"));
         }
 
-        LOGGER.finest(
-            () ->
-                String.format(
-                    "Successfully updated encryption metadata key for %s.%s to %s",
-                    tableName, columnName, newKeyId));
+        LOGGER.finest(() -> Messages.get("KeyManagementUtility.msg_25", new Object[]{tableName, columnName, newKeyId}));
       }
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> "Failed to close connection: " + e.getMessage());
+        LOGGER.warning(() -> Messages.get("KeyManagementUtility.msg_26", new Object[]{e.getMessage()}));
       }
     }
   }

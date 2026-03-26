@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Properties;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Configuration class for the encryption plugin containing KMS settings, caching options, retry
@@ -185,39 +186,39 @@ public class EncryptionConfig {
    */
   public void validate() {
     if (kmsRegion == null || kmsRegion.trim().isEmpty()) {
-      throw new IllegalArgumentException("KMS region cannot be null or empty");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_0"));
     }
 
     if (keyRotationDays < 0) {
-      throw new IllegalArgumentException("Key rotation days cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_1"));
     }
 
     if (cacheExpirationMinutes < 0) {
-      throw new IllegalArgumentException("Cache expiration minutes cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_2"));
     }
 
     if (maxRetries < 0) {
-      throw new IllegalArgumentException("Max retries cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_3"));
     }
 
     if (retryBackoffBase.isNegative()) {
-      throw new IllegalArgumentException("Retry backoff base cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_4"));
     }
 
     if (kmsConnectionTimeout.isNegative()) {
-      throw new IllegalArgumentException("KMS connection timeout cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_5"));
     }
 
     if (dataKeyCacheMaxSize <= 0) {
-      throw new IllegalArgumentException("Data key cache max size must be positive");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_6"));
     }
 
     if (dataKeyCacheExpiration.isNegative()) {
-      throw new IllegalArgumentException("Data key cache expiration cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_7"));
     }
 
     if (metadataRefreshInterval.isNegative()) {
-      throw new IllegalArgumentException("Metrics reporting interval cannot be negative");
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_8"));
     }
   }
 

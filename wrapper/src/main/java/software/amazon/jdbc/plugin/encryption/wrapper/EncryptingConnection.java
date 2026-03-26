@@ -36,6 +36,7 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionUtility;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * A Connection wrapper that provides transparent encryption/decryption functionality by wrapping
@@ -58,7 +59,7 @@ public class EncryptingConnection implements Connection {
     this.delegate = delegate;
     this.encryptionPlugin = encryptionPlugin;
 
-    LOGGER.finest(() -> "Created EncryptingConnection wrapper");
+    LOGGER.finest(() -> Messages.get("EncryptingConnection.created"));
   }
 
   @Override

@@ -27,6 +27,7 @@ import javax.sql.DataSource;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.logging.ErrorContext;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * DataSource implementation that creates independent connections using PluginService. This ensures
@@ -67,19 +68,17 @@ public class IndependentDataSource implements DataSource {
    */
   public IndependentDataSource(PluginService pluginService, Properties connectionProperties) {
     if (pluginService == null) {
-      throw new IllegalArgumentException("PluginService cannot be null");
+      throw new IllegalArgumentException(Messages.get("IndependentDataSource.exc_0"));
     }
 
     this.pluginService = pluginService;
     this.connectionProperties =
         connectionProperties != null ? connectionProperties : new Properties();
 
-    LOGGER.info(() -> "Created IndependentDataSource with PluginService");
+    LOGGER.info(() -> Messages.get("IndependentDataSource.created"));
     LOGGER.finest(
-        () ->
-            String.format(
-                "IndependentDataSource configuration: PropertiesCount=%s",
-                this.connectionProperties.size()));
+        () -> Messages.get("IndependentDataSource.config",
+            new Object[]{this.connectionProperties.size()}));
   }
 
   @Override
@@ -87,10 +86,7 @@ public class IndependentDataSource implements DataSource {
     long requestId = connectionRequestCount.incrementAndGet();
 
     LOGGER.finest(
-        () ->
-            String.format(
-                "Connection request #%s - creating new independent connection via PluginService",
-                requestId));
+        () -> Messages.get("IndependentDataSource.connectionRequest", new Object[]{requestId}));
     return createNewConnection();
   }
 
@@ -99,10 +95,7 @@ public class IndependentDataSource implements DataSource {
     long requestId = connectionRequestCount.incrementAndGet();
 
     LOGGER.finest(
-        () ->
-            String.format(
-                "Connection request #%s - creating new independent connection with provided credentials",
-                requestId));
+        () -> Messages.get("IndependentDataSource.connectionRequestWithCreds", new Object[]{requestId}));
 
     // Create modified properties with the provided credentials
     Properties modifiedProps = new Properties(connectionProperties);
@@ -132,7 +125,7 @@ public class IndependentDataSource implements DataSource {
   private Connection createNewConnection(Properties props) throws SQLException {
     long startTime = System.currentTimeMillis();
 
-    LOGGER.finest(() -> "Creating new independent connection via PluginService");
+    LOGGER.finest(() -> Messages.get("IndependentDataSource.creatingConnection"));
 
     try {
       // Get current host spec from PluginService
@@ -146,11 +139,8 @@ public class IndependentDataSource implements DataSource {
       lastSuccessfulConnectionTime = System.currentTimeMillis();
 
       LOGGER.info(
-          () ->
-              String.format(
-                  "Successfully created independent connection via PluginService in %sms "
-                      + "(total successful: %s, total failed: %s)",
-                  duration, successfulConnectionCount.get(), failedConnectionCount.get()));
+          () -> Messages.get("IndependentDataSource.connectionCreated",
+              new Object[]{duration, successfulConnectionCount.get(), failedConnectionCount.get()}));
 
       return connection;
 
@@ -160,14 +150,9 @@ public class IndependentDataSource implements DataSource {
       lastFailedConnectionTime = System.currentTimeMillis();
 
       LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to create independent connection via PluginService after %sms: %s "
-                      + "(total successful: %d, total failed: %d)",
-                  duration,
-                  e.getMessage(),
-                  successfulConnectionCount.get(),
-                  failedConnectionCount.get()));
+          () -> Messages.get("IndependentDataSource.connectionFailed",
+              new Object[]{duration, e.getMessage(),
+                  successfulConnectionCount.get(), failedConnectionCount.get()}));
 
       // Create detailed error context for troubleshooting
       String errorDetails =
@@ -175,10 +160,11 @@ public class IndependentDataSource implements DataSource {
               .operation("CREATE_INDEPENDENT_CONNECTION_VIA_PLUGIN_SERVICE")
               .buildMessage("Connection creation failed: " + e.getMessage());
 
-      LOGGER.severe(() -> String.format("Connection creation error details: %s", errorDetails));
+      LOGGER.severe(() -> Messages.get("IndependentDataSource.connectionErrorDetails", new Object[]{errorDetails}));
 
       throw new SQLException(
-          "Failed to create independent connection via PluginService: " + e.getMessage(), e);
+          Messages.get("IndependentDataSource.exc_1",
+              new Object[]{e.getMessage()}), e);
     }
   }
 
@@ -191,7 +177,7 @@ public class IndependentDataSource implements DataSource {
     try (Connection conn = getConnection()) {
       return conn != null && !conn.isClosed();
     } catch (SQLException e) {
-      LOGGER.finest(() -> String.format("Connection validation failed", e));
+      LOGGER.finest(() -> Messages.get("IndependentDataSource.validationFailed"));
       return false;
     }
   }
@@ -210,7 +196,8 @@ public class IndependentDataSource implements DataSource {
     if (iface.isInstance(this)) {
       return iface.cast(this);
     }
-    throw new SQLException("Cannot unwrap to " + iface.getName());
+    throw new SQLException(
+        Messages.get("IndependentDataSource.exc_2", new Object[]{iface.getName()}));
   }
 
   @Override
@@ -240,7 +227,7 @@ public class IndependentDataSource implements DataSource {
 
   @Override
   public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
-    throw new SQLFeatureNotSupportedException("getParentLogger is not supported");
+    throw new SQLFeatureNotSupportedException(Messages.get("IndependentDataSource.exc_3"));
   }
 
   // Connection monitoring and metrics methods
@@ -352,10 +339,10 @@ public class IndependentDataSource implements DataSource {
     String status = getHealthStatus();
 
     if (isHealthy()) {
-      LOGGER.info(() -> String.format("IndependentDataSource health check: %s", status));
+      LOGGER.info(() -> Messages.get("IndependentDataSource.healthCheck", new Object[]{status}));
     } else {
       LOGGER.warning(
-          () -> String.format("IndependentDataSource health check - UNHEALTHY: %s", status));
+          () -> Messages.get("IndependentDataSource.healthCheckUnhealthy", new Object[]{status}));
     }
   }
 }

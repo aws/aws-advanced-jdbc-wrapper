@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Factory for creating KmsEncryptionConnectionPlugin instances. This factory is used by the AWS
@@ -34,7 +35,7 @@ public class KmsEncryptionConnectionPluginFactory implements ConnectionPluginFac
   @Override
   public ConnectionPlugin getInstance(
       final FullServicesContainer servicesContainer, final Properties properties) {
-    LOGGER.info(() -> "Creating KmsEncryptionConnectionPlugin instance");
+    LOGGER.info(() -> Messages.get("KmsEncryptionConnectionPluginFactory.creating"));
     return new KmsEncryptionConnectionPlugin(servicesContainer.getPluginService(), properties);
   }
 }

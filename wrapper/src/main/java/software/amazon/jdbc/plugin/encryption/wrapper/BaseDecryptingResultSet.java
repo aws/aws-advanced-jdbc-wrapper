@@ -17,32 +17,47 @@
 package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import java.io.InputStream;
+import java.io.InputStream;
 import java.io.Reader;
+import java.math.BigDecimal;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.Array;
+import java.sql.Array;
 import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Clob;
 import java.sql.Date;
 import java.sql.NClob;
+import java.sql.NClob;
 import java.sql.Ref;
+import java.sql.ResultSet;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
+import java.sql.RowId;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Statement;
+import java.sql.Statement;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Base ResultSet wrapper that automatically decrypts values.
@@ -115,9 +130,8 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
             if (config != null) {
               columnConfigCache.put(columnName, config);
               LOGGER.finest(
-                  () ->
-                      String.format(
-                          "Cached encryption config for column %s.%s", tableName, columnName));
+                  () -> Messages.get("BaseDecryptingResultSet.cachedConfig",
+                      new Object[]{tableName, columnName}));
             }
           }
         }
@@ -127,17 +141,18 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
       LOGGER.finest(
           () -> {
             try {
-              return String.format(
-                  "Metadata initialized for table: %s with %s columns",
-                  tableName, rsmd.getColumnCount());
+              return Messages.get("BaseDecryptingResultSet.metadataInitialized",
+                  new Object[]{tableName, rsmd.getColumnCount()});
             } catch (SQLException e) {
-              return String.format("Error getting resultset metadata %s", e.getMessage());
+              return Messages.get("BaseDecryptingResultSet.metadataError",
+                  new Object[]{e.getMessage()});
             }
           });
 
     } catch (Exception e) {
       LOGGER.warning(
-          () -> String.format("Failed to initialize ResultSet metadata %s", e.getMessage()));
+          () -> Messages.get("BaseDecryptingResultSet.metadataInitFailed",
+              new Object[]{e.getMessage()}));
       metadataInitialized = false;
     }
   }
@@ -190,10 +205,8 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
     // Only decrypt byte arrays - encrypted data should always be stored as bytes
     if (!(value instanceof byte[])) {
       LOGGER.finest(
-          () ->
-              String.format(
-                  "Skipping decryption for column %s.%s - value is not byte array (type: %s)",
-                  tableName, columnName, value.getClass().getName()));
+          () -> Messages.get("BaseDecryptingResultSet.skipDecryption",
+              new Object[]{tableName, columnName, value.getClass().getName()}));
       return value;
     }
 
@@ -204,18 +217,15 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
       }
       if (config == null) {
         LOGGER.finest(
-            () ->
-                String.format(
-                    "No encryption config found for column %s.%s", tableName, columnName));
+            () -> Messages.get("BaseDecryptingResultSet.noConfig",
+                new Object[]{tableName, columnName}));
         return value;
       }
 
       byte[] encryptedBytes = (byte[]) value;
       LOGGER.finest(
-          () ->
-              String.format(
-                  "Attempting to decrypt byte array for column %s.%s (length: %s)",
-                  tableName, columnName, encryptedBytes.length));
+          () -> Messages.get("BaseDecryptingResultSet.attemptingDecrypt",
+              new Object[]{tableName, columnName, encryptedBytes.length}));
 
       // Get data key for decryption
       byte[] dataKey =
@@ -225,22 +235,17 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
 
       if (dataKey == null) {
         LOGGER.severe(
-            () ->
-                String.format(
-                    "Failed to decrypt data key for column %s.%s", tableName, columnName));
-        throw new SQLException("Data key decryption failed");
+            () -> Messages.get("BaseDecryptingResultSet.dataKeyFailed",
+                new Object[]{tableName, columnName}));
+        throw new SQLException(Messages.get("BaseDecryptingResultSet.exc_0"));
       }
 
       // Get HMAC key
       byte[] hmacKey = config.getKeyMetadata().getHmacKey();
 
       LOGGER.finest(
-          () ->
-              String.format(
-                  "DecryptingResultSet: column=%s.%s, encryptedLength=%d",
-                  tableName,
-                  columnName,
-                  encryptedBytes.length));
+          () -> Messages.get("BaseDecryptingResultSet.decryptContext",
+              new Object[]{tableName, columnName, encryptedBytes.length}));
 
       // Decrypt the value
       Object decryptedValue =
@@ -251,15 +256,13 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
       java.util.Arrays.fill(dataKey, (byte) 0);
 
       LOGGER.finest(
-          () ->
-              String.format(
-                  "Successfully decrypted value for column %s.%s", tableName, columnName));
+          () -> Messages.get("BaseDecryptingResultSet.decrypted",
+              new Object[]{tableName, columnName}));
       return decryptedValue;
 
     } catch (Exception e) {
-      String errorMsg =
-          String.format(
-              "Failed to decrypt value for column %s.%s %s", tableName, columnName, e.getMessage());
+      String errorMsg = Messages.get("BaseDecryptingResultSet.decryptFailed",
+          new Object[]{tableName, columnName, e.getMessage()});
       LOGGER.severe(() -> errorMsg);
       throw new SQLException(errorMsg, e);
     }
@@ -837,7 +840,8 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
     } else if (type.isAssignableFrom(decryptedValue.getClass())) {
       return type.cast(decryptedValue);
     } else {
-      throw new SQLException("Cannot convert decrypted value to " + type.getSimpleName());
+      throw new SQLException(
+          Messages.get("BaseDecryptingResultSet.exc_1", new Object[]{type.getSimpleName()}));
     }
   }
 
@@ -851,7 +855,8 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
     } else if (type.isAssignableFrom(decryptedValue.getClass())) {
       return type.cast(decryptedValue);
     } else {
-      throw new SQLException("Cannot convert decrypted value to " + type.getSimpleName());
+      throw new SQLException(
+          Messages.get("BaseDecryptingResultSet.exc_2", new Object[]{type.getSimpleName()}));
     }
   }
 

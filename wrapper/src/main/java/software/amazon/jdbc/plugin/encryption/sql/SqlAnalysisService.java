@@ -26,6 +26,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.parser.JSQLParserAnalyzer;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Service that analyzes SQL statements to identify columns that need encryption/decryption. Uses
@@ -73,8 +74,8 @@ public class SqlAnalysisService {
         return analyzeFromTables(tables, queryType);
       }
     } catch (Exception e) {
-      LOGGER.severe(() -> String.format("Error analyzing SQL: %s", e.getMessage()));
-      throw new RuntimeException("SQL analysis failed", e);
+      LOGGER.severe(() -> Messages.get("SqlAnalysisService.errorAnalyzing", new Object[]{e.getMessage()}));
+      throw new RuntimeException(Messages.get("SqlAnalysisService.exc_0"), e);
     }
 
     return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
@@ -106,7 +107,7 @@ public class SqlAnalysisService {
   private static SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
     Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
 
-    LOGGER.finest(() -> String.format("Parser analysis found %s tables", tables.size()));
+    LOGGER.finest(() -> Messages.get("SqlAnalysisService.parserFoundTables", new Object[]{tables.size()}));
 
     return new SqlAnalysisResult(tables, encryptedColumns, queryType);
   }
@@ -188,7 +189,7 @@ public class SqlAnalysisService {
       }
     } catch (Exception e) {
       LOGGER.warning(
-          () -> String.format("Failed to get column parameter mapping for SQL: %s", sql));
+          () -> Messages.get("SqlAnalysisService.failedColumnMapping", new Object[]{sql}));
     }
 
     return mapping;

@@ -28,6 +28,7 @@ import java.sql.Statement;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
+import software.amazon.jdbc.util.Messages;
 
 public class EncryptedDataTypeInstaller {
 
@@ -37,18 +38,18 @@ public class EncryptedDataTypeInstaller {
   public static void installEncryptedDataType(Connection connection, SchemaName metaDataSchema) throws SQLException {
 
     // PostgreSQL-specific installation
-    LOGGER.info("Installing encrypted_data custom type for PostgreSQL");
+    LOGGER.info(Messages.get("EncryptedDataTypeInstaller.installing"));
 
     try (Statement stmt = connection.createStatement()) {
       stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-      LOGGER.fine("pgcrypto extension enabled");
+      LOGGER.fine(Messages.get("EncryptedDataTypeInstaller.pgcryptoEnabled"));
 
       // Use DOMAIN-based implementation
       String sql = loadSqlScript();
       sql = sql.replaceFirst("SCHEMA_NAME", metaDataSchema.getValue());
       stmt.execute(sql);
 
-      LOGGER.info("encrypted_data type installed successfully (DOMAIN approach)");
+      LOGGER.info(Messages.get("EncryptedDataTypeInstaller.installed"));
     }
   }
 
@@ -63,7 +64,8 @@ public class EncryptedDataTypeInstaller {
   private static String loadSqlScript() {
     try (InputStream is = EncryptedDataTypeInstaller.class.getResourceAsStream(SQL_RESOURCE_PATH)) {
       if (is == null) {
-        throw new IllegalStateException("SQL script not found: " + SQL_RESOURCE_PATH);
+        throw new IllegalStateException(
+            Messages.get("EncryptedDataTypeInstaller.exc_0", new Object[]{SQL_RESOURCE_PATH}));
       }
 
       try (BufferedReader reader =
@@ -71,7 +73,8 @@ public class EncryptedDataTypeInstaller {
         return reader.lines().collect(Collectors.joining("\n"));
       }
     } catch (Exception e) {
-      throw new IllegalStateException("Failed to load SQL script: " + SQL_RESOURCE_PATH, e);
+      throw new IllegalStateException(
+          Messages.get("EncryptedDataTypeInstaller.exc_1", new Object[]{SQL_RESOURCE_PATH, e}));
     }
   }
 }

@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import software.amazon.jdbc.util.Messages;
 
 public enum TypeMarker {
   STRING(1, String.class),
@@ -63,7 +64,8 @@ public enum TypeMarker {
         return marker;
       }
     }
-    throw new IllegalArgumentException("Unknown type marker: " + value);
+    throw new IllegalArgumentException(
+        Messages.get("TypeMarker.exc_0", new Object[]{value}));
   }
 
   public static TypeMarker fromObject(Object obj) {

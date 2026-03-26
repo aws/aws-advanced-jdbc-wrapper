@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Supported encryption algorithms for the KMS encryption plugin.
@@ -48,7 +49,8 @@ public final class EncryptionAlgorithm {
   public static int getKeyLength(String algorithmName) {
     Integer length = KEY_LENGTHS.get(algorithmName);
     if (length == null) {
-      throw new IllegalArgumentException("Unknown algorithm: " + algorithmName);
+      throw new IllegalArgumentException(
+          Messages.get("EncryptionAlgorithm.exc_0", new Object[]{algorithmName}));
     }
     return length;
   }

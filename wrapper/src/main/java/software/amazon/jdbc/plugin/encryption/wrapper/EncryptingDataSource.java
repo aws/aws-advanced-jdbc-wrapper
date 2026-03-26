@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionUtility;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * A DataSource wrapper that integrates encryption capabilities with the AWS Advanced JDBC Wrapper.
@@ -55,7 +56,7 @@ public class EncryptingDataSource implements DataSource {
     this.encryptionPlugin = new KmsEncryptionUtility();
     this.encryptionPlugin.initialize(encryptionProperties);
 
-    LOGGER.info("EncryptingDataSource initialized with encryption plugin");
+    LOGGER.info(Messages.get("EncryptingDataSource.initialized"));
   }
 
   @Override
@@ -74,18 +75,16 @@ public class EncryptingDataSource implements DataSource {
           connection.close();
         } catch (SQLException closeEx) {
           LOGGER.warning(
-              () ->
-                  String.format(
-                      "Failed to close connection after wrapping failure %s",
-                      closeEx.getMessage()));
+              () -> Messages.get("EncryptingDataSource.closeConnectionFailed",
+                  new Object[]{closeEx.getMessage()}));
         }
       }
 
       LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to get connection from delegate DataSource %s", e.getMessage()));
-      throw new SQLException("Failed to obtain encrypted connection: " + e.getMessage(), e);
+          () -> Messages.get("EncryptingDataSource.getConnectionFailed",
+              new Object[]{e.getMessage()}));
+      throw new SQLException(
+          Messages.get("EncryptingDataSource.exc_0", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -105,19 +104,16 @@ public class EncryptingDataSource implements DataSource {
           connection.close();
         } catch (SQLException closeEx) {
           LOGGER.warning(
-              () ->
-                  String.format(
-                      "Failed to close connection after wrapping failure %s",
-                      closeEx.getMessage()));
+              () -> Messages.get("EncryptingDataSource.closeConnectionFailed",
+                  new Object[]{closeEx.getMessage()}));
         }
       }
 
       LOGGER.severe(
-          () ->
-              String.format(
-                  "Failed to get connection from delegate DataSource with credentials %s",
-                  e.getMessage()));
-      throw new SQLException("Failed to obtain encrypted connection: " + e.getMessage(), e);
+          () -> Messages.get("EncryptingDataSource.getConnectionWithCredsFailed",
+              new Object[]{e.getMessage()}));
+      throw new SQLException(
+          Messages.get("EncryptingDataSource.exc_1", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -193,14 +189,15 @@ public class EncryptingDataSource implements DataSource {
       testConnection = delegate.getConnection();
       return testConnection != null && !testConnection.isClosed() && testConnection.isValid(5);
     } catch (SQLException e) {
-      LOGGER.finest(() -> String.format("Connection availability test failed %s", e.getMessage()));
+      LOGGER.finest(() -> Messages.get("EncryptingDataSource.availabilityTestFailed", new Object[]{e.getMessage()}));
       return false;
     } finally {
       if (testConnection != null) {
         try {
           testConnection.close();
         } catch (SQLException e) {
-          LOGGER.finest(() -> String.format("Failed to close test connection %s", e.getMessage()));
+          LOGGER.finest(() -> Messages.get(
+              "EncryptingDataSource.closeTestConnectionFailed", new Object[]{e.getMessage()}));
         }
       }
     }
@@ -212,7 +209,7 @@ public class EncryptingDataSource implements DataSource {
       return;
     }
 
-    LOGGER.info(() -> "Closing EncryptingDataSource");
+    LOGGER.info(() -> Messages.get("EncryptingDataSource.closing"));
     closed = true;
 
     if (encryptionPlugin != null) {
@@ -220,7 +217,7 @@ public class EncryptingDataSource implements DataSource {
         encryptionPlugin.cleanup();
       } catch (Exception e) {
         LOGGER.warning(
-            () -> String.format("Error during encryption plugin cleanup %s", e.getMessage()));
+            () -> Messages.get("EncryptingDataSource.cleanupError", new Object[]{e.getMessage()}));
       }
     }
 
@@ -230,14 +227,14 @@ public class EncryptingDataSource implements DataSource {
         // Try to close the delegate if it's closeable (e.g., HikariDataSource, etc.)
         if (delegate instanceof AutoCloseable) {
           ((AutoCloseable) delegate).close();
-          LOGGER.finest(() -> "Closed delegate DataSource");
+          LOGGER.finest(() -> Messages.get("EncryptingDataSource.closedDelegate"));
         }
       } catch (Exception e) {
-        LOGGER.warning(() -> String.format("Error closing delegate DataSource %s", e.getMessage()));
+        LOGGER.warning(() -> Messages.get("EncryptingDataSource.closeDelegateError", new Object[]{e.getMessage()}));
       }
     }
 
-    LOGGER.info("EncryptingDataSource closed");
+    LOGGER.info(Messages.get("EncryptingDataSource.closed"));
   }
 
   /**
@@ -256,7 +253,7 @@ public class EncryptingDataSource implements DataSource {
    */
   private void checkNotClosed() throws SQLException {
     if (closed) {
-      throw new SQLException("EncryptingDataSource has been closed");
+      throw new SQLException(Messages.get("EncryptingDataSource.exc_2"));
     }
   }
 
@@ -268,21 +265,22 @@ public class EncryptingDataSource implements DataSource {
    */
   private void validateConnection(Connection connection) throws SQLException {
     if (connection == null) {
-      throw new SQLException("Delegate DataSource returned null connection");
+      throw new SQLException(Messages.get("EncryptingDataSource.exc_3"));
     }
 
     if (connection.isClosed()) {
-      throw new SQLException("Delegate DataSource returned a closed connection");
+      throw new SQLException(Messages.get("EncryptingDataSource.exc_4"));
     }
 
     // Test the connection with a short timeout
     try {
       if (!connection.isValid(5)) { // 5 second timeout
-        throw new SQLException("Delegate DataSource returned an invalid connection");
+        throw new SQLException(Messages.get("EncryptingDataSource.exc_5"));
       }
     } catch (SQLException e) {
-      LOGGER.warning(() -> String.format("Connection validation failed %s", e.getMessage()));
-      throw new SQLException("Connection validation failed: " + e.getMessage(), e);
+      LOGGER.warning(() -> Messages.get("EncryptingDataSource.validationFailed", new Object[]{e.getMessage()}));
+      throw new SQLException(
+          Messages.get("EncryptingDataSource.exc_6", new Object[]{e.getMessage(), e}));
     }
   }
 }

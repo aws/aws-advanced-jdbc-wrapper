@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 
 import java.util.Objects;
 import java.util.Properties;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Immutable data class that holds connection parameters extracted from a database connection. These
@@ -195,7 +196,7 @@ public class ConnectionParameters {
      */
     public Builder jdbcUrl(String jdbcUrl) {
       if (jdbcUrl == null || jdbcUrl.trim().isEmpty()) {
-        throw new IllegalArgumentException("JDBC URL cannot be null or empty");
+        throw new IllegalArgumentException(Messages.get("ConnectionParameters.exc_0"));
       }
       this.jdbcUrl = jdbcUrl.trim();
       return this;
@@ -275,7 +276,7 @@ public class ConnectionParameters {
      */
     public ConnectionParameters build() {
       if (jdbcUrl == null || jdbcUrl.trim().isEmpty()) {
-        throw new IllegalStateException("JDBC URL is required");
+        throw new IllegalStateException(Messages.get("ConnectionParameters.exc_1"));
       }
       return new ConnectionParameters(this);
     }
