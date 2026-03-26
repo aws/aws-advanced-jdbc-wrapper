@@ -103,24 +103,10 @@ public class ColumnEncryptionConfig {
 
   @Override
   public String toString() {
-    return "ColumnEncryptionConfig{"
-        + "tableName='"
-        + tableName
-        + '\''
-        + ", columnName='"
-        + columnName
-        + '\''
-        + ", algorithm='"
-        + algorithm
-        + '\''
-        + ", keyId='"
-        + keyId
-        + '\''
-        + ", createdAt="
-        + createdAt
-        + ", updatedAt="
-        + updatedAt
-        + '}';
+    return String.format(
+        "ColumnEncryptionConfig{tableName='%s', columnName='%s', algorithm='%s',"
+            + " keyId='%s', createdAt=%s, updatedAt=%s}",
+        tableName, columnName, algorithm, keyId, createdAt, updatedAt);
   }
 
   public static Builder builder() {

@@ -168,26 +168,10 @@ public class ConnectionParameters {
 
   @Override
   public String toString() {
-    return "ConnectionParameters{"
-        + "jdbcUrl='"
-        + jdbcUrl
-        + '\''
-        + ", username='"
-        + username
-        + '\''
-        + ", password='[REDACTED]'"
-        + ", connectionProperties="
-        + connectionProperties
-        + ", driverClassName='"
-        + driverClassName
-        + '\''
-        + ", catalog='"
-        + catalog
-        + '\''
-        + ", schema='"
-        + schema
-        + '\''
-        + '}';
+    return String.format(
+        "ConnectionParameters{jdbcUrl='%s', username='%s', password='[REDACTED]',"
+            + " connectionProperties=%s, driverClassName='%s', catalog='%s', schema='%s'}",
+        jdbcUrl, username, connectionProperties, driverClassName, catalog, schema);
   }
 
   /** Builder class for constructing ConnectionParameters instances. */

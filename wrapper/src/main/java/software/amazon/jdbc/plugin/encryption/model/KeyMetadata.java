@@ -131,23 +131,10 @@ public class KeyMetadata {
 
   @Override
   public String toString() {
-    return "KeyMetadata{"
-        + "keyId='"
-        + keyId
-        + '\''
-        + ", masterKeyArn='"
-        + masterKeyArn
-        + '\''
-        + ", keySpec='"
-        + keySpec
-        + '\''
-        + ", createdAt="
-        + createdAt
-        + ", lastUsedAt="
-        + lastUsedAt
-        + ", encryptedDataKey='[REDACTED]'"
-        + // Don't expose encrypted key in logs
-        '}';
+    return String.format(
+        "KeyMetadata{keyId='%s', masterKeyArn='%s', keySpec='%s',"
+            + " createdAt=%s, lastUsedAt=%s, encryptedDataKey='[REDACTED]'}",
+        keyId, masterKeyArn, keySpec, createdAt, lastUsedAt);
   }
 
   public static Builder builder() {
