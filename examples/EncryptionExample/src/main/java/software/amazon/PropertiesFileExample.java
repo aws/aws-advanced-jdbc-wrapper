@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.example;
+package software.amazon;
 
 import java.io.IOException;
 import java.io.InputStream;

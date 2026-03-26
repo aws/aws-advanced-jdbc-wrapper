@@ -23,6 +23,7 @@ include(
     "hikari",
     "dbcp",
     "driverexample",
+    "encryptionexample",
     "springwildfly",
     "springboothikariexample",
     "springtxfailover",
@@ -44,6 +45,7 @@ project(":hibernate").projectDir = file("examples/HibernateExample")
 project(":hikari").projectDir = file("examples/HikariExample")
 project(":dbcp").projectDir = file("examples/DBCPExample")
 project(":driverexample").projectDir = file("examples/AWSDriverExample")
+project(":encryptionexample").projectDir = file("examples/EncryptionExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
