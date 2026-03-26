@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.staledns;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,25 +44,16 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * Tests for {@link AuroraStaleDnsHelper}, specifically verifying that
- * {@code getVerifiedConnection()} never returns null when a valid connection
- * has been established.
- *
- * <p>Previously, when the topology contained a writer with cluster DNS (not
- * instance-level DNS), the method returned null. This caused connection pools
- * like HikariCP to silently fail to create connections, eventually draining
- * the pool to zero (total=0, active=0, idle=0).
+ * Tests for {@link AuroraStaleDnsHelper}.
  */
 public class AuroraStaleDnsHelperTest {
 
   private static final SimpleHostAvailabilityStrategy AVAILABILITY_STRATEGY =
       new SimpleHostAvailabilityStrategy();
 
-  // Aurora cluster DNS: xxx.cluster-yyy.region.rds.amazonaws.com
   private static final String WRITER_CLUSTER_DNS =
       "mydb.cluster-abc123.eu-central-1.rds.amazonaws.com";
 
-  // Aurora instance DNS: xxx.yyy.region.rds.amazonaws.com
   private static final String WRITER_INSTANCE_DNS =
       "mydb-instance-1.abc123.eu-central-1.rds.amazonaws.com";
 
@@ -71,6 +63,7 @@ public class AuroraStaleDnsHelperTest {
   @Mock private PluginService pluginService;
   @Mock private HostListProviderService hostListProviderService;
   @Mock private Connection mockConnection;
+  @Mock private Connection mockWriterConnection;
   @Mock private TelemetryFactory telemetryFactory;
   @Mock private TelemetryCounter telemetryCounter;
 
@@ -94,56 +87,11 @@ public class AuroraStaleDnsHelperTest {
   }
 
   /**
-   * Verifies that getVerifiedConnection returns the connection (not null) when
-   * the topology contains a writer with cluster DNS. This is the scenario that
-   * previously returned null.
-   *
-   * <p>When the writer in the topology has cluster DNS rather than instance DNS,
-   * stale DNS detection cannot be performed (there is no instance IP to compare
-   * against). The correct behavior is to return the already-established connection.
+   * Happy path: topology has instance-level DNS, connected to writer.
    */
   @Test
-  void test_getVerifiedConnection_returnsConnection_whenWriterHasClusterDns() throws SQLException {
-    // The topology contains a writer identified by cluster DNS, not instance DNS.
-    // This can happen during topology transitions or when the topology provider
-    // hasn't resolved instance-level endpoints yet.
-    final List<HostSpec> hosts = Arrays.asList(
-        hostSpec(WRITER_INSTANCE_DNS, HostRole.WRITER),
-        hostSpec(READER_INSTANCE_DNS, HostRole.READER));
-
-    // First call: guard check (v3.2+) sees instance DNS — passes through.
-    // Second call: after refreshHostList, topology now has cluster DNS for the writer.
-    final List<HostSpec> hostsAfterRefresh = Arrays.asList(
-        hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER),
-        hostSpec(READER_INSTANCE_DNS, HostRole.READER));
-
-    when(pluginService.getAllHosts())
-        .thenReturn(hosts)          // guard check
-        .thenReturn(hostsAfterRefresh);  // post-refresh topology
-    when(pluginService.getHostRole(mockConnection)).thenReturn(HostRole.WRITER);
-
-    final AuroraStaleDnsHelper helper = new AuroraStaleDnsHelper(pluginService);
-    final HostSpec connectHost = hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER);
-
-    final Connection result = helper.getVerifiedConnection(
-        false,
-        hostListProviderService,
-        connectHost,
-        new Properties(),
-        () -> mockConnection);
-
-    assertNotNull(result,
-        "getVerifiedConnection must not return null when a valid connection exists. "
-            + "Returning null causes connection pools to silently drain.");
-    assertSame(mockConnection, result);
-  }
-
-  /**
-   * Verifies that getVerifiedConnection works correctly when the writer has
-   * instance-level DNS — the normal happy path.
-   */
-  @Test
-  void test_getVerifiedConnection_returnsConnection_whenWriterHasInstanceDns() throws SQLException {
+  void test_getVerifiedConnection_returnsConnection_whenWriterHasInstanceDns()
+      throws SQLException {
     final List<HostSpec> hosts = Arrays.asList(
         hostSpec(WRITER_INSTANCE_DNS, HostRole.WRITER),
         hostSpec(READER_INSTANCE_DNS, HostRole.READER));
@@ -153,12 +101,11 @@ public class AuroraStaleDnsHelperTest {
     when(pluginService.getHostRole(mockConnection)).thenReturn(HostRole.WRITER);
 
     final AuroraStaleDnsHelper helper = new AuroraStaleDnsHelper(pluginService);
-    final HostSpec connectHost = hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER);
 
     final Connection result = helper.getVerifiedConnection(
         false,
         hostListProviderService,
-        connectHost,
+        hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER),
         new Properties(),
         () -> mockConnection);
 
@@ -167,67 +114,65 @@ public class AuroraStaleDnsHelperTest {
   }
 
   /**
-   * Verifies that non-writer-cluster endpoints bypass the stale DNS check entirely.
-   * This confirms that reader pools are never affected by this code path.
+   * Stale DNS: cluster writer endpoint resolved to a reader node. The helper
+   * should force-refresh the topology, discover the real writer, reconnect to
+   * it, and close the bad reader connection. This must work without the
+   * initialConnection plugin being enabled.
    */
   @Test
-  void test_getVerifiedConnection_bypassesCheck_forNonWriterClusterEndpoints() throws SQLException {
-    final AuroraStaleDnsHelper helper = new AuroraStaleDnsHelper(pluginService);
+  void test_getVerifiedConnection_reconnectsToWriter_whenStaleDnsResolvesToReader()
+      throws SQLException {
+    final HostSpec writerHost = hostSpec(WRITER_INSTANCE_DNS, HostRole.WRITER);
+    final List<HostSpec> hosts = Arrays.asList(
+        writerHost,
+        hostSpec(READER_INSTANCE_DNS, HostRole.READER));
 
-    // An instance endpoint (not a cluster endpoint)
-    final HostSpec instanceHost = hostSpec(WRITER_INSTANCE_DNS, HostRole.WRITER);
+    when(pluginService.getAllHosts()).thenReturn(hosts);
+    when(pluginService.getHosts()).thenReturn(hosts);
+    // connectFunc returns a connection that landed on a reader (stale DNS).
+    when(pluginService.getHostRole(mockConnection)).thenReturn(HostRole.READER);
+    // The helper reconnects directly to the discovered writer.
+    when(pluginService.connect(any(HostSpec.class), any(Properties.class)))
+        .thenReturn(mockWriterConnection);
+
+    final AuroraStaleDnsHelper helper = new AuroraStaleDnsHelper(pluginService);
 
     final Connection result = helper.getVerifiedConnection(
         false,
         hostListProviderService,
-        instanceHost,
+        hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER),
+        new Properties(),
+        () -> mockConnection);
+
+    // Should return the new writer connection, not the stale reader one.
+    assertNotNull(result);
+    assertSame(mockWriterConnection, result);
+    // The bad reader connection must be closed.
+    verify(mockConnection).close();
+    // Stale DNS triggers a force refresh, not a regular refresh.
+    verify(pluginService).forceRefreshHostList();
+  }
+
+  /**
+   * Non-writer-cluster endpoints bypass the stale DNS check entirely.
+   */
+  @Test
+  void test_getVerifiedConnection_bypassesCheck_forNonWriterClusterEndpoints()
+      throws SQLException {
+    final AuroraStaleDnsHelper helper = new AuroraStaleDnsHelper(pluginService);
+
+    final Connection result = helper.getVerifiedConnection(
+        false,
+        hostListProviderService,
+        hostSpec(WRITER_INSTANCE_DNS, HostRole.WRITER),
         new Properties(),
         () -> mockConnection);
 
     assertNotNull(result);
     assertSame(mockConnection, result);
 
-    // No topology operations should have been performed
     verify(pluginService, never()).getAllHosts();
     verify(pluginService, never()).refreshHostList();
     verify(pluginService, never()).forceRefreshHostList();
-  }
-
-  /**
-   * Verifies that repeated calls with cluster DNS in the topology always return
-   * a valid connection. This simulates connection pool replenishment — each call
-   * must succeed for the pool to stay healthy.
-   */
-  @Test
-  void test_getVerifiedConnection_neverReturnsNull_onRepeatedCalls() throws SQLException {
-    final List<HostSpec> hostsWithInstance = Arrays.asList(
-        hostSpec(WRITER_INSTANCE_DNS, HostRole.WRITER),
-        hostSpec(READER_INSTANCE_DNS, HostRole.READER));
-
-    final List<HostSpec> hostsWithCluster = Arrays.asList(
-        hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER),
-        hostSpec(READER_INSTANCE_DNS, HostRole.READER));
-
-    when(pluginService.getHostRole(mockConnection)).thenReturn(HostRole.WRITER);
-
-    for (int i = 0; i < 5; i++) {
-      when(pluginService.getAllHosts())
-          .thenReturn(hostsWithInstance)
-          .thenReturn(hostsWithCluster);
-
-      final AuroraStaleDnsHelper helper = new AuroraStaleDnsHelper(pluginService);
-      final HostSpec connectHost = hostSpec(WRITER_CLUSTER_DNS, HostRole.WRITER);
-
-      final Connection result = helper.getVerifiedConnection(
-          false,
-          hostListProviderService,
-          connectHost,
-          new Properties(),
-          () -> mockConnection);
-
-      assertNotNull(result,
-          "Attempt " + (i + 1) + ": getVerifiedConnection must not return null. "
-              + "Null causes the connection pool to silently drain.");
-    }
   }
 }

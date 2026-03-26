@@ -119,9 +119,20 @@ public class AuroraStaleDnsHelper {
       final HostSpec writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());
       if (writerCandidate != null && this.rdsUtils.isRdsClusterDns(writerCandidate.getHost())) {
         // Topology has not resolved to instance-level DNS yet — stale DNS detection
-        // cannot be performed. Return the already-established connection as-is.
-        // Previously this returned null, which caused connection pools (e.g. HikariCP)
-        // to silently fail to create connections, eventually draining the pool to zero.
+        // cannot be performed (no instance IP to compare against).
+        if (isConnectedToReader) {
+          // Stale DNS: cluster writer endpoint resolved to a reader node.
+          // Close the bad connection and throw so the connection pool retries.
+          try {
+            conn.close();
+          } catch (final SQLException ex) {
+            // ignore
+          }
+          throw new SQLException(
+              Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
+                  new Object[]{writerCandidate}));
+        }
+        // Connected to a writer — the connection is valid, topology just lagging.
         return conn;
       }
       this.writerHostSpec = writerCandidate;
