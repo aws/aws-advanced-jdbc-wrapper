@@ -16,12 +16,14 @@
 
 package software.amazon.jdbc.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -39,6 +41,7 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   private PluginService pluginService;
   private PluginManagerService pluginManagerService;
   private ImportantEventService importantEventService;
+  private @Nullable ConfigurationProfile configurationProfile;
 
   public FullServicesContainerImpl(
       StorageService storageService,
@@ -178,5 +181,15 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public void setImportantEventService(ImportantEventService importantEventService) {
     this.importantEventService = importantEventService;
+  }
+
+  @Override
+  public @Nullable ConfigurationProfile getConfigurationProfile() {
+    return this.configurationProfile;
+  }
+
+  @Override
+  public void setConfigurationProfile(@Nullable ConfigurationProfile configurationProfile) {
+    this.configurationProfile = configurationProfile;
   }
 }

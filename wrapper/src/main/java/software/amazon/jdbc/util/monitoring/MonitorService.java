@@ -23,6 +23,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.StateSnapshotProvider;
@@ -94,6 +95,7 @@ public interface MonitorService extends StateSnapshotProvider {
    * @param driverDialect             the target driver dialect.
    * @param dbDialect                 the database dialect.
    * @param originalProps             the properties of the original database connection.
+   * @param configurationProfile      the configuration profile to use for the monitor.
    * @param initializer               an initializer function to use to create the monitor if it does not already exist.
    * @param <T>                       the type of the monitor.
    * @return the new or existing monitor.
@@ -111,6 +113,7 @@ public interface MonitorService extends StateSnapshotProvider {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties originalProps,
+      @Nullable ConfigurationProfile configurationProfile,
       MonitorInitializer initializer) throws SQLException;
 
   /**
