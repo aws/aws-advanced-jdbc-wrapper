@@ -116,3 +116,11 @@ Similarly, the `limitless` plugin and `customEndpoint` plugin are incompatible b
 | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                | <span style="color:red;font-size:20px">&cross;</span>             |                                                          |                                                                  |
 | [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md)                | <span style="color:red;font-size:20px">&cross;</span>             | <span style="color:yellow;font-size:15px">&check;</span> |                                                                  |
 | [gdbReadWriteSplitting](./using-plugins/UsingTheGdbReadWriteSplittingPlugin.md) | <span style="color:red;font-size:20px">&cross;</span>             | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:red;font-size:20px">&cross;</span>            |
+
+## Universally Compatible Plugins
+
+The following plugins operate independently of connection management and are compatible with all other plugins and database types:
+
+| Plugin | Description |
+|--------|-------------|
+| [kmsEncryption](./using-plugins/UsingTheKmsEncryptionPlugin.md) | Transparent column-level encryption using AWS KMS. Compatible with all plugins, database types, and endpoint types. |

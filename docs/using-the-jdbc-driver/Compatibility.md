@@ -11,6 +11,3 @@ We encourage users to verify their configurations and ensure that their configur
 - [Database type compatibility](./CompatibilityDatabaseTypes.md)
 - [Database URL type compatibility](./CompatibilityEndpoints.md)
 - [Cross Plugins compatibility](./CompatibilityCrossPlugins.md)
-
-
-

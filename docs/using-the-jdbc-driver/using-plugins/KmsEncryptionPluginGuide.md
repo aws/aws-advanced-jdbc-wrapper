@@ -26,7 +26,7 @@ The KMS Encryption Plugin provides transparent column-level encryption using AWS
 - Transparent encryption/decryption through PreparedStatement and ResultSet
 - Automatic SQL parsing to detect encrypted columns
 - Manual annotation support for explicit column specification
-- HMAC-based integrity verification (see [Two-Key Encryption Architecture](../../TWO_KEY_ENCRYPTION.md))
+- HMAC-based integrity verification (see [Two-Key Encryption Architecture](../../DatabaseEncryptionSetup.md#encrypted-data-format))
 - Support for PostgreSQL and MySQL
 - Key rotation capabilities
 
@@ -236,7 +236,7 @@ byte[] plaintextKey = response.plaintext().asByteArray();
 
 ### Step 3: Generate HMAC Key
 
-The system uses a two-key architecture for enhanced security (see [Two-Key Encryption Architecture](../../TWO_KEY_ENCRYPTION.md) for details):
+The system uses a two-key architecture for enhanced security (see [Two-Key Encryption Architecture](../../DatabaseEncryptionSetup.md#encrypted-data-format) for details):
 - **Data Encryption Key**: Encrypted by KMS, used for data encryption/decryption
 - **HMAC Key**: Stored in plaintext, used for integrity verification
 
@@ -512,7 +512,7 @@ try (PreparedStatement selectStmt = conn.prepareStatement(selectSql);
 
 ### HMAC Verification (PostgreSQL)
 
-The `encrypted_data` type includes HMAC verification to detect tampering. The system uses a two-key architecture where the HMAC key is separate from the encryption key, allowing database-level verification without exposing encrypted data. See [Two-Key Encryption Architecture](../../TWO_KEY_ENCRYPTION.md) for the security rationale.
+The `encrypted_data` type includes HMAC verification to detect tampering. The system uses a two-key architecture where the HMAC key is separate from the encryption key, allowing database-level verification without exposing encrypted data. See [Two-Key Encryption Architecture](../../DatabaseEncryptionSetup.md#encrypted-data-format) for the security rationale.
 
 ```sql
 -- Check HMAC structure
