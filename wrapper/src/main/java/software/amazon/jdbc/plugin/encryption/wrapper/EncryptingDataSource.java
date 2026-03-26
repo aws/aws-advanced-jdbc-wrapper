@@ -67,7 +67,7 @@ public class EncryptingDataSource implements DataSource {
     try {
       connection = delegate.getConnection();
       validateConnection(connection);
-      return new EncryptingConnection(connection, encryptionPlugin);
+      return connection;
     } catch (SQLException e) {
       // Close the connection if we got one but failed to wrap it
       if (connection != null) {
@@ -96,7 +96,7 @@ public class EncryptingDataSource implements DataSource {
     try {
       connection = delegate.getConnection(username, password);
       validateConnection(connection);
-      return new EncryptingConnection(connection, encryptionPlugin);
+      return connection;
     } catch (SQLException e) {
       // Close the connection if we got one but failed to wrap it
       if (connection != null) {

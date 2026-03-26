@@ -17,6 +17,8 @@
 package software.amazon.jdbc.plugin.encryption;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
@@ -35,30 +38,74 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.plugin.encryption.key.KeyManager;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.parser.EncryptionAnnotationParser;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
+import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
+import software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 
 /**
- * ConnectionPlugin implementation that integrates KmsEncryptionPlugin with AWS JDBC Wrapper. This
- * class acts as a bridge between the AWS JDBC Wrapper plugin system and our encryption
- * functionality.
+ * ConnectionPlugin that provides transparent column-level encryption/decryption
+ * by intercepting PreparedStatement.setXxx and ResultSet.getXxx calls directly,
+ * without creating wrapper objects.
  */
 public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   private static final Logger LOGGER =
       Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
 
+  private static final Set<String> SUBSCRIBED_METHODS = new HashSet<>(Arrays.asList(
+      "Connection.prepareStatement",
+      "Connection.prepareCall",
+      "PreparedStatement.setString",
+      "PreparedStatement.setInt",
+      "PreparedStatement.setLong",
+      "PreparedStatement.setDouble",
+      "PreparedStatement.setFloat",
+      "PreparedStatement.setShort",
+      "PreparedStatement.setByte",
+      "PreparedStatement.setBoolean",
+      "PreparedStatement.setBigDecimal",
+      "PreparedStatement.setDate",
+      "PreparedStatement.setTime",
+      "PreparedStatement.setTimestamp",
+      "PreparedStatement.setObject",
+      "PreparedStatement.setBytes",
+      "ResultSet.getString",
+      "ResultSet.getInt",
+      "ResultSet.getLong",
+      "ResultSet.getDouble",
+      "ResultSet.getFloat",
+      "ResultSet.getShort",
+      "ResultSet.getByte",
+      "ResultSet.getBoolean",
+      "ResultSet.getBigDecimal",
+      "ResultSet.getDate",
+      "ResultSet.getTime",
+      "ResultSet.getTimestamp",
+      "ResultSet.getObject",
+      "ResultSet.getBytes"
+  ));
+
   private final KmsEncryptionUtility encryptionPlugin;
   private final PluginService pluginService;
 
+  // Track SQL and parameter mappings per PreparedStatement
+  private final Map<PreparedStatement, StatementContext> statementContexts =
+      new ConcurrentHashMap<>();
+
+  // Track table name per ResultSet for decryption
+  private final Map<ResultSet, ResultSetContext> resultSetContexts =
+      new ConcurrentHashMap<>();
+
   public static final String KMS_ENCRYPTION_PLUGIN_CODE = "kmsEncryption";
 
-  /**
-   * Constructor that creates the encryption plugin with PluginService.
-   *
-   * @param pluginService The PluginService instance from AWS JDBC Wrapper
-   * @param properties Configuration properties
-   */
   public KmsEncryptionConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
     this.encryptionPlugin = new KmsEncryptionUtility(pluginService);
@@ -68,34 +115,17 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       LOGGER.info(() -> Messages.get("KmsEncryptionConnectionPlugin.initialized"));
     } catch (SQLException e) {
       LOGGER.severe(
-          () -> Messages.get("KmsEncryptionConnectionPlugin.initFailed", new Object[]{e.getMessage()}));
-      throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.initPluginFailed"), e);
+          () -> Messages.get("KmsEncryptionConnectionPlugin.initFailed",
+              new Object[]{e.getMessage()}));
+      throw new RuntimeException(
+          Messages.get("KmsEncryptionConnectionPlugin.initPluginFailed"), e);
     }
   }
 
-  /**
-   * Returns the underlying encryption plugin.
-   *
-   * @return KmsEncryptionPlugin instance
-   */
   public KmsEncryptionUtility getEncryptionPlugin() {
     return encryptionPlugin;
   }
 
-  /**
-   * Executes JDBC method calls and applies encryption/decryption wrapping when needed.
-   *
-   * @param <T> Return type
-   * @param <E> Exception type
-   * @param methodClass Method class
-   * @param methodReturnType Return type class
-   * @param methodInvokeOn Object to invoke method on
-   * @param methodName Method name
-   * @param jdbcCallable Callable to execute
-   * @param args Method arguments
-   * @return Method result, potentially wrapped with encryption/decryption
-   * @throws E if method execution fails
-   */
   @Override
   public <T, E extends Exception> T execute(
       Class<T> methodClass,
@@ -105,192 +135,367 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       JdbcCallable<T, E> jdbcCallable,
       Object... args)
       throws E {
-    // Execute the original method first
-    T result = jdbcCallable.call();
 
     try {
-      // Apply encryption/decryption wrapping if needed
-      if (result instanceof java.sql.PreparedStatement
-          && args.length > 0
-          && args[0] instanceof String) {
-        String sql = (String) args[0];
-        @SuppressWarnings("unchecked")
-        T wrappedResult =
-            (T) encryptionPlugin.wrapPreparedStatement((java.sql.PreparedStatement) result, sql);
-        return wrappedResult;
-      } else if (result instanceof java.sql.ResultSet) {
-        @SuppressWarnings("unchecked")
-        T wrappedResult = (T) encryptionPlugin.wrapResultSet((java.sql.ResultSet) result);
-        return wrappedResult;
+      // Handle PreparedStatement creation — track SQL for later encryption
+      if (methodName.startsWith("Connection.prepareStatement")
+          || methodName.startsWith("Connection.prepareCall")) {
+        return handlePrepareStatement(methodClass, jdbcCallable, args);
+      }
+
+      // Handle PreparedStatement.setXxx — encrypt if needed
+      if (methodName.startsWith("PreparedStatement.set") && methodInvokeOn instanceof PreparedStatement) {
+        return handleSetParameter(methodClass, methodReturnType, (PreparedStatement) methodInvokeOn,
+            methodName, jdbcCallable, args);
+      }
+
+      // Handle ResultSet.getXxx — decrypt if needed
+      if (methodName.startsWith("ResultSet.get") && methodInvokeOn instanceof ResultSet) {
+        return handleGetValue(methodClass, (ResultSet) methodInvokeOn, methodName, jdbcCallable, args);
       }
     } catch (SQLException e) {
-      // If E is SQLException or a superclass, we can throw it
       if (methodReturnType.isAssignableFrom(SQLException.class)) {
         @SuppressWarnings("unchecked")
         E exception = (E) e;
         throw exception;
-      } else {
-        // Otherwise wrap in RuntimeException
-        throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.wrapFailed"), e);
       }
+      throw new RuntimeException(e);
+    }
+
+    return jdbcCallable.call();
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T, E extends Exception> T handlePrepareStatement(
+      Class<T> methodClass, JdbcCallable<T, E> jdbcCallable, Object... args) throws E {
+
+    T result = jdbcCallable.call();
+
+    if (result instanceof PreparedStatement && args.length > 0 && args[0] instanceof String) {
+      PreparedStatement ps = (PreparedStatement) result;
+      String sql = (String) args[0];
+
+      try {
+        ensureInitialized(ps.getConnection());
+      } catch (SQLException e) {
+        // Log but don't fail — encryption may still work
+        LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.initWithConnectionFailed",
+            new Object[]{e.getMessage()}));
+      }
+
+      statementContexts.put(ps, new StatementContext(sql, encryptionPlugin.getSqlAnalysisService()));
     }
 
     return result;
   }
 
-  /**
-   * Delegates connection creation to the original function.
-   *
-   * @param driverProtocol Driver protocol
-   * @param hostSpec Host specification
-   * @param props Connection properties
-   * @param isInitialConnection Whether this is initial connection
-   * @param connectFunc Connection function
-   * @return Database connection
-   * @throws SQLException if connection fails
-   */
+  @SuppressWarnings("unchecked")
+  private <T, E extends Exception> T handleSetParameter(
+      Class<T> methodClass,
+      Class<E> methodReturnType,
+      PreparedStatement ps,
+      String methodName,
+      JdbcCallable<T, E> jdbcCallable,
+      Object... args) throws E, SQLException {
+
+    StatementContext ctx = statementContexts.get(ps);
+    if (ctx == null || args.length < 2) {
+      return jdbcCallable.call();
+    }
+
+    int paramIndex = (Integer) args[0];
+    Object value = args[1];
+
+    if (value == null) {
+      return jdbcCallable.call();
+    }
+
+    String columnName = ctx.getColumnNameForParameter(paramIndex);
+    if (columnName == null || ctx.tableName == null) {
+      return jdbcCallable.call();
+    }
+
+    MetadataManager metadataManager = encryptionPlugin.getMetadataManager();
+    if (metadataManager == null || !metadataManager.isColumnEncrypted(ctx.tableName, columnName)) {
+      return jdbcCallable.call();
+    }
+
+    ColumnEncryptionConfig config = metadataManager.getColumnConfig(ctx.tableName, columnName);
+    if (config == null) {
+      return jdbcCallable.call();
+    }
+
+    // Encrypt the value
+    KeyManager keyManager = encryptionPlugin.getKeyManager();
+    EncryptionService encryptionService = encryptionPlugin.getEncryptionService();
+
+    byte[] dataKey = keyManager.decryptDataKey(
+        config.getKeyMetadata().getEncryptedDataKey(),
+        config.getKeyMetadata().getMasterKeyArn());
+
+    byte[] hmacKey = config.getKeyMetadata().getHmacKey();
+    byte[] encrypted = encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
+    java.util.Arrays.fill(dataKey, (byte) 0);
+
+    // Set encrypted bytes using database-appropriate method
+    if (isPostgreSql()) {
+      EncryptedData encData = new EncryptedData(encrypted);
+      ps.setObject(paramIndex, encData);
+    } else {
+      ps.setBytes(paramIndex, encrypted);
+    }
+
+    return (T) null; // void return for setXxx methods
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T, E extends Exception> T handleGetValue(
+      Class<T> methodClass,
+      ResultSet rs,
+      String methodName,
+      JdbcCallable<T, E> jdbcCallable,
+      Object... args) throws E, SQLException {
+
+    // Determine column name from args (index or label)
+    String columnName = resolveColumnName(rs, args);
+    String tableName = resolveTableName(rs);
+
+    if (columnName == null || tableName == null) {
+      return jdbcCallable.call();
+    }
+
+    MetadataManager metadataManager = encryptionPlugin.getMetadataManager();
+    if (metadataManager == null || !metadataManager.isColumnEncrypted(tableName, columnName)) {
+      return jdbcCallable.call();
+    }
+
+    ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
+    if (config == null) {
+      return jdbcCallable.call();
+    }
+
+    // Get raw encrypted bytes
+    byte[] encryptedBytes = getEncryptedBytes(rs, args);
+    if (encryptedBytes == null) {
+      return jdbcCallable.call();
+    }
+
+    // Decrypt
+    KeyManager keyManager = encryptionPlugin.getKeyManager();
+    EncryptionService encryptionService = encryptionPlugin.getEncryptionService();
+
+    byte[] dataKey = keyManager.decryptDataKey(
+        config.getKeyMetadata().getEncryptedDataKey(),
+        config.getKeyMetadata().getMasterKeyArn());
+
+    byte[] hmacKey = config.getKeyMetadata().getHmacKey();
+    Class<?> targetType = getTargetType(methodName);
+    Object decrypted = encryptionService.decrypt(
+        encryptedBytes, dataKey, hmacKey, config.getAlgorithm(), targetType);
+    java.util.Arrays.fill(dataKey, (byte) 0);
+
+    return (T) decrypted;
+  }
+
+  private byte[] getEncryptedBytes(ResultSet rs, Object... args) throws SQLException {
+    if (isPostgreSql()) {
+      Object obj;
+      if (args[0] instanceof Integer) {
+        obj = rs.getObject((Integer) args[0]);
+      } else {
+        obj = rs.getObject((String) args[0]);
+      }
+      if (obj instanceof EncryptedData) {
+        return ((EncryptedData) obj).getBytes();
+      }
+      // Fallback to raw bytes
+      if (args[0] instanceof Integer) {
+        return rs.getBytes((Integer) args[0]);
+      }
+      return rs.getBytes((String) args[0]);
+    } else {
+      if (args[0] instanceof Integer) {
+        return rs.getBytes((Integer) args[0]);
+      }
+      return rs.getBytes((String) args[0]);
+    }
+  }
+
+  private String resolveColumnName(ResultSet rs, Object... args) throws SQLException {
+    if (args.length == 0) {
+      return null;
+    }
+    if (args[0] instanceof String) {
+      return (String) args[0];
+    }
+    if (args[0] instanceof Integer) {
+      return rs.getMetaData().getColumnName((Integer) args[0]);
+    }
+    return null;
+  }
+
+  private String resolveTableName(ResultSet rs) {
+    ResultSetContext ctx = resultSetContexts.get(rs);
+    if (ctx != null) {
+      return ctx.tableName;
+    }
+    // Try to get from ResultSet metadata
+    try {
+      if (rs.getMetaData().getColumnCount() > 0) {
+        String table = rs.getMetaData().getTableName(1);
+        if (table != null && !table.isEmpty()) {
+          resultSetContexts.put(rs, new ResultSetContext(table));
+          return table;
+        }
+      }
+    } catch (SQLException e) {
+      // ignore
+    }
+    return null;
+  }
+
+  private Class<?> getTargetType(String methodName) {
+    if (methodName.endsWith("String")) {
+      return String.class;
+    }
+    if (methodName.endsWith("Int")) {
+      return Integer.class;
+    }
+    if (methodName.endsWith("Long")) {
+      return Long.class;
+    }
+    if (methodName.endsWith("Double")) {
+      return Double.class;
+    }
+    if (methodName.endsWith("Float")) {
+      return Float.class;
+    }
+    if (methodName.endsWith("Short")) {
+      return Short.class;
+    }
+    if (methodName.endsWith("Byte")) {
+      return Byte.class;
+    }
+    if (methodName.endsWith("Boolean")) {
+      return Boolean.class;
+    }
+    if (methodName.endsWith("BigDecimal")) {
+      return java.math.BigDecimal.class;
+    }
+    if (methodName.endsWith("Date")) {
+      return java.sql.Date.class;
+    }
+    if (methodName.endsWith("Time")) {
+      return java.sql.Time.class;
+    }
+    if (methodName.endsWith("Timestamp")) {
+      return java.sql.Timestamp.class;
+    }
+    if (methodName.endsWith("Bytes")) {
+      return byte[].class;
+    }
+    return Object.class;
+  }
+
+  private boolean isPostgreSql() {
+    TargetDriverDialect dialect = pluginService.getTargetDriverDialect();
+    return dialect instanceof PgTargetDriverDialect;
+  }
+
+  private void ensureInitialized(Connection conn) throws SQLException {
+    encryptionPlugin.ensureInitializedWithConnection(conn);
+  }
+
+  @Override
+  public Set<String> getSubscribedMethods() {
+    return SUBSCRIBED_METHODS;
+  }
+
   @Override
   public Connection connect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
+      String driverProtocol, HostSpec hostSpec, Properties props,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    // Delegate to the original connection function
     return connectFunc.call();
   }
 
-  /**
-   * Returns the set of JDBC methods this plugin subscribes to.
-   *
-   * @return Set of method names to intercept
-   */
-  @Override
-  public Set<String> getSubscribedMethods() {
-    // Subscribe to PreparedStatement and ResultSet creation methods
-    return new HashSet<>(
-        Arrays.asList(
-            "Connection.prepareStatement",
-            "Connection.prepareCall",
-            "Statement.executeQuery",
-            "PreparedStatement.executeQuery"));
-  }
-
-  /**
-   * Delegates host provider initialization to the original function.
-   *
-   * @param driverProtocol Driver protocol
-   * @param initialUrl Initial URL
-   * @param props Properties
-   * @param hostListProviderService Host list provider service
-   * @param initFunc Initialization function
-   * @throws SQLException if initialization fails
-   */
   @Override
   public void initHostProvider(
-      String driverProtocol,
-      String initialUrl,
-      Properties props,
+      String driverProtocol, String initialUrl, Properties props,
       HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initFunc)
-      throws SQLException {
-    // Delegate to the original initialization
+      JdbcCallable<Void, SQLException> initFunc) throws SQLException {
     initFunc.call();
   }
 
-  /**
-   * Handles node list change notifications (no action needed for encryption).
-   *
-   * @param changes Map of node changes
-   */
   @Override
   public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
-    // No action needed for encryption plugin
   }
 
-  /**
-   * Accepts all strategies since encryption is transparent.
-   *
-   * @param role Host role
-   * @param strategy Strategy name
-   * @return Always true
-   */
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) {
-    // Accept all strategies - encryption is transparent
     return true;
   }
 
-  /**
-   * Not supported - encryption plugin does not provide host selection.
-   *
-   * @param role Host role
-   * @param strategy Strategy name
-   * @return Never returns
-   * @throws SQLException Always throws UnsupportedOperationException
-   */
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
-    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.noHostSelection"));
+    throw new UnsupportedOperationException(
+        Messages.get("KmsEncryptionConnectionPlugin.noHostSelection"));
   }
 
-  /**
-   * Not supported - encryption plugin does not provide host selection.
-   *
-   * @param hosts List of host specs
-   * @param role Host role
-   * @param strategy Strategy name
-   * @return Never returns
-   * @throws SQLException Always throws UnsupportedOperationException
-   */
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
       throws SQLException {
-    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.noHostSelection2"));
+    throw new UnsupportedOperationException(
+        Messages.get("KmsEncryptionConnectionPlugin.noHostSelection2"));
   }
 
-  /**
-   * Forces connection creation by delegating to the original function.
-   *
-   * @param driverProtocol Driver protocol
-   * @param hostSpec Host specification
-   * @param props Connection properties
-   * @param isInitialConnection Whether this is initial connection
-   * @param connectFunc Connection function
-   * @return Database connection
-   * @throws SQLException if connection fails
-   */
   @Override
   public Connection forceConnect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
+      String driverProtocol, HostSpec hostSpec, Properties props,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    // Delegate to the original connection function
     return connectFunc.call();
   }
 
-  /**
-   * Handles connection change notifications (no special action needed).
-   *
-   * @param changes Set of node change options
-   * @return NO_OPINION - no special action required
-   */
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
-    // No special action needed for connection changes
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
-  /**
-   * Returns the snapshot state for debugging/monitoring purposes.
-   *
-   * @return null - no state to snapshot
-   */
   @Override
   public @Nullable List<Pair<String, Object>> getSnapshotState() {
     return null;
+  }
+
+  /** Tracks SQL analysis and parameter mappings for a PreparedStatement. */
+  private static class StatementContext {
+    final String tableName;
+    final Map<Integer, String> parameterColumnMapping;
+
+    StatementContext(String sql, SqlAnalysisService sqlAnalysisService) {
+      String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
+
+      SqlAnalysisService.SqlAnalysisResult analysis = SqlAnalysisService.analyzeSql(cleanSql);
+      this.tableName = analysis.getAffectedTables().isEmpty()
+          ? null : analysis.getAffectedTables().iterator().next();
+
+      this.parameterColumnMapping = new ConcurrentHashMap<>();
+      if (sqlAnalysisService != null) {
+        this.parameterColumnMapping.putAll(sqlAnalysisService.getColumnParameterMapping(cleanSql));
+      }
+      this.parameterColumnMapping.putAll(EncryptionAnnotationParser.parseAnnotations(sql));
+    }
+
+    String getColumnNameForParameter(int paramIndex) {
+      return parameterColumnMapping.get(paramIndex);
+    }
+  }
+
+  /** Caches table name for a ResultSet. */
+  private static class ResultSetContext {
+    final String tableName;
+
+    ResultSetContext(String tableName) {
+      this.tableName = tableName;
+    }
   }
 }

@@ -16,7 +16,7 @@
 
 package software.amazon.jdbc.plugin.encryption;
 
-import java.sql.PreparedStatement;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -239,83 +239,22 @@ public class KmsEncryptionUtility {
   }
 
 
-  /**
-   * Wraps a PreparedStatement to add encryption capabilities.
-   *
-   * @param statement The original PreparedStatement
-   * @param sql The SQL statement
-   * @return Wrapped PreparedStatement with encryption support
-   * @throws SQLException if wrapping fails
-   */
-  public PreparedStatement wrapPreparedStatement(PreparedStatement statement, String sql)
-      throws SQLException {
-    if (!initialized.get()) {
-      throw new SQLException(Messages.get("KmsEncryptionUtility.pluginNotInitialized"));
-    }
-
-    // Initialize with DataSource if needed (lazy initialization)
-    if (metadataManager == null) {
-      try {
-        initializeWithDataSource();
-      } catch (Exception e) {
-        LOGGER.severe(() -> Messages.get(
-            "KmsEncryptionUtility.initWithConnectionFailed", new Object[]{e.getMessage()}));
-        throw new SQLException(
-            Messages.get("KmsEncryptionUtility.initPluginFailed2", new Object[]{e.getMessage(), e}));
-      }
-    }
-
-    // Register custom types for this connection
-    registerCustomTypesForConnection(statement.getConnection());
-
-    LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.wrappingPreparedStatement", new Object[]{sql}));
-
-    // Analyze SQL to determine if encryption is needed
-    SqlAnalysisService.SqlAnalysisResult analysisResult = SqlAnalysisService.analyzeSql(sql);
-    LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.sqlAnalysisResult", new Object[]{analysisResult}));
-
-    return software.amazon.jdbc.plugin.encryption.wrapper.EncryptingPreparedStatementFactory.create(
-        statement, metadataManager, encryptionService, keyManager, sqlAnalysisService, sql,
-        pluginService.getTargetDriverDialect());
+  public SqlAnalysisService getSqlAnalysisService() {
+    return sqlAnalysisService;
   }
 
   /**
-   * Wraps a ResultSet to add decryption capabilities.
-   *
-   * @param resultSet The original ResultSet
-   * @return Wrapped ResultSet with decryption support
-   * @throws SQLException if wrapping fails
+   * Ensures the plugin is initialized with a database connection.
+   * Called lazily when the first PreparedStatement is created.
    */
-  public ResultSet wrapResultSet(ResultSet resultSet) throws SQLException {
+  public void ensureInitializedWithConnection(Connection conn) throws SQLException {
     if (!initialized.get()) {
-      throw new SQLException(Messages.get("KmsEncryptionUtility.pluginNotInitialized2"));
+      throw new SQLException(Messages.get("KmsEncryptionUtility.pluginNotInitialized"));
     }
-
-    // Initialize with DataSource if needed (lazy initialization)
     if (metadataManager == null) {
-      try {
-        initializeWithDataSource();
-      } catch (Exception e) {
-        LOGGER.severe(() -> Messages.get(
-            "KmsEncryptionUtility.initWithConnectionFailed2", new Object[]{e.getMessage()}));
-        throw new SQLException(
-            Messages.get("KmsEncryptionUtility.initPluginFailed3", new Object[]{e.getMessage(), e}));
-      }
+      initializeWithDataSource();
     }
-
-    // Register custom types for this connection
-    try {
-      registerCustomTypesForConnection(resultSet.getStatement().getConnection());
-    } catch (Exception e) {
-      LOGGER.fine(() -> Messages.get(
-          "KmsEncryptionUtility.registerTypeForResultSetFailed", new Object[]{e.getMessage()}));
-    }
-
-    LOGGER.finest(() -> Messages.get("KmsEncryptionUtility.wrappingResultSet"));
-
-    return software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSetFactory.create(
-        resultSet, metadataManager, encryptionService, keyManager,
-        pluginService.getTargetDriverDialect());
+    registerCustomTypesForConnection(conn);
   }
 
   /**
