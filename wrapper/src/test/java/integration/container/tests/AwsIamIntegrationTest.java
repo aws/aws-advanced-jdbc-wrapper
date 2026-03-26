@@ -64,6 +64,7 @@ import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})

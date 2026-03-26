@@ -49,7 +49,9 @@ import software.amazon.jdbc.plugin.cache.CachedResultSet;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
-@DisableOnTestFeature({TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY})
 @Order(26)
 @Tag("caching")
 
