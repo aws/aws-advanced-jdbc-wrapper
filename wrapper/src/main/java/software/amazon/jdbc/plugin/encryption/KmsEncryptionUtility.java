@@ -244,6 +244,14 @@ public class KmsEncryptionUtility {
   }
 
   /**
+   * Removes the type registration entry for a connection.
+   * Called on connection close so types are re-registered on the next connection.
+   */
+  public void onConnectionClosed(Connection conn) {
+    registeredConnections.remove(conn);
+  }
+
+  /**
    * Ensures the plugin is initialized with a database connection.
    * Called lazily when the first PreparedStatement is created.
    */

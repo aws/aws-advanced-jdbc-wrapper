@@ -63,6 +63,8 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   private static final Set<String> SUBSCRIBED_METHODS = new HashSet<>(Arrays.asList(
       "Connection.prepareStatement",
       "Connection.prepareCall",
+      "Connection.close",
+      "PreparedStatement.close",
       "PreparedStatement.setString",
       "PreparedStatement.setInt",
       "PreparedStatement.setLong",
@@ -93,25 +95,21 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       "ResultSet.getBytes"
   ));
 
-  private final KmsEncryptionUtility encryptionPlugin;
+  private final KmsEncryptionUtility encryptionUtility;
   private final PluginService pluginService;
 
   // Track SQL and parameter mappings per PreparedStatement
   private final Map<PreparedStatement, StatementContext> statementContexts =
       new ConcurrentHashMap<>();
 
-  // Track table name per ResultSet for decryption
-  private final Map<ResultSet, ResultSetContext> resultSetContexts =
-      new ConcurrentHashMap<>();
-
   public static final String KMS_ENCRYPTION_PLUGIN_CODE = "kmsEncryption";
 
   public KmsEncryptionConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
-    this.encryptionPlugin = new KmsEncryptionUtility(pluginService);
+    this.encryptionUtility = new KmsEncryptionUtility(pluginService);
 
     try {
-      this.encryptionPlugin.initialize(properties);
+      this.encryptionUtility.initialize(properties);
       LOGGER.info(() -> Messages.get("KmsEncryptionConnectionPlugin.initialized"));
     } catch (SQLException e) {
       LOGGER.severe(
@@ -122,8 +120,14 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     }
   }
 
-  public KmsEncryptionUtility getEncryptionPlugin() {
-    return encryptionPlugin;
+  // Visible for testing
+  KmsEncryptionConnectionPlugin(PluginService pluginService, KmsEncryptionUtility encryptionUtility) {
+    this.pluginService = pluginService;
+    this.encryptionUtility = encryptionUtility;
+  }
+
+  public KmsEncryptionUtility getEncryptionUtility() {
+    return encryptionUtility;
   }
 
   @Override
@@ -137,6 +141,19 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       throws E {
 
     try {
+      // Handle connection close — clear tracked contexts
+      if ("Connection.close".equals(methodName)) {
+        statementContexts.clear();
+        encryptionUtility.onConnectionClosed((Connection) methodInvokeOn);
+        return jdbcCallable.call();
+      }
+
+      // Handle statement close — remove statement context and clear result sets
+      if ("PreparedStatement.close".equals(methodName)) {
+        statementContexts.remove(methodInvokeOn);
+        return jdbcCallable.call();
+      }
+
       // Handle PreparedStatement creation — track SQL for later encryption
       if (methodName.startsWith("Connection.prepareStatement")
           || methodName.startsWith("Connection.prepareCall")) {
@@ -183,7 +200,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
             new Object[]{e.getMessage()}));
       }
 
-      statementContexts.put(ps, new StatementContext(sql, encryptionPlugin.getSqlAnalysisService()));
+      statementContexts.put(ps, new StatementContext(sql, encryptionUtility.getSqlAnalysisService()));
     }
 
     return result;
@@ -215,7 +232,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       return jdbcCallable.call();
     }
 
-    MetadataManager metadataManager = encryptionPlugin.getMetadataManager();
+    MetadataManager metadataManager = encryptionUtility.getMetadataManager();
     if (metadataManager == null || !metadataManager.isColumnEncrypted(ctx.tableName, columnName)) {
       return jdbcCallable.call();
     }
@@ -226,8 +243,8 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     }
 
     // Encrypt the value
-    KeyManager keyManager = encryptionPlugin.getKeyManager();
-    EncryptionService encryptionService = encryptionPlugin.getEncryptionService();
+    KeyManager keyManager = encryptionUtility.getKeyManager();
+    EncryptionService encryptionService = encryptionUtility.getEncryptionService();
 
     byte[] dataKey = keyManager.decryptDataKey(
         config.getKeyMetadata().getEncryptedDataKey(),
@@ -258,13 +275,13 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
     // Determine column name from args (index or label)
     String columnName = resolveColumnName(rs, args);
-    String tableName = resolveTableName(rs);
+    String tableName = resolveTableName(rs, args);
 
     if (columnName == null || tableName == null) {
       return jdbcCallable.call();
     }
 
-    MetadataManager metadataManager = encryptionPlugin.getMetadataManager();
+    MetadataManager metadataManager = encryptionUtility.getMetadataManager();
     if (metadataManager == null || !metadataManager.isColumnEncrypted(tableName, columnName)) {
       return jdbcCallable.call();
     }
@@ -281,8 +298,8 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     }
 
     // Decrypt
-    KeyManager keyManager = encryptionPlugin.getKeyManager();
-    EncryptionService encryptionService = encryptionPlugin.getEncryptionService();
+    KeyManager keyManager = encryptionUtility.getKeyManager();
+    EncryptionService encryptionService = encryptionUtility.getEncryptionService();
 
     byte[] dataKey = keyManager.decryptDataKey(
         config.getKeyMetadata().getEncryptedDataKey(),
@@ -334,24 +351,20 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     return null;
   }
 
-  private String resolveTableName(ResultSet rs) {
-    ResultSetContext ctx = resultSetContexts.get(rs);
-    if (ctx != null) {
-      return ctx.tableName;
-    }
-    // Try to get from ResultSet metadata
+  private String resolveTableName(ResultSet rs, Object... args) {
     try {
-      if (rs.getMetaData().getColumnCount() > 0) {
-        String table = rs.getMetaData().getTableName(1);
-        if (table != null && !table.isEmpty()) {
-          resultSetContexts.put(rs, new ResultSetContext(table));
-          return table;
-        }
+      int colIndex;
+      if (args.length > 0 && args[0] instanceof Integer) {
+        colIndex = (Integer) args[0];
+      } else if (args.length > 0 && args[0] instanceof String) {
+        colIndex = rs.findColumn((String) args[0]);
+      } else {
+        return null;
       }
+      return rs.getMetaData().getTableName(colIndex);
     } catch (SQLException e) {
-      // ignore
+      return null;
     }
-    return null;
   }
 
   private Class<?> getTargetType(String methodName) {
@@ -403,7 +416,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   }
 
   private void ensureInitialized(Connection conn) throws SQLException {
-    encryptionPlugin.ensureInitializedWithConnection(conn);
+    encryptionUtility.ensureInitializedWithConnection(conn);
   }
 
   @Override
@@ -487,15 +500,6 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
     String getColumnNameForParameter(int paramIndex) {
       return parameterColumnMapping.get(paramIndex);
-    }
-  }
-
-  /** Caches table name for a ResultSet. */
-  private static class ResultSetContext {
-    final String tableName;
-
-    ResultSetContext(String tableName) {
-      this.tableName = tableName;
     }
   }
 }
