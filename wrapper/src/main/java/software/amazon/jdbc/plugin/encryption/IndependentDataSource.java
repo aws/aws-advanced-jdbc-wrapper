@@ -68,7 +68,7 @@ public class IndependentDataSource implements DataSource {
    */
   public IndependentDataSource(PluginService pluginService, Properties connectionProperties) {
     if (pluginService == null) {
-      throw new IllegalArgumentException(Messages.get("IndependentDataSource.exc_0"));
+      throw new IllegalArgumentException(Messages.get("IndependentDataSource.pluginServiceNull"));
     }
 
     this.pluginService = pluginService;
@@ -163,7 +163,7 @@ public class IndependentDataSource implements DataSource {
       LOGGER.severe(() -> Messages.get("IndependentDataSource.connectionErrorDetails", new Object[]{errorDetails}));
 
       throw new SQLException(
-          Messages.get("IndependentDataSource.exc_1",
+          Messages.get("IndependentDataSource.connectionCreationFailed",
               new Object[]{e.getMessage()}), e);
     }
   }
@@ -197,7 +197,7 @@ public class IndependentDataSource implements DataSource {
       return iface.cast(this);
     }
     throw new SQLException(
-        Messages.get("IndependentDataSource.exc_2", new Object[]{iface.getName()}));
+        Messages.get("IndependentDataSource.cannotUnwrap", new Object[]{iface.getName()}));
   }
 
   @Override
@@ -227,7 +227,7 @@ public class IndependentDataSource implements DataSource {
 
   @Override
   public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
-    throw new SQLFeatureNotSupportedException(Messages.get("IndependentDataSource.exc_3"));
+    throw new SQLFeatureNotSupportedException(Messages.get("IndependentDataSource.parentLoggerNotSupported"));
   }
 
   // Connection monitoring and metrics methods

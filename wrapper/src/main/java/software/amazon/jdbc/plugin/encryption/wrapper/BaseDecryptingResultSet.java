@@ -237,7 +237,7 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
         LOGGER.severe(
             () -> Messages.get("BaseDecryptingResultSet.dataKeyFailed",
                 new Object[]{tableName, columnName}));
-        throw new SQLException(Messages.get("BaseDecryptingResultSet.exc_0"));
+        throw new SQLException(Messages.get("BaseDecryptingResultSet.dataKeyDecryptionFailed"));
       }
 
       // Get HMAC key
@@ -841,7 +841,7 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
       return type.cast(decryptedValue);
     } else {
       throw new SQLException(
-          Messages.get("BaseDecryptingResultSet.exc_1", new Object[]{type.getSimpleName()}));
+          Messages.get("BaseDecryptingResultSet.cannotConvert", new Object[]{type.getSimpleName()}));
     }
   }
 
@@ -856,7 +856,7 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
       return type.cast(decryptedValue);
     } else {
       throw new SQLException(
-          Messages.get("BaseDecryptingResultSet.exc_2", new Object[]{type.getSimpleName()}));
+          Messages.get("BaseDecryptingResultSet.cannotConvert2", new Object[]{type.getSimpleName()}));
     }
   }
 

@@ -50,7 +50,7 @@ public final class EncryptionAlgorithm {
     Integer length = KEY_LENGTHS.get(algorithmName);
     if (length == null) {
       throw new IllegalArgumentException(
-          Messages.get("EncryptionAlgorithm.exc_0", new Object[]{algorithmName}));
+          Messages.get("EncryptionAlgorithm.unknownAlgorithm", new Object[]{algorithmName}));
     }
     return length;
   }

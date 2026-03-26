@@ -69,7 +69,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     } catch (SQLException e) {
       LOGGER.severe(
           () -> Messages.get("KmsEncryptionConnectionPlugin.initFailed", new Object[]{e.getMessage()}));
-      throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.exc_0"), e);
+      throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.initPluginFailed"), e);
     }
   }
 
@@ -131,7 +131,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         throw exception;
       } else {
         // Otherwise wrap in RuntimeException
-        throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.exc_1"), e);
+        throw new RuntimeException(Messages.get("KmsEncryptionConnectionPlugin.wrapFailed"), e);
       }
     }
 
@@ -232,7 +232,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    */
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
-    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.exc_2"));
+    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.noHostSelection"));
   }
 
   /**
@@ -246,7 +246,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    */
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
       throws SQLException {
-    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.exc_3"));
+    throw new UnsupportedOperationException(Messages.get("KmsEncryptionConnectionPlugin.noHostSelection2"));
   }
 
   /**

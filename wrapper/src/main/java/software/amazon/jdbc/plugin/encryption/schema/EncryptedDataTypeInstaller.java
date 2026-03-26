@@ -65,7 +65,7 @@ public class EncryptedDataTypeInstaller {
     try (InputStream is = EncryptedDataTypeInstaller.class.getResourceAsStream(SQL_RESOURCE_PATH)) {
       if (is == null) {
         throw new IllegalStateException(
-            Messages.get("EncryptedDataTypeInstaller.exc_0", new Object[]{SQL_RESOURCE_PATH}));
+            Messages.get("EncryptedDataTypeInstaller.sqlScriptNotFound", new Object[]{SQL_RESOURCE_PATH}));
       }
 
       try (BufferedReader reader =
@@ -74,7 +74,7 @@ public class EncryptedDataTypeInstaller {
       }
     } catch (Exception e) {
       throw new IllegalStateException(
-          Messages.get("EncryptedDataTypeInstaller.exc_1", new Object[]{SQL_RESOURCE_PATH, e}));
+          Messages.get("EncryptedDataTypeInstaller.sqlScriptLoadFailed", new Object[]{SQL_RESOURCE_PATH, e}));
     }
   }
 }

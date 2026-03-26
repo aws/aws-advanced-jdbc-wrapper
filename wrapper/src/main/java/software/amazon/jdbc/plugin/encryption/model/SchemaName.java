@@ -43,11 +43,11 @@ public final class SchemaName {
    */
   public static SchemaName of(String name) {
     if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException(Messages.get("SchemaName.exc_0"));
+      throw new IllegalArgumentException(Messages.get("SchemaName.nullOrEmpty"));
     }
     if (!name.matches(VALID_PATTERN)) {
       throw new IllegalArgumentException(
-          Messages.get("SchemaName.exc_1", new Object[]{name
+          Messages.get("SchemaName.invalidName", new Object[]{name
               + "'. Must start with a letter or underscore and contain only"
               + " letters, digits, and underscores."}));
     }

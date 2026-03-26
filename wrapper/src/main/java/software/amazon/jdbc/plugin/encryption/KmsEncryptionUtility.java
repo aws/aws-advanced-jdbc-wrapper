@@ -93,13 +93,13 @@ public class KmsEncryptionUtility {
   public KmsEncryptionUtility(PluginService pluginService) {
     this.pluginService = pluginService;
     LOGGER.fine(() -> Messages.get(
-        "KmsEncryptionUtility.msg_0", new Object[]{pluginService != null ? "available" : "null"}));
+        "KmsEncryptionUtility.createdWithPluginService", new Object[]{pluginService != null ? "available" : "null"}));
   }
 
   /** Default constructor for backward compatibility. */
   public KmsEncryptionUtility() {
     this.pluginService = null;
-    LOGGER.warning(Messages.get("KmsEncryptionUtility.msg2_0"));
+    LOGGER.warning(Messages.get("KmsEncryptionUtility.createdWithoutPluginService"));
   }
 
   /**
@@ -112,7 +112,8 @@ public class KmsEncryptionUtility {
     if (this.pluginService == null) {
       this.pluginService = pluginService;
       LOGGER.info(() -> Messages.get(
-          "KmsEncryptionUtility.msg_1", new Object[]{pluginService != null ? "available" : "null"}));
+          "KmsEncryptionUtility.pluginServiceSetAfterConstruction",
+          new Object[]{pluginService != null ? "available" : "null"}));
     } else {
       LOGGER.warning(Messages.get("KmsEncryptionUtility.pluginServiceAlreadySet"));
     }
@@ -155,9 +156,9 @@ public class KmsEncryptionUtility {
       initialized.set(true);
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.msg_2", new Object[]{e.getMessage()}));
+      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.initFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("KmsEncryptionUtility.exc_0", new Object[]{e.getMessage(), e}));
+          Messages.get("KmsEncryptionUtility.pluginInitFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -196,17 +197,18 @@ public class KmsEncryptionUtility {
         auditLogger.logConnectionParameterExtraction(
             "PluginService", "PLUGIN_SERVICE", false, "PluginService not available");
 
-        throw new SQLException(Messages.get("KmsEncryptionUtility.exc_1"));
+        throw new SQLException(Messages.get("KmsEncryptionUtility.pluginServiceNotAvailableExc"));
       }
 
     } catch (MetadataException e) {
-      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.msg_3", new Object[]{e.getMessage()}));
+      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.initWithDatabaseFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("KmsEncryptionUtility.exc_2", new Object[]{e.getMessage(), e}));
+          Messages.get("KmsEncryptionUtility.initWithDatabaseFailedExc", new Object[]{e.getMessage(), e}));
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.msg_4", new Object[]{e.getMessage()}));
+      LOGGER.severe(() -> Messages.get(
+          "KmsEncryptionUtility.initWithPluginServiceFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("KmsEncryptionUtility.exc_3", new Object[]{e.getMessage(), e}));
+          Messages.get("KmsEncryptionUtility.initPluginFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -248,7 +250,7 @@ public class KmsEncryptionUtility {
   public PreparedStatement wrapPreparedStatement(PreparedStatement statement, String sql)
       throws SQLException {
     if (!initialized.get()) {
-      throw new SQLException(Messages.get("KmsEncryptionUtility.exc_4"));
+      throw new SQLException(Messages.get("KmsEncryptionUtility.pluginNotInitialized"));
     }
 
     // Initialize with DataSource if needed (lazy initialization)
@@ -256,9 +258,10 @@ public class KmsEncryptionUtility {
       try {
         initializeWithDataSource();
       } catch (Exception e) {
-        LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.msg_5", new Object[]{e.getMessage()}));
+        LOGGER.severe(() -> Messages.get(
+            "KmsEncryptionUtility.initWithConnectionFailed", new Object[]{e.getMessage()}));
         throw new SQLException(
-            Messages.get("KmsEncryptionUtility.exc_5", new Object[]{e.getMessage(), e}));
+            Messages.get("KmsEncryptionUtility.initPluginFailed2", new Object[]{e.getMessage(), e}));
       }
     }
 
@@ -285,7 +288,7 @@ public class KmsEncryptionUtility {
    */
   public ResultSet wrapResultSet(ResultSet resultSet) throws SQLException {
     if (!initialized.get()) {
-      throw new SQLException(Messages.get("KmsEncryptionUtility.exc_6"));
+      throw new SQLException(Messages.get("KmsEncryptionUtility.pluginNotInitialized2"));
     }
 
     // Initialize with DataSource if needed (lazy initialization)
@@ -293,9 +296,10 @@ public class KmsEncryptionUtility {
       try {
         initializeWithDataSource();
       } catch (Exception e) {
-        LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.msg_6", new Object[]{e.getMessage()}));
+        LOGGER.severe(() -> Messages.get(
+            "KmsEncryptionUtility.initWithConnectionFailed2", new Object[]{e.getMessage()}));
         throw new SQLException(
-            Messages.get("KmsEncryptionUtility.exc_7", new Object[]{e.getMessage(), e}));
+            Messages.get("KmsEncryptionUtility.initPluginFailed3", new Object[]{e.getMessage(), e}));
       }
     }
 
@@ -336,7 +340,7 @@ public class KmsEncryptionUtility {
       try {
         independentDataSource.logHealthStatus();
       } catch (Exception e) {
-        LOGGER.warning(() -> Messages.get("KmsEncryptionUtility.msg_7", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("KmsEncryptionUtility.healthStatusLogError", new Object[]{e.getMessage()}));
       }
     }
 
@@ -368,15 +372,15 @@ public class KmsEncryptionUtility {
 
       EncryptionConfig config = EncryptionConfig.fromProperties(properties);
 
-      LOGGER.info(() -> Messages.get("KmsEncryptionUtility.msg_8", new Object[]{config.getKmsRegion(),
+      LOGGER.info(() -> Messages.get("KmsEncryptionUtility.configLoaded", new Object[]{config.getKmsRegion(),
           config.isCacheEnabled(), config.getMaxRetries()}));
 
       return config;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.msg_9", new Object[]{e.getMessage()}));
+      LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.configLoadFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("KmsEncryptionUtility.exc_8", new Object[]{e.getMessage(), e}));
+          Messages.get("KmsEncryptionUtility.invalidConfig", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -511,9 +515,9 @@ public class KmsEncryptionUtility {
     if (independentDataSource != null) {
       independentDataSource.logHealthStatus();
     } else {
-      LOGGER.info(Messages.get("KmsEncryptionUtility.msg_10"));
+      LOGGER.info(Messages.get("KmsEncryptionUtility.noIndependentDataSource"));
     }
 
-    LOGGER.info(Messages.get("KmsEncryptionUtility.msg_11"));
+    LOGGER.info(Messages.get("KmsEncryptionUtility.endStatusReport"));
   }
 }

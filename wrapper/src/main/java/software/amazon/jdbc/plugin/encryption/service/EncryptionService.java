@@ -126,7 +126,7 @@ public class EncryptionService {
     } catch (Exception e) {
       LOGGER.severe(
           () -> Messages.get("EncryptionService.encryptionFailed"));
-      throw EncryptionException.encryptionFailed(Messages.get("EncryptionService.exc_0"), e)
+      throw EncryptionException.encryptionFailed(Messages.get("EncryptionService.encryptFailed"), e)
           .withDataType(value.getClass().getSimpleName())
           .withAlgorithm(algorithm)
           .withOperation("ENCRYPT");
@@ -157,7 +157,7 @@ public class EncryptionService {
     LOGGER.finest(() -> Messages.get("EncryptionService.decrypting"));
 
     if (encryptedValue.length < 32 + 1 + 12 + 16) {
-      throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_1"), null)
+      throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidEncryptedLength"), null)
           .withAlgorithm(algorithm)
           .withDataType(targetType.getSimpleName())
           .withContext("dataLength", encryptedValue.length)
@@ -187,7 +187,7 @@ public class EncryptionService {
       LOGGER.finest(() -> Messages.get("EncryptionService.verifyingHmac"));
 
       if (!MessageDigest.isEqual(storedHmacTag, calculatedHmacTag)) {
-        throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_2"), null)
+        throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.hmacTampered"), null)
             .withAlgorithm(algorithm)
             .withDataType(targetType.getSimpleName())
             .withOperation("VERIFY_HMAC");
@@ -228,7 +228,7 @@ public class EncryptionService {
     } catch (Exception e) {
       LOGGER.severe(
           () -> Messages.get("EncryptionService.decryptionFailed"));
-      throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_3"), e)
+      throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.decryptFailed"), e)
           .withDataType(targetType.getSimpleName())
           .withAlgorithm(algorithm)
           .withOperation("DECRYPT");
@@ -264,7 +264,7 @@ public class EncryptionService {
   /** Validates the data key for the specified algorithm. */
   private void validateDataKey(byte[] dataKey, String algorithm) throws EncryptionException {
     if (dataKey == null) {
-      throw EncryptionException.invalidKey(Messages.get("EncryptionService.exc_4")).withAlgorithm(algorithm);
+      throw EncryptionException.invalidKey(Messages.get("EncryptionService.dataKeyNull")).withAlgorithm(algorithm);
     }
 
     int expectedKeyLength = getExpectedKeyLength(algorithm);
@@ -315,7 +315,7 @@ public class EncryptionService {
     } else if (value instanceof byte[]) {
       return (byte[]) value;
     } else {
-      throw EncryptionException.encryptionFailed(Messages.get("EncryptionService.exc_5"), null);
+      throw EncryptionException.encryptionFailed(Messages.get("EncryptionService.unhandledType"), null);
     }
   }
 
@@ -329,7 +329,7 @@ public class EncryptionService {
 
       case INTEGER:
         if (data.length != 4) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_6"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidIntegerLength"), null)
               .withContext("expectedLength", 4)
               .withContext("actualLength", data.length);
         }
@@ -338,7 +338,7 @@ public class EncryptionService {
 
       case LONG:
         if (data.length != 8) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_7"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidLongLength"), null)
               .withContext("expectedLength", 8)
               .withContext("actualLength", data.length);
         }
@@ -347,7 +347,7 @@ public class EncryptionService {
 
       case DOUBLE:
         if (data.length != 8) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_8"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidDoubleLength"), null)
               .withContext("expectedLength", 8)
               .withContext("actualLength", data.length);
         }
@@ -356,7 +356,7 @@ public class EncryptionService {
 
       case FLOAT:
         if (data.length != 4) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_9"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidFloatLength"), null)
               .withContext("expectedLength", 4)
               .withContext("actualLength", data.length);
         }
@@ -365,7 +365,7 @@ public class EncryptionService {
 
       case BOOLEAN:
         if (data.length != 1) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_10"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidBooleanLength"), null)
               .withContext("expectedLength", 1)
               .withContext("actualLength", data.length);
         }
@@ -379,7 +379,7 @@ public class EncryptionService {
 
       case DATE:
         if (data.length != 8) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_11"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidDateLength"), null)
               .withContext("expectedLength", 8)
               .withContext("actualLength", data.length);
         }
@@ -389,7 +389,7 @@ public class EncryptionService {
 
       case TIME:
         if (data.length != 8) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_12"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidTimeLength"), null)
               .withContext("expectedLength", 8)
               .withContext("actualLength", data.length);
         }
@@ -399,7 +399,7 @@ public class EncryptionService {
 
       case TIMESTAMP:
         if (data.length != 8) {
-          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.exc_13"), null)
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidTimestampLength"), null)
               .withContext("expectedLength", 8)
               .withContext("actualLength", data.length);
         }
@@ -427,7 +427,7 @@ public class EncryptionService {
 
       default:
         throw EncryptionException.decryptionFailed(
-            Messages.get("EncryptionService.exc_14", new Object[]{typeMarker}), null)
+            Messages.get("EncryptionService.unknownTypeMarker", new Object[]{typeMarker}), null)
             .withContext("typeMarker", typeMarker);
     }
   }

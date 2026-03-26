@@ -196,7 +196,7 @@ public class ConnectionParameters {
      */
     public Builder jdbcUrl(String jdbcUrl) {
       if (jdbcUrl == null || jdbcUrl.trim().isEmpty()) {
-        throw new IllegalArgumentException(Messages.get("ConnectionParameters.exc_0"));
+        throw new IllegalArgumentException(Messages.get("ConnectionParameters.jdbcUrlNull"));
       }
       this.jdbcUrl = jdbcUrl.trim();
       return this;
@@ -276,7 +276,7 @@ public class ConnectionParameters {
      */
     public ConnectionParameters build() {
       if (jdbcUrl == null || jdbcUrl.trim().isEmpty()) {
-        throw new IllegalStateException(Messages.get("ConnectionParameters.exc_1"));
+        throw new IllegalStateException(Messages.get("ConnectionParameters.jdbcUrlRequired"));
       }
       return new ConnectionParameters(this);
     }

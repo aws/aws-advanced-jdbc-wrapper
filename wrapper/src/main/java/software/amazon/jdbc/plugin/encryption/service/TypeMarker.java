@@ -65,7 +65,7 @@ public enum TypeMarker {
       }
     }
     throw new IllegalArgumentException(
-        Messages.get("TypeMarker.exc_0", new Object[]{value}));
+        Messages.get("TypeMarker.unknownMarker", new Object[]{value}));
   }
 
   public static TypeMarker fromObject(Object obj) {

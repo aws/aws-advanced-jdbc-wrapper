@@ -186,39 +186,39 @@ public class EncryptionConfig {
    */
   public void validate() {
     if (kmsRegion == null || kmsRegion.trim().isEmpty()) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_0"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.kmsRegionEmpty"));
     }
 
     if (keyRotationDays < 0) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_1"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.keyRotationNegative"));
     }
 
     if (cacheExpirationMinutes < 0) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_2"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.cacheExpirationNegative"));
     }
 
     if (maxRetries < 0) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_3"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.maxRetriesNegative"));
     }
 
     if (retryBackoffBase.isNegative()) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_4"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.retryBackoffNegative"));
     }
 
     if (kmsConnectionTimeout.isNegative()) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_5"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.kmsTimeoutNegative"));
     }
 
     if (dataKeyCacheMaxSize <= 0) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_6"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.cacheMaxSizePositive"));
     }
 
     if (dataKeyCacheExpiration.isNegative()) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_7"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.cacheExpirationNeg"));
     }
 
     if (metadataRefreshInterval.isNegative()) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.exc_8"));
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.refreshIntervalNegative"));
     }
   }
 

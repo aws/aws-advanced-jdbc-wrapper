@@ -113,7 +113,7 @@ public class KeyManager {
       return pluginService.forceConnect(
           pluginService.getCurrentHostSpec(), pluginService.getProperties());
     }
-    throw new SQLException(Messages.get("KeyManager.exc_0"));
+    throw new SQLException(Messages.get("KeyManager.noConnectionAvailable"));
   }
 
   private void closeConnection(Connection conn) throws SQLException {
@@ -157,7 +157,7 @@ public class KeyManager {
   public String createMasterKey(String description) throws KeyManagementException {
     Objects.requireNonNull(description, "Description cannot be null");
 
-    LOGGER.info(() -> Messages.get("KeyManager.msg_0", new Object[]{description}));
+    LOGGER.info(() -> Messages.get("KeyManager.creatingMasterKey", new Object[]{description}));
 
     try {
       CreateKeyRequest request =
@@ -170,13 +170,13 @@ public class KeyManager {
       CreateKeyResponse response = executeWithRetry(() -> kmsClient.createKey(request));
       String keyArn = response.keyMetadata().arn();
 
-      LOGGER.info(() -> Messages.get("KeyManager.msg_1", new Object[]{keyArn}));
+      LOGGER.info(() -> Messages.get("KeyManager.masterKeyCreated", new Object[]{keyArn}));
       return keyArn;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.msg_2", new Object[]{e}));
+      LOGGER.severe(() -> Messages.get("KeyManager.masterKeyFailed", new Object[]{e}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.exc_1", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.createMasterKeyFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -190,7 +190,7 @@ public class KeyManager {
   public DataKeyResult generateDataKey(String masterKeyArn) throws KeyManagementException {
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    LOGGER.finest(() -> Messages.get("KeyManager.msg_3", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get("KeyManager.generatingDataKey", new Object[]{masterKeyArn}));
 
     try {
       GenerateDataKeyRequest request =
@@ -201,13 +201,13 @@ public class KeyManager {
       String encryptedKey =
           Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray());
 
-      LOGGER.finest(() -> Messages.get("KeyManager.msg_4", new Object[]{masterKeyArn}));
+      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyGenerated", new Object[]{masterKeyArn}));
       return new DataKeyResult(encryptedKey);
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.msg_5", new Object[]{masterKeyArn, e}));
+      LOGGER.severe(() -> Messages.get("KeyManager.dataKeyGenerationFailed", new Object[]{masterKeyArn, e}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.exc_2", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.generateDataKeyFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -231,12 +231,12 @@ public class KeyManager {
     if (config.isDataKeyCacheEnabled()) {
       byte[] cachedKey = dataKeyCache.get(cacheKey);
       if (cachedKey != null) {
-        LOGGER.finest(() -> Messages.get("KeyManager.msg_6"));
+        LOGGER.finest(() -> Messages.get("KeyManager.cacheHit"));
         return cachedKey;
       }
     }
 
-    LOGGER.finest(() -> Messages.get("KeyManager.msg_7", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get("KeyManager.decryptingDataKey", new Object[]{masterKeyArn}));
 
     try {
       byte[] encryptedKeyBytes = Base64.getDecoder().decode(encryptedDataKey);
@@ -255,13 +255,13 @@ public class KeyManager {
         dataKeyCache.put(cacheKey, plaintextKey);
       }
 
-      LOGGER.finest(() -> Messages.get("KeyManager.msg_8", new Object[]{masterKeyArn}));
+      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{masterKeyArn}));
       return plaintextKey;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.msg_9", new Object[]{masterKeyArn, e}));
+      LOGGER.severe(() -> Messages.get("KeyManager.dataKeyDecryptionFailed", new Object[]{masterKeyArn, e}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.exc_3", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.decryptDataKeyFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -281,10 +281,10 @@ public class KeyManager {
     Objects.requireNonNull(keyMetadata, "Key metadata cannot be null");
 
     if (!keyMetadata.isValid()) {
-      throw new KeyManagementException(Messages.get("KeyManager.exc_4"));
+      throw new KeyManagementException(Messages.get("KeyManager.invalidKeyMetadata"));
     }
 
-    LOGGER.finest(() -> Messages.get("KeyManager.msg_10", new Object[]{tableName, columnName}));
+    LOGGER.finest(() -> Messages.get("KeyManager.storingKeyMetadata", new Object[]{tableName, columnName}));
 
     Connection conn = null;
     try {
@@ -304,31 +304,33 @@ public class KeyManager {
         if (isPostgreSQL()) {
           ResultSet rs = stmt.executeQuery();
           if (!rs.next()) {
-            throw new KeyManagementException(Messages.get("KeyManager.exc_5"));
+            throw new KeyManagementException(Messages.get("KeyManager.noGeneratedKeyId"));
           }
           generatedId = rs.getInt(1);
         } else {
           stmt.executeUpdate();
           ResultSet rs = stmt.getGeneratedKeys();
           if (!rs.next()) {
-            throw new KeyManagementException(Messages.get("KeyManager.exc_6"));
+            throw new KeyManagementException(Messages.get("KeyManager.noGeneratedKeyId2"));
           }
           generatedId = rs.getInt(1);
         }
 
-        LOGGER.finest(() -> Messages.get("KeyManager.msg_11", new Object[]{tableName, columnName, generatedId}));
+        LOGGER.finest(() -> Messages.get(
+            "KeyManager.keyMetadataStored", new Object[]{tableName, columnName, generatedId}));
         return generatedId;
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.msg_12", new Object[]{tableName, columnName, e.getMessage()}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.storeKeyMetadataDbError", new Object[]{tableName, columnName, e.getMessage()}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.exc_7", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.storeKeyMetadataFailed", new Object[]{e.getMessage(), e}));
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> Messages.get("KeyManager.msg_13", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("KeyManager.closeConnectionFailed", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -343,7 +345,7 @@ public class KeyManager {
   public Optional<KeyMetadata> getKeyMetadata(String keyId) throws KeyManagementException {
     Objects.requireNonNull(keyId, "Key ID cannot be null");
 
-    LOGGER.finest(() -> Messages.get("KeyManager.msg_14", new Object[]{keyId}));
+    LOGGER.finest(() -> Messages.get("KeyManager.retrievingKeyMetadata", new Object[]{keyId}));
 
     Connection conn = null;
     try {
@@ -366,24 +368,24 @@ public class KeyManager {
                     .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
                     .build();
 
-            LOGGER.finest(() -> Messages.get("KeyManager.msg_15", new Object[]{keyId}));
+            LOGGER.finest(() -> Messages.get("KeyManager.keyMetadataRetrieved", new Object[]{keyId}));
             return Optional.of(metadata);
           } else {
-            LOGGER.finest(() -> Messages.get("KeyManager.msg_16", new Object[]{keyId}));
+            LOGGER.finest(() -> Messages.get("KeyManager.noKeyMetadata", new Object[]{keyId}));
             return Optional.empty();
           }
         }
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.msg_17", new Object[]{keyId, e}));
+      LOGGER.severe(() -> Messages.get("KeyManager.retrieveKeyMetadataDbError", new Object[]{keyId, e}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.exc_8", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.retrieveKeyMetadataFailed", new Object[]{e.getMessage(), e}));
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> Messages.get("KeyManager.msg_18", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("KeyManager.closeConnectionFailed2", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -409,15 +411,15 @@ public class KeyManager {
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.msg_19", new Object[]{keyId, e.getMessage()}));
+      LOGGER.severe(() -> Messages.get("KeyManager.updateLastUsedDbError", new Object[]{keyId, e.getMessage()}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.exc_9",
+          Messages.get("KeyManager.updateLastUsedFailed",
               new Object[]{e.getMessage()}), e);
     } finally {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> Messages.get("KeyManager.msg_20", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("KeyManager.closeConnectionFailed3", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -443,12 +445,12 @@ public class KeyManager {
   /** Clears the data key cache. */
   public void clearCache() {
     dataKeyCache.clear();
-    LOGGER.info(() -> Messages.get("KeyManager.msg_21"));
+    LOGGER.info(() -> Messages.get("KeyManager.cacheCleared"));
   }
 
   /** Shuts down the key manager and cleans up resources. */
   public void shutdown() {
-    LOGGER.info(() -> Messages.get("KeyManager.msg_22"));
+    LOGGER.info(() -> Messages.get("KeyManager.shuttingDown"));
     dataKeyCache.shutdown();
   }
 
@@ -471,13 +473,13 @@ public class KeyManager {
           long backoffMs = calculateBackoff(attempt);
           int finalAttempt = attempt;
           LOGGER.warning(() -> Messages.get(
-              "KeyManager.msg_23", new Object[]{finalAttempt + 1, maxRetries + 1, backoffMs, e.getMessage()}));
+              "KeyManager.retrying", new Object[]{finalAttempt + 1, maxRetries + 1, backoffMs, e.getMessage()}));
 
           try {
             Thread.sleep(backoffMs);
           } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new KeyManagementException(Messages.get("KeyManager.exc_10"), ie);
+            throw new KeyManagementException(Messages.get("KeyManager.operationInterrupted"), ie);
           }
         } else {
           // Non-retryable exception, fail immediately
@@ -533,7 +535,7 @@ public class KeyManager {
       byte[] hash = digest.digest(encryptedDataKey.getBytes(StandardCharsets.UTF_8));
       return "datakey_" + Base64.getEncoder().encodeToString(hash);
     } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(Messages.get("KeyManager.exc_11"), e);
+      throw new IllegalStateException(Messages.get("KeyManager.sha256NotAvailable"), e);
     }
   }
 

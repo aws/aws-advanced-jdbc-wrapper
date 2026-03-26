@@ -84,7 +84,7 @@ public class EncryptingDataSource implements DataSource {
           () -> Messages.get("EncryptingDataSource.getConnectionFailed",
               new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("EncryptingDataSource.exc_0", new Object[]{e.getMessage(), e}));
+          Messages.get("EncryptingDataSource.obtainConnectionFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -113,7 +113,7 @@ public class EncryptingDataSource implements DataSource {
           () -> Messages.get("EncryptingDataSource.getConnectionWithCredsFailed",
               new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("EncryptingDataSource.exc_1", new Object[]{e.getMessage(), e}));
+          Messages.get("EncryptingDataSource.obtainConnectionFailed2", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -253,7 +253,7 @@ public class EncryptingDataSource implements DataSource {
    */
   private void checkNotClosed() throws SQLException {
     if (closed) {
-      throw new SQLException(Messages.get("EncryptingDataSource.exc_2"));
+      throw new SQLException(Messages.get("EncryptingDataSource.alreadyClosed"));
     }
   }
 
@@ -265,22 +265,22 @@ public class EncryptingDataSource implements DataSource {
    */
   private void validateConnection(Connection connection) throws SQLException {
     if (connection == null) {
-      throw new SQLException(Messages.get("EncryptingDataSource.exc_3"));
+      throw new SQLException(Messages.get("EncryptingDataSource.nullConnection"));
     }
 
     if (connection.isClosed()) {
-      throw new SQLException(Messages.get("EncryptingDataSource.exc_4"));
+      throw new SQLException(Messages.get("EncryptingDataSource.closedConnection"));
     }
 
     // Test the connection with a short timeout
     try {
       if (!connection.isValid(5)) { // 5 second timeout
-        throw new SQLException(Messages.get("EncryptingDataSource.exc_5"));
+        throw new SQLException(Messages.get("EncryptingDataSource.invalidConnection"));
       }
     } catch (SQLException e) {
       LOGGER.warning(() -> Messages.get("EncryptingDataSource.validationFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("EncryptingDataSource.exc_6", new Object[]{e.getMessage(), e}));
+          Messages.get("EncryptingDataSource.validationFailedExc", new Object[]{e.getMessage(), e}));
     }
   }
 }

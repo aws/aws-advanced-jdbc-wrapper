@@ -94,7 +94,7 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
       KeyManager keyManager,
       SqlAnalysisService sqlAnalysisService,
       String sql) {
-    LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_0", new Object[]{sql}));
+    LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.created", new Object[]{sql}));
 
     // Parse annotations from original SQL, then strip them
     final Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
@@ -113,7 +113,8 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
     // Override with explicit annotations (highest priority)
     parameterColumnMapping.putAll(annotations);
 
-    LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_1", new Object[]{parameterColumnMapping}));
+    LOGGER.finest(() -> Messages.get(
+        "BaseEncryptingPreparedStatement.paramMappingInitialized", new Object[]{parameterColumnMapping}));
   }
 
   /**
@@ -129,33 +130,35 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
    * Initializes parameter mapping using SQL analysis service.
    */
   private void parseSqlForEncryptedColumns() {
-    LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_2", new Object[]{sql}));
+    LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.initParamMapping", new Object[]{sql}));
     try {
       // Use SqlAnalysisService to analyze SQL and extract table information
       SqlAnalysisService.SqlAnalysisResult analysisResult = SqlAnalysisService.analyzeSql(sql);
       LOGGER.finest(() -> Messages.get(
-          "BaseEncryptingPreparedStatement.msg_3", new Object[]{analysisResult.getAffectedTables()}));
+          "BaseEncryptingPreparedStatement.analysisTables", new Object[]{analysisResult.getAffectedTables()}));
 
       // Get the first table from analysis results
       if (!analysisResult.getAffectedTables().isEmpty()) {
         this.tableName = analysisResult.getAffectedTables().iterator().next();
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_4", new Object[]{tableName}));
+        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.tableNameSet", new Object[]{tableName}));
 
         // Use SqlAnalysisService to get parameter mapping
         Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(sql);
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_5", new Object[]{mapping}));
+        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.columnParamMapping", new Object[]{mapping}));
         parameterColumnMapping.putAll(mapping);
 
         LOGGER.finest(() -> Messages.get(
-            "BaseEncryptingPreparedStatement.msg_6", new Object[]{parameterColumnMapping}));
+            "BaseEncryptingPreparedStatement.finalParamMapping", new Object[]{parameterColumnMapping}));
       }
 
       mappingInitialized = true;
-      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_7", new Object[]{tableName}));
+      LOGGER.finest(() -> Messages.get(
+          "BaseEncryptingPreparedStatement.paramMappingComplete", new Object[]{tableName}));
 
     } catch (Exception e) {
-      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_8", new Object[]{e.getMessage()}));
-      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_9", new Object[]{e}));
+      LOGGER.finest(() -> Messages.get(
+          "BaseEncryptingPreparedStatement.paramMappingFailed", new Object[]{e.getMessage()}));
+      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.exceptionDetails", new Object[]{e}));
       mappingInitialized = false;
     }
   }
@@ -172,20 +175,22 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
 
   /** Checks if a parameter should be encrypted and encrypts it if necessary. */
   private Object encryptParameterIfNeeded(int parameterIndex, Object value) throws SQLException {
-    LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_10", new Object[]{parameterIndex, value}));
     LOGGER.finest(() -> Messages.get(
-        "BaseEncryptingPreparedStatement.msg_11", new Object[]{mappingInitialized, tableName}));
+        "BaseEncryptingPreparedStatement.encryptParamCalled", new Object[]{parameterIndex, value}));
+    LOGGER.finest(() -> Messages.get(
+        "BaseEncryptingPreparedStatement.mappingState", new Object[]{mappingInitialized, tableName}));
 
     if (!mappingInitialized || tableName == null || value == null) {
-      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_12"));
+      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.skipEncryption"));
       return value;
     }
 
     try {
       String columnName = getColumnNameForParameter(parameterIndex);
       LOGGER.finest(() -> Messages.get(
-          "BaseEncryptingPreparedStatement.msg_13", new Object[]{parameterIndex, columnName}));
-      LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_14", new Object[]{parameterColumnMapping}));
+          "BaseEncryptingPreparedStatement.paramColumnMapping", new Object[]{parameterIndex, columnName}));
+      LOGGER.finest(() -> Messages.get(
+          "BaseEncryptingPreparedStatement.paramMapping", new Object[]{parameterColumnMapping}));
 
       if (columnName == null) {
         return value;
@@ -194,32 +199,37 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
       // Check if column is configured for encryption
       boolean isEncrypted = metadataManager.isColumnEncrypted(tableName, columnName);
       LOGGER.finest(() -> Messages.get(
-          "BaseEncryptingPreparedStatement.msg_15", new Object[]{tableName, columnName, isEncrypted}));
+          "BaseEncryptingPreparedStatement.columnEncrypted", new Object[]{tableName, columnName, isEncrypted}));
 
       // Debug metadata manager state
       try {
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_16", new Object[]{tableName}));
         LOGGER.finest(() -> Messages.get(
-            "BaseEncryptingPreparedStatement.msg_17", new Object[]{metadataManager.getClass().getName()}));
+            "BaseEncryptingPreparedStatement.checkingMetadata",
+            new Object[]{tableName}));
+        LOGGER.finest(() -> Messages.get(
+            "BaseEncryptingPreparedStatement.metadataManagerClass",
+            new Object[]{metadataManager.getClass().getName()}));
 
         // Force refresh metadata to pick up any new configurations
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_18"));
+        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.forcingRefresh"));
         metadataManager.refreshMetadata();
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_19"));
+        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.refreshCompleted"));
 
         // Try to get config directly after refresh
         ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
         LOGGER.finest(() -> Messages.get(
-            "BaseEncryptingPreparedStatement.msg_20", new Object[]{tableName, columnName, config}));
+            "BaseEncryptingPreparedStatement.columnConfigAfterRefresh", new Object[]{tableName, columnName, config}));
 
         // Check encryption status after refresh
         boolean isEncryptedAfterRefresh = metadataManager.isColumnEncrypted(tableName, columnName);
         LOGGER.finest(() -> Messages.get(
-            "BaseEncryptingPreparedStatement.msg_21", new Object[]{tableName, columnName, isEncryptedAfterRefresh}));
+            "BaseEncryptingPreparedStatement.columnEncryptedAfterRefresh",
+            new Object[]{tableName, columnName, isEncryptedAfterRefresh}));
 
       } catch (Exception e) {
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_22", new Object[]{e.getMessage()}));
-        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.msg_23", new Object[]{e}));
+        LOGGER.finest(() -> Messages.get(
+            "BaseEncryptingPreparedStatement.getConfigError", new Object[]{e.getMessage()}));
+        LOGGER.finest(() -> Messages.get("BaseEncryptingPreparedStatement.exceptionDetailsLog", new Object[]{e}));
       }
 
       if (!isEncrypted) {
@@ -230,7 +240,7 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
       ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
       if (config == null) {
         LOGGER.warning(() -> Messages.get(
-            "BaseEncryptingPreparedStatement.msg_24", new Object[]{tableName, columnName}));
+            "BaseEncryptingPreparedStatement.noEncryptionConfig", new Object[]{tableName, columnName}));
         return value;
       }
 
@@ -244,7 +254,7 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
       byte[] hmacKey = config.getKeyMetadata().getHmacKey();
 
       LOGGER.info(() -> Messages.get(
-          "BaseEncryptingPreparedStatement.msg_25",
+          "BaseEncryptingPreparedStatement.encryptingParam",
           new Object[]{parameterIndex, tableName, columnName,
               java.util.Base64.getEncoder().encodeToString(hmacKey)}));
 
@@ -256,7 +266,7 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
       java.util.Arrays.fill(dataKey, (byte) 0);
 
       LOGGER.fine(() -> Messages.get(
-          "BaseEncryptingPreparedStatement.msg_26", new Object[]{parameterIndex, tableName, columnName}));
+          "BaseEncryptingPreparedStatement.encryptedParam", new Object[]{parameterIndex, tableName, columnName}));
       return encryptedValue;
 
     } catch (Exception e) {
@@ -279,7 +289,7 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
       byte[] encBytes = (byte[]) encryptedValue;
 
       LOGGER.finest(() -> Messages.get(
-          "BaseEncryptingPreparedStatement.msg_27",
+          "BaseEncryptingPreparedStatement.settingEncryptedBytes",
           new Object[]{parameterIndex, encBytes.length}));
 
       setEncryptedBytes(parameterIndex, encBytes);

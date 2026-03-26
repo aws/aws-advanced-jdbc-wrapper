@@ -111,7 +111,7 @@ public class MetadataManager {
       return pluginService.forceConnect(
           pluginService.getCurrentHostSpec(), pluginService.getProperties());
     }
-    throw new SQLException(Messages.get("MetadataManager.exc_0"));
+    throw new SQLException(Messages.get("MetadataManager.noConnectionAvailable"));
   }
 
   private void closeConnection(Connection conn) throws SQLException {
@@ -159,7 +159,7 @@ public class MetadataManager {
    * @throws MetadataException if database operations fail
    */
   public Map<String, ColumnEncryptionConfig> loadEncryptionMetadata() throws MetadataException {
-    LOGGER.finest(() -> Messages.get("MetadataManager.msg_0"));
+    LOGGER.finest(() -> Messages.get("MetadataManager.loadingMetadata"));
 
     Map<String, ColumnEncryptionConfig> metadata = new ConcurrentHashMap<>();
 
@@ -174,10 +174,10 @@ public class MetadataManager {
           String columnIdentifier = columnConfig.getColumnIdentifier();
           metadata.put(columnIdentifier, columnConfig);
 
-          LOGGER.finest(() -> Messages.get("MetadataManager.msg_1", new Object[]{columnIdentifier}));
+          LOGGER.finest(() -> Messages.get("MetadataManager.loadedColumnConfig", new Object[]{columnIdentifier}));
         }
 
-        LOGGER.info(() -> Messages.get("MetadataManager.msg_2", new Object[]{metadata.size()}));
+        LOGGER.info(() -> Messages.get("MetadataManager.loadedConfigs", new Object[]{metadata.size()}));
       }
 
     } catch (SQLException e) {
@@ -188,7 +188,7 @@ public class MetadataManager {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> Messages.get("MetadataManager.msg_3", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("MetadataManager.closeConnectionFailed", new Object[]{e.getMessage()}));
       }
     }
 
@@ -202,7 +202,7 @@ public class MetadataManager {
    * @throws MetadataException if refresh operation fails
    */
   public void refreshMetadata() throws MetadataException {
-    LOGGER.info(Messages.get("MetadataManager.msg_4"));
+    LOGGER.info(Messages.get("MetadataManager.refreshingCache"));
 
     cacheLock.writeLock().lock();
     try {
@@ -213,7 +213,7 @@ public class MetadataManager {
       metadataCache.putAll(newMetadata);
       lastRefreshTime = Instant.now();
 
-      LOGGER.info(() -> Messages.get("MetadataManager.msg_5", new Object[]{metadataCache.size()}));
+      LOGGER.info(() -> Messages.get("MetadataManager.cacheRefreshed", new Object[]{metadataCache.size()}));
 
     } finally {
       cacheLock.writeLock().unlock();
@@ -241,7 +241,7 @@ public class MetadataManager {
       cacheLock.readLock().lock();
       try {
         boolean result = metadataCache.containsKey(columnIdentifier);
-        LOGGER.finest(() -> Messages.get("MetadataManager.msg_6", new Object[]{columnIdentifier, result}));
+        LOGGER.finest(() -> Messages.get("MetadataManager.cacheLookup", new Object[]{columnIdentifier, result}));
         return result;
       } finally {
         cacheLock.readLock().unlock();
@@ -275,7 +275,8 @@ public class MetadataManager {
       try {
         ColumnEncryptionConfig result = metadataCache.get(columnIdentifier);
         LOGGER.finest(() -> Messages.get(
-            "MetadataManager.msg_7", new Object[]{columnIdentifier, result != null ? "found" : "not found"}));
+            "MetadataManager.cacheConfigLookup",
+            new Object[]{columnIdentifier, result != null ? "found" : "not found"}));
         return result;
       } finally {
         cacheLock.readLock().unlock();
@@ -293,7 +294,7 @@ public class MetadataManager {
    * @throws MetadataException if initialization fails
    */
   public void initialize() throws MetadataException {
-    LOGGER.info(Messages.get("MetadataManager.msg_8"));
+    LOGGER.info(Messages.get("MetadataManager.initializing"));
 
     if (config.isCacheEnabled()) {
       refreshMetadata();
@@ -302,7 +303,7 @@ public class MetadataManager {
     // Start automatic refresh if configured
     startAutomaticRefresh();
 
-    LOGGER.info(Messages.get("MetadataManager.msg_9"));
+    LOGGER.info(Messages.get("MetadataManager.initialized"));
   }
 
   /**
@@ -320,12 +321,12 @@ public class MetadataManager {
       startAutomaticRefresh();
     }
 
-    LOGGER.info(Messages.get("MetadataManager.msg_10"));
+    LOGGER.info(Messages.get("MetadataManager.configUpdated"));
   }
 
   /** Shuts down the metadata manager and cleans up resources. */
   public void shutdown() {
-    LOGGER.info(Messages.get("MetadataManager.msg_11"));
+    LOGGER.info(Messages.get("MetadataManager.shuttingDown"));
 
     stopAutomaticRefresh();
 
@@ -337,7 +338,7 @@ public class MetadataManager {
       cacheLock.writeLock().unlock();
     }
 
-    LOGGER.info(Messages.get("MetadataManager.msg_12"));
+    LOGGER.info(Messages.get("MetadataManager.shutdownCompleted"));
   }
 
   /**
@@ -380,7 +381,7 @@ public class MetadataManager {
   /** Queries database directly to check if column is encrypted. */
   private boolean isColumnEncryptedFromDatabase(String tableName, String columnName)
       throws MetadataException {
-    LOGGER.finest(() -> Messages.get("MetadataManager.msg_13", new Object[]{tableName, columnName}));
+    LOGGER.finest(() -> Messages.get("MetadataManager.checkingColumnFromDb", new Object[]{tableName, columnName}));
 
     Connection conn = null;
     try {
@@ -392,7 +393,8 @@ public class MetadataManager {
 
         try (ResultSet rs = stmt.executeQuery()) {
           boolean result = rs.next();
-          LOGGER.finest(() -> Messages.get("MetadataManager.msg_14", new Object[]{tableName, columnName, result}));
+          LOGGER.finest(() -> Messages.get(
+              "MetadataManager.dbLookupResult", new Object[]{tableName, columnName, result}));
           return result;
         }
       }
@@ -407,7 +409,7 @@ public class MetadataManager {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> Messages.get("MetadataManager.msg_15", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("MetadataManager.closeConnectionFailed2", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -415,7 +417,7 @@ public class MetadataManager {
   /** Queries database directly to get column configuration. */
   private ColumnEncryptionConfig getColumnConfigFromDatabase(String tableName, String columnName)
       throws MetadataException {
-    LOGGER.finest(() -> Messages.get("MetadataManager.msg_16", new Object[]{tableName, columnName}));
+    LOGGER.finest(() -> Messages.get("MetadataManager.loadingColumnConfig", new Object[]{tableName, columnName}));
 
     Connection conn = null;
     try {
@@ -428,10 +430,10 @@ public class MetadataManager {
         try (ResultSet rs = stmt.executeQuery()) {
           if (rs.next()) {
             ColumnEncryptionConfig result = buildColumnConfigFromResultSet(rs);
-            LOGGER.finest(() -> Messages.get("MetadataManager.msg_17", new Object[]{tableName, columnName}));
+            LOGGER.finest(() -> Messages.get("MetadataManager.dbConfigFound", new Object[]{tableName, columnName}));
             return result;
           } else {
-            LOGGER.finest(() -> Messages.get("MetadataManager.msg_18", new Object[]{tableName, columnName}));
+            LOGGER.finest(() -> Messages.get("MetadataManager.dbConfigNotFound", new Object[]{tableName, columnName}));
             return null;
           }
         }
@@ -446,7 +448,7 @@ public class MetadataManager {
       try {
         closeConnection(conn);
       } catch (SQLException e) {
-        LOGGER.warning(() -> Messages.get("MetadataManager.msg_19", new Object[]{e.getMessage()}));
+        LOGGER.warning(() -> Messages.get("MetadataManager.closeConnectionFailed3", new Object[]{e.getMessage()}));
       }
     }
   }
@@ -496,7 +498,7 @@ public class MetadataManager {
   /** Stops automatic metadata refresh. */
   private void stopAutomaticRefresh() {
     if (refreshExecutor != null && !refreshExecutor.isShutdown()) {
-      LOGGER.finest(() -> Messages.get("MetadataManager.msg_20"));
+      LOGGER.finest(() -> Messages.get("MetadataManager.stoppingRefresh"));
       refreshExecutor.shutdown();
       try {
         if (!refreshExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
@@ -514,7 +516,7 @@ public class MetadataManager {
     Duration refreshInterval = config.getMetadataRefreshInterval();
 
     if (refreshInterval.isZero() || refreshInterval.isNegative()) {
-      LOGGER.info(() -> Messages.get("MetadataManager.msg_21", new Object[]{refreshInterval}));
+      LOGGER.info(() -> Messages.get("MetadataManager.refreshDisabled", new Object[]{refreshInterval}));
       return;
     }
 
@@ -527,16 +529,16 @@ public class MetadataManager {
     refreshExecutor.scheduleAtFixedRate(
         () -> {
           try {
-            LOGGER.finest(() -> Messages.get("MetadataManager.msg_22"));
+            LOGGER.finest(() -> Messages.get("MetadataManager.performingRefresh"));
             refreshMetadata();
           } catch (Exception e) {
-            LOGGER.warning(() -> Messages.get("MetadataManager.msg_23", new Object[]{e.getMessage()}));
+            LOGGER.warning(() -> Messages.get("MetadataManager.refreshFailed", new Object[]{e.getMessage()}));
           }
         },
         intervalMs,
         intervalMs,
         TimeUnit.MILLISECONDS);
 
-    LOGGER.info(() -> Messages.get("MetadataManager.msg_24", new Object[]{intervalMs}));
+    LOGGER.info(() -> Messages.get("MetadataManager.refreshStarted", new Object[]{intervalMs}));
   }
 }

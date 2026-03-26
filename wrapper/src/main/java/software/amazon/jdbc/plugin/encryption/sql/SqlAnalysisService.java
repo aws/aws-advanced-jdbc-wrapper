@@ -75,7 +75,7 @@ public class SqlAnalysisService {
       }
     } catch (Exception e) {
       LOGGER.severe(() -> Messages.get("SqlAnalysisService.errorAnalyzing", new Object[]{e.getMessage()}));
-      throw new RuntimeException(Messages.get("SqlAnalysisService.exc_0"), e);
+      throw new RuntimeException(Messages.get("SqlAnalysisService.analysisFailed"), e);
     }
 
     return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");

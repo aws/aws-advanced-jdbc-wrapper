@@ -88,7 +88,7 @@ public class EncryptingDataSourceFactory {
     } catch (Exception e) {
       logger.severe(Messages.get("EncryptingDataSourceFactory.createFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
-          Messages.get("EncryptingDataSourceFactory.exc_0", new Object[]{e.getMessage(), e}));
+          Messages.get("EncryptingDataSourceFactory.createFailed", new Object[]{e.getMessage(), e}));
     }
   }
 
@@ -115,7 +115,7 @@ public class EncryptingDataSourceFactory {
    */
   private static void validateEncryptionProperties(Properties properties) throws SQLException {
     if (properties == null) {
-      throw new SQLException(Messages.get("EncryptingDataSourceFactory.exc_1"));
+      throw new SQLException(Messages.get("EncryptingDataSourceFactory.propertiesNull"));
     }
 
     // Check for required properties (these will be validated by EncryptionConfig)
@@ -242,7 +242,7 @@ public class EncryptingDataSourceFactory {
       } else if (jdbcUrl != null && username != null && password != null) {
         return createWithAwsWrapper(jdbcUrl, username, password, encryptionProperties);
       } else {
-        throw new SQLException(Messages.get("EncryptingDataSourceFactory.exc_2"));
+        throw new SQLException(Messages.get("EncryptingDataSourceFactory.missingConfig"));
       }
     }
   }
