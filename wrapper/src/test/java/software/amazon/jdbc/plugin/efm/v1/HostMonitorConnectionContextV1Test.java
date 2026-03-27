@@ -62,15 +62,9 @@ class HostMonitorConnectionContextV1Test {
   }
 
   @Test
-  void test_singleArgConstructor() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(connection);
-    assertNotNull(ctx.getConnection());
-  }
-
-  @Test
-  void test_initContext() {
+  void test_init() {
     HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
-    ctx.initContext(connection, 50, 100, 3, counter);
+    ctx.init(connection, 50, 100, 3, counter);
 
     assertEquals(100, ctx.getFailureDetectionIntervalMillis());
     assertEquals(3, ctx.getFailureDetectionCount());
@@ -79,7 +73,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_setStartMonitorTimeNano() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     long startTime = System.nanoTime();
     ctx.setStartMonitorTimeNano(startTime);
 
@@ -88,7 +83,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_setInvalidNodeStartTimeNano() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     long time = System.nanoTime();
     ctx.setInvalidNodeStartTimeNano(time);
 
@@ -98,14 +94,16 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_abortConnection_nullConnectionRef() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     ctx.abortConnection();
     verify(counter, never()).inc();
   }
 
   @Test
   void test_abortConnection_inactiveContext() throws SQLException {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(connection, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(connection, 100, 50, 3, null);
     ctx.setInactive();
     ctx.abortConnection();
 
@@ -114,7 +112,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_abortConnection_success() throws SQLException {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(connection, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(connection, 100, 50, 3, counter);
     ctx.abortConnection();
 
     verify(connection).abort(any());
@@ -124,7 +123,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_abortConnection_nullCounter() throws SQLException {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(connection, 100, 50, 3, null);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(connection, 100, 50, 3, null);
     ctx.abortConnection();
 
     verify(connection).abort(any());
@@ -133,7 +133,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_updateConnectionStatus_beforeGracePeriod() {
-    HostMonitorConnectionContextV1 ctx = spy(new HostMonitorConnectionContextV1(null, 100, 50, 3, counter));
+    HostMonitorConnectionContextV1 ctx = spy(new HostMonitorConnectionContextV1());
+    ctx.init(connection, 100, 50, 3, counter);
     long startTime = System.nanoTime();
     ctx.setStartMonitorTimeNano(startTime);
 
@@ -146,7 +147,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_setConnectionValid_recoveryAfterFailure() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     long time = System.nanoTime();
 
     ctx.setConnectionValid("host", false, time, time);
@@ -167,7 +169,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_resetInvalidNodeStartTime() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     ctx.setInvalidNodeStartTimeNano(System.nanoTime());
     assertTrue(ctx.isInvalidNodeStartTimeDefined());
 
@@ -177,7 +180,8 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_setFailureCount() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     ctx.setFailureCount(5);
     assertEquals(5, ctx.getFailureCount());
   }
@@ -193,13 +197,15 @@ class HostMonitorConnectionContextV1Test {
 
   @Test
   void test_getFailureDetectionIntervalMillis() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     assertEquals(50, ctx.getFailureDetectionIntervalMillis());
   }
 
   @Test
   void test_getFailureDetectionCount() {
-    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1(null, 100, 50, 3, counter);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(null, 100, 50, 3, counter);
     assertEquals(3, ctx.getFailureDetectionCount());
   }
 }

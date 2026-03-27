@@ -5,7 +5,7 @@ In this tutorial, you will set up a Spring Boot and Hibernate application with t
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 3.4.4
 >    - Hibernate 6.x (via Spring Boot)
->    - AWS Advanced JDBC Wrapper 3.2.0
+>    - AWS Advanced JDBC Wrapper 3.3.0
 >    - Postgresql 42.7.10
 >    - Gradle 8
 >    - Java 17

@@ -48,6 +48,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -71,6 +72,7 @@ class HostMonitorServiceV1ImplTest {
   @Mock private TelemetryCounter telemetryCounter;
   @Mock private FullServicesContainer servicesContainer;
   @Mock private MonitorService monitorService;
+  @Mock private ConnectionContextService connectionContextService;
 
   private Properties properties;
   private AutoCloseable closeable;
@@ -90,6 +92,12 @@ class HostMonitorServiceV1ImplTest {
     when(servicesContainer.getPluginService()).thenReturn(pluginService);
     when(servicesContainer.getTelemetryFactory()).thenReturn(telemetryFactory);
     when(servicesContainer.getMonitorService()).thenReturn(monitorService);
+    when(servicesContainer.getConnectionContextService()).thenReturn(connectionContextService);
+    when(connectionContextService.acquire(any(), any())).thenAnswer(invocation -> {
+      HostMonitorConnectionContextV1 ctx = mock(HostMonitorConnectionContextV1.class);
+      when(ctx.getConnection()).thenReturn(connection);
+      return ctx;
+    });
     when(monitorService.runIfAbsent(any(), eq("hostA"), any(), any(), any())).thenReturn(monitorA);
     when(monitorService.runIfAbsent(any(), eq("hostB"), any(), any(), any())).thenReturn(monitorB);
     when(monitorService.runIfAbsent(any(), eq("host"), any(), any(), any())).thenReturn(monitorA);
@@ -169,8 +177,8 @@ class HostMonitorServiceV1ImplTest {
     when(context.getConnection()).thenReturn(conn);
     
     hostMonitorService.stopMonitoring(context);
-    
-    verify(context).setInactive();
+
+    verify(connectionContextService).release(context);
     verify(conn).abort(any());
     verify(conn).close();
     verify(telemetryCounter).inc();
@@ -183,7 +191,7 @@ class HostMonitorServiceV1ImplTest {
     
     hostMonitorService.stopMonitoring(context);
     
-    verify(context).setInactive();
+    verify(connectionContextService).release(context);
     verify(context, never()).getConnection();
   }
 
@@ -194,8 +202,7 @@ class HostMonitorServiceV1ImplTest {
     when(context.getConnection()).thenReturn(null);
     
     hostMonitorService.stopMonitoring(context);
-    
-    verify(context).setInactive();
+    verify(connectionContextService).release(context);
   }
 
   @Test
@@ -208,7 +215,7 @@ class HostMonitorServiceV1ImplTest {
     
     hostMonitorService.stopMonitoring(context);
     
-    verify(context).setInactive();
+    verify(connectionContextService).release(context);
   }
 
   @Test

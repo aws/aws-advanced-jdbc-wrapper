@@ -16,21 +16,18 @@
 
 package software.amazon.jdbc.plugin.efm.v2;
 
+import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 
 /**
- * Monitoring context for each connection. This contains each connection's criteria for whether a
- * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
+ * Monitoring context for each connection. This contains each connection's criteria for whether a server should be
+ * considered unhealthy. The context is shared between the main thread and the monitor thread.
  */
 public class HostMonitorConnectionContextV2 extends HostMonitorConnectionContext {
 
-  /**
-   * Constructor.
-   *
-   * @param connectionToAbort A reference to the connection associated with this context that will be aborted.
-   */
-  public HostMonitorConnectionContextV2(final Connection connectionToAbort) {
-    super(connectionToAbort);
+  public void init(Connection connectionToAbort) {
+    this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
+    this.nodeUnhealthy.set(false);
   }
 }

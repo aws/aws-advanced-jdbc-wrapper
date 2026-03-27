@@ -597,10 +597,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         return null;
       }
 
+      String instanceId = instanceIds.getValue1();
       String instanceName = instanceIds.getValue2();
       HostSpec foundHost = topology
           .stream()
-          .filter(host -> Objects.equals(instanceName, host.getHostId()))
+          .filter(host -> Objects.equals(instanceId, host.getHostId())
+              || Objects.equals(instanceName, host.getHostId())
+              || Objects.equals(instanceName, host.getHost()))
           .findAny()
           .orElse(null);
 
@@ -612,7 +615,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
         foundHost = topology
             .stream()
-            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .filter(host -> Objects.equals(instanceId, host.getHostId())
+                || Objects.equals(instanceName, host.getHostId())
+                || Objects.equals(instanceName, host.getHost()))
             .findAny()
             .orElse(null);
       }

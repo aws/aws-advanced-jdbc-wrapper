@@ -110,6 +110,12 @@ The plugin includes a health monitoring subsystem to avoid cascading failures wh
   * Fail fast on cache access while still letting database queries proceed.
   * Errors from cache initialization or operations are treated as cache misses so that the database path still functions.
 
+### Limitations
+
+- The plugin currently doesn't support large objects as they are typically not optimal for caching. This includes:
+  * CLOB (Character Large Object): `ResultSet.getClob()` and `ResultSet.getNClob()`
+  * BLOB (Binary Large Object): `ResultSet.getBlob()`
+
 ## Telemetry / Operational Visibility
 
 | Metric Name                                              | Description                                                                     |

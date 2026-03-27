@@ -3,6 +3,53 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [3.3.0] - 2026-03-26
+
+### :magic_wand: Added
+- Added connection state snapshot to exceptions as a suppressed exception, providing detailed driver state information (topology, plugin state, recent events) to aid troubleshooting ([PR #1720](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1720), [PR #1742](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1742)).
+- Added ability to set host availability based on the latest connection results in panic mode, allowing the host list provider to reflect actual node health ([PR #1745](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1745)).
+- Added Remote Query Cache Plugin and plugin documentation ([PR #1531](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1531),[PR #1771](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1771), [PR #1784](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1784), [PR #1797](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1797)).
+
+### :bug: Fixed
+- Fixed 5-second delay when using the failover plugin caused by an unnecessary sleep ([PR #1774](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1774)).
+- Fixed security exception thrown by pgjdbc under Java 24 ([PR #1780](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1780)).
+- Fixed exception raised when a connection was already cleaned up during garbage collection ([PR #1785](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1785)).
+- Fixed Blue/Green connect routing to overrule other plugins and properly handle connection exceptions during switchover ([PR #1741](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1741)).
+- Fixed Blue/Green plugin to drop blue connections when a switchover starts ([PR #1744](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1744)).
+- Fixed writer availability not being updated when a new writer host is detected after failover ([PR #1746](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1746)).
+- Fixed SAML auth plugins (Okta/ADFS) using local credentials instead of assumed SAML credentials when looking up region for Global Database endpoints ([PR #1712](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1712)).
+- Fixed read/write splitting and failover plugin ordering to ensure correct behavior ([PR #1721](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1721)).
+- Fixed cache removal from fastest response strategy as it was unnecessary ([PR #1709](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1709)).
+- Fixed `instanceName` comparison to use host instead of hostId ([PR #1796](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1796)).
+- Removed unnecessary `isClosed` flag that was never being set ([PR #1710](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1710)).
+- Masked connection properties containing "password" (e.g. `trustCertificateKeyStorePassword`) in logs ([PR #1740](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1740)).
+
+### :crab: Changed
+- Removing the IP address check in StaleDnsHelper ([PR #1695](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1695)).
+- Removed panic mode cooldown to prevent issues where the plugin exits panic mode prematurely during GDB failover ([PR #1708](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1708)).
+- Refactored EFM plugins to use storage and monitoring services ([PR #1756](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1756)).
+- Refactored IAM auth plugins to use StorageService ([PR #1759](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1759)).
+- Refactored federated auth plugins to use StorageService ([PR #1758](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1758)).
+- Refactored fastest response time strategy plugin to use StorageService ([PR #1760](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1760)).
+- Refactored SecretsManager plugin to use StorageService ([PR #1763](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1763)).
+- Introduced abstract `SamlAuthPlugin` to reduce code duplication between Okta and ADFS plugins ([PR #1755](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1755)).
+- Refactored host role retrieval logic ([PR #1684](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1684)).
+- Replaced background connection pruning thread with `ScheduledExecutorService` for simpler and more reliable cleanup ([PR #1782](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1782)).
+- Updated Hibernate integration tests to run against Java 17, 21, 22, and 24 using Hibernate 7.3.0; updated Spring and Hibernate sample code to latest versions ([PR #1783](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1783)).
+- Split MySQL and MariaDB driver integration test workflows to reduce runtime and avoid hitting GitHub Actions 6-hour limit ([PR #1723](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1723)).
+- Added integration tests for major Java LTS versions ([PR #1769](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1769), [PR #1773](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1773), [PR #1786](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1786)).
+- Fixed Blue/Green deployment integration tests: removed premature certificate change assertion, fixed MariaDB IAM connectivity, and added post-switchover execution assertions ([PR #1705](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1705)).
+- Small performance optimization for HostSpec class ([PR #1724](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1724)).
+- Optimized `WeightedRandomHostSelector` using weighted reservoir sampling, removing dependency on the `weightedRandomHostWeightPairs` property and reducing the number of list traversals ([PR #1701](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1701)).
+- Use a context pool to reduce memory allocation overhead in efm plugins ([PR #1770](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1770)).
+- Documentation:
+  - Document AWS credentials requirements for plugins using the AWS SDK ([PR #1706](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1706)).
+  - Updated GDB docs and set `gdbRwRestrictWriterToHomeRegion` and `gdbRwRestrictReaderToHomeRegion` to `true` by default ([PR #1730](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1730)).
+  - Updated parameter list in README ([PR #1731](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1731)).
+  - Clarified that the `bg` plugin can be left on post-switchover but will consume additional resources ([PR #1722](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1722)).
+  - Fixed broken link to `clusterId` docs in `UsingTheFailover2Plugin.md` ([PR #1748](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1748)).
+  - Fixed incorrect comment in topology utils ([PR #1747](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1747)).
+
 ## [3.2.0] - 2026-02-04
 
 ### :magic_wand: Added
@@ -696,6 +743,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[3.3.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.2.0...3.3.0
 [3.2.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.1.0...3.2.0
 [3.1.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.0.0...3.1.0
 [3.0.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.8...3.0.0

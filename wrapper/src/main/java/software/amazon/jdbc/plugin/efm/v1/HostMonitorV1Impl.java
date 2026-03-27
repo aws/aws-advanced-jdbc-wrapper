@@ -31,8 +31,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
-import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitorV2Impl;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -117,7 +117,7 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
   }
 
   @Override
-  public void startMonitoring(final HostMonitorConnectionContext context) {
+  public void startMonitoring(final ConnectionContext context) {
     if (this.stop.get()) {
       LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }

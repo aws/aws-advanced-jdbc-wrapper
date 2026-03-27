@@ -39,7 +39,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.plugin.efm.v2.HostMonitorV2Impl;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -101,17 +100,17 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   /**
    * Initialize the node monitoring plugin.
    *
-   * @param serviceContainer The service container for the services required by this class.
+   * @param servicesContainer The service container for the services required by this class.
    * @param properties        The property set used to initialize the active connection.
    * @param monitorServiceSupplier A supplier for creating a {@link HostMonitorService} instance.
    * @param rdsHelper        The RDS helper class to identify RDS instances.
    */
   protected HostMonitoringConnectionBasePlugin(
-      final @NonNull FullServicesContainer serviceContainer,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = servicesContainer.getPluginService();
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;
@@ -123,6 +122,8 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
       methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
+
+    servicesContainer.setConnectionContextService(ConnectionContextServiceFactory.getInstance());
   }
 
   @Override
@@ -131,7 +132,8 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   }
 
   /**
-   * Executes the given SQL function with {@link HostMonitorV2Impl} if connection monitoring is enabled.
+   * Executes the given SQL function with {@link software.amazon.jdbc.plugin.efm.v2.HostMonitorV2Impl}
+   * if connection monitoring is enabled.
    * Otherwise, executes the SQL function directly.
    */
   @Override
@@ -151,7 +153,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     initMonitorService();
 
     T result;
-    HostMonitorConnectionContext monitorContext = null;
+    ConnectionContext monitorContext = null;
 
     final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
     try {
