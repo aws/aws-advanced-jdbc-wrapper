@@ -99,7 +99,6 @@ public class KmsEncryptionIntegrationTest {
     region = TestEnvironment.getCurrent().getInfo().getRegion();
     Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
-    props.setProperty(EncryptionConfig.KMS_MASTER_KEY_ARN.name, kmsKeyArn);
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
 
     // Get the metadata schema from config (defaults to "encrypt")

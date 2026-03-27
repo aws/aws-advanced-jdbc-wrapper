@@ -41,7 +41,6 @@ public class KeyManagementExample {
     EncryptionConfig config =
         EncryptionConfig.builder()
             .kmsRegion("us-east-1")
-            .defaultMasterKeyArn("arn:aws:kms:us-east-1:123456789012:key/default-key")
             .cacheEnabled(true)
             .cacheExpirationMinutes(30)
             .maxRetries(3)

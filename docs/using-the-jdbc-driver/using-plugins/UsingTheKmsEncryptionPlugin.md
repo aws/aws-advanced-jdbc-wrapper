@@ -24,7 +24,7 @@ The KMS Encryption Plugin provides transparent client-side encryption using AWS 
 aws kms create-key --description "Database encryption master key" --key-usage ENCRYPT_DECRYPT
 ```
 
-2. **Note the Key ARN** from the response - you'll need this for the `kms.MasterKeyArn` property.
+2. **Note the Key ARN** from the response - you'll need this when setting up encryption metadata.
 
 3. **Set Key Permissions** - Ensure your application has the following KMS permissions:
    - `kms:Encrypt`
@@ -119,15 +119,13 @@ implementation 'com.github.jsqlparser:jsqlparser:4.5'
 | Property | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `kms.region` | AWS KMS region for encryption operations | Yes | None |
-| `kms.MasterKeyArn` | Master key ARN for encryption | Yes | None |
-| `key.rotationDays` | Number of days for key rotation | No | `30` |
+| `encryption.metadataSchema` | Schema name for encryption metadata tables | No | `encrypt` |
 | `metadataCache.enabled` | Enable/disable metadata caching | No | `true` |
 | `metadataCache.expirationMinutes` | Metadata cache expiration time in minutes | No | `60` |
 | `metadataCache.refreshIntervalMs` | Metadata cache refresh interval in milliseconds | No | `300000` |
 | `keyManagement.maxRetries` | Maximum number of retries for key management operations | No | `3` |
 | `keyManagement.retryBackoffBaseMs` | Base backoff time in milliseconds for key management retries | No | `100` |
 | `audit.loggingEnabled` | Enable/disable audit logging | No | `false` |
-| `kms.connectionTimeoutMs` | KMS connection timeout in milliseconds | No | `5000` |
 | `dataKeyCache.enabled` | Enable/disable data key caching | No | `true` |
 | `dataKeyCache.maxSize` | Maximum size of data key cache | No | `1000` |
 | `dataKeyCache.expirationMs` | Data key cache expiration in milliseconds | No | `3600000` |
@@ -140,7 +138,6 @@ Properties props = new Properties();
 props.setProperty("user", "username");
 props.setProperty("password", "password");
 props.setProperty("wrapperPlugins", "kmsEncryption");
-props.setProperty("kms.MasterKeyArn", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
 props.setProperty("kms.region", "us-east-1");
 props.setProperty("audit.loggingEnabled", "true");
 

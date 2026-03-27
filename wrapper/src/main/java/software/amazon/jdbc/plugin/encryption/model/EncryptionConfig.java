@@ -33,12 +33,6 @@ public class EncryptionConfig {
   public static final AwsWrapperProperty KMS_REGION =
       new AwsWrapperProperty("kms.region", null, "AWS KMS region for encryption operations");
 
-  public static final AwsWrapperProperty KMS_MASTER_KEY_ARN =
-      new AwsWrapperProperty("kms.MasterKeyArn", null, "Master key ARN for encryption");
-
-  public static final AwsWrapperProperty KEY_ROTATION_DAYS =
-      new AwsWrapperProperty("key.rotationDays", "30", "Number of days for key rotation");
-
   public static final AwsWrapperProperty METADATA_CACHE_ENABLED =
       new AwsWrapperProperty("metadataCache.enabled", "true", "Enable/disable metadata caching");
 
@@ -60,10 +54,6 @@ public class EncryptionConfig {
 
   public static final AwsWrapperProperty AUDIT_LOGGING_ENABLED =
       new AwsWrapperProperty("audit.loggingEnabled", "false", "Enable/disable audit logging");
-
-  public static final AwsWrapperProperty KMS_CONNECTION_TIMEOUT_MS =
-      new AwsWrapperProperty(
-          "kms.connectionTimeoutMs", "5000", "KMS connection timeout in milliseconds");
 
   public static final AwsWrapperProperty DATA_KEY_CACHE_ENABLED =
       new AwsWrapperProperty("dataKeyCache.enabled", "true", "Enable/disable data key caching");
@@ -90,14 +80,11 @@ public class EncryptionConfig {
   }
 
   private final String kmsRegion;
-  private final String defaultMasterKeyArn;
-  private final int keyRotationDays;
   private final boolean cacheEnabled;
   private final int cacheExpirationMinutes;
   private final int maxRetries;
   private final Duration retryBackoffBase;
   private final boolean auditLoggingEnabled;
-  private final Duration kmsConnectionTimeout;
   private final boolean dataKeyCacheEnabled;
   private final int dataKeyCacheMaxSize;
   private final Duration dataKeyCacheExpiration;
@@ -106,14 +93,11 @@ public class EncryptionConfig {
 
   private EncryptionConfig(Builder builder) {
     this.kmsRegion = Objects.requireNonNull(builder.kmsRegion, "kmsRegion cannot be null");
-    this.defaultMasterKeyArn = builder.defaultMasterKeyArn;
-    this.keyRotationDays = builder.keyRotationDays;
     this.cacheEnabled = builder.cacheEnabled;
     this.cacheExpirationMinutes = builder.cacheExpirationMinutes;
     this.maxRetries = builder.maxRetries;
     this.retryBackoffBase = builder.retryBackoffBase;
     this.auditLoggingEnabled = builder.auditLoggingEnabled;
-    this.kmsConnectionTimeout = builder.kmsConnectionTimeout;
     this.dataKeyCacheEnabled = builder.dataKeyCacheEnabled;
     this.dataKeyCacheMaxSize = builder.dataKeyCacheMaxSize;
     this.dataKeyCacheExpiration = builder.dataKeyCacheExpiration;
@@ -125,14 +109,6 @@ public class EncryptionConfig {
 
   public String getKmsRegion() {
     return kmsRegion;
-  }
-
-  public String getDefaultMasterKeyArn() {
-    return defaultMasterKeyArn;
-  }
-
-  public int getKeyRotationDays() {
-    return keyRotationDays;
   }
 
   public boolean isCacheEnabled() {
@@ -153,10 +129,6 @@ public class EncryptionConfig {
 
   public boolean isAuditLoggingEnabled() {
     return auditLoggingEnabled;
-  }
-
-  public Duration getKmsConnectionTimeout() {
-    return kmsConnectionTimeout;
   }
 
   public boolean isDataKeyCacheEnabled() {
@@ -189,10 +161,6 @@ public class EncryptionConfig {
       throw new IllegalArgumentException(Messages.get("EncryptionConfig.kmsRegionEmpty"));
     }
 
-    if (keyRotationDays < 0) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.keyRotationNegative"));
-    }
-
     if (cacheExpirationMinutes < 0) {
       throw new IllegalArgumentException(Messages.get("EncryptionConfig.cacheExpirationNegative"));
     }
@@ -203,10 +171,6 @@ public class EncryptionConfig {
 
     if (retryBackoffBase.isNegative()) {
       throw new IllegalArgumentException(Messages.get("EncryptionConfig.retryBackoffNegative"));
-    }
-
-    if (kmsConnectionTimeout.isNegative()) {
-      throw new IllegalArgumentException(Messages.get("EncryptionConfig.kmsTimeoutNegative"));
     }
 
     if (dataKeyCacheMaxSize <= 0) {
@@ -231,17 +195,14 @@ public class EncryptionConfig {
       return false;
     }
     EncryptionConfig that = (EncryptionConfig) o;
-    return keyRotationDays == that.keyRotationDays
-        && cacheEnabled == that.cacheEnabled
+    return cacheEnabled == that.cacheEnabled
         && cacheExpirationMinutes == that.cacheExpirationMinutes
         && maxRetries == that.maxRetries
         && auditLoggingEnabled == that.auditLoggingEnabled
         && dataKeyCacheEnabled == that.dataKeyCacheEnabled
         && dataKeyCacheMaxSize == that.dataKeyCacheMaxSize
         && Objects.equals(kmsRegion, that.kmsRegion)
-        && Objects.equals(defaultMasterKeyArn, that.defaultMasterKeyArn)
         && Objects.equals(retryBackoffBase, that.retryBackoffBase)
-        && Objects.equals(kmsConnectionTimeout, that.kmsConnectionTimeout)
         && Objects.equals(dataKeyCacheExpiration, that.dataKeyCacheExpiration)
         && Objects.equals(metadataRefreshInterval, that.metadataRefreshInterval);
   }
@@ -250,14 +211,11 @@ public class EncryptionConfig {
   public int hashCode() {
     return Objects.hash(
         kmsRegion,
-        defaultMasterKeyArn,
-        keyRotationDays,
         cacheEnabled,
         cacheExpirationMinutes,
         maxRetries,
         retryBackoffBase,
         auditLoggingEnabled,
-        kmsConnectionTimeout,
         dataKeyCacheEnabled,
         dataKeyCacheMaxSize,
         dataKeyCacheExpiration,
@@ -270,11 +228,6 @@ public class EncryptionConfig {
         + "kmsRegion='"
         + kmsRegion
         + '\''
-        + ", defaultMasterKeyArn='"
-        + defaultMasterKeyArn
-        + '\''
-        + ", keyRotationDays="
-        + keyRotationDays
         + ", cacheEnabled="
         + cacheEnabled
         + ", cacheExpirationMinutes="
@@ -285,8 +238,6 @@ public class EncryptionConfig {
         + retryBackoffBase
         + ", auditLoggingEnabled="
         + auditLoggingEnabled
-        + ", kmsConnectionTimeout="
-        + kmsConnectionTimeout
         + ", dataKeyCacheEnabled="
         + dataKeyCacheEnabled
         + ", dataKeyCacheMaxSize="
@@ -312,19 +263,12 @@ public class EncryptionConfig {
       builder.kmsRegion(region);
     }
 
-    String masterKeyArn = KMS_MASTER_KEY_ARN.getString(properties);
-    if (masterKeyArn != null) {
-      builder.defaultMasterKeyArn(masterKeyArn);
-    }
-
-    builder.keyRotationDays(KEY_ROTATION_DAYS.getInteger(properties));
     builder.cacheEnabled(METADATA_CACHE_ENABLED.getBoolean(properties));
     builder.cacheExpirationMinutes(METADATA_CACHE_EXPIRATION_MINUTES.getInteger(properties));
     builder.maxRetries(KEY_MANAGEMENT_MAX_RETRIES.getInteger(properties));
     builder.retryBackoffBase(
         Duration.ofMillis(KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS.getLong(properties)));
     builder.auditLoggingEnabled(AUDIT_LOGGING_ENABLED.getBoolean(properties));
-    builder.kmsConnectionTimeout(Duration.ofMillis(KMS_CONNECTION_TIMEOUT_MS.getLong(properties)));
     builder.dataKeyCacheEnabled(DATA_KEY_CACHE_ENABLED.getBoolean(properties));
     builder.dataKeyCacheMaxSize(DATA_KEY_CACHE_MAX_SIZE.getInteger(properties));
     builder.dataKeyCacheExpiration(
@@ -342,14 +286,11 @@ public class EncryptionConfig {
 
   public static class Builder {
     private String kmsRegion;
-    private String defaultMasterKeyArn;
-    private int keyRotationDays = 90; // Default 90 days
     private boolean cacheEnabled = true;
     private int cacheExpirationMinutes = 60; // Default 1 hour
     private int maxRetries = 5;
     private Duration retryBackoffBase = Duration.ofMillis(100);
     private boolean auditLoggingEnabled = false;
-    private Duration kmsConnectionTimeout = Duration.ofSeconds(30);
     private boolean dataKeyCacheEnabled = true;
     private int dataKeyCacheMaxSize = 1000;
     private Duration dataKeyCacheExpiration = Duration.ofMinutes(30);
@@ -358,16 +299,6 @@ public class EncryptionConfig {
 
     public Builder kmsRegion(String kmsRegion) {
       this.kmsRegion = kmsRegion;
-      return this;
-    }
-
-    public Builder defaultMasterKeyArn(String defaultMasterKeyArn) {
-      this.defaultMasterKeyArn = defaultMasterKeyArn;
-      return this;
-    }
-
-    public Builder keyRotationDays(int keyRotationDays) {
-      this.keyRotationDays = keyRotationDays;
       return this;
     }
 
@@ -393,11 +324,6 @@ public class EncryptionConfig {
 
     public Builder auditLoggingEnabled(boolean auditLoggingEnabled) {
       this.auditLoggingEnabled = auditLoggingEnabled;
-      return this;
-    }
-
-    public Builder kmsConnectionTimeout(Duration kmsConnectionTimeout) {
-      this.kmsConnectionTimeout = kmsConnectionTimeout;
       return this;
     }
 
