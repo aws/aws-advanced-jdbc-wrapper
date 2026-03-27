@@ -52,7 +52,7 @@ dependencies {
     implementation("io.vertx:vertx-jdbc-client")
     implementation("io.vertx:vertx-web")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.7.1")
-    implementation("org.postgresql:postgresql:42.5.4")
+    implementation("org.postgresql:postgresql:42.7.10")
     implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 }
 ```

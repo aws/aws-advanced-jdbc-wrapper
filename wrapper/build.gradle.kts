@@ -42,11 +42,10 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.42.24") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:sts:2.42.24")
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.24")
-    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.12.0")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("org.apache.commons:commons-pool2:2.11.1")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
@@ -101,7 +100,8 @@ dependencies {
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.11")
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    testImplementation("tools.jackson.core:jackson-databind:3.1.0") // Required for java17 multi-release classes under Java 17+
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     testImplementation("io.opentelemetry:opentelemetry-api:1.60.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.60.1")
@@ -110,7 +110,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.jsoup:jsoup:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
-    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
+    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.2")
     testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
 }
 
@@ -155,6 +155,25 @@ tasks.named<JavaCompile>(java11.compileJavaTaskName) {
     dependsOn(tasks.compileJava)
 }
 
+// Create a separate source set for Java 17+ specific code (e.g., Jackson 3.x based implementations)
+val java17 = sourceSets.create("java17") {
+    java {
+        srcDir("src/main/java17")
+    }
+    // Include main output and full compile classpath (provides optionalImplementation deps like awssdk, httpclient, etc.)
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+}
+
+// Configure the java17 source set to compile with Java 17
+tasks.named<JavaCompile>(java17.compileJavaTaskName) {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+    options.release.set(17)
+    // Ensure main classes are compiled before java17 classes
+    dependsOn(tasks.compileJava)
+}
+
 // Create a separate source set for Java 24+ specific code (e.g., PgTargetDriverDialect)
 val java24 = sourceSets.create("java24") {
     java {
@@ -194,6 +213,8 @@ tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
 
 dependencies {
     add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+    add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+    add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.1.0")
     add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate:hibernate-core:7.3.0.Final")
@@ -203,6 +224,9 @@ dependencies {
 fun CopySpec.addMultiReleaseContents() {
     into("META-INF/versions/11") {
         from(java11.output)
+    }
+    into("META-INF/versions/17") {
+        from(java17.output)
     }
     into("META-INF/versions/24") {
         from(java24.output)
@@ -311,6 +335,7 @@ if (useJacoco) {
 
 tasks.jar {
     dependsOn(tasks.named(java11.compileJavaTaskName))
+    dependsOn(tasks.named(java17.compileJavaTaskName))
     dependsOn(tasks.named(java24.compileJavaTaskName))
 
     from("${project.rootDir}") {
@@ -366,6 +391,14 @@ tasks.jar {
                 }
             }
         }
+        val java17Dir = java17.output.classesDirs.files.first()
+        if (java17Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java17Dir, "prefix" to "META-INF/versions/17")
+                }
+            }
+        }
         val java24Dir = java24.output.classesDirs.files.first()
         if (java24Dir.exists()) {
             ant.withGroovyBuilder {
@@ -386,6 +419,7 @@ configurations {
 tasks.shadowJar {
 
     dependsOn(tasks.named(java11.compileJavaTaskName))
+    dependsOn(tasks.named(java17.compileJavaTaskName))
     dependsOn(tasks.named(java24.compileJavaTaskName))
 
     configurations = listOf(project.configurations.federatedAuthBundleImplementation.get())
@@ -427,6 +461,14 @@ tasks.shadowJar {
             ant.withGroovyBuilder {
                 "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
                     "zipfileset"("dir" to java11Dir, "prefix" to "META-INF/versions/11")
+                }
+            }
+        }
+        val java17Dir = java17.output.classesDirs.files.first()
+        if (java17Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java17Dir, "prefix" to "META-INF/versions/17")
                 }
             }
         }

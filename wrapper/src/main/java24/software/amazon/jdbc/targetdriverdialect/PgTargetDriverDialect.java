@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -176,17 +177,42 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   @Override
   public void abortConnection(@NonNull Connection connectionToAbort, @NonNull Executor abortExecutor)
       throws SQLException {
+    LOGGER.finest("java24 implementation");
     try {
       connectionToAbort.abort(abortExecutor);
     } catch (final SecurityException secEx) {
       // JDK 24 fully removed the Java Security Manager (deprecated since JDK 17, removed in JDK 24 per JEP 486).
       // abort() is not supported on JDK 24+ (Security Manager removed); fall back to close()
-      LOGGER.finest(
-          () -> Messages.get(
-              "PgTargetDriverDialect.exceptionAbortingConnection",
-              new Object[] {secEx.getMessage()}));
+      //       LOGGER.finest(
+      //           () -> Messages.get(
+      //               "PgTargetDriverDialect.exceptionAbortingConnection",
+      //               new Object[] {secEx.getMessage()}));
 
-      connectionToAbort.close();
+      LOGGER.log(Level.SEVERE,
+          secEx,
+          () -> "Unhandled security exception aborting connection.");
+
+      try {
+        connectionToAbort.close();
+      } catch (Exception closeEx) {
+        LOGGER.log(Level.SEVERE,
+            closeEx,
+            () -> "Unhandled exception closing connection (1).");
+      }
+    } catch (final Exception ex) {
+      // JDK 24 fully removed the Java Security Manager (deprecated since JDK 17, removed in JDK 24 per JEP 486).
+      // abort() is not supported on JDK 24+ (Security Manager removed); fall back to close()
+      LOGGER.log(Level.SEVERE,
+          ex,
+          () -> "Unhandled exception aborting connection.");
+
+      try {
+        connectionToAbort.close();
+      } catch (Exception closeEx) {
+        LOGGER.log(Level.SEVERE,
+            closeEx,
+            () -> "Unhandled exception closing connection (2).");
+      }
     }
   }
 

@@ -1434,7 +1434,12 @@ public class TestEnvironment implements AutoCloseable {
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
       TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
-      containerHelper.runTest(this.testContainer, taskName, config.includeTags, config.excludeTags);
+      containerHelper.runTest(
+          this.testContainer,
+          taskName,
+          config.includeTags,
+          config.excludeTags,
+          this.info.getRequest().getTargetJvm());
     }
   }
 
@@ -1450,7 +1455,12 @@ public class TestEnvironment implements AutoCloseable {
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
       TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
-      containerHelper.debugTest(this.testContainer, taskName, config.includeTags, config.excludeTags);
+      containerHelper.debugTest(
+          this.testContainer,
+          taskName,
+          config.includeTags,
+          config.excludeTags,
+          this.info.getRequest().getTargetJvm());
     }
   }
 

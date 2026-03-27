@@ -108,6 +108,10 @@ public class EFM2Test {
         .get(0)
         .getInstanceId();
     try (final Connection conn = DriverManager.getConnection(url, props)) {
+
+      Connection unwrappedConnection = conn.unwrap(Connection.class);
+      LOGGER.info("Target driver: " + unwrappedConnection.getMetaData().getDriverVersion());
+
       Statement stmt = conn.createStatement();
 
       // Simulate network failure in the middle of the query. The simulated failure occurs after a small delay to allow
