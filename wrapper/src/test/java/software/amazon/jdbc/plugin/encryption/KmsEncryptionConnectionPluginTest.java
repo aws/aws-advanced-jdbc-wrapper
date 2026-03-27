@@ -159,7 +159,10 @@ public class KmsEncryptionConnectionPluginTest {
 
     JdbcCallable<Void, SQLException> callable = () -> null;
     boolean[] called = {false};
-    JdbcCallable<Void, SQLException> trackingCallable = () -> { called[0] = true; return null; };
+    JdbcCallable<Void, SQLException> trackingCallable = () -> {
+      called[0] = true;
+      return null;
+    };
 
     plugin.execute(
         Void.class, SQLException.class, mockPreparedStatement,
@@ -173,7 +176,10 @@ public class KmsEncryptionConnectionPluginTest {
   void test_setString_passesThrough_forUntrackedStatement() throws Exception {
     // Don't call prepareStatement first — no context tracked
     boolean[] called = {false};
-    JdbcCallable<Void, SQLException> callable = () -> { called[0] = true; return null; };
+    JdbcCallable<Void, SQLException> callable = () -> {
+      called[0] = true;
+      return null;
+    };
 
     plugin.execute(
         Void.class, SQLException.class, mockPreparedStatement,
@@ -218,7 +224,10 @@ public class KmsEncryptionConnectionPluginTest {
     when(mockMetadataManager.isColumnEncrypted("users", "name")).thenReturn(false);
 
     boolean[] called = {false};
-    JdbcCallable<String, SQLException> callable = () -> { called[0] = true; return "Alice"; };
+    JdbcCallable<String, SQLException> callable = () -> {
+      called[0] = true;
+      return "Alice";
+    };
 
     String result = plugin.execute(
         String.class, SQLException.class, mockResultSet,
@@ -264,7 +273,10 @@ public class KmsEncryptionConnectionPluginTest {
     when(mockMetadataManager.isColumnEncrypted("orders", "order_id")).thenReturn(false);
 
     boolean[] called = {false};
-    JdbcCallable<Integer, SQLException> callable = () -> { called[0] = true; return 42; };
+    JdbcCallable<Integer, SQLException> callable = () -> {
+      called[0] = true;
+      return 42;
+    };
 
     // Column 1 (orders.order_id) — not encrypted, passes through
     Integer result = plugin.execute(
@@ -336,7 +348,11 @@ public class KmsEncryptionConnectionPluginTest {
     boolean[] called = {false};
     plugin.execute(
         Void.class, SQLException.class, mockConnection,
-        "Connection.close", () -> { called[0] = true; return null; });
+        "Connection.close", () -> {
+          called[0] = true;
+          return null;
+        }
+    );
 
     assertTrue(called[0], "Connection.close callable should be invoked");
 
@@ -345,7 +361,10 @@ public class KmsEncryptionConnectionPluginTest {
     plugin.execute(
         Void.class, SQLException.class, mockPreparedStatement,
         "PreparedStatement.setString",
-        () -> { setStringCalled[0] = true; return null; },
+        () -> {
+          setStringCalled[0] = true;
+          return null;
+        },
         1, "value");
 
     assertTrue(setStringCalled[0], "Should pass through after connection close");
@@ -369,7 +388,10 @@ public class KmsEncryptionConnectionPluginTest {
     plugin.execute(
         Void.class, SQLException.class, mockPreparedStatement,
         "PreparedStatement.setString",
-        () -> { called[0] = true; return null; },
+        () -> {
+          called[0] = true;
+          return null;
+        },
         1, "value");
 
     assertTrue(called[0], "Should pass through after statement close");
