@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import integration.DatabaseEngine;
+import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
@@ -54,6 +55,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
@@ -335,6 +337,86 @@ public class KmsEncryptionIntegrationTest {
       Statement stmt = connection.createStatement();
       stmt.execute("INSERT INTO users (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
     });
+  }
+
+  @TestTemplate
+  void testDataSourceEncryption() throws SQLException {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
+    ds.setServerName(TestEnvironment.getCurrent()
+        .getInfo().getDatabaseInfo().getInstances().get(0).getHost());
+    ds.setDatabase(TestEnvironment.getCurrent()
+        .getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
+
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    props.setProperty(EncryptionConfig.KMS_REGION.name, region);
+    ds.setTargetDataSourceProperties(props);
+
+    try (Connection dsConn = ds.getConnection()) {
+      // Insert via DataSource connection
+      try (PreparedStatement pstmt = dsConn.prepareStatement(
+          "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+        pstmt.setString(1, "DataSource Test");
+        pstmt.setString(2, "444-44-4444");
+        pstmt.setString(3, "ds@test.com");
+        pstmt.executeUpdate();
+      }
+
+      // Read back and verify decryption
+      try (PreparedStatement pstmt = dsConn.prepareStatement(
+          "SELECT name, ssn, email FROM users WHERE name = ?")) {
+        pstmt.setString(1, "DataSource Test");
+        try (ResultSet rs = pstmt.executeQuery()) {
+          assertTrue(rs.next());
+          assertEquals("DataSource Test", rs.getString("name"));
+          assertEquals("444-44-4444", rs.getString("ssn"));
+          assertEquals("ds@test.com", rs.getString("email"));
+        }
+      }
+    }
+  }
+
+  @TestTemplate
+  void testDataSourceEncryptionVerifyStoredEncrypted() throws SQLException {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
+    ds.setServerName(TestEnvironment.getCurrent()
+        .getInfo().getDatabaseInfo().getInstances().get(0).getHost());
+    ds.setDatabase(TestEnvironment.getCurrent()
+        .getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
+
+    final Properties encProps = ConnectionStringHelper.getDefaultProperties();
+    encProps.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    encProps.setProperty(EncryptionConfig.KMS_REGION.name, region);
+    ds.setTargetDataSourceProperties(encProps);
+
+    // Insert via encrypted DataSource
+    try (Connection dsConn = ds.getConnection()) {
+      try (PreparedStatement pstmt = dsConn.prepareStatement(
+          "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+        pstmt.setString(1, "DS Verify Test");
+        pstmt.setString(2, "555-55-5555");
+        pstmt.setString(3, "dsverify@test.com");
+        pstmt.executeUpdate();
+      }
+    }
+
+    // Read via plain connection — SSN should be encrypted (not readable as plaintext)
+    Properties plainProps = ConnectionStringHelper.getDefaultProperties();
+    String plainUrl = ConnectionStringHelper.getUrl();
+    try (Connection plainConn = DriverManager.getConnection(plainUrl, plainProps);
+        PreparedStatement pstmt = plainConn.prepareStatement(
+            "SELECT name, ssn FROM users WHERE name = ?")) {
+      pstmt.setString(1, "DS Verify Test");
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals("DS Verify Test", rs.getString("name"));
+        assertNotEquals("555-55-5555", rs.getString("ssn"));
+      }
+    }
   }
 
 
