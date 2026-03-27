@@ -36,7 +36,7 @@ aws kms create-key --description "Database encryption master key" --key-usage EN
 
 The plugin automatically manages data keys:
 - **Data keys are generated** automatically using the master key when encrypting new data
-- **Data keys are cached** in memory for performance (configurable via `dataKeyCache.*` properties)
+- **Data keys are cached** in memory for performance (configurable via `dataKeyCache*` properties)
 - **Data keys are encrypted** with the master key and stored alongside encrypted data
 - **No manual data key creation** is required
 
@@ -119,16 +119,16 @@ implementation 'com.github.jsqlparser:jsqlparser:4.5'
 | Property | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `kms.region` | AWS KMS region for encryption operations | Yes | None |
-| `encryption.metadataSchema` | Schema name for encryption metadata tables | No | `encrypt` |
-| `metadataCache.enabled` | Enable/disable metadata caching | No | `true` |
-| `metadataCache.expirationMinutes` | Metadata cache expiration time in minutes | No | `60` |
-| `metadataCache.refreshIntervalMs` | Metadata cache refresh interval in milliseconds | No | `300000` |
-| `keyManagement.maxRetries` | Maximum number of retries for key management operations | No | `3` |
-| `keyManagement.retryBackoffBaseMs` | Base backoff time in milliseconds for key management retries | No | `100` |
-| `audit.loggingEnabled` | Enable/disable audit logging | No | `false` |
-| `dataKeyCache.enabled` | Enable/disable data key caching | No | `true` |
-| `dataKeyCache.maxSize` | Maximum size of data key cache | No | `1000` |
-| `dataKeyCache.expirationMs` | Data key cache expiration in milliseconds | No | `3600000` |
+| `encryptionMetadataSchema` | Schema name for encryption metadata tables | No | `encrypt` |
+| `metadataCacheEnabled` | Enable/disable metadata caching | No | `true` |
+| `metadataCacheExpirationMinutes` | Metadata cache expiration time in minutes | No | `60` |
+| `metadataCacheRefreshIntervalMs` | Metadata cache refresh interval in milliseconds | No | `300000` |
+| `keyManagementMaxRetries` | Maximum number of retries for key management operations | No | `3` |
+| `keyManagementRetryBackoffBaseMs` | Base backoff time in milliseconds for key management retries | No | `100` |
+| `auditLoggingEnabled` | Enable/disable audit logging | No | `false` |
+| `dataKeyCacheEnabled` | Enable/disable data key caching | No | `true` |
+| `dataKeyCacheMaxSize` | Maximum size of data key cache | No | `1000` |
+| `dataKeyCacheExpirationMs` | Data key cache expiration in milliseconds | No | `3600000` |
 
 ### Example Connection String
 
@@ -139,7 +139,7 @@ props.setProperty("user", "username");
 props.setProperty("password", "password");
 props.setProperty("wrapperPlugins", "kmsEncryption");
 props.setProperty("kms.region", "us-east-1");
-props.setProperty("audit.loggingEnabled", "true");
+props.setProperty("auditLoggingEnabled", "true");
 
 Connection conn = DriverManager.getConnection(url, props);
 ```
@@ -382,7 +382,7 @@ Ensure your application has the necessary KMS permissions:
 Enable audit logging to track encryption operations:
 
 ```java
-props.setProperty("enableAuditLogging", "true");
+props.setProperty("auditLoggingEnabled", "true");
 ```
 
 Check the application logs for encryption-related messages.

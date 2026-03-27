@@ -21,6 +21,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 import software.amazon.jdbc.util.Messages;
 
@@ -157,20 +158,19 @@ public class EncryptingDataSourceFactory {
     Properties properties = new Properties();
 
     // KMS configuration
-    properties.setProperty("kms.region", region != null ? region : "us-east-1");
-    properties.setProperty("kms.keyArn", kmsKeyArn);
+    properties.setProperty(EncryptionConfig.KMS_REGION.name, region != null ? region : "us-east-1");
 
     // Cache configuration
-    properties.setProperty("cache.enabled", "true");
-    properties.setProperty("cache.expirationMinutes", "30");
-    properties.setProperty("cache.maxSize", "1000");
+    properties.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "true");
+    properties.setProperty(EncryptionConfig.METADATA_CACHE_EXPIRATION_MINUTES.name, "30");
+    properties.setProperty(EncryptionConfig.DATA_KEY_CACHE_MAX_SIZE.name, "1000");
 
     // Retry configuration
-    properties.setProperty("kms.maxRetries", "3");
-    properties.setProperty("kms.retryBackoffBaseMs", "100");
+    properties.setProperty(EncryptionConfig.KEY_MANAGEMENT_MAX_RETRIES.name, "3");
+    properties.setProperty(EncryptionConfig.KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS.name, "100");
 
     // Metadata configuration
-    properties.setProperty("metadata.refreshIntervalMinutes", "5");
+    properties.setProperty(EncryptionConfig.METADATA_CACHE_REFRESH_INTERVAL_MS.name, "300000");
 
     logger.fine(
         Messages.get("EncryptingDataSourceFactory.createdDefaults", new Object[]{kmsKeyArn, region}));
@@ -212,22 +212,23 @@ public class EncryptingDataSourceFactory {
     }
 
     public Builder region(String region) {
-      encryptionProperties.setProperty("kms.region", region);
+      encryptionProperties.setProperty(EncryptionConfig.KMS_REGION.name, region);
       return this;
     }
 
     public Builder cacheEnabled(boolean enabled) {
-      encryptionProperties.setProperty("cache.enabled", String.valueOf(enabled));
+      encryptionProperties.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, String.valueOf(enabled));
       return this;
     }
 
     public Builder cacheExpirationMinutes(int minutes) {
-      encryptionProperties.setProperty("cache.expirationMinutes", String.valueOf(minutes));
+      encryptionProperties.setProperty(
+          EncryptionConfig.METADATA_CACHE_EXPIRATION_MINUTES.name, String.valueOf(minutes));
       return this;
     }
 
     public Builder cacheMaxSize(int maxSize) {
-      encryptionProperties.setProperty("cache.maxSize", String.valueOf(maxSize));
+      encryptionProperties.setProperty(EncryptionConfig.DATA_KEY_CACHE_MAX_SIZE.name, String.valueOf(maxSize));
       return this;
     }
 

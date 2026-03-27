@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import software.amazon.jdbc.plugin.encryption.factory.EncryptingDataSourceFactory;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 /**
@@ -82,19 +83,16 @@ public class AwsWrapperEncryptionExample {
     Properties encryptionProperties = new Properties();
 
     // KMS configuration
-    encryptionProperties.setProperty(
-        "kms.keyArn",
-        "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
-    encryptionProperties.setProperty("kms.region", "us-east-1");
+    encryptionProperties.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
 
     // Cache configuration
-    encryptionProperties.setProperty("cache.enabled", "true");
-    encryptionProperties.setProperty("cache.expirationMinutes", "30");
-    encryptionProperties.setProperty("cache.maxSize", "1000");
+    encryptionProperties.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "true");
+    encryptionProperties.setProperty(EncryptionConfig.METADATA_CACHE_EXPIRATION_MINUTES.name, "30");
+    encryptionProperties.setProperty(EncryptionConfig.DATA_KEY_CACHE_MAX_SIZE.name, "1000");
 
     // Retry configuration
-    encryptionProperties.setProperty("kms.maxRetries", "3");
-    encryptionProperties.setProperty("kms.retryBackoffBaseMs", "100");
+    encryptionProperties.setProperty(EncryptionConfig.KEY_MANAGEMENT_MAX_RETRIES.name, "3");
+    encryptionProperties.setProperty(EncryptionConfig.KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS.name, "100");
 
     // AWS Wrapper configuration (optional)
     encryptionProperties.setProperty("wrapperLogUnclosedConnections", "true");

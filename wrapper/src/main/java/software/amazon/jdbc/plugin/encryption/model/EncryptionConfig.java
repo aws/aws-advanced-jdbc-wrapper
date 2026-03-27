@@ -34,46 +34,46 @@ public class EncryptionConfig {
       new AwsWrapperProperty("kms.region", null, "AWS KMS region for encryption operations");
 
   public static final AwsWrapperProperty METADATA_CACHE_ENABLED =
-      new AwsWrapperProperty("metadataCache.enabled", "true", "Enable/disable metadata caching");
+      new AwsWrapperProperty("metadataCacheEnabled", "true", "Enable/disable metadata caching");
 
   public static final AwsWrapperProperty METADATA_CACHE_EXPIRATION_MINUTES =
       new AwsWrapperProperty(
-          "metadataCache.expirationMinutes", "60", "Metadata cache expiration time in minutes");
+          "metadataCacheExpirationMinutes", "60", "Metadata cache expiration time in minutes");
 
   public static final AwsWrapperProperty KEY_MANAGEMENT_MAX_RETRIES =
       new AwsWrapperProperty(
-          "keyManagement.maxRetries",
+          "keyManagementMaxRetries",
           "3",
           "Maximum number of retries for key management operations");
 
   public static final AwsWrapperProperty KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS =
       new AwsWrapperProperty(
-          "keyManagement.retryBackoffBaseMs",
+          "keyManagementRetryBackoffBaseMs",
           "100",
           "Base backoff time in milliseconds for key management retries");
 
   public static final AwsWrapperProperty AUDIT_LOGGING_ENABLED =
-      new AwsWrapperProperty("audit.loggingEnabled", "false", "Enable/disable audit logging");
+      new AwsWrapperProperty("auditLoggingEnabled", "false", "Enable/disable audit logging");
 
   public static final AwsWrapperProperty DATA_KEY_CACHE_ENABLED =
-      new AwsWrapperProperty("dataKeyCache.enabled", "true", "Enable/disable data key caching");
+      new AwsWrapperProperty("dataKeyCacheEnabled", "true", "Enable/disable data key caching");
 
   public static final AwsWrapperProperty DATA_KEY_CACHE_MAX_SIZE =
-      new AwsWrapperProperty("dataKeyCache.maxSize", "1000", "Maximum size of data key cache");
+      new AwsWrapperProperty("dataKeyCacheMaxSize", "1000", "Maximum size of data key cache");
 
   public static final AwsWrapperProperty DATA_KEY_CACHE_EXPIRATION_MS =
       new AwsWrapperProperty(
-          "dataKeyCache.expirationMs", "3600000", "Data key cache expiration in milliseconds");
+          "dataKeyCacheExpirationMs", "3600000", "Data key cache expiration in milliseconds");
 
   public static final AwsWrapperProperty METADATA_CACHE_REFRESH_INTERVAL_MS =
       new AwsWrapperProperty(
-          "metadataCache.refreshIntervalMs",
+          "metadataCacheRefreshIntervalMs",
           "300000",
           "Metadata cache refresh interval in milliseconds");
 
   public static final AwsWrapperProperty ENCRYPTION_METADATA_SCHEMA =
       new AwsWrapperProperty(
-          "encryption.metadataSchema", "encrypt", "Schema name for encryption metadata tables");
+          "encryptionMetadataSchema", "encrypt", "Schema name for encryption metadata tables");
 
   static {
     PropertyDefinition.registerPluginProperties(EncryptionConfig.class);
