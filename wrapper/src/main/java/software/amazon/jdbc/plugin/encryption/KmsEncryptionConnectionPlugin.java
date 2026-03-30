@@ -102,8 +102,6 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   private final Map<PreparedStatement, StatementContext> statementContexts =
       new ConcurrentHashMap<>();
 
-  public static final String KMS_ENCRYPTION_PLUGIN_CODE = "kmsEncryption";
-
   public KmsEncryptionConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
     this.encryptionUtility = new KmsEncryptionUtility(pluginService);
