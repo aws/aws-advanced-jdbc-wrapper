@@ -45,9 +45,6 @@ import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.parser.EncryptionAnnotationParser;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
-import software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData;
-import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 
@@ -257,12 +254,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     java.util.Arrays.fill(dataKey, (byte) 0);
 
     // Set encrypted bytes using database-appropriate method
-    if (isPostgreSql()) {
-      EncryptedData encData = new EncryptedData(encrypted);
-      ps.setObject(paramIndex, encData);
-    } else {
-      ps.setBytes(paramIndex, encrypted);
-    }
+    pluginService.getTargetDriverDialect().setEncryptedParameter(ps, paramIndex, encrypted);
 
     return (T) null; // void return for setXxx methods
   }
@@ -317,27 +309,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   }
 
   private byte[] getEncryptedBytes(ResultSet rs, Object... args) throws SQLException {
-    if (isPostgreSql()) {
-      Object obj;
-      if (args[0] instanceof Integer) {
-        obj = rs.getObject((Integer) args[0]);
-      } else {
-        obj = rs.getObject((String) args[0]);
-      }
-      if (obj instanceof EncryptedData) {
-        return ((EncryptedData) obj).getBytes();
-      }
-      // Fallback to raw bytes
-      if (args[0] instanceof Integer) {
-        return rs.getBytes((Integer) args[0]);
-      }
-      return rs.getBytes((String) args[0]);
-    } else {
-      if (args[0] instanceof Integer) {
-        return rs.getBytes((Integer) args[0]);
-      }
-      return rs.getBytes((String) args[0]);
-    }
+    return pluginService.getTargetDriverDialect().getEncryptedBytes(rs, args[0]);
   }
 
   private String resolveColumnName(ResultSet rs, Object... args) throws SQLException {
@@ -410,11 +382,6 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       return byte[].class;
     }
     return Object.class;
-  }
-
-  private boolean isPostgreSql() {
-    TargetDriverDialect dialect = pluginService.getTargetDriverDialect();
-    return dialect instanceof PgTargetDriverDialect;
   }
 
   private void ensureInitialized(Connection conn) throws SQLException {

@@ -45,7 +45,7 @@ import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
-import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
 
 public class KmsEncryptionConnectionPluginTest {
 
@@ -62,7 +62,6 @@ public class KmsEncryptionConnectionPluginTest {
   @Mock ResultSet mockResultSet;
   @Mock ResultSetMetaData mockResultSetMetaData;
   @Mock Connection mockConnection;
-  @Mock PgTargetDriverDialect mockPgDialect;
 
   private final byte[] testDataKey = new byte[32];
   private final byte[] testHmacKey = new byte[32];
@@ -76,7 +75,8 @@ public class KmsEncryptionConnectionPluginTest {
     when(mockUtility.getKeyManager()).thenReturn(mockKeyManager);
     when(mockUtility.getEncryptionService()).thenReturn(mockEncryptionService);
     when(mockUtility.getSqlAnalysisService()).thenReturn(mockSqlAnalysisService);
-    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockPgDialect);
+    when(mockPluginService.getTargetDriverDialect())
+        .thenReturn(new GenericTargetDriverDialect());
 
     plugin = new KmsEncryptionConnectionPlugin(mockPluginService, mockUtility);
   }
@@ -140,8 +140,8 @@ public class KmsEncryptionConnectionPluginTest {
         "PreparedStatement.setString", callable,
         2, "123-45-6789");
 
-    // Should have set encrypted bytes via setObject (PG dialect)
-    verify(mockPreparedStatement).setObject(eq(2), any());
+    // Should have set encrypted bytes via the strategy
+    verify(mockPreparedStatement).setBytes(eq(2), any());
   }
 
   @Test

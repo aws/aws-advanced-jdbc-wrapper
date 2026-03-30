@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
@@ -72,4 +73,9 @@ public interface TargetDriverDialect {
   void registerDataType(final @NonNull Connection connection,  final @NonNull String typeName,
       final @NonNull String className)
       throws SQLException;
+
+  void setEncryptedParameter(final @NonNull PreparedStatement ps, int paramIndex, byte[] encrypted)
+      throws SQLException;
+
+  byte[] getEncryptedBytes(final @NonNull ResultSet rs, Object columnRef) throws SQLException;
 }

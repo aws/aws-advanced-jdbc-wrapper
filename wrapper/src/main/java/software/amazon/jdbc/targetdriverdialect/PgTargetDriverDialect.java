@@ -19,6 +19,7 @@ package software.amazon.jdbc.targetdriverdialect;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.encryption.wrapper.PgEncryptedDataHelper;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
@@ -188,4 +190,13 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     pgConn.addDataType(typeName, className);
   }
 
+  public void setEncryptedParameter(@NonNull PreparedStatement ps, int paramIndex, byte[] encrypted)
+      throws SQLException {
+    new PgEncryptedDataHelper().setEncryptedParameter(ps, paramIndex, encrypted);
+  }
+
+  @Override
+  public byte[] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
+    return new PgEncryptedDataHelper().getEncryptedBytes(rs, columnRef);
+  }
 }

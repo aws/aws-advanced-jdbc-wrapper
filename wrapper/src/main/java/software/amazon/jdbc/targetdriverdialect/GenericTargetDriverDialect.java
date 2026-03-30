@@ -21,6 +21,7 @@ import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -278,6 +279,20 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   @Override
   public void registerDataType(@NonNull Connection connection, @NonNull String typeName,
       @NonNull String className) throws SQLException {
+  }
+
+  @Override
+  public void setEncryptedParameter(@NonNull PreparedStatement ps, int paramIndex, byte[] encrypted)
+      throws SQLException {
+    ps.setBytes(paramIndex, encrypted);
+  }
+
+  @Override
+  public byte[] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
+    if (columnRef instanceof Integer) {
+      return rs.getBytes((Integer) columnRef);
+    }
+    return rs.getBytes((String) columnRef);
   }
 
   // Get the SQL query string from a PreparedStatement which comes after a dialect specific header
