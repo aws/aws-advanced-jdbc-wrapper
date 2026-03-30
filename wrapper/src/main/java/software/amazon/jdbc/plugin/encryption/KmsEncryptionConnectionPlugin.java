@@ -20,7 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -34,6 +34,7 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
@@ -60,40 +61,43 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   private static final Logger LOGGER =
       Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
 
-  private static final Set<String> SUBSCRIBED_METHODS = new HashSet<>(Arrays.asList(
-      "Connection.prepareStatement",
-      "Connection.prepareCall",
-      "Connection.close",
-      "PreparedStatement.close",
-      "PreparedStatement.setString",
-      "PreparedStatement.setInt",
-      "PreparedStatement.setLong",
-      "PreparedStatement.setDouble",
-      "PreparedStatement.setFloat",
-      "PreparedStatement.setShort",
-      "PreparedStatement.setByte",
-      "PreparedStatement.setBoolean",
-      "PreparedStatement.setBigDecimal",
-      "PreparedStatement.setDate",
-      "PreparedStatement.setTime",
-      "PreparedStatement.setTimestamp",
-      "PreparedStatement.setObject",
-      "PreparedStatement.setBytes",
-      "ResultSet.getString",
-      "ResultSet.getInt",
-      "ResultSet.getLong",
-      "ResultSet.getDouble",
-      "ResultSet.getFloat",
-      "ResultSet.getShort",
-      "ResultSet.getByte",
-      "ResultSet.getBoolean",
-      "ResultSet.getBigDecimal",
-      "ResultSet.getDate",
-      "ResultSet.getTime",
-      "ResultSet.getTimestamp",
-      "ResultSet.getObject",
-      "ResultSet.getBytes"
-  ));
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add(JdbcMethod.CONNECTION_PREPARESTATEMENT.methodName);
+          add(JdbcMethod.CONNECTION_PREPARECALL.methodName);
+          add(JdbcMethod.CONNECTION_CLOSE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETSTRING.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETINT.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETLONG.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETDOUBLE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETFLOAT.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETSHORT.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETBYTE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETBOOLEAN.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETBIGDECIMAL.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETTIME.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETBYTES.methodName);
+          add(JdbcMethod.RESULTSET_GETSTRING.methodName);
+          add(JdbcMethod.RESULTSET_GETINT.methodName);
+          add(JdbcMethod.RESULTSET_GETLONG.methodName);
+          add(JdbcMethod.RESULTSET_GETDOUBLE.methodName);
+          add(JdbcMethod.RESULTSET_GETFLOAT.methodName);
+          add(JdbcMethod.RESULTSET_GETSHORT.methodName);
+          add(JdbcMethod.RESULTSET_GETBYTE.methodName);
+          add(JdbcMethod.RESULTSET_GETBOOLEAN.methodName);
+          add(JdbcMethod.RESULTSET_GETBIGDECIMAL.methodName);
+          add(JdbcMethod.RESULTSET_GETDATE.methodName);
+          add(JdbcMethod.RESULTSET_GETTIME.methodName);
+          add(JdbcMethod.RESULTSET_GETTIMESTAMP.methodName);
+          add(JdbcMethod.RESULTSET_GETOBJECT.methodName);
+          add(JdbcMethod.RESULTSET_GETBYTES.methodName);
+        }
+      });
 
   private final KmsEncryptionUtility encryptionUtility;
   private final PluginService pluginService;
@@ -419,7 +423,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return SUBSCRIBED_METHODS;
+    return subscribedMethods;
   }
 
   @Override
