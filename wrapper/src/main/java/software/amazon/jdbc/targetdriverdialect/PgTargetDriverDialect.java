@@ -35,6 +35,7 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.wrapper.PgEncryptedDataHelper;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ResourceLock;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -190,13 +191,28 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     pgConn.addDataType(typeName, className);
   }
 
+  private final ResourceLock encryptedDataHelperLock = new ResourceLock();
+  private volatile PgEncryptedDataHelper pgEncryptedDataHelper;
+
+  private PgEncryptedDataHelper getPgEncryptedDataHelper() {
+    if (pgEncryptedDataHelper == null) {
+      try (ResourceLock ignored = encryptedDataHelperLock.obtain()) {
+        if (pgEncryptedDataHelper == null) {
+          pgEncryptedDataHelper = new PgEncryptedDataHelper();
+        }
+      }
+    }
+    return pgEncryptedDataHelper;
+  }
+
+  @Override
   public void setEncryptedParameter(@NonNull PreparedStatement ps, int paramIndex, byte[] encrypted)
       throws SQLException {
-    new PgEncryptedDataHelper().setEncryptedParameter(ps, paramIndex, encrypted);
+    getPgEncryptedDataHelper().setEncryptedParameter(ps, paramIndex, encrypted);
   }
 
   @Override
   public byte[] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
-    return new PgEncryptedDataHelper().getEncryptedBytes(rs, columnRef);
+    return getPgEncryptedDataHelper().getEncryptedBytes(rs, columnRef);
   }
 }
