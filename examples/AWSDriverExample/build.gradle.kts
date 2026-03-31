@@ -33,7 +33,7 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.60.1")
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     implementation("org.jsoup:jsoup:1.21.1")
-    implementation("com.mchange:c3p0:0.11.2")
+    implementation("com.mchange:c3p0:0.12.0")
     implementation("org.apache.commons:commons-pool2:2.11.1")
     implementation("io.github.cdimascio:dotenv-java:2.3.2")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")

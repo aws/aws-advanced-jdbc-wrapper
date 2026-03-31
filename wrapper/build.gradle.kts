@@ -44,7 +44,7 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.42.24")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    optionalImplementation("com.mchange:c3p0:0.11.2")
+    optionalImplementation("com.mchange:c3p0:0.12.0")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("org.apache.commons:commons-pool2:2.11.1")
@@ -82,7 +82,7 @@ dependencies {
     testImplementation("com.mysql:mysql-connector-j:9.6.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    testImplementation("com.mchange:c3p0:0.11.2")
+    testImplementation("com.mchange:c3p0:0.12.0")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.42.24", )
