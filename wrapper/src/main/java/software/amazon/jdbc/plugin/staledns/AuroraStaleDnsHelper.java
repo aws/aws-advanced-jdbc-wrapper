@@ -128,9 +128,11 @@ public class AuroraStaleDnsHelper {
           } catch (final SQLException ex) {
             // ignore
           }
-          throw new SQLException(
-              Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
+          LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
                   new Object[]{writerCandidate}));
+
+          // The caller will handle this result and retry or fail.
+          return null;
         }
         // Connected to a writer — the connection is valid, topology just lagging.
         return conn;

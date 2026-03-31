@@ -819,8 +819,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     Connection conn = null;
 
     if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
-      return this.staleDnsHelper.getVerifiedConnection(
+      conn = this.staleDnsHelper.getVerifiedConnection(
           isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
+      if (conn == null) {
+        throw new SQLException(Messages.get("Failover.unableToConnect"));
+      }
+      return conn;
     }
 
     final HostSpec hostSpecWithAvailability = this.pluginService.getHosts().stream()
