@@ -32,6 +32,16 @@ jobs:
         run: |
           echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
           base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+      - name: 'Validate GPG secrets'
+        run: |
+          if [ -z "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "GPG_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+          if [ -z "${{ secrets.GPG_PASSPHRASE }}" ]; then
+            echo "GPG_PASSPHRASE secret is empty or missing"
+            exit 1
+          fi
       - name: 'Install GPG Secret Key'
         id: import_gpg
         run: |
