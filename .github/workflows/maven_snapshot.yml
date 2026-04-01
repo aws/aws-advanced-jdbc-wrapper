@@ -29,10 +29,8 @@ jobs:
           ./gradlew --no-parallel --no-daemon -x test build
           ./gradlew --no-parallel --no-daemon -x test shadowJar
       - name: "Decode Key Ring"
-        env:
-          GPG_SECRET_KEY_FILE: ${{ secrets.GPG_SECRET_KEY_FILE }}
         run: |
-          echo "$GPG_SECRET_KEY_FILE" > ~/.gradle/secring.gpg.b64
+          echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
           base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
       - name: 'Validate GPG secrets'
         env:
@@ -55,19 +53,16 @@ jobs:
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
           printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
-          echo "test" | gpg -q --local-user "$GPG_KEY_ID" --passphrase "$GPG_PASSPHRASE" --pinentry-mode loopback --sign --batch --yes > /dev/null
-      - name: 'Set up signing properties'
-        run: |
-          echo "signing.keyId=$SIGNING_KEY_ID" >> ~/.gradle/gradle.properties
-          echo "signing.password=$SIGNING_PASSWORD" >> ~/.gradle/gradle.properties
-          echo "signing.secretKeyRingFile=$HOME/.gradle/secring.gpg" >> ~/.gradle/gradle.properties
-        env:
-          SIGNING_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-          SIGNING_PASSWORD: ${{ secrets.GPG_PASSPHRASE }}
+          echo "test" > ~/.gradle/test.txt
+          gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} ~/.gradle/test.txt && echo "The correct passphrase was entered for this key"
+          gpg --verify --batch ~/.gradle/test.txt.asc ~/.gradle/test.txt && echo "Signature has verified"
       - name: 'Upload Snapshot to Maven'
         run: |
-          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Psnapshot=$ENABLE_SNAPSHOT -PjacocoEnabled=false
+          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Psnapshot=${{secrets.ENABLE_SNAPSHOT}} -PjacocoEnabled=false
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           ENABLE_SNAPSHOT: ${{ secrets.ENABLE_SNAPSHOT }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
