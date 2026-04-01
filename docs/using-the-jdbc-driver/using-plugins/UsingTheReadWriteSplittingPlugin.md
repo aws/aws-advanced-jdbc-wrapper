@@ -48,7 +48,7 @@ Setting `verifyInitialConnectionRole` to `false` skips this query, which can imp
 
 ### When is it safe to disable?
 
-The role check is **required** for endpoint types where the actual role may differ from the assumed role — specifically **Aurora Custom Endpoints** (which may route to either writers or readers), **Aurora Instance Endpoints** (where the URL pattern may not reflect the current role after a failover) and **non-RDS endpoints** (IP addresses, custom domains).
+The role check is **strongly** recommended for endpoint types where the actual role may differ from the assumed role — specifically **Aurora Custom Endpoints** (which may route to either writers or readers), **Aurora Instance Endpoints** (where the URL pattern may not reflect the current role after a failover) and **non-RDS endpoints** (IP addresses, custom domains).
 
 For endpoint types where the role is reliably known (e.g. cluster writer/reader endpoints, Multi-AZ cluster endpoints), the check can be safely disabled.
 

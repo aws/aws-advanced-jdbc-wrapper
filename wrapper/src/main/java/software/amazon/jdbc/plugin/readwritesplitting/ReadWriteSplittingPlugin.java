@@ -108,7 +108,6 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     }
 
     if (!this.verifyInitialConnectionRole) {
-      LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.initialConnectionRoleCheckSkipped"));
       return currentConnection;
     }
 
