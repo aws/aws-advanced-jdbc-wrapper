@@ -54,7 +54,9 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
-          printf '%s\n' "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign --armor --output /dev/null /dev/null
+          printf '%s' "$GPG_PASSPHRASE" > /tmp/gpg_passphrase.txt
+          gpg --batch --passphrase-file /tmp/gpg_passphrase.txt --pinentry-mode loopback --sign --armor --output /dev/null /dev/null
+          rm /tmp/gpg_passphrase.txt
       - name: 'Set up signing properties'
         run: |
           echo "signing.keyId=$SIGNING_KEY_ID" >> ~/.gradle/gradle.properties
