@@ -29,24 +29,32 @@ jobs:
           ./gradlew --no-parallel --no-daemon -x test build
           ./gradlew --no-parallel --no-daemon -x test shadowJar
       - name: "Decode Key Ring"
+        env:
+          GPG_SECRET_KEY_FILE: ${{ secrets.GPG_SECRET_KEY_FILE }}
         run: |
-          echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
+          echo "$GPG_SECRET_KEY_FILE" > ~/.gradle/secring.gpg.b64
           base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
       - name: 'Validate GPG secrets'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          if [ -z "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
             echo "GPG_PRIVATE_KEY secret is empty or missing"
             exit 1
           fi
-          if [ -z "${{ secrets.GPG_PASSPHRASE }}" ]; then
+          if [ -z "$GPG_PASSPHRASE" ]; then
             echo "GPG_PASSPHRASE secret is empty or missing"
             exit 1
           fi
       - name: 'Install GPG Secret Key'
         id: import_gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign --armor /dev/null
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign --armor /dev/null
       - name: 'Set up signing properties'
         run: |
           echo "signing.keyId=$SIGNING_KEY_ID" >> ~/.gradle/gradle.properties
@@ -57,7 +65,8 @@ jobs:
           SIGNING_PASSWORD: ${{ secrets.GPG_PASSPHRASE }}
       - name: 'Upload Snapshot to Maven'
         run: |
-          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Psnapshot=${{secrets.ENABLE_SNAPSHOT}} -PjacocoEnabled=false
+          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Psnapshot=$ENABLE_SNAPSHOT -PjacocoEnabled=false
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          ENABLE_SNAPSHOT: ${{ secrets.ENABLE_SNAPSHOT }}

@@ -27,14 +27,32 @@ jobs:
           ./gradlew --no-parallel --no-daemon -x test build
           ./gradlew --no-parallel --no-daemon -x test shadowJar
       - name: "Decode Key Ring"
+        env:
+          GPG_SECRET_KEY_FILE: ${{ secrets.GPG_SECRET_KEY_FILE }}
         run: |
-          echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
+          echo "$GPG_SECRET_KEY_FILE" > ~/.gradle/secring.gpg.b64
           base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+      - name: 'Validate GPG secrets'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+          if [ -z "$GPG_PASSPHRASE" ]; then
+            echo "GPG_PASSPHRASE secret is empty or missing"
+            exit 1
+          fi
       - name: 'Install GPG Secret Key'
         id: import_gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign --armor /dev/null
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign --armor /dev/null
       - name: 'Set up signing properties'
         run: |
           echo "signing.keyId=$SIGNING_KEY_ID" >> ~/.gradle/gradle.properties
