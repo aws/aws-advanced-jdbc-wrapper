@@ -6,11 +6,13 @@ on:
     - cron: '0 1 * * *'
 
 permissions:
-  actions: write
+  contents: read
 
 jobs:
   remove-old-artifacts:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     timeout-minutes: 10
 
     steps:
