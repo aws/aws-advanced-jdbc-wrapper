@@ -177,42 +177,17 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   @Override
   public void abortConnection(@NonNull Connection connectionToAbort, @NonNull Executor abortExecutor)
       throws SQLException {
-    LOGGER.finest("java24 implementation");
     try {
       connectionToAbort.abort(abortExecutor);
     } catch (final SecurityException secEx) {
       // JDK 24 fully removed the Java Security Manager (deprecated since JDK 17, removed in JDK 24 per JEP 486).
       // abort() is not supported on JDK 24+ (Security Manager removed); fall back to close()
-      //       LOGGER.finest(
-      //           () -> Messages.get(
-      //               "PgTargetDriverDialect.exceptionAbortingConnection",
-      //               new Object[] {secEx.getMessage()}));
+      LOGGER.warning(
+          () -> Messages.get(
+              "PgTargetDriverDialect.exceptionAbortingConnection",
+              new Object[] {secEx.getMessage()}));
 
-      LOGGER.log(Level.SEVERE,
-          secEx,
-          () -> "Unhandled security exception aborting connection.");
-
-      try {
-        connectionToAbort.close();
-      } catch (Exception closeEx) {
-        LOGGER.log(Level.SEVERE,
-            closeEx,
-            () -> "Unhandled exception closing connection (1).");
-      }
-    } catch (final Exception ex) {
-      // JDK 24 fully removed the Java Security Manager (deprecated since JDK 17, removed in JDK 24 per JEP 486).
-      // abort() is not supported on JDK 24+ (Security Manager removed); fall back to close()
-      LOGGER.log(Level.SEVERE,
-          ex,
-          () -> "Unhandled exception aborting connection.");
-
-      try {
-        connectionToAbort.close();
-      } catch (Exception closeEx) {
-        LOGGER.log(Level.SEVERE,
-            closeEx,
-            () -> "Unhandled exception closing connection (2).");
-      }
+      connectionToAbort.close();
     }
   }
 

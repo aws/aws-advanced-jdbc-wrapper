@@ -175,7 +175,6 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   @Override
   public void abortConnection(@NonNull Connection connectionToAbort, @NonNull Executor abortExecutor)
       throws SQLException {
-    LOGGER.finest("java8 implementation");
     connectionToAbort.abort(abortExecutor);
   }
 
