@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -70,13 +71,12 @@ jobs:
       - name: 'Sign Jars'
         working-directory: ./wrapper
         env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
-          export GPG_TTY=$(tty)
-          KEYGRIP="$(gpg --with-keygrip -K | grep -Pom1 '^ *Keygrip += +\K.*')"
-          echo "$GPG_PASSPHRASE" | /usr/lib/gnupg2/gpg-preset-passphrase -c $KEYGRIP
-          for jar in build/libs/*.jar; do gpg --detach-sign --armor $jar; done
-          for signed in build/libs/*.asc; do gpg --verify $signed; done
+          for jar in build/libs/*.jar; do gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} $jar; done
+          for jar in build/libs/*.jar; do gpg --verify --batch $jar.asc $jar; done
       - name: 'Generate subject digests'
         id: hash
         working-directory: ./wrapper/build/libs
