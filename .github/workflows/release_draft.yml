@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -43,21 +44,39 @@ jobs:
           export RELEASE_DETAILS="$(sed '$d' <<< "$RELEASE_DETAILS")"
           touch RELEASE_DETAILS.md
           echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
+      - name: 'Validate GPG secrets'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+          if [ -z "$GPG_PASSPHRASE" ]; then
+            echo "GPG_PASSPHRASE secret is empty or missing"
+            exit 1
+          fi
       - name: 'Install GPG Secret Key'
         id: import_gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign --armor /dev/null
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "test" > ~/.gradle/test.txt
+          gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} ~/.gradle/test.txt && echo "The correct passphrase was entered for this key"
+          gpg --verify --batch ~/.gradle/test.txt.asc ~/.gradle/test.txt && echo "Signature has verified"
       - name: 'Sign Jars'
         working-directory: ./wrapper
         env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
-          export GPG_TTY=$(tty)
-          KEYGRIP="$(gpg --with-keygrip -K | grep -Pom1 '^ *Keygrip += +\K.*')"
-          echo "$GPG_PASSPHRASE" | /usr/lib/gnupg2/gpg-preset-passphrase -c $KEYGRIP
-          for jar in build/libs/*.jar; do gpg --detach-sign --armor $jar; done
-          for signed in build/libs/*.asc; do gpg --verify $signed; done
+          for jar in build/libs/*.jar; do gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} $jar; done
+          for jar in build/libs/*.jar; do gpg --verify --batch $jar.asc $jar; done
       - name: 'Generate subject digests'
         id: hash
         working-directory: ./wrapper/build/libs
