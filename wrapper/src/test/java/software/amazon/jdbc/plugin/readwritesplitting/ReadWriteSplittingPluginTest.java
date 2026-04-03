@@ -638,6 +638,38 @@ public class ReadWriteSplittingPluginTest {
     verify(spyPlugin, times(1)).closeWriterConnectionIfIdle();
   }
 
+  @Test
+  public void testConnect_verifyInitialConnectionRoleFalse_skipsHostRoleQuery() throws SQLException {
+    defaultProps.setProperty(ReadWriteSplittingPlugin.VERIFY_INITIAL_CONNECTION_ROLE.name, "false");
+    when(this.mockHostListProviderService.isStaticHostListProvider()).thenReturn(false);
+
+    final ReadWriteSplittingPlugin plugin =
+        new ReadWriteSplittingPlugin(mockPluginService, defaultProps);
+    plugin.hostListProviderService = mockHostListProviderService;
+
+    final Connection result = plugin.connect(
+        TEST_PROTOCOL, writerHostSpec, defaultProps, true, mockConnectFunc);
+
+    assertEquals(mockWriterConn, result);
+    verify(mockPluginService, never()).getHostRole(any(Connection.class));
+  }
+
+  @Test
+  public void testConnect_verifyInitialConnectionRoleTrue_performsHostRoleQuery() throws SQLException {
+    defaultProps.setProperty(ReadWriteSplittingPlugin.VERIFY_INITIAL_CONNECTION_ROLE.name, "true");
+    when(this.mockHostListProviderService.isStaticHostListProvider()).thenReturn(false);
+
+    final ReadWriteSplittingPlugin plugin =
+        new ReadWriteSplittingPlugin(mockPluginService, defaultProps);
+    plugin.hostListProviderService = mockHostListProviderService;
+
+    final Connection result = plugin.connect(
+        TEST_PROTOCOL, writerHostSpec, defaultProps, true, mockConnectFunc);
+
+    assertEquals(mockWriterConn, result);
+    verify(mockPluginService, times(1)).getHostRole(mockWriterConn);
+  }
+
   private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
     final HikariConfig config = new HikariConfig();
     config.setMaximumPoolSize(3);

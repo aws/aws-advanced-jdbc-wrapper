@@ -55,13 +55,22 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
           "random",
           "The strategy that should be used to select a new reader host.");
 
+  public static final AwsWrapperProperty VERIFY_INITIAL_CONNECTION_ROLE =
+      new AwsWrapperProperty(
+          "verifyInitialConnectionRole",
+          "true",
+          "Whether to verify the role of the initial connection by querying the database.");
+
   static {
     PropertyDefinition.registerPluginProperties(ReadWriteSplittingPlugin.class);
   }
 
+  protected final boolean verifyInitialConnectionRole;
+
   public ReadWriteSplittingPlugin(final PluginService pluginService, final @NonNull Properties properties) {
     super(pluginService, properties);
     this.readerSelectorStrategy = READER_HOST_SELECTOR_STRATEGY.getString(properties);
+    this.verifyInitialConnectionRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(properties);
   }
 
   /**
@@ -98,6 +107,10 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
       return currentConnection;
     }
 
+    if (!this.verifyInitialConnectionRole) {
+      return currentConnection;
+    }
+
     final HostRole currentRole = this.pluginService.getHostRole(currentConnection);
     if (currentRole == null || HostRole.UNKNOWN.equals(currentRole)) {
       logAndThrowException(
@@ -107,9 +120,13 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
 
     final HostSpec currentHost = this.pluginService.getInitialConnectionHostSpec();
     if (currentRole.equals(currentHost.getRole())) {
+      LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.initialConnectionRoleCheckNoUpdate",
+          new Object[] {currentHost.getHostAndPort(), currentHost.getRole(), currentRole}));
       return currentConnection;
     }
 
+    LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.initialConnectionRoleCheckUpdated",
+        new Object[] {currentHost.getHostAndPort(), currentHost.getRole(), currentRole}));
     final HostSpec updatedRoleHostSpec = new HostSpec(currentHost, currentRole);
     this.hostListProviderService.setInitialConnectionHostSpec(updatedRoleHostSpec);
     return currentConnection;

@@ -35,7 +35,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.12.0")
-    testImplementation("org.postgresql:postgresql:42.7.4")
+    testImplementation("org.postgresql:postgresql:42.7.10")
     testImplementation("com.mysql:mysql-connector-j:9.1.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.6")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
