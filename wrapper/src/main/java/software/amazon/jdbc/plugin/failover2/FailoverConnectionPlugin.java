@@ -58,6 +58,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.RetryUtil;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.Utils;
@@ -633,8 +634,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     }
 
     long failoverStartTimeNano = System.nanoTime();
+    long timeoutEndNano = failoverStartTimeNano
+        + TimeUnit.MICROSECONDS.toNanos(this.failoverTimeoutMsSetting);
+    final RetryUtil retryUtil = new RetryUtil();
 
-    Connection writerCandidateConn = null;
+    RetryUtil.Results results = null;
+
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
       this.servicesContainer.getImportantEventService().registerEvent(
@@ -650,72 +655,22 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
       }
 
-      final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
+      results = retryUtil.getWriterConnection(
+          this.pluginService,
+          this.properties,
+          this,
+          true,
+          timeoutEndNano);
 
-      final HostSpec writerCandidate = updatedHosts.stream()
-          .filter(x -> x.getRole() == HostRole.WRITER)
-          .findFirst()
-          .orElse(null);
+      if (results.getConnection() != null && results.getHostSpec() != null) {
+        this.pluginService.setCurrentConnection(results.getConnection(), results.getHostSpec());
+        results = null; // That prevents closing returned connection in the finally block.
 
-      if (writerCandidate == null) {
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        String message = LogUtils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
-        LOGGER.severe(message);
-        throw new FailoverFailedSQLException(message);
+        LOGGER.fine(() -> Messages.get(
+                "Failover.establishedConnection",
+                new Object[]{this.pluginService.getCurrentHostSpec()}));
+        throwFailoverSuccessException();
       }
-
-      final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsHostAndPort(allowedHosts, writerCandidate.getHostAndPort())) {
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        String topologyString = LogUtils.logTopology(allowedHosts, "");
-        LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
-            new Object[] {writerCandidate.getUrl(), topologyString}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerCandidate.getUrl(), topologyString}));
-      }
-
-      try {
-        writerCandidateConn = this.pluginService.connect(writerCandidate, this.properties, this);
-      } catch (SQLException ex) {
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        LOGGER.severe(
-            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}), ex);
-      }
-
-      HostRole role = this.pluginService.getHostRole(writerCandidateConn);
-      if (role != HostRole.WRITER) {
-        try {
-          writerCandidateConn.close();
-          writerCandidateConn = null;
-        } catch (SQLException ex) {
-          // do nothing
-        }
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        LOGGER.severe(
-            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-      }
-
-      this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
-      writerCandidateConn = null; // Prevent connection to be closed in the finally block.
-
-      LOGGER.fine(
-          () -> Messages.get(
-              "Failover.establishedConnection",
-              new Object[]{this.pluginService.getCurrentHostSpec()}));
-      throwFailoverSuccessException();
 
     } catch (FailoverSuccessSQLException ex) {
       if (this.failoverWriterSuccessCounter != null) {
@@ -726,6 +681,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         telemetryContext.setException(ex);
       }
       throw ex;
+    } catch (TimeoutException ex) {
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+      }
+      if (this.failoverWriterFailedCounter != null) {
+        this.failoverWriterFailedCounter.inc();
+      }
+      throw new FailoverFailedSQLException(ex.getMessage());
     } catch (Exception ex) {
       if (telemetryContext != null) {
         telemetryContext.setSuccess(false);
@@ -743,9 +707,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       this.servicesContainer.getImportantEventService().registerEvent(
           () -> Messages.get("Failover.writerFailoverElapsed", new Object[]{elapsedMs}));
 
-      if (writerCandidateConn != null && this.pluginService.getCurrentConnection() != writerCandidateConn) {
+      if (results != null
+          && this.pluginService.getCurrentConnection() != results.getConnection()) {
         try {
-          writerCandidateConn.close();
+          results.getConnection().close();
         } catch (SQLException ex) {
           // do nothing
         }
