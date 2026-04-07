@@ -54,7 +54,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.60.1")
     optionalImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
 
-    compileOnly("org.checkerframework:checker-qual:3.52.0")
+    compileOnly("org.checkerframework:checker-qual:3.55.1")
     compileOnly("com.mysql:mysql-connector-j:9.6.0")
     compileOnly("org.postgresql:postgresql:42.7.10")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.7")
@@ -67,7 +67,7 @@ dependencies {
     federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.42.29")
     federatedAuthBundleImplementation("org.jsoup:jsoup:1.21.1")
 
-    testImplementation("org.checkerframework:checker-qual:3.49.5")
+    testImplementation("org.checkerframework:checker-qual:3.55.1")
     testImplementation("org.junit.platform:junit-platform-commons:1.14.3")
     testImplementation("org.junit.platform:junit-platform-engine:1.14.3")
     testImplementation("org.junit.platform:junit-platform-launcher:1.14.3")
@@ -212,10 +212,10 @@ tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
 }
 
 dependencies {
-    add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
-    add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+    add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
+    add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.1.1")
-    add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+    add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate:hibernate-core:7.3.0.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
