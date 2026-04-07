@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.key;
+package software.amazon;
 
+import java.sql.Connection;
 import java.time.Duration;
 import java.util.List;
 import java.util.logging.Logger;
@@ -36,7 +37,7 @@ public class KeyManagementExample {
 
   private final KeyManagementUtility keyManagementUtility;
 
-  public KeyManagementExample(DataSource dataSource, KmsClient kmsClient) {
+  public KeyManagementExample(DataSource dataSource, KmsClient kmsClient) throws Exception {
     // Create encryption configuration
     EncryptionConfig config =
         EncryptionConfig.builder()
@@ -47,9 +48,12 @@ public class KeyManagementExample {
             .retryBackoffBase(Duration.ofMillis(100))
             .build();
 
-    // Create managers
-    KeyManager keyManager = null; // new KeyManager(kmsClient, pluginService, config);
-    MetadataManager metadataManager = null; // new MetadataManager(pluginService, config);
+    // Create managers using a DataSource connection
+    Connection connection = dataSource.getConnection();
+    boolean isPostgreSQL = connection.getMetaData().getDatabaseProductName()
+        .toLowerCase().contains("postgresql");
+    KeyManager keyManager = new KeyManager(kmsClient, connection, isPostgreSQL, config);
+    MetadataManager metadataManager = new MetadataManager(dataSource, config);
 
     // Create utility
     this.keyManagementUtility =
