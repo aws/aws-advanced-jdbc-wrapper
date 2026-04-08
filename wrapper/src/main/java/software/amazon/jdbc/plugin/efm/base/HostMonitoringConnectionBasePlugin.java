@@ -246,7 +246,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   public HostSpec getMonitoringHostSpec() {
     if (this.monitoringHostSpec == null) {
       this.monitoringHostSpec = this.pluginService.getCurrentHostSpec();
-      final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(monitoringHostSpec.getUrl());
+      final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(monitoringHostSpec.getHost());
 
       try {
         if (rdsUrlType.isRdsCluster()) {

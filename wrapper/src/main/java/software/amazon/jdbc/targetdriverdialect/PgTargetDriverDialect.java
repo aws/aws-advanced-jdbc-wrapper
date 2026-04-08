@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -38,6 +39,8 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ResourceLock;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
+
+  private static final Logger LOGGER = Logger.getLogger(PgTargetDriverDialect.class.getName());
 
   private static final String DRIVER_CLASS_NAME = "org.postgresql.Driver";
   private static final String SIMPLE_DS_CLASS_NAME = "org.postgresql.ds.PGSimpleDataSource";

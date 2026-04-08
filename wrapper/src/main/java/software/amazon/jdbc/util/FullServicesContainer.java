@@ -16,12 +16,14 @@
 
 package software.amazon.jdbc.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -76,4 +78,8 @@ public interface FullServicesContainer {
   void setPluginManagerService(PluginManagerService pluginManagerService);
 
   void setImportantEventService(ImportantEventService importantEventService);
+
+  @Nullable ConfigurationProfile getConfigurationProfile();
+
+  void setConfigurationProfile(@Nullable ConfigurationProfile configurationProfile);
 }

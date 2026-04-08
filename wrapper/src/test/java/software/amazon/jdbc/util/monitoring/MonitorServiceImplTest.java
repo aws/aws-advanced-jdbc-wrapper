@@ -66,7 +66,7 @@ class MonitorServiceImplTest {
 
     try {
       doReturn(mockContainer).when(spyMonitorService)
-          .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any(), any());
+          .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     } catch (SQLException e) {
       Assertions.fail(
           "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
@@ -101,6 +101,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
+        null,
         (serviceContainer) -> new NoOpMonitor(30)
     );
 
@@ -146,6 +147,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
+        null,
         (serviceContainer) -> new NoOpMonitor(30)
     );
 
@@ -193,6 +195,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
+        null,
         (serviceContainer) -> new NoOpMonitor(30)
     );
 
@@ -227,6 +230,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
+        null,
         // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
         // service should detect this and throw an exception.
         (serviceContainer) -> new NoOpMonitor(30)
@@ -258,6 +262,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
+        null,
         (serviceContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
@@ -294,6 +299,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
+        null,
         (serviceContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);

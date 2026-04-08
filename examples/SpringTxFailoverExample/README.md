@@ -101,7 +101,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.retry:spring-retry:1.3.4")
 	implementation("org.springframework:spring-aspects:5.3.29")
-	implementation("org.postgresql:postgresql:42.5.4")
+	implementation("org.postgresql:postgresql:42.7.10")
 	implementation("software.amazon.awssdk:rds:2.33.5")
 	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 }

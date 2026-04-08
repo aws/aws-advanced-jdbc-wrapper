@@ -1,24 +1,24 @@
 # Global Database (GDB) Read/Write Splitting Plugin
 
-The GDB read/write splitting plugin extends the functionality of the [read/write splitting plugin](./UsingTheReadWriteSplittingPlugin.md) and adopts some additional settings to improve support for Global Databases.
+The GDB Read/Write Splitting Plugin extends the functionality of the [Read/Write Splitting Plugin](./UsingTheReadWriteSplittingPlugin.md) and adopts some additional settings to improve support for Global Databases.
 
-The GDB read/write splitting plugin adds the notion of a home region and allows users to constrain new connections to this region. Such restrictions may be helpful to prevent opening new connections in environments where remote AWS regions add substantial latency that cannot be tolerated. 
+The GDB Read/Write Splitting Plugin adds the notion of a home region and allows users to constrain new connections to this region. Such restrictions may be helpful to prevent opening new connections in environments where remote AWS regions add substantial latency that cannot be tolerated. 
 
-Unless otherwise stated, all recommendations, configurations and code examples made for the [read/write splitting plugin](./UsingTheReadWriteSplittingPlugin.md) are applicable to the current GDB read/write splitting plugin.
+Unless otherwise stated, all recommendations, configurations and code examples made for the [Read/Write Splitting Plugin](./UsingTheReadWriteSplittingPlugin.md) are applicable to the current GDB Read/Write Splitting Plugin.
 
 ## Plugin Availability
 The plugin is available since version 3.2.0.
 
 ## Loading the Global Database Read/Write Splitting Plugin
 
-The GDB read/write splitting plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. If you would like to load the GDB read/write splitting plugin alongside the failover and host monitoring plugins, the GDB read/write splitting plugin **must be listed before** these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example below to properly load the GDB read/write splitting plugin with these plugins. Although the driver performs proper plugin sorting by default (see [`autoSortWrapperPluginOrder` configuration parameter](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters)), this note remains important.
+The GDB Read/Write Splitting Plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. If you would like to load the GDB Read/Write Splitting Plugin alongside the failover and host monitoring plugins, the GDB Read/Write Splitting Plugin **must be listed before** these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example below to properly load the GDB Read/Write Splitting Plugin with these plugins. Although the driver performs proper plugin sorting by default (see [`autoSortWrapperPluginOrder` configuration parameter](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters)), this note remains important.
 
 ```
 final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "gdbReadWriteSplitting,failover2,efm2");
 ```
 
-If you would like to use the GDB read/write splitting plugin without the failover plugin, make sure you have the `gdbReadWriteSplitting` plugin in the `wrapperPlugins` property, and that the failover plugin is not part of it.
+If you would like to use the GDB Read/Write Splitting Plugin without the failover plugin, make sure you have the `gdbReadWriteSplitting` plugin in the `wrapperPlugins` property, and that the failover plugin is not part of it.
 ```
 final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "gdbReadWriteSplitting");
@@ -29,7 +29,7 @@ properties.setProperty(PropertyDefinition.PLUGINS.name, "gdbReadWriteSplitting")
 
 ## Using the GDB Read/Write Splitting Plugin against non-GDB clusters
 
-The GDB read/write splitting plugin can be used against Aurora clusters and RDS clusters. However, since these cluster types are single-region clusters, setting a home region does not make much sense. 
+The GDB Read/Write Splitting Plugin can be used against Aurora clusters and RDS clusters. However, since these cluster types are single-region clusters, setting a home region does not make much sense. 
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
@@ -44,4 +44,4 @@ Verify plugin compatibility within your driver configuration using the [compatib
 | `gdbRwRestrictReaderToHomeRegion` | Boolean |                                                                     No                                                                      | If set to `true`, prevents connecting to a reader node outside the defined home region. If no reader nodes in the home region are available, an exception will be raised.                                                                                                                                                                                                                              | `true`                                                                                                                           |
 
 
-Please refer to the original [read/write splitting plugin](./UsingTheReadWriteSplittingPlugin.md) for more details about error codes, configurations, connection pooling and sample codes. 
+Please refer to the original [Read/Write Splitting Plugin](./UsingTheReadWriteSplittingPlugin.md) for more details about error codes, configurations, connection pooling and sample codes. 

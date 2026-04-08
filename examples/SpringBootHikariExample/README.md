@@ -60,7 +60,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
-	implementation("org.postgresql:postgresql:42.5.4")
+	implementation("org.postgresql:postgresql:42.7.10")
 }
 ```
 

@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone Repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           fetch-depth: 50
       - name: 'Set up JDK 8'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
         with:
           distribution: 'corretto'
           java-version: 8
@@ -32,15 +32,37 @@ jobs:
         run: |
           echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
           base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+      - name: 'Validate GPG secrets'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+          if [ -z "$GPG_PASSPHRASE" ]; then
+            echo "GPG_PASSPHRASE secret is empty or missing"
+            exit 1
+          fi
       - name: 'Install GPG Secret Key'
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "test" > ~/.gradle/test.txt
+          gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} ~/.gradle/test.txt && echo "The correct passphrase was entered for this key"
+          gpg --verify --batch ~/.gradle/test.txt.asc ~/.gradle/test.txt && echo "Signature has verified"
       - name: 'Upload Snapshot to Maven'
         run: |
-          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Psnapshot=${{secrets.ENABLE_SNAPSHOT}} -PjacocoEnabled=false -Psigning.keyId=${{secrets.GPG_KEY_ID}} -Psigning.password=${{secrets.GPG_PASSPHRASE}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)
+          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Psnapshot=${{secrets.ENABLE_SNAPSHOT}} -PjacocoEnabled=false
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          ENABLE_SNAPSHOT: ${{ secrets.ENABLE_SNAPSHOT }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}

@@ -6,16 +6,18 @@ on:
     - cron: '0 1 * * *'
 
 permissions:
-  actions: write
+  contents: read
 
 jobs:
   remove-old-artifacts:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     timeout-minutes: 10
 
     steps:
       - name: Remove Old Artifacts
-        uses: c-hive/gha-remove-artifacts@v1
+        uses: c-hive/gha-remove-artifacts@44fc7acaf1b3d0987da0e8d4707a989d80e9554b  # v1
         with:
           age: '1 week'
           skip-tags: true

@@ -109,6 +109,7 @@ public class EFM2Test {
         .get(0)
         .getInstanceId();
     try (final Connection conn = DriverManager.getConnection(url, props)) {
+
       Statement stmt = conn.createStatement();
 
       // Simulate network failure in the middle of the query. The simulated failure occurs after a small delay to allow

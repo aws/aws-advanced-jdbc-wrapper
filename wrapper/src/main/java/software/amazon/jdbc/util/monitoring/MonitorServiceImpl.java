@@ -38,6 +38,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -45,7 +46,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
-import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
@@ -197,6 +197,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         servicesContainer.getPluginService().getTargetDriverDialect(),
         servicesContainer.getPluginService().getDialect(),
         originalProps,
+        servicesContainer.getConfigurationProfile(),
         initializer
     );
   }
@@ -214,6 +215,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties originalProps,
+      @Nullable ConfigurationProfile configurationProfile,
       MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
@@ -240,7 +242,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
             driverProtocol,
             driverDialect,
             dbDialect,
-            originalProps);
+            originalProps,
+            configurationProfile);
         final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
         monitorItemInner.getMonitor().start();
         return monitorItemInner;
@@ -272,7 +275,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       String driverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties originalProps) throws SQLException {
+      Properties originalProps,
+      @Nullable ConfigurationProfile configurationProfile) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
     return ServiceUtility.getInstance().createMinimalServiceContainer(
         storageService,
@@ -284,7 +288,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         driverProtocol,
         driverDialect,
         dbDialect,
-        propsCopy
+        propsCopy,
+        configurationProfile
     );
   }
 

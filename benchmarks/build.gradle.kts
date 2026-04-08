@@ -22,15 +22,15 @@ val nativeClassifier: String = osdetector.classifier
 
 dependencies {
     jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.postgresql:postgresql:42.7.10")
     implementation("com.mysql:mysql-connector-j:9.6.0")
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.7")
     implementation("com.zaxxer:HikariCP:4.0.3")
-    implementation("org.checkerframework:checker-qual:3.49.5")
+    implementation("org.checkerframework:checker-qual:3.55.1")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
     implementation("org.apache.commons:commons-pool2:2.11.1")
-    annotationProcessor("org.openjdk.jmh:jmh-core:1.36")
-    jmhAnnotationProcessor ("org.openjdk.jmh:jmh-generator-annprocess:1.36")
+    annotationProcessor("org.openjdk.jmh:jmh-core:1.37")
+    jmhAnnotationProcessor ("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.14.3")
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8

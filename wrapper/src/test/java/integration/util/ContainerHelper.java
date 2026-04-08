@@ -24,6 +24,7 @@ import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
+import integration.TargetJvm;
 import integration.TestInstanceInfo;
 import java.io.IOException;
 import java.time.Duration;
@@ -93,12 +94,12 @@ public class ContainerHelper {
     return exitCode;
   }
 
-  public void runTest(GenericContainer<?> container, String task)
-      throws IOException, InterruptedException {
-    runTest(container, task, null, null);
-  }
-
-  public void runTest(GenericContainer<?> container, String task, String includeTags, String excludeTags)
+  public void runTest(
+      GenericContainer<?> container,
+      String task,
+      String includeTags,
+      String excludeTags,
+      TargetJvm targetJvm)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
@@ -122,12 +123,12 @@ public class ContainerHelper {
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
-  public void debugTest(GenericContainer<?> container, String task)
-      throws IOException, InterruptedException {
-    debugTest(container, task, null, null);
-  }
-
-  public void debugTest(GenericContainer<?> container, String task, String includeTags, String excludeTags)
+  public void debugTest(
+      GenericContainer<?> container,
+      String task,
+      String includeTags,
+      String excludeTags,
+      TargetJvm targetJvm)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
