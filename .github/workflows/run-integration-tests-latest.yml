@@ -54,14 +54,14 @@ jobs:
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
       - name: Archive junit results for ${{ matrix.dbEngine }}
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: junit-report-latest-${{ matrix.dbEngine }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: Archive html summary report for ${{ matrix.dbEngine }}
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: html-summary-report-latest-${{ matrix.dbEngine }}
           path: ./wrapper/build/report
