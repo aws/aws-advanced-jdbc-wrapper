@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.parser;
+package software.amazon.jdbc.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import software.amazon.jdbc.parser.JSQLParserAnalyzer;
 
 /** Tests for JSQLParserAnalyzer. */
 class JSQLParserAnalyzerTest {

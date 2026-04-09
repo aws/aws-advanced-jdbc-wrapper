@@ -53,6 +53,15 @@ public class PluginCallContext {
   }
 
   /**
+   * Removes the ThreadLocal entry for the current thread. Must be called when
+   * the connection or plugin manager is closed to prevent classloader leaks
+   * in application servers with thread pools.
+   */
+  public static void destroy() {
+    CURRENT.remove();
+  }
+
+  /**
    * Sets an attribute in the context.
    *
    * @param key the attribute key
@@ -66,12 +75,17 @@ public class PluginCallContext {
    * Gets an attribute from the context.
    *
    * @param key the attribute key
+   * @param type the expected type
    * @param <T> the expected type
    * @return the attribute value, or null if not set
+   * @throws ClassCastException if the value is not of the expected type
    */
-  @SuppressWarnings("unchecked")
-  public <T> T getAttribute(final String key) {
-    return (T) attributes.get(key);
+  public <T> T getAttribute(final String key, final Class<T> type) {
+    Object value = attributes.get(key);
+    if (value == null) {
+      return null;
+    }
+    return type.cast(value);
   }
 
   /**

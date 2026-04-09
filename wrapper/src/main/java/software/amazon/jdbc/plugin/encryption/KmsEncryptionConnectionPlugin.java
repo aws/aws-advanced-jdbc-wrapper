@@ -194,12 +194,15 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       try {
         ensureInitialized(ps.getConnection());
       } catch (SQLException e) {
-        // Log but don't fail — encryption may still work
         LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.initWithConnectionFailed",
             new Object[]{e.getMessage()}));
       }
 
-      statementContexts.put(ps, new StatementContext(pluginService.getCallContext()));
+      try {
+        statementContexts.put(ps, new StatementContext(pluginService.getCallContext()));
+      } catch (SQLException e) {
+        throw new RuntimeException(e.getMessage(), e);
+      }
     }
 
     return result;
@@ -454,17 +457,22 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     final Map<Integer, String> parameterColumnMapping;
 
     @SuppressWarnings("unchecked")
-    StatementContext(PluginCallContext ctx) {
-      Set<String> tables = ctx.getAttribute(SqlContextKeys.TABLES);
+    StatementContext(PluginCallContext ctx) throws java.sql.SQLException {
+      if (ctx == null) {
+        throw new java.sql.SQLException(
+            "SQL parse results not found in call context. "
+                + "The sqlParser plugin must be loaded before kmsEncryption.");
+      }
+      Set<String> tables = ctx.getAttribute(SqlContextKeys.TABLES, Set.class);
       if (tables == null) {
-        throw new IllegalStateException(
+        throw new java.sql.SQLException(
             "SQL parse results not found in call context. "
                 + "The sqlParser plugin must be loaded before kmsEncryption.");
       }
       this.tableName = tables.isEmpty() ? null : tables.iterator().next();
 
       this.parameterColumnMapping = new ConcurrentHashMap<>();
-      Map<Integer, String> paramMapping = ctx.getAttribute(SqlContextKeys.PARAM_MAPPING);
+      Map<Integer, String> paramMapping = ctx.getAttribute(SqlContextKeys.PARAM_MAPPING, Map.class);
       if (paramMapping != null) {
         this.parameterColumnMapping.putAll(paramMapping);
       }

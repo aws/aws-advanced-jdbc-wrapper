@@ -54,7 +54,7 @@ public class SqlAnalysisService {
    */
   public static SqlAnalysisResult analyzeSql(String sql, String jdbcUrl) {
     if (sql == null || sql.trim().isEmpty()) {
-      return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
+      return new SqlAnalysisResult(Collections.emptySet(), "UNKNOWN");
     }
 
     try {
@@ -71,7 +71,7 @@ public class SqlAnalysisService {
       throw new RuntimeException(Messages.get("SqlAnalysisService.analysisFailed"), e);
     }
 
-    return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
+    return new SqlAnalysisResult(Collections.emptySet(), "UNKNOWN");
   }
 
   /** Extracts table names from JSQLParserAnalyzer QueryAnalysis result. */
@@ -98,25 +98,20 @@ public class SqlAnalysisService {
 
   /** Analyzes SQL using the extracted table names from parser. */
   private static SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
-    Map<String, Object> encryptedColumns = new HashMap<>();
+    
 
     LOGGER.finest(() -> Messages.get("SqlAnalysisService.parserFoundTables", new Object[]{tables.size()}));
 
-    return new SqlAnalysisResult(tables, encryptedColumns, queryType);
+    return new SqlAnalysisResult(tables, queryType);
   }
 
-  /** Result of SQL analysis containing affected tables and encrypted columns. */
+  /** Result of SQL analysis containing affected tables and query type. */
   public static class SqlAnalysisResult {
     private final Set<String> affectedTables;
-    private final Map<String, Object> encryptedColumns;
     private final String queryType;
 
-    public SqlAnalysisResult(
-        Set<String> affectedTables,
-        Map<String, Object> encryptedColumns,
-        String queryType) {
+    public SqlAnalysisResult(Set<String> affectedTables, String queryType) {
       this.affectedTables = Collections.unmodifiableSet(new HashSet<>(affectedTables));
-      this.encryptedColumns = Collections.unmodifiableMap(new HashMap<>(encryptedColumns));
       this.queryType = queryType;
     }
 
@@ -124,41 +119,25 @@ public class SqlAnalysisService {
       return affectedTables;
     }
 
-    public Map<String, Object> getEncryptedColumns() {
-      return encryptedColumns;
-    }
-
     public String getQueryType() {
       return queryType;
-    }
-
-    public boolean hasEncryptedColumns() {
-      return !encryptedColumns.isEmpty();
-    }
-
-    public int getTableCount() {
-      return affectedTables.size();
-    }
-
-    public int getEncryptedColumnCount() {
-      return encryptedColumns.size();
     }
 
     @Override
     public String toString() {
       return String.format(
-          "SqlAnalysisResult{tables=%d, encryptedColumns=%d}",
-          getTableCount(), getEncryptedColumnCount());
+          "SqlAnalysisResult{tables=%s, queryType=%s}",
+          affectedTables, queryType);
     }
   }
 
   /** Gets column-to-parameter mapping for prepared statement parameters. */
-  public Map<Integer, String> getColumnParameterMapping(String sql) {
+  public static Map<Integer, String> getColumnParameterMapping(String sql) {
     return getColumnParameterMapping(sql, null);
   }
 
   /** Gets column-to-parameter mapping. */
-  public Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
+  public static Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {
@@ -189,7 +168,7 @@ public class SqlAnalysisService {
   }
 
   /** Count the number of parameter placeholders (?) in SQL. */
-  private int countParameters(String sql) {
+  private static int countParameters(String sql) {
     int count = 0;
     for (int i = 0; i < sql.length(); i++) {
       if (sql.charAt(i) == '?') {

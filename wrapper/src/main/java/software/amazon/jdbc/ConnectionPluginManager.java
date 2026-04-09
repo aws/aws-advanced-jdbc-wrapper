@@ -313,18 +313,14 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       final Object[] jdbcMethodArgs)
       throws E {
     PluginCallContext.reset();
-    try {
-      return executeWithSubscribedPlugins(
-          jdbcMethod,
-          (plugin, func) ->
-              plugin.execute(
-                  resultType, exceptionClass, methodInvokeOn, jdbcMethod.methodName, func,
-                  jdbcMethodArgs),
-          jdbcMethodFunc,
-          null);
-    } finally {
-      PluginCallContext.reset();
-    }
+    return executeWithSubscribedPlugins(
+        jdbcMethod,
+        (plugin, func) ->
+            plugin.execute(
+                resultType, exceptionClass, methodInvokeOn, jdbcMethod.methodName, func,
+                jdbcMethodArgs),
+        jdbcMethodFunc,
+        null);
   }
 
   /**
@@ -579,16 +575,14 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
   public void releaseResources() {
     LOGGER.finest(() -> Messages.get("ConnectionPluginManager.releaseResources"));
 
-    // This step allows all connection plugins a chance to clean up any dangling resources or
-    // perform any
-    // last tasks before shutting down.
-
     this.plugins.forEach(
         (plugin) -> {
           if (plugin instanceof CanReleaseResources) {
             ((CanReleaseResources) plugin).releaseResources();
           }
         });
+
+    PluginCallContext.destroy();
   }
 
   @Override

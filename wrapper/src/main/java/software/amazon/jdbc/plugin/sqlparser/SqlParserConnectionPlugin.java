@@ -17,11 +17,11 @@
 package software.amazon.jdbc.plugin.sqlparser;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginCallContext;
@@ -52,15 +52,14 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.STATEMENT_EXECUTE.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
         }
       });
 
   private final PluginService pluginService;
-  private final SqlAnalysisService sqlAnalysisService;
 
   public SqlParserConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
-    this.sqlAnalysisService = new SqlAnalysisService();
   }
 
   @Override
@@ -102,15 +101,15 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     Set<String> tables = new HashSet<>();
     for (String table : analysis.tables) {
-      tables.add(table.replace("`", ""));
+      tables.add(table.replace("`", "").replace("\"", ""));
     }
 
     ctx.setAttribute(SqlContextKeys.QUERY_TYPE, analysis.queryType);
     ctx.setAttribute(SqlContextKeys.TABLES, tables);
 
     // Build parameter mapping
-    Map<Integer, String> paramMapping = new ConcurrentHashMap<>();
-    paramMapping.putAll(sqlAnalysisService.getColumnParameterMapping(cleanSql));
+    Map<Integer, String> paramMapping = new HashMap<>();
+    paramMapping.putAll(SqlAnalysisService.getColumnParameterMapping(cleanSql));
     paramMapping.putAll(annotations);
     ctx.setAttribute(SqlContextKeys.PARAM_MAPPING, paramMapping);
   }

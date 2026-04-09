@@ -59,7 +59,6 @@ public class KmsEncryptionConnectionPluginTest {
   @Mock MetadataManager mockMetadataManager;
   @Mock KeyManager mockKeyManager;
   @Mock EncryptionService mockEncryptionService;
-  @Mock SqlAnalysisService mockSqlAnalysisService;
   @Mock PreparedStatement mockPreparedStatement;
   @Mock ResultSet mockResultSet;
   @Mock ResultSetMetaData mockResultSetMetaData;
@@ -76,7 +75,6 @@ public class KmsEncryptionConnectionPluginTest {
     when(mockUtility.getMetadataManager()).thenReturn(mockMetadataManager);
     when(mockUtility.getKeyManager()).thenReturn(mockKeyManager);
     when(mockUtility.getEncryptionService()).thenReturn(mockEncryptionService);
-    when(mockUtility.getSqlAnalysisService()).thenReturn(mockSqlAnalysisService);
     when(mockPluginService.getTargetDriverDialect())
         .thenReturn(new GenericTargetDriverDialect());
     when(mockPluginService.getCallContext())
@@ -136,8 +134,6 @@ public class KmsEncryptionConnectionPluginTest {
   void test_setString_encryptsForEncryptedColumn() throws Exception {
     // Set up statement context by calling prepareStatement first
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
-    when(mockSqlAnalysisService.getColumnParameterMapping(anyString()))
-        .thenReturn(java.util.Collections.singletonMap(2, "ssn"));
 
     populateContext("users", java.util.Collections.singletonMap(2, "ssn"));
     plugin.execute(
@@ -168,8 +164,6 @@ public class KmsEncryptionConnectionPluginTest {
   @Test
   void test_setString_passesThrough_forNonEncryptedColumn() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
-    when(mockSqlAnalysisService.getColumnParameterMapping(anyString()))
-        .thenReturn(java.util.Collections.singletonMap(1, "name"));
 
     populateContext("users", java.util.Collections.singletonMap(1, "name"));
     plugin.execute(
