@@ -43,17 +43,6 @@ public final class SqlAnalysisService {
    * @return Analysis result
    */
   public static SqlAnalysisResult analyzeSql(String sql) {
-    return analyzeSql(sql, null);
-  }
-
-  /**
-   * Analyzes a SQL statement.
-   *
-   * @param sql The SQL statement to analyze
-   * @param jdbcUrl JDBC URL (unused, kept for compatibility)
-   * @return Analysis result containing affected columns and their encryption configs
-   */
-  public static SqlAnalysisResult analyzeSql(String sql, String jdbcUrl) {
     if (sql == null || sql.trim().isEmpty()) {
       return new SqlAnalysisResult(Collections.emptySet(), "UNKNOWN");
     }
@@ -134,11 +123,6 @@ public final class SqlAnalysisService {
 
   /** Gets column-to-parameter mapping for prepared statement parameters. */
   public static Map<Integer, String> getColumnParameterMapping(String sql) {
-    return getColumnParameterMapping(sql, null);
-  }
-
-  /** Gets column-to-parameter mapping. */
-  public static Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {

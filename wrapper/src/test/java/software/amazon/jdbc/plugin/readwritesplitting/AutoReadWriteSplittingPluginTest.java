@@ -114,7 +114,7 @@ public class AutoReadWriteSplittingPluginTest {
   @Test
   void test_selectForUpdate_routesToWriter() {
     setContextQueryType("SELECT");
-    setContextCleanSql("SELECT * FROM users WHERE id = 1 FOR UPDATE");
+    PluginCallContext.current().setAttribute(SqlContextKeys.FOR_UPDATE, true);
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
     assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeQuery"));

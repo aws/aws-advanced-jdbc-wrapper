@@ -94,7 +94,7 @@ public class AutoReadWriteSplittingTests {
   }
 
   @TestTemplate
-  public void test_dmlRoutesToWriter() throws SQLException {
+  public void test_nonSelectRoutesToWriter() throws SQLException {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {

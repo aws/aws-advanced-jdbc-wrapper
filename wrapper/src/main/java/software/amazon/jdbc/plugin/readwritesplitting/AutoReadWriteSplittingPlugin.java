@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -131,9 +130,9 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
         if (!"SELECT".equals(queryType)) {
           return false;
         }
-        // SELECT FOR UPDATE must go to writer
-        String cleanSql = ctx.getAttribute(SqlContextKeys.CLEAN_SQL, String.class);
-        if (cleanSql != null && cleanSql.toUpperCase().contains("FOR UPDATE")) {
+        // SELECT FOR UPDATE must go to writer (takes row locks)
+        Boolean forUpdate = ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class);
+        if (Boolean.TRUE.equals(forUpdate)) {
           return false;
         }
         return true;

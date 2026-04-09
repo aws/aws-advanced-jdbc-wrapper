@@ -133,7 +133,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   @Override
   public <T, E extends Exception> T execute(
       Class<T> methodClass,
-      Class<E> methodReturnType,
+      Class<E> exceptionClass,
       Object methodInvokeOn,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,
@@ -157,12 +157,12 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       // Handle PreparedStatement creation — track SQL for later encryption
       if (methodName.startsWith("Connection.prepareStatement")
           || methodName.startsWith("Connection.prepareCall")) {
-        return handlePrepareStatement(methodClass, methodReturnType, jdbcCallable, args);
+        return handlePrepareStatement(methodClass, exceptionClass, jdbcCallable, args);
       }
 
       // Handle PreparedStatement.setXxx — encrypt if needed
       if (methodName.startsWith("PreparedStatement.set") && methodInvokeOn instanceof PreparedStatement) {
-        return handleSetParameter(methodClass, methodReturnType, (PreparedStatement) methodInvokeOn,
+        return handleSetParameter(methodClass, exceptionClass, (PreparedStatement) methodInvokeOn,
             methodName, jdbcCallable, args);
       }
 
@@ -171,7 +171,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         return handleGetValue(methodClass, (ResultSet) methodInvokeOn, methodName, jdbcCallable, args);
       }
     } catch (SQLException e) {
-      if (methodReturnType.isAssignableFrom(SQLException.class)) {
+      if (exceptionClass.isAssignableFrom(SQLException.class)) {
         @SuppressWarnings("unchecked")
         E exception = (E) e;
         throw exception;
@@ -213,7 +213,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   @SuppressWarnings("unchecked")
   private <T, E extends Exception> T handleSetParameter(
       Class<T> methodClass,
-      Class<E> methodReturnType,
+      Class<E> exceptionClass,
       PreparedStatement ps,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,

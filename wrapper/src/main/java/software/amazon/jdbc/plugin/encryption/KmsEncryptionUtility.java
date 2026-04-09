@@ -56,10 +56,6 @@ public class KmsEncryptionUtility {
   // Plugin services
   private PluginService pluginService;
   private IndependentDataSource independentDataSource;
-
-  // SQL Analysis
-
-  // Monitoring and metrics
   private AuditLogger auditLogger;
 
   // Plugin lifecycle state
@@ -173,9 +169,6 @@ public class KmsEncryptionUtility {
         this.keyManager = new KeyManager(kmsClient, pluginService, config);
         this.metadataManager = new MetadataManager(pluginService, config);
         metadataManager.initialize();
-
-        // Initialize SQL analysis service
-
         LOGGER.info(Messages.get("KmsEncryptionUtility.initWithPluginService"));
 
       } else {
@@ -224,8 +217,6 @@ public class KmsEncryptionUtility {
       registeredConnections.put(conn, Boolean.TRUE);
     }
   }
-
-
 
   /**
    * Removes the type registration entry for a connection.

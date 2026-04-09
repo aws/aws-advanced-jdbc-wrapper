@@ -45,4 +45,7 @@ public final class SqlContextKeys {
 
   /** Routing hint from SQL comment: "reader", "writer", or null if not specified. */
   public static final String ROUTING_HINT = "sql.routingHint";
+
+  /** Whether the query contains FOR UPDATE (SELECT ... FOR UPDATE). */
+  public static final String FOR_UPDATE = "sql.forUpdate";
 }

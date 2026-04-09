@@ -65,6 +65,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName);
         }
       });
 
@@ -93,35 +94,38 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    // On prepareStatement: parse SQL and cache it for later execute calls
+    // On prepareStatement close: remove cached SQL
+    if ("PreparedStatement.close".equals(methodName)
+        && methodInvokeOn instanceof PreparedStatement) {
+      preparedStatementSqlCache.remove(methodInvokeOn);
+      return jdbcMethodFunc.call();
+    }
+
+    // On prepareStatement: parse SQL, cache it, and return early
     if (methodName.startsWith("Connection.prepare")) {
       if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
           && jdbcMethodArgs[0] instanceof String) {
         String sql = (String) jdbcMethodArgs[0];
         populateContext(sql);
-
         T result = jdbcMethodFunc.call();
         if (result instanceof PreparedStatement) {
           preparedStatementSqlCache.put((PreparedStatement) result, sql);
         }
         return result;
       }
-    }
-
-    // On Statement.execute*(sql): parse SQL from args
-    if (methodName.startsWith("Statement.execute")) {
-      if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
-          && jdbcMethodArgs[0] instanceof String) {
-        populateContext((String) jdbcMethodArgs[0]);
-      }
-    }
-
-    // On PreparedStatement.execute*: re-populate context from cached SQL
-    if (methodName.startsWith("PreparedStatement.execute")
+    } else if (methodName.startsWith("PreparedStatement.execute")
         && methodInvokeOn instanceof PreparedStatement) {
+      // Re-populate context from cached SQL (context was reset between prepare and execute)
       String cachedSql = preparedStatementSqlCache.get(methodInvokeOn);
       if (cachedSql != null) {
         populateContext(cachedSql);
+      }
+    } else if (methodName.startsWith("Statement.execute")) {
+      // Parse SQL from args; executeBatch has no SQL arg and will be skipped,
+      // causing downstream plugins to fall back to method-name heuristics (routes to writer)
+      if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
+          && jdbcMethodArgs[0] instanceof String) {
+        populateContext((String) jdbcMethodArgs[0]);
       }
     }
 
@@ -155,6 +159,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     ctx.setAttribute(SqlContextKeys.QUERY_TYPE, analysis.queryType);
     ctx.setAttribute(SqlContextKeys.TABLES, tables);
+    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, analysis.forUpdate);
 
     // Build parameter mapping
     Map<Integer, String> paramMapping = new HashMap<>();
