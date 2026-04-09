@@ -42,4 +42,7 @@ public final class SqlContextKeys {
 
   /** Annotation-based parameter overrides as {@code Map<Integer, String>}. */
   public static final String ANNOTATIONS = "sql.annotations";
+
+  /** Routing hint from SQL comment: "reader", "writer", or null if not specified. */
+  public static final String ROUTING_HINT = "sql.routingHint";
 }

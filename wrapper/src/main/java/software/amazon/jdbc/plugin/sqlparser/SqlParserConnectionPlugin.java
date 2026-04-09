@@ -86,12 +86,23 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     return jdbcMethodFunc.call();
   }
 
+  private static final java.util.regex.Pattern ROUTING_HINT_PATTERN =
+      java.util.regex.Pattern.compile("/\\*@(reader|writer)\\*/", java.util.regex.Pattern.CASE_INSENSITIVE);
+
   private void populateContext(String sql) {
     PluginCallContext ctx = pluginService.getCallContext();
+
+    // Parse routing hint
+    java.util.regex.Matcher routingMatcher = ROUTING_HINT_PATTERN.matcher(sql);
+    if (routingMatcher.find()) {
+      ctx.setAttribute(SqlContextKeys.ROUTING_HINT, routingMatcher.group(1).toLowerCase());
+    }
 
     // Parse and strip annotations
     Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
     String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
+    // Also strip routing hints
+    cleanSql = ROUTING_HINT_PATTERN.matcher(cleanSql).replaceAll("").trim();
 
     ctx.setAttribute(SqlContextKeys.ANNOTATIONS, annotations);
     ctx.setAttribute(SqlContextKeys.CLEAN_SQL, cleanSql);

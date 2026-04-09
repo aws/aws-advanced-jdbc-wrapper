@@ -51,6 +51,7 @@ import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
 import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.AutoReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPluginFactory;
@@ -89,6 +90,7 @@ public class ConnectionPluginChainBuilder {
           put("okta", new OktaAuthPluginFactory());
           put("auroraStaleDns", new AuroraStaleDnsPluginFactory());
           put("readWriteSplitting", new ReadWriteSplittingPluginFactory());
+          put("autoReadWriteSplitting", new AutoReadWriteSplittingPluginFactory());
           put("srw", new SimpleReadWriteSplittingPluginFactory());
           put("gdbReadWriteSplitting", new GdbReadWriteSplittingPluginFactory());
           put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
