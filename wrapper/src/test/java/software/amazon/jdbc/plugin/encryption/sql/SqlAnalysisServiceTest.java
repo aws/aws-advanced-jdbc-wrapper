@@ -24,23 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.parser.SqlAnalysisService;
 
 class SqlAnalysisServiceTest {
-
-  @Mock private PluginService pluginService;
-
-  @Mock private MetadataManager metadataManager;
 
   private SqlAnalysisService sqlAnalysisService;
 
   @BeforeEach
   void setUp() {
-    MockitoAnnotations.openMocks(this);
-    sqlAnalysisService = new SqlAnalysisService(pluginService, metadataManager);
+    sqlAnalysisService = new SqlAnalysisService();
   }
 
   @Test

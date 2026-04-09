@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.parser;
+package software.amazon.jdbc.parser;
 
 import java.util.ArrayList;
 import java.util.HashSet;

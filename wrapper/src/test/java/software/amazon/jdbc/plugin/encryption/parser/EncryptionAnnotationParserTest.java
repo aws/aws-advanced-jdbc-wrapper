@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.parser.EncryptionAnnotationParser;
 
 /** Tests for EncryptionAnnotationParser. */
 public class EncryptionAnnotationParserTest {

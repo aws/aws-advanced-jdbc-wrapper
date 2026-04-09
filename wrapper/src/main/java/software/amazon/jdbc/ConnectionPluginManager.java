@@ -312,13 +312,19 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
-    return executeWithSubscribedPlugins(
-        jdbcMethod,
-        (plugin, func) ->
-            plugin.execute(
-                resultType, exceptionClass, methodInvokeOn, jdbcMethod.methodName, func, jdbcMethodArgs),
-        jdbcMethodFunc,
-        null);
+    PluginCallContext.reset();
+    try {
+      return executeWithSubscribedPlugins(
+          jdbcMethod,
+          (plugin, func) ->
+              plugin.execute(
+                  resultType, exceptionClass, methodInvokeOn, jdbcMethod.methodName, func,
+                  jdbcMethodArgs),
+          jdbcMethodFunc,
+          null);
+    } finally {
+      PluginCallContext.reset();
+    }
   }
 
   /**

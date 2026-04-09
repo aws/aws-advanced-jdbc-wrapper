@@ -824,6 +824,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.sessionStateService;
   }
 
+  @Override
+  public PluginCallContext getCallContext() {
+    return PluginCallContext.current();
+  }
+
   public <T> T getPlugin(final Class<T> pluginClazz) {
     for (ConnectionPlugin p : this.pluginManager.plugins) {
       if (pluginClazz.isAssignableFrom(p.getClass())) {

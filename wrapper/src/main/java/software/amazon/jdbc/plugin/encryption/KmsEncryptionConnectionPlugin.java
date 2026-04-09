@@ -37,14 +37,14 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
+import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.EncryptionAnnotationParser;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
-import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 
@@ -199,7 +199,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
             new Object[]{e.getMessage()}));
       }
 
-      statementContexts.put(ps, new StatementContext(sql, encryptionUtility.getSqlAnalysisService()));
+      statementContexts.put(ps, new StatementContext(pluginService.getCallContext()));
     }
 
     return result;
@@ -453,18 +453,21 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     final String tableName;
     final Map<Integer, String> parameterColumnMapping;
 
-    StatementContext(String sql, SqlAnalysisService sqlAnalysisService) {
-      String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
-
-      SqlAnalysisService.SqlAnalysisResult analysis = SqlAnalysisService.analyzeSql(cleanSql);
-      this.tableName = analysis.getAffectedTables().isEmpty()
-          ? null : analysis.getAffectedTables().iterator().next();
+    @SuppressWarnings("unchecked")
+    StatementContext(PluginCallContext ctx) {
+      Set<String> tables = ctx.getAttribute(SqlContextKeys.TABLES);
+      if (tables == null) {
+        throw new IllegalStateException(
+            "SQL parse results not found in call context. "
+                + "The sqlParser plugin must be loaded before kmsEncryption.");
+      }
+      this.tableName = tables.isEmpty() ? null : tables.iterator().next();
 
       this.parameterColumnMapping = new ConcurrentHashMap<>();
-      if (sqlAnalysisService != null) {
-        this.parameterColumnMapping.putAll(sqlAnalysisService.getColumnParameterMapping(cleanSql));
+      Map<Integer, String> paramMapping = ctx.getAttribute(SqlContextKeys.PARAM_MAPPING);
+      if (paramMapping != null) {
+        this.parameterColumnMapping.putAll(paramMapping);
       }
-      this.parameterColumnMapping.putAll(EncryptionAnnotationParser.parseAnnotations(sql));
     }
 
     String getColumnNameForParameter(int paramIndex) {

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.parser.JSQLParserAnalyzer;
 
 /** Tests for JSQLParserAnalyzer. */
 class JSQLParserAnalyzerTest {

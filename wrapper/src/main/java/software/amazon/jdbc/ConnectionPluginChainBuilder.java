@@ -53,6 +53,7 @@ import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPluginFactory;
 import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
@@ -99,6 +100,7 @@ public class ConnectionPluginChainBuilder {
           put("limitless", new LimitlessConnectionPluginFactory());
           put("bg", new BlueGreenConnectionPluginFactory());
           put("kmsEncryption", new KmsEncryptionConnectionPluginFactory());
+          put("sqlParser", new SqlParserConnectionPluginFactory());
         }
       };
 

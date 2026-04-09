@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.sql;
+package software.amazon.jdbc.parser;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,10 +22,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
-import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.JSQLParserAnalyzer;
+import software.amazon.jdbc.parser.JSQLParserAnalyzer;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -36,11 +33,7 @@ public class SqlAnalysisService {
 
   private static final Logger LOGGER = Logger.getLogger(SqlAnalysisService.class.getName());
 
-  private final MetadataManager metadataManager;
 
-  public SqlAnalysisService(PluginService pluginService, MetadataManager metadataManager) {
-    this.metadataManager = metadataManager;
-  }
 
   /**
    * Analyzes a SQL statement to determine which columns need encryption/decryption.
@@ -105,7 +98,7 @@ public class SqlAnalysisService {
 
   /** Analyzes SQL using the extracted table names from parser. */
   private static SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
-    Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
+    Map<String, Object> encryptedColumns = new HashMap<>();
 
     LOGGER.finest(() -> Messages.get("SqlAnalysisService.parserFoundTables", new Object[]{tables.size()}));
 
@@ -115,12 +108,12 @@ public class SqlAnalysisService {
   /** Result of SQL analysis containing affected tables and encrypted columns. */
   public static class SqlAnalysisResult {
     private final Set<String> affectedTables;
-    private final Map<String, ColumnEncryptionConfig> encryptedColumns;
+    private final Map<String, Object> encryptedColumns;
     private final String queryType;
 
     public SqlAnalysisResult(
         Set<String> affectedTables,
-        Map<String, ColumnEncryptionConfig> encryptedColumns,
+        Map<String, Object> encryptedColumns,
         String queryType) {
       this.affectedTables = Collections.unmodifiableSet(new HashSet<>(affectedTables));
       this.encryptedColumns = Collections.unmodifiableMap(new HashMap<>(encryptedColumns));
@@ -131,7 +124,7 @@ public class SqlAnalysisService {
       return affectedTables;
     }
 
-    public Map<String, ColumnEncryptionConfig> getEncryptedColumns() {
+    public Map<String, Object> getEncryptedColumns() {
       return encryptedColumns;
     }
 
