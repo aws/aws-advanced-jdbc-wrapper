@@ -47,6 +47,7 @@ import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * ConnectionPlugin that provides transparent column-level encryption/decryption
@@ -156,7 +157,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       // Handle PreparedStatement creation — track SQL for later encryption
       if (methodName.startsWith("Connection.prepareStatement")
           || methodName.startsWith("Connection.prepareCall")) {
-        return handlePrepareStatement(methodClass, jdbcCallable, args);
+        return handlePrepareStatement(methodClass, methodReturnType, jdbcCallable, args);
       }
 
       // Handle PreparedStatement.setXxx — encrypt if needed
@@ -183,7 +184,8 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   @SuppressWarnings("unchecked")
   private <T, E extends Exception> T handlePrepareStatement(
-      Class<T> methodClass, JdbcCallable<T, E> jdbcCallable, Object... args) throws E {
+      Class<T> methodClass, Class<E> exceptionClass,
+      JdbcCallable<T, E> jdbcCallable, Object... args) throws E {
 
     T result = jdbcCallable.call();
 
@@ -201,7 +203,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       try {
         statementContexts.put(ps, new StatementContext(pluginService.getCallContext()));
       } catch (SQLException e) {
-        throw new RuntimeException(e.getMessage(), e);
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }
     }
 

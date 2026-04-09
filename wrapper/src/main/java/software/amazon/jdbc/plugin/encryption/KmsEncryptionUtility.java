@@ -24,7 +24,6 @@ import java.util.logging.Logger;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.parser.SqlAnalysisService;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.logging.AuditLogger;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
@@ -59,7 +58,6 @@ public class KmsEncryptionUtility {
   private IndependentDataSource independentDataSource;
 
   // SQL Analysis
-  private SqlAnalysisService sqlAnalysisService;
 
   // Monitoring and metrics
   private AuditLogger auditLogger;
@@ -177,7 +175,6 @@ public class KmsEncryptionUtility {
         metadataManager.initialize();
 
         // Initialize SQL analysis service
-        this.sqlAnalysisService = new SqlAnalysisService();
 
         LOGGER.info(Messages.get("KmsEncryptionUtility.initWithPluginService"));
 
@@ -229,9 +226,6 @@ public class KmsEncryptionUtility {
   }
 
 
-  public SqlAnalysisService getSqlAnalysisService() {
-    return sqlAnalysisService;
-  }
 
   /**
    * Removes the type registration entry for a connection.

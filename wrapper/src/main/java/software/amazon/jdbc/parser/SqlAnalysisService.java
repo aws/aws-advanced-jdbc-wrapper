@@ -26,20 +26,21 @@ import software.amazon.jdbc.parser.JSQLParserAnalyzer;
 import software.amazon.jdbc.util.Messages;
 
 /**
- * Service that analyzes SQL statements to identify columns that need encryption/decryption. Uses
- * jOOQ parser via SQLAnalyzer class.
+ * Stateless utility for analyzing SQL statements using JSQLParser.
+ * Extracts query type, table names, and parameter-to-column mappings.
  */
-public class SqlAnalysisService {
+public final class SqlAnalysisService {
 
   private static final Logger LOGGER = Logger.getLogger(SqlAnalysisService.class.getName());
 
-
+  private SqlAnalysisService() {
+  }
 
   /**
-   * Analyzes a SQL statement to determine which columns need encryption/decryption.
+   * Analyzes a SQL statement.
    *
    * @param sql The SQL statement to analyze
-   * @return Analysis result containing affected columns and their encryption configs
+   * @return Analysis result
    */
   public static SqlAnalysisResult analyzeSql(String sql) {
     return analyzeSql(sql, null);

@@ -94,7 +94,7 @@ public class AutoReadWriteSplittingTests {
   }
 
   @TestTemplate
-  public void test_insertRoutesToWriter() throws SQLException {
+  public void test_dmlRoutesToWriter() throws SQLException {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {
@@ -111,8 +111,9 @@ public class AutoReadWriteSplittingTests {
 
       // Execute DML — should route back to writer
       try (Statement stmt = conn.createStatement()) {
-        stmt.executeUpdate(
+        stmt.execute(
             "CREATE TEMPORARY TABLE IF NOT EXISTS auto_rw_test (id INT)");
+        stmt.executeUpdate("INSERT INTO auto_rw_test (id) VALUES (1)");
       }
 
       final String afterDmlInstanceId = auroraUtil.queryInstanceId(conn);

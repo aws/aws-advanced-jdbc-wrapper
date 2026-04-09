@@ -16,13 +16,10 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
@@ -30,7 +27,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.parser.SqlContextKeys;
@@ -46,9 +42,7 @@ public class AutoReadWriteSplittingPluginTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockPluginService.getCallContext()).thenReturn(PluginCallContext.current());
-
-    Properties props = new Properties();
-    plugin = new AutoReadWriteSplittingPlugin(mockPluginService, props);
+    plugin = new AutoReadWriteSplittingPlugin(mockPluginService, new Properties());
   }
 
   @AfterEach
@@ -58,138 +52,121 @@ public class AutoReadWriteSplittingPluginTest {
   }
 
   private void setContextQueryType(String queryType) {
-    PluginCallContext ctx = PluginCallContext.current();
-    ctx.setAttribute(SqlContextKeys.QUERY_TYPE, queryType);
+    PluginCallContext.current().setAttribute(SqlContextKeys.QUERY_TYPE, queryType);
+  }
+
+  private void setContextCleanSql(String sql) {
+    PluginCallContext.current().setAttribute(SqlContextKeys.CLEAN_SQL, sql);
   }
 
   private void setContextRoutingHint(String hint) {
-    PluginCallContext ctx = PluginCallContext.current();
-    ctx.setAttribute(SqlContextKeys.ROUTING_HINT, hint);
+    PluginCallContext.current().setAttribute(SqlContextKeys.ROUTING_HINT, hint);
   }
 
   @Test
-  void test_subscribedMethods_includesExecuteMethods() {
+  void test_subscribedMethods_includesExecuteAndParentMethods() {
     Set<String> methods = plugin.getSubscribedMethods();
     assertTrue(methods.contains("PreparedStatement.executeQuery"));
     assertTrue(methods.contains("PreparedStatement.executeUpdate"));
     assertTrue(methods.contains("PreparedStatement.execute"));
+    assertTrue(methods.contains("PreparedStatement.executeBatch"));
     assertTrue(methods.contains("Statement.executeQuery"));
     assertTrue(methods.contains("Statement.executeUpdate"));
     assertTrue(methods.contains("Statement.execute"));
-    // Also includes parent methods
+    assertTrue(methods.contains("Statement.executeBatch"));
     assertTrue(methods.contains("Connection.setReadOnly"));
     assertTrue(methods.contains("Connection.setAutoCommit"));
   }
 
   @Test
-  void test_selectQuery_routesToReader() throws Exception {
+  void test_selectQuery_routesToReader() {
     setContextQueryType("SELECT");
+    setContextCleanSql("SELECT * FROM users");
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
-    JdbcCallable<Object, SQLException> callable = () -> null;
-
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "PreparedStatement.executeQuery", callable, new Object[]{});
-    } catch (Exception e) {
-      // Expected — no actual connection to switch to
-    }
-
-    // The plugin should have attempted to switch to reader (readOnly=true)
-    // We can't easily verify switchConnectionIfRequired was called with true
-    // because it's a method on the same object, but we verify no exception
-    // from the routing logic itself
+    assertTrue(plugin.shouldRouteToReader("PreparedStatement.executeQuery"));
   }
 
   @Test
-  void test_insertQuery_routesToWriter() throws Exception {
+  void test_insertQuery_routesToWriter() {
     setContextQueryType("INSERT");
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
-    JdbcCallable<Object, SQLException> callable = () -> null;
-
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "PreparedStatement.executeUpdate", callable, new Object[]{});
-    } catch (Exception e) {
-      // Expected — no actual connection
-    }
+    assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeUpdate"));
   }
 
   @Test
-  void test_inTransaction_alwaysRoutesToWriter() throws Exception {
+  void test_updateQuery_routesToWriter() {
+    setContextQueryType("UPDATE");
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+
+    assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeUpdate"));
+  }
+
+  @Test
+  void test_deleteQuery_routesToWriter() {
+    setContextQueryType("DELETE");
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+
+    assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeUpdate"));
+  }
+
+  @Test
+  void test_selectForUpdate_routesToWriter() {
     setContextQueryType("SELECT");
+    setContextCleanSql("SELECT * FROM users WHERE id = 1 FOR UPDATE");
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+
+    assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeQuery"));
+  }
+
+  @Test
+  void test_inTransaction_alwaysRoutesToWriter() {
+    setContextQueryType("SELECT");
+    setContextCleanSql("SELECT * FROM users");
     when(mockPluginService.isInTransaction()).thenReturn(true);
 
-    JdbcCallable<Object, SQLException> callable = () -> null;
-
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "PreparedStatement.executeQuery", callable, new Object[]{});
-    } catch (Exception e) {
-      // Expected — no actual connection
-    }
+    assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeQuery"));
   }
 
   @Test
-  void test_writerHint_overridesSelectToWriter() throws Exception {
+  void test_writerHint_overridesSelectToWriter() {
     setContextQueryType("SELECT");
+    setContextCleanSql("SELECT * FROM users");
     setContextRoutingHint("writer");
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
-    JdbcCallable<Object, SQLException> callable = () -> null;
-
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "PreparedStatement.executeQuery", callable, new Object[]{});
-    } catch (Exception e) {
-      // Expected — no actual connection
-    }
+    assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeQuery"));
   }
 
   @Test
-  void test_readerHint_overridesInsertToReader() throws Exception {
+  void test_readerHint_overridesToReader() {
     setContextQueryType("INSERT");
     setContextRoutingHint("reader");
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
-    JdbcCallable<Object, SQLException> callable = () -> null;
-
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "PreparedStatement.execute", callable, new Object[]{});
-    } catch (Exception e) {
-      // Expected — no actual connection
-    }
+    assertTrue(plugin.shouldRouteToReader("PreparedStatement.execute"));
   }
 
   @Test
-  void test_nonExecuteMethod_passesThrough() throws Exception {
-    boolean[] called = {false};
-    JdbcCallable<Object, SQLException> callable = () -> { called[0] = true; return null; };
+  void test_noContext_executeQueryFallsBackToReader() {
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    // No context set — falls back to method name heuristic
 
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "Connection.getCatalog", callable, new Object[]{});
-    } catch (Exception e) {
-      // May throw due to mock setup
-    }
-
-    // Non-execute methods should not trigger routing
+    assertTrue(plugin.shouldRouteToReader("Statement.executeQuery"));
   }
 
   @Test
-  void test_noContext_fallsBackToMethodName() throws Exception {
-    // Don't set any context — simulates sqlParser not loaded
+  void test_noContext_executeUpdateFallsBackToWriter() {
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
-    JdbcCallable<Object, SQLException> callable = () -> null;
+    assertFalse(plugin.shouldRouteToReader("Statement.executeUpdate"));
+  }
 
-    try {
-      plugin.execute(Object.class, SQLException.class, null,
-          "Statement.executeQuery", callable, new Object[]{"SELECT 1"});
-    } catch (Exception e) {
-      // Expected — no actual connection
-    }
+  @Test
+  void test_noContext_executeFallsBackToWriter() {
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+
+    assertFalse(plugin.shouldRouteToReader("Statement.execute"));
   }
 }

@@ -312,6 +312,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+    // Reset context before each call. No reset in finally — context must remain
+    // available for deferred consumers (e.g., ResultSet iteration after execute returns).
     PluginCallContext.reset();
     return executeWithSubscribedPlugins(
         jdbcMethod,

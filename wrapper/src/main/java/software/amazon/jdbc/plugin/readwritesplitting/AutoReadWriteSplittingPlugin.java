@@ -20,13 +20,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginCallContext;
@@ -37,11 +34,12 @@ import software.amazon.jdbc.util.WrapperUtils;
 /**
  * Read/write splitting plugin that automatically routes queries based on SQL analysis.
  * SELECT queries are routed to a reader instance; DML/DDL queries are routed to the writer.
+ * SELECT ... FOR UPDATE is detected and routed to the writer.
  *
  * <p>Routing can be overridden using SQL comment hints:
  * <ul>
  *   <li>{@code /*@reader* /} — force query to reader</li>
- *   <li>{@code /*@writer* /} — force query to writer (e.g., SELECT ... FOR UPDATE)</li>
+ *   <li>{@code /*@writer* /} — force query to writer</li>
  * </ul>
  *
  * <p>Requires the {@code sqlParser} plugin to be loaded before this plugin.
@@ -52,11 +50,10 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
   private static final Logger LOGGER =
       Logger.getLogger(AutoReadWriteSplittingPlugin.class.getName());
 
-  private static final Set<String> autoSubscribedMethods;
+  private static final Set<String> executeMethodNames;
 
   static {
     Set<String> methods = new HashSet<>();
-    // We'll add parent methods via getSubscribedMethods() at instance level
     methods.add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
     methods.add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
     methods.add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
@@ -65,7 +62,7 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     methods.add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
     methods.add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
     methods.add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
-    autoSubscribedMethods = Collections.unmodifiableSet(methods);
+    executeMethodNames = Collections.unmodifiableSet(methods);
   }
 
   private final Set<String> allSubscribedMethods;
@@ -74,7 +71,7 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       final PluginService pluginService, final @NonNull Properties properties) {
     super(pluginService, properties);
     Set<String> combined = new HashSet<>(super.getSubscribedMethods());
-    combined.addAll(autoSubscribedMethods);
+    combined.addAll(executeMethodNames);
     this.allSubscribedMethods = Collections.unmodifiableSet(combined);
   }
 
@@ -93,10 +90,12 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       final Object[] args)
       throws E {
 
-    // For execute methods, determine routing before delegating
-    if (isExecuteMethod(methodName)) {
+    // For execute methods, determine routing before delegating.
+    // The parent's execute() only handles setReadOnly/setAutoCommit/clearWarnings —
+    // it does not route on execute methods, so there is no double-switch risk.
+    if (executeMethodNames.contains(methodName)) {
       try {
-        boolean readOnly = shouldRouteToReader(methodName, args);
+        boolean readOnly = shouldRouteToReader(methodName);
         switchConnectionIfRequired(readOnly);
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
@@ -107,7 +106,8 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
         methodName, jdbcMethodFunc, args);
   }
 
-  private boolean shouldRouteToReader(String methodName, Object[] args) {
+  // Visible for testing
+  boolean shouldRouteToReader(String methodName) {
     // Never route to reader inside a transaction
     if (pluginService.isInTransaction()) {
       return false;
@@ -115,8 +115,8 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
 
     PluginCallContext ctx = pluginService.getCallContext();
 
-    // Check for explicit routing hint (highest priority)
     if (ctx != null) {
+      // Check for explicit routing hint (highest priority)
       String routingHint = ctx.getAttribute(SqlContextKeys.ROUTING_HINT, String.class);
       if ("reader".equals(routingHint)) {
         return true;
@@ -128,24 +128,19 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       // Use parsed query type from context
       String queryType = ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class);
       if (queryType != null) {
-        return "SELECT".equals(queryType);
+        if (!"SELECT".equals(queryType)) {
+          return false;
+        }
+        // SELECT FOR UPDATE must go to writer
+        String cleanSql = ctx.getAttribute(SqlContextKeys.CLEAN_SQL, String.class);
+        if (cleanSql != null && cleanSql.toUpperCase().contains("FOR UPDATE")) {
+          return false;
+        }
+        return true;
       }
     }
 
-    // Fallback: executeQuery → reader, executeUpdate → writer
-    if (methodName.endsWith("executeQuery")) {
-      return true;
-    }
-    if (methodName.endsWith("executeUpdate") || methodName.endsWith("executeBatch")) {
-      return false;
-    }
-
-    // Default to writer for safety
-    return false;
-  }
-
-  private boolean isExecuteMethod(String methodName) {
-    return methodName.startsWith("PreparedStatement.execute")
-        || methodName.startsWith("Statement.execute");
+    // Fallback: executeQuery → reader, everything else → writer
+    return methodName.endsWith("executeQuery");
   }
 }

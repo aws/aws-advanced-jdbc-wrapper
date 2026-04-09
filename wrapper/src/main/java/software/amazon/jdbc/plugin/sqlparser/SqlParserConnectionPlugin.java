@@ -16,13 +16,18 @@
 
 package software.amazon.jdbc.plugin.sqlparser;
 
+import java.sql.PreparedStatement;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
@@ -44,6 +49,9 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER =
       Logger.getLogger(SqlParserConnectionPlugin.class.getName());
 
+  private static final Pattern ROUTING_HINT_PATTERN =
+      Pattern.compile("/\\*\\s*@\\s*(reader|writer)\\s*\\*/", Pattern.CASE_INSENSITIVE);
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -53,10 +61,18 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName);
         }
       });
 
   private final PluginService pluginService;
+
+  // Cache parsed SQL per PreparedStatement so context can be re-populated on execute
+  private final Map<PreparedStatement, String> preparedStatementSqlCache =
+      Collections.synchronizedMap(new WeakHashMap<>());
 
   public SqlParserConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
@@ -73,27 +89,50 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       final Class<E> exceptionClass,
       final Object methodInvokeOn,
       final String methodName,
-      final software.amazon.jdbc.JdbcCallable<T, E> jdbcMethodFunc,
+      final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
 
-    if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
-        && jdbcMethodArgs[0] instanceof String) {
-      String sql = (String) jdbcMethodArgs[0];
-      populateContext(sql);
+    // On prepareStatement: parse SQL and cache it for later execute calls
+    if (methodName.startsWith("Connection.prepare")) {
+      if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
+          && jdbcMethodArgs[0] instanceof String) {
+        String sql = (String) jdbcMethodArgs[0];
+        populateContext(sql);
+
+        T result = jdbcMethodFunc.call();
+        if (result instanceof PreparedStatement) {
+          preparedStatementSqlCache.put((PreparedStatement) result, sql);
+        }
+        return result;
+      }
+    }
+
+    // On Statement.execute*(sql): parse SQL from args
+    if (methodName.startsWith("Statement.execute")) {
+      if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
+          && jdbcMethodArgs[0] instanceof String) {
+        populateContext((String) jdbcMethodArgs[0]);
+      }
+    }
+
+    // On PreparedStatement.execute*: re-populate context from cached SQL
+    if (methodName.startsWith("PreparedStatement.execute")
+        && methodInvokeOn instanceof PreparedStatement) {
+      String cachedSql = preparedStatementSqlCache.get(methodInvokeOn);
+      if (cachedSql != null) {
+        populateContext(cachedSql);
+      }
     }
 
     return jdbcMethodFunc.call();
   }
 
-  private static final java.util.regex.Pattern ROUTING_HINT_PATTERN =
-      java.util.regex.Pattern.compile("/\\*@(reader|writer)\\*/", java.util.regex.Pattern.CASE_INSENSITIVE);
-
   private void populateContext(String sql) {
     PluginCallContext ctx = pluginService.getCallContext();
 
     // Parse routing hint
-    java.util.regex.Matcher routingMatcher = ROUTING_HINT_PATTERN.matcher(sql);
+    Matcher routingMatcher = ROUTING_HINT_PATTERN.matcher(sql);
     if (routingMatcher.find()) {
       ctx.setAttribute(SqlContextKeys.ROUTING_HINT, routingMatcher.group(1).toLowerCase());
     }
@@ -101,7 +140,6 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     // Parse and strip annotations
     Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
     String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
-    // Also strip routing hints
     cleanSql = ROUTING_HINT_PATTERN.matcher(cleanSql).replaceAll("").trim();
 
     ctx.setAttribute(SqlContextKeys.ANNOTATIONS, annotations);
