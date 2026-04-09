@@ -19,9 +19,7 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -60,11 +58,19 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
           "true",
           "Prevents connections to a reader node outside of the defined home region.");
 
+  public static final AwsWrapperProperty ENABLE_GWF =
+      new AwsWrapperProperty(
+          "gdbEnableGlobalWriteForwarding",
+          "false",
+          "Set to true to enable Global Write Forwarding when connected to"
+          + " a reader connection in a secondary global region.");
+
   protected boolean isInit = false;
   protected final RdsUtils rdsHelper = new RdsUtils();
   protected String homeRegion;
   protected final boolean restrictWriterToHomeRegion;
   protected final boolean restrictReaderToHomeRegion;
+  protected final boolean enableGwf;
 
   static {
     PropertyDefinition.registerPluginProperties(GdbReadWriteSplittingPlugin.class);
@@ -74,6 +80,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
     super(pluginService, properties);
     this.restrictWriterToHomeRegion = RESTRICT_WRITER_TO_HOME_REGION.getBoolean(properties);
     this.restrictReaderToHomeRegion = RESTRICT_READER_TO_HOME_REGION.getBoolean(properties);
+    this.enableGwf = ENABLE_GWF.getBoolean(properties);
   }
 
   protected void initSettings(final HostSpec initHostSpec, Properties props) throws SQLException {
@@ -119,9 +126,17 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
     if (this.restrictWriterToHomeRegion
         && this.writerHostSpec != null
         && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
+
+      if (this.enableGwf) {
+        LOGGER.finest(() -> Messages.get(
+            "GdbReadWriteSplittingPlugin.enabledGwf",
+            new Object[]{this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost())}));
+        return;
+      }
+
       throw new ReadWriteSplittingSQLException(Messages.get(
           "GdbReadWriteSplittingPlugin.cantConnectWriterOutOfHomeRegion",
-          new Object[] {this.writerHostSpec.getHost(), this.homeRegion}));
+          new Object[]{this.writerHostSpec.getHost(), this.homeRegion}));
     }
     super.initializeWriterConnection();
   }
@@ -166,6 +181,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
     state.add(Pair.create("homeRegion", this.homeRegion));
     state.add(Pair.create("restrictWriterToHomeRegion", this.restrictWriterToHomeRegion));
     state.add(Pair.create("restrictReaderToHomeRegion", this.restrictReaderToHomeRegion));
+    state.add(Pair.create("enableGwf", this.enableGwf));
     return state;
   }
 }
