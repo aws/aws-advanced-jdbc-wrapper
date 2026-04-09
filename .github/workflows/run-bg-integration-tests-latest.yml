@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - main-2.x
+      - chore/substitute-routing
 
 permissions:
   id-token: write   # This is required for requesting the JWT

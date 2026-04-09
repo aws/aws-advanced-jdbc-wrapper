@@ -38,8 +38,8 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.StorageService;
 
 /**
- * Open a new connection to a provided substitute host.
- * In case of IAM auth and connecting with IP address, (possible) IAM host(s) should be added to HostSpec aliases.
+ * Open a new connection to a provided substitute host. In case of IAM auth and connecting with IP address, (possible)
+ * IAM host(s) should be added to HostSpec aliases.
  */
 public class SubstituteConnectRouting extends BaseConnectRouting {
 
@@ -134,9 +134,12 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
         // try with another IAM host
       }
     }
-
-    throw new SQLException(Messages.get("bgd.inProgressCantOpenConnection",
+    LOGGER.finest(Messages.get(
+        "bgd.inProgressCantOpenConnection",
         new Object[] {this.substituteHostSpec.getHostAndPort()}));
+
+    // All IAM hosts exhausted. Return and let another routing try.
+    return null;
   }
 
   @Override
@@ -152,6 +155,7 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   }
 
   public interface IamSuccessfulConnectFunc {
+
     void notify(String iamHost);
   }
 }
