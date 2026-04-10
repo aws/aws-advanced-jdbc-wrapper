@@ -46,7 +46,6 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
-import software.amazon.jdbc.parser.SqlAnalysisService;
 import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
 
 public class KmsEncryptionConnectionPluginTest {
