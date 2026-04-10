@@ -52,6 +52,12 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   private static final Pattern ROUTING_HINT_PATTERN =
       Pattern.compile("/\\*\\s*@\\s*(reader|writer)\\s*\\*/", Pattern.CASE_INSENSITIVE);
 
+  // Matches FOR UPDATE and PostgreSQL locking variants that JSQLParser may not parse.
+  // Note: may false-positive on locking keywords inside string literals.
+  private static final Pattern ROW_LOCK_PATTERN =
+      Pattern.compile("\\bFOR\\s+(UPDATE|SHARE|NO\\s+KEY\\s+UPDATE|KEY\\s+SHARE)\\b",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -132,11 +138,6 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     return jdbcMethodFunc.call();
   }
-
-  // Matches FOR UPDATE and PostgreSQL locking variants that JSQLParser may not parse
-  private static final Pattern ROW_LOCK_PATTERN =
-      Pattern.compile("\\bFOR\\s+(UPDATE|SHARE|NO\\s+KEY\\s+UPDATE|KEY\\s+SHARE)\\b",
-          Pattern.CASE_INSENSITIVE);
 
   private void populateContext(String sql) {
     PluginCallContext ctx = pluginService.getCallContext();

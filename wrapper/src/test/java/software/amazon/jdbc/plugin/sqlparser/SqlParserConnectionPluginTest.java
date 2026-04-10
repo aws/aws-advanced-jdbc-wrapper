@@ -153,4 +153,44 @@ public class SqlParserConnectionPluginTest {
     PluginCallContext ctx = PluginCallContext.current();
     assertNull(ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class));
   }
+
+  @Test
+  void test_selectForUpdate_setsForUpdate() throws Exception {
+    executeWithSql("SELECT * FROM users WHERE id = 1 FOR UPDATE");
+
+    PluginCallContext ctx = PluginCallContext.current();
+    assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
+  }
+
+  @Test
+  void test_selectForShare_setsForUpdateViaFallback() throws Exception {
+    executeWithSql("SELECT * FROM users FOR SHARE");
+
+    PluginCallContext ctx = PluginCallContext.current();
+    assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
+  }
+
+  @Test
+  void test_selectForNoKeyUpdate_setsForUpdateViaFallback() throws Exception {
+    executeWithSql("SELECT * FROM users FOR NO KEY UPDATE");
+
+    PluginCallContext ctx = PluginCallContext.current();
+    assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
+  }
+
+  @Test
+  void test_selectForKeyShare_setsForUpdateViaFallback() throws Exception {
+    executeWithSql("SELECT * FROM users FOR KEY SHARE");
+
+    PluginCallContext ctx = PluginCallContext.current();
+    assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
+  }
+
+  @Test
+  void test_plainSelect_forUpdateIsFalse() throws Exception {
+    executeWithSql("SELECT * FROM users WHERE id = 1");
+
+    PluginCallContext ctx = PluginCallContext.current();
+    assertEquals(Boolean.FALSE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
+  }
 }
