@@ -26,7 +26,7 @@ dependencies {
     implementation("software.amazon.awssdk:rds:2.42.32")
     implementation("software.amazon.awssdk:secretsmanager:2.42.32")
     implementation("software.amazon.awssdk:sts:2.42.32")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.60.1")
     implementation("io.opentelemetry:opentelemetry-sdk:1.60.1")
