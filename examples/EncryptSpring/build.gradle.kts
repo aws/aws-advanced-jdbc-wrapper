@@ -19,7 +19,7 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("software.amazon.awssdk:kms:2.42.4")
+    implementation("software.amazon.awssdk:kms:2.42.32")
     implementation("com.github.jsqlparser:jsqlparser:4.5")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     runtimeOnly("org.postgresql:postgresql")
