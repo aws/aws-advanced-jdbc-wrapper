@@ -32,7 +32,6 @@ jobs:
           config-file: '.github/workflows/mlc_config.json'
   build-driver:
     name: 'Run non-container integration tests'
-    concurrency: Non-IntegrationTests
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
