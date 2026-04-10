@@ -52,12 +52,6 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   private static final Pattern ROUTING_HINT_PATTERN =
       Pattern.compile("/\\*\\s*@\\s*(reader|writer)\\s*\\*/", Pattern.CASE_INSENSITIVE);
 
-  // Matches FOR UPDATE and PostgreSQL locking variants that JSQLParser may not parse.
-  // Note: may false-positive on locking keywords inside string literals.
-  private static final Pattern ROW_LOCK_PATTERN =
-      Pattern.compile("\\bFOR\\s+(UPDATE|SHARE|NO\\s+KEY\\s+UPDATE|KEY\\s+SHARE)\\b",
-          Pattern.CASE_INSENSITIVE);
-
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -166,16 +160,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     ctx.setAttribute(SqlContextKeys.QUERY_TYPE, analysis.queryType);
     ctx.setAttribute(SqlContextKeys.TABLES, tables);
-
-    // Detect row-locking clauses. JSQLParser detects FOR UPDATE natively, but
-    // PostgreSQL variants (FOR SHARE, FOR NO KEY UPDATE, FOR KEY SHARE) may cause
-    // a parse failure and fall back to queryType=SELECT with forUpdate=false.
-    // Use a string-based fallback to catch these cases.
-    boolean forUpdate = analysis.forUpdate;
-    if (!forUpdate && "SELECT".equals(analysis.queryType)) {
-      forUpdate = ROW_LOCK_PATTERN.matcher(cleanSql).find();
-    }
-    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, forUpdate);
+    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, analysis.forUpdate);
 
     // Build parameter mapping
     Map<Integer, String> paramMapping = new HashMap<>();

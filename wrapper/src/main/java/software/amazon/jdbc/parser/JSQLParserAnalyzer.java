@@ -144,15 +144,15 @@ public final class JSQLParserAnalyzer {
   private static void extractFromSelect(Select select, QueryAnalysis analysis) {
     // Extract table names
     TablesNamesFinder tablesFinder = new TablesNamesFinder();
-    List<String> tableList = tablesFinder.getTableList(select);
+    List<String> tableList = tablesFinder.getTableList((Statement) select);
     analysis.tables.addAll(tableList);
 
     // Extract columns from SELECT clause
     if (select.getSelectBody() instanceof PlainSelect) {
       PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
 
-      // Detect FOR UPDATE
-      if (plainSelect.getForUpdateTable() != null || plainSelect.isForUpdate()) {
+      // Detect row-locking clauses (FOR UPDATE, FOR SHARE, FOR NO KEY UPDATE, etc.)
+      if (plainSelect.getForMode() != null) {
         analysis.forUpdate = true;
       }
 

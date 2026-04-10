@@ -163,7 +163,7 @@ public class SqlParserConnectionPluginTest {
   }
 
   @Test
-  void test_selectForShare_setsForUpdateViaFallback() throws Exception {
+  void test_selectForShare_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users FOR SHARE");
 
     PluginCallContext ctx = PluginCallContext.current();
@@ -171,7 +171,7 @@ public class SqlParserConnectionPluginTest {
   }
 
   @Test
-  void test_selectForNoKeyUpdate_setsForUpdateViaFallback() throws Exception {
+  void test_selectForNoKeyUpdate_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users FOR NO KEY UPDATE");
 
     PluginCallContext ctx = PluginCallContext.current();
@@ -179,7 +179,7 @@ public class SqlParserConnectionPluginTest {
   }
 
   @Test
-  void test_selectForKeyShare_setsForUpdateViaFallback() throws Exception {
+  void test_selectForKeyShare_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users FOR KEY SHARE");
 
     PluginCallContext ctx = PluginCallContext.current();
