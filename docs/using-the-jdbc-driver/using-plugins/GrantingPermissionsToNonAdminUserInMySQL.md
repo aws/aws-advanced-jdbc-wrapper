@@ -2,7 +2,42 @@
 
 For customers using the [Blue/Green plugin](UsingTheBlueGreenPlugin.md) for their planned [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/introduction.html), every user account on the DB instance/cluster needs to be granted SELECT privileges to the `mysql.rds_topology` metadata table. This creates an extra operational overhead for customers to adopt fast switchovers.
 
+> [!IMPORTANT]\
+> **Grant permissions before creating the Blue/Green Deployment.**
+> The easiest approach is to grant the required permissions on the source DB instance/cluster **before** creating the Blue/Green Deployment. During creation, the target environment receives all users and privileges from the source, so the permissions will be automatically available on both sides. The role-based setup described below should be completed before creating the deployment.
+
 This document uses [MySQL roles](https://dev.mysql.com/doc/refman/8.0/en/roles.html) to reduce complexity for multi-user grant to read from `mysql.rds_topology`.
+
+## Granting permissions on the target after the Blue/Green Deployment is created
+
+If you forgot to grant the required permissions before creating the Blue/Green Deployment, granting `SELECT` on `mysql.rds_topology` on the source DB instance will **not** automatically replicate to the target DB instance. This behavior is governed by MySQL replication and is not within the driver's control.
+
+To still use the reduced switchover downtime support of the JDBC driver, you need to manually grant the privilege to the user on the target:
+
+```sql
+GRANT SELECT ON mysql.rds_topology TO '<user>'@'<host>';
+```
+
+Since the target DB instance is in `read_only` mode, you can use one of the following options to execute the grant statement:
+
+### Option A: Temporarily disable read_only mode
+
+Disable the global `read_only` mode, execute the grant, and immediately re-enable it:
+
+```sql
+CALL mysql.rds_set_read_only(0);
+GRANT SELECT ON mysql.rds_topology TO '<user>'@'<host>';
+CALL mysql.rds_set_read_only(1);
+```
+
+### Option B (Preferred): Use a user with CONNECTION_ADMIN privileges
+
+Connect to the target using a user that has `CONNECTION_ADMIN` privileges or has inherited it from the `rds_super_user_role` (such as your admin user), and execute the grant statement. Log out immediately afterwards.
+
+This option is preferred because it minimizes the risk of accidentally writing other content to the database.
+
+> [!WARNING]\
+> With both options there is a risk of writing to the target database, which may cause replication errors. To prevent breaking replication, make sure to **only** execute the `GRANT` statement (or `CREATE USER` if needed) and disable write access immediately afterwards — either by calling `CALL mysql.rds_set_read_only(1);` (for option A) or by logging out (for option B).
 
 ## Prerequisites
 
