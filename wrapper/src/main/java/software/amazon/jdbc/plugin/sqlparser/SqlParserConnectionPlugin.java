@@ -113,6 +113,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
         }
         return result;
       }
+      // No SQL arg (shouldn't happen in practice) — fall through to jdbcMethodFunc.call()
     } else if (methodName.startsWith("PreparedStatement.execute")
         && methodInvokeOn instanceof PreparedStatement) {
       // Re-populate context from cached SQL (context was reset between prepare and execute)
@@ -131,6 +132,11 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     return jdbcMethodFunc.call();
   }
+
+  // Matches FOR UPDATE and PostgreSQL locking variants that JSQLParser may not parse
+  private static final Pattern ROW_LOCK_PATTERN =
+      Pattern.compile("\\bFOR\\s+(UPDATE|SHARE|NO\\s+KEY\\s+UPDATE|KEY\\s+SHARE)\\b",
+          Pattern.CASE_INSENSITIVE);
 
   private void populateContext(String sql) {
     PluginCallContext ctx = pluginService.getCallContext();
@@ -159,7 +165,16 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     ctx.setAttribute(SqlContextKeys.QUERY_TYPE, analysis.queryType);
     ctx.setAttribute(SqlContextKeys.TABLES, tables);
-    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, analysis.forUpdate);
+
+    // Detect row-locking clauses. JSQLParser detects FOR UPDATE natively, but
+    // PostgreSQL variants (FOR SHARE, FOR NO KEY UPDATE, FOR KEY SHARE) may cause
+    // a parse failure and fall back to queryType=SELECT with forUpdate=false.
+    // Use a string-based fallback to catch these cases.
+    boolean forUpdate = analysis.forUpdate;
+    if (!forUpdate && "SELECT".equals(analysis.queryType)) {
+      forUpdate = ROW_LOCK_PATTERN.matcher(cleanSql).find();
+    }
+    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, forUpdate);
 
     // Build parameter mapping
     Map<Integer, String> paramMapping = new HashMap<>();

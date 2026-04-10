@@ -17,6 +17,7 @@
 package software.amazon.jdbc.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -130,5 +131,24 @@ class JSQLParserAnalyzerTest {
         JSQLParserAnalyzer.analyze(null);
 
     assertEquals("UNKNOWN", result.queryType);
+  }
+
+  @Test
+  void testSelectForUpdate() {
+    JSQLParserAnalyzer.QueryAnalysis result =
+        JSQLParserAnalyzer.analyze("SELECT * FROM users WHERE id = 1 FOR UPDATE");
+
+    assertEquals("SELECT", result.queryType);
+    assertTrue(result.forUpdate);
+    assertTrue(result.tables.contains("users"));
+  }
+
+  @Test
+  void testSelectWithoutForUpdate() {
+    JSQLParserAnalyzer.QueryAnalysis result =
+        JSQLParserAnalyzer.analyze("SELECT * FROM users WHERE id = 1");
+
+    assertEquals("SELECT", result.queryType);
+    assertFalse(result.forUpdate);
   }
 }
