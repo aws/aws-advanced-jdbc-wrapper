@@ -205,7 +205,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   protected FetchTopologyResult getTopology() throws SQLException {
     init();
 
-    final List<HostSpec> storedHosts = this.getStoredTopology();
+    List<HostSpec> storedHosts = this.getStoredTopology();
     if (storedHosts == null) {
       // We need to re-fetch topology.
       if (!this.pluginService.isDialectConfirmed()) {
@@ -220,6 +220,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       }
     }
 
+    storedHosts = this.getStoredTopology();
     if (storedHosts == null) {
       return new FetchTopologyResult(false, this.initialHostList);
     } else {

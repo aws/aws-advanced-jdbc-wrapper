@@ -26,6 +26,7 @@ import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TargetJvm;
 import integration.TestInstanceInfo;
+import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -219,6 +220,12 @@ public class ContainerHelper {
 
         return self();
       }
+    }
+
+    // Ensure host directories exist before binding them to the container.
+    // Docker will fail with "no such file or directory" if these paths are missing.
+    for (String dir : new String[] {"./build/reports/tests", "./build/test-results", "./build/jacoco"}) {
+      new File(dir).mkdirs();
     }
 
     return new FixedExposedPortContainer<>(
