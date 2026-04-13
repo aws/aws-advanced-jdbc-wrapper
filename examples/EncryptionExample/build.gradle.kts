@@ -16,7 +16,7 @@
 
 dependencies {
     implementation("org.postgresql:postgresql:42.7.10")
-    implementation("software.amazon.awssdk:rds:2.42.32")
-    implementation("software.amazon.awssdk:kms:2.42.32")
+    implementation("software.amazon.awssdk:rds:2.42.34")
+    implementation("software.amazon.awssdk:kms:2.42.34")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
