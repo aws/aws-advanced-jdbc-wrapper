@@ -18,12 +18,16 @@ package software.amazon.jdbc;
 
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.Random;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.awssdk.services.kms.endpoints.internal.Value.Int;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -43,19 +47,32 @@ public class LeastConnectionsHostSelector implements HostSelector {
       @NonNull final List<HostSpec> hosts,
       @Nullable final HostRole role,
       @Nullable final Properties props) throws SQLException {
-    final List<HostSpec> eligibleHosts = hosts.stream()
+
+    // Get all eligible hosts along with number of active connections
+    final List<Pair<HostSpec, Integer>> eligibleHosts = hosts.stream()
         .filter(hostSpec ->
             (role == null || role.equals(hostSpec.getRole()))
             && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
-        .sorted((hostSpec1, hostSpec2) ->
-            getNumConnections(hostSpec1, this.databasePools) - getNumConnections(hostSpec2, this.databasePools))
+        .map(hostSpec -> Pair.create(hostSpec, this.getNumConnections(hostSpec, this.databasePools)))
         .collect(Collectors.toList());
 
     if (eligibleHosts.isEmpty()) {
       throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
-    return eligibleHosts.get(0);
+    // Get min number of connections
+    final Pair<HostSpec, Integer> minNumConnectionPair =
+        eligibleHosts.stream().min(Comparator.comparingInt(Pair::getValue2)).orElse(null);
+
+    // Get all hosts with found min number of connections
+    final List<HostSpec> hostsWithMinConnections = eligibleHosts.stream()
+        .filter(x -> Objects.equals(x.getValue2(), minNumConnectionPair.getValue2()))
+        .map(Pair::getValue1)
+        .collect(Collectors.toList());
+
+    // Randomly choose one of hosts with the same min number of connections
+    final int randomIndex = new Random().nextInt(hostsWithMinConnections.size());
+    return hostsWithMinConnections.get(randomIndex);
   }
 
   private int getNumConnections(
