@@ -314,6 +314,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       throws E {
     // Reset context before each call. No reset in finally — context must remain
     // available for deferred consumers (e.g., ResultSet iteration after execute returns).
+    // Stale context from a failed call persists until the next execute() resets it.
+    // This is safe because getCallContext() should only be called within the plugin
+    // pipeline, and reset() runs at the start of every pipeline invocation.
     PluginCallContext.reset();
     return executeWithSubscribedPlugins(
         jdbcMethod,

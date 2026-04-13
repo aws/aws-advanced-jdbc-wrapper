@@ -458,6 +458,9 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     final String tableName;
     final Map<Integer, String> parameterColumnMapping;
 
+    // Raw type casts from context — generic parameters (Set<String>, Map<Integer,String>)
+    // cannot be checked at runtime due to type erasure. Types are documented in SqlContextKeys
+    // and enforced by SqlParserConnectionPlugin which populates the context.
     @SuppressWarnings("unchecked")
     StatementContext(PluginCallContext ctx) throws java.sql.SQLException {
       if (ctx == null) {

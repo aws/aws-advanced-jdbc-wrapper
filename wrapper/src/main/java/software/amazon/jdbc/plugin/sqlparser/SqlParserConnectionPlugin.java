@@ -71,8 +71,9 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
   private final PluginService pluginService;
 
-  // Cache parsed SQL per PreparedStatement so context can be re-populated on execute
-  private final Map<PreparedStatement, String> preparedStatementSqlCache =
+  // Cache parsed results per PreparedStatement to avoid re-parsing on every execute call.
+  // WeakHashMap allows GC when the PreparedStatement is no longer referenced.
+  private final Map<PreparedStatement, ParsedSqlResult> parsedSqlCache =
       Collections.synchronizedMap(new WeakHashMap<>());
 
   public SqlParserConnectionPlugin(PluginService pluginService, Properties properties) {
@@ -94,61 +95,59 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    // On prepareStatement close: remove cached SQL
+    // On prepareStatement close: remove cached parse result
     if ("PreparedStatement.close".equals(methodName)
         && methodInvokeOn instanceof PreparedStatement) {
-      preparedStatementSqlCache.remove(methodInvokeOn);
+      parsedSqlCache.remove(methodInvokeOn);
       return jdbcMethodFunc.call();
     }
 
-    // On prepareStatement: parse SQL, cache it, and return early
+    // On prepareStatement: parse SQL, cache result, and return early
     if (methodName.startsWith("Connection.prepare")) {
       if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
           && jdbcMethodArgs[0] instanceof String) {
         String sql = (String) jdbcMethodArgs[0];
-        populateContext(sql);
+        ParsedSqlResult parsed = parseSql(sql);
+        applyToContext(parsed);
+
         T result = jdbcMethodFunc.call();
         if (result instanceof PreparedStatement) {
-          preparedStatementSqlCache.put((PreparedStatement) result, sql);
+          parsedSqlCache.put((PreparedStatement) result, parsed);
         }
         return result;
       }
       // No SQL arg (shouldn't happen in practice) — fall through to jdbcMethodFunc.call()
     } else if (methodName.startsWith("PreparedStatement.execute")
         && methodInvokeOn instanceof PreparedStatement) {
-      // Re-populate context from cached SQL (context was reset between prepare and execute)
-      String cachedSql = preparedStatementSqlCache.get(methodInvokeOn);
-      if (cachedSql != null) {
-        populateContext(cachedSql);
+      // Re-apply cached parse result (context was reset between prepare and execute)
+      ParsedSqlResult cached = parsedSqlCache.get(methodInvokeOn);
+      if (cached != null) {
+        applyToContext(cached);
       }
     } else if (methodName.startsWith("Statement.execute")) {
       // Parse SQL from args; executeBatch has no SQL arg and will be skipped,
       // causing downstream plugins to fall back to method-name heuristics (routes to writer)
       if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
           && jdbcMethodArgs[0] instanceof String) {
-        populateContext((String) jdbcMethodArgs[0]);
+        applyToContext(parseSql((String) jdbcMethodArgs[0]));
       }
     }
 
     return jdbcMethodFunc.call();
   }
 
-  private void populateContext(String sql) {
-    PluginCallContext ctx = pluginService.getCallContext();
-
+  private ParsedSqlResult parseSql(String sql) {
     // Parse routing hint
+    String routingHint = null;
     Matcher routingMatcher = ROUTING_HINT_PATTERN.matcher(sql);
     if (routingMatcher.find()) {
-      ctx.setAttribute(SqlContextKeys.ROUTING_HINT, routingMatcher.group(1).toLowerCase());
+      routingHint = routingMatcher.group(1).toLowerCase();
     }
 
     // Parse and strip annotations
-    Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
+    final Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
     String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
     cleanSql = ROUTING_HINT_PATTERN.matcher(cleanSql).replaceAll("").trim();
-
-    ctx.setAttribute(SqlContextKeys.ANNOTATIONS, annotations);
-    ctx.setAttribute(SqlContextKeys.CLEAN_SQL, cleanSql);
 
     // Parse SQL structure
     JSQLParserAnalyzer.QueryAnalysis analysis = JSQLParserAnalyzer.analyze(cleanSql);
@@ -158,14 +157,50 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       tables.add(table.replace("`", "").replace("\"", ""));
     }
 
-    ctx.setAttribute(SqlContextKeys.QUERY_TYPE, analysis.queryType);
-    ctx.setAttribute(SqlContextKeys.TABLES, tables);
-    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, analysis.forUpdate);
-
     // Build parameter mapping
     Map<Integer, String> paramMapping = new HashMap<>();
     paramMapping.putAll(SqlAnalysisService.getColumnParameterMapping(cleanSql));
     paramMapping.putAll(annotations);
-    ctx.setAttribute(SqlContextKeys.PARAM_MAPPING, paramMapping);
+
+    return new ParsedSqlResult(
+        analysis.queryType, tables, paramMapping, cleanSql,
+        annotations, analysis.forUpdate, routingHint);
+  }
+
+  private void applyToContext(ParsedSqlResult parsed) {
+    PluginCallContext ctx = pluginService.getCallContext();
+    ctx.setAttribute(SqlContextKeys.QUERY_TYPE, parsed.queryType);
+    ctx.setAttribute(SqlContextKeys.TABLES, parsed.tables);
+    ctx.setAttribute(SqlContextKeys.PARAM_MAPPING, parsed.paramMapping);
+    ctx.setAttribute(SqlContextKeys.CLEAN_SQL, parsed.cleanSql);
+    ctx.setAttribute(SqlContextKeys.ANNOTATIONS, parsed.annotations);
+    ctx.setAttribute(SqlContextKeys.FOR_UPDATE, parsed.forUpdate);
+    if (parsed.routingHint != null) {
+      ctx.setAttribute(SqlContextKeys.ROUTING_HINT, parsed.routingHint);
+    }
+  }
+
+  /** Immutable cached parse result for a SQL statement. */
+  private static class ParsedSqlResult {
+    final String queryType;
+    final Set<String> tables;
+    final Map<Integer, String> paramMapping;
+    final String cleanSql;
+    final Map<Integer, String> annotations;
+    final boolean forUpdate;
+    final String routingHint;
+
+    ParsedSqlResult(String queryType, Set<String> tables,
+        Map<Integer, String> paramMapping, String cleanSql,
+        Map<Integer, String> annotations, boolean forUpdate,
+        String routingHint) {
+      this.queryType = queryType;
+      this.tables = tables;
+      this.paramMapping = paramMapping;
+      this.cleanSql = cleanSql;
+      this.annotations = annotations;
+      this.forUpdate = forUpdate;
+      this.routingHint = routingHint;
+    }
   }
 }

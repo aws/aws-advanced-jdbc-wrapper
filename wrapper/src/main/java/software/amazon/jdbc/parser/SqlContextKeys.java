@@ -43,7 +43,9 @@ public final class SqlContextKeys {
   /** Annotation-based parameter overrides as {@code Map<Integer, String>}. */
   public static final String ANNOTATIONS = "sql.annotations";
 
-  /** Routing hint from SQL comment: "reader", "writer", or null if not specified. */
+  /** Routing hint from SQL comment: "reader", "writer", or null if not specified.
+   *  Note: hints are parsed from SQL comments. Applications constructing SQL from
+   *  user input should parameterize inputs to prevent hint injection. */
   public static final String ROUTING_HINT = "sql.routingHint";
 
   /** Whether the query contains a row-locking clause (FOR UPDATE, FOR SHARE, etc.). */
