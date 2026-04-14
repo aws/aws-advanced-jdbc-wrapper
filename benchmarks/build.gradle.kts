@@ -28,7 +28,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:4.0.3")
     implementation("org.checkerframework:checker-qual:3.55.1")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
-    implementation("org.apache.commons:commons-pool2:2.11.1")
+    implementation("org.apache.commons:commons-pool2:2.13.1")
     jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.14.3")

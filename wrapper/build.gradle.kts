@@ -47,7 +47,7 @@ dependencies {
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.12.0")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    optionalImplementation("org.apache.commons:commons-pool2:2.11.1")
+    optionalImplementation("org.apache.commons:commons-pool2:2.13.1")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.60.1")
@@ -110,7 +110,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.60.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.60.1")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.60.1")
-    testImplementation("org.apache.commons:commons-pool2:2.11.1")
+    testImplementation("org.apache.commons:commons-pool2:2.13.1")
     testImplementation("org.jsoup:jsoup:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.2")
