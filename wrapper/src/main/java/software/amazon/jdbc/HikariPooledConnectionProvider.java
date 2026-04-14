@@ -70,7 +70,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   protected final HikariPoolConfigurator poolConfigurator;
   protected final HikariPoolMapping poolMapping;
   protected final AcceptsUrlFunc acceptsUrlFunc;
-  protected final LeastConnectionsHostSelector leastConnectionsHostSelector;
+  protected LeastConnectionsHostSelector leastConnectionsHostSelector;
 
   static {
     HikariPoolsHolder.databasePools.setShouldDisposeFunc(
@@ -469,6 +469,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   // For testing purposes only
   void setDatabasePools(SlidingExpirationCache<Pair, AutoCloseable> connectionPools) {
     HikariPoolsHolder.databasePools = connectionPools;
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
 
   @Override
