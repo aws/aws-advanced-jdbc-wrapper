@@ -23,9 +23,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     implementation("org.postgresql:postgresql:42.7.10")
     implementation("com.mysql:mysql-connector-j:9.6.0")
-    implementation("software.amazon.awssdk:rds:2.42.32")
-    implementation("software.amazon.awssdk:secretsmanager:2.42.32")
-    implementation("software.amazon.awssdk:sts:2.42.32")
+    implementation("software.amazon.awssdk:rds:2.42.34")
+    implementation("software.amazon.awssdk:secretsmanager:2.42.34")
+    implementation("software.amazon.awssdk:sts:2.42.34")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.60.1")
@@ -34,7 +34,7 @@ dependencies {
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     implementation("org.jsoup:jsoup:1.21.1")
     implementation("com.mchange:c3p0:0.12.0")
-    implementation("org.apache.commons:commons-pool2:2.11.1")
+    implementation("org.apache.commons:commons-pool2:2.13.1")
     implementation("io.github.cdimascio:dotenv-java:2.3.2")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
 }
