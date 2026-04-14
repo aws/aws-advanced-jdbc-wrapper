@@ -98,7 +98,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   // JDBC call context members
   protected Boolean pooledConnection = null;
-  protected @Nullable TrackedConnectionList.Node trackedConnectionNode = null;
+  protected TrackedConnectionList.@Nullable Node trackedConnectionNode = null;
 
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
@@ -823,12 +823,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public @Nullable TrackedConnectionList.Node getTrackedConnectionNode() {
+  public TrackedConnectionList.@Nullable Node getTrackedConnectionNode() {
     return this.trackedConnectionNode;
   }
 
   @Override
-  public void setTrackedConnectionNode(@Nullable TrackedConnectionList.Node node) {
+  public void setTrackedConnectionNode(TrackedConnectionList.@Nullable Node node) {
     this.trackedConnectionNode = node;
   }
 

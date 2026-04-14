@@ -701,13 +701,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public @Nullable TrackedConnectionList.Node getTrackedConnectionNode() {
+  public TrackedConnectionList.@Nullable Node getTrackedConnectionNode() {
     // This service implementation doesn't support connection tracking.
     return null;
   }
 
   @Override
-  public void setTrackedConnectionNode(@Nullable TrackedConnectionList.Node node) {
+  public void setTrackedConnectionNode(TrackedConnectionList.@Nullable Node node) {
     // This service implementation doesn't support connection tracking.
     // Do nothing.
   }

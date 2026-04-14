@@ -266,7 +266,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    *
    * @return the node, or null if the current connection is not tracked
    */
-  @Nullable TrackedConnectionList.Node getTrackedConnectionNode();
+  TrackedConnectionList.@Nullable Node getTrackedConnectionNode();
 
   /**
    * Sets the tracked connection list node for the current connection.
@@ -274,7 +274,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    * @param node the node returned by
    *             {@link software.amazon.jdbc.plugin.OpenedConnectionTracker#populateOpenedConnectionQueue}
    */
-  void setTrackedConnectionNode(@Nullable TrackedConnectionList.Node node);
+  void setTrackedConnectionNode(TrackedConnectionList.@Nullable Node node);
 
   // JDBC call context functions
 
