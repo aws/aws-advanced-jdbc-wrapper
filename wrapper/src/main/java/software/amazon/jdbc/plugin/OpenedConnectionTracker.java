@@ -81,7 +81,7 @@ public class OpenedConnectionTracker {
 
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
-      trackConnection(hostSpec.getUrl(), conn);
+      trackConnection(hostSpec.getHostAndPort(), conn);
       logOpenedConnections();
       return;
     }
@@ -105,7 +105,7 @@ public class OpenedConnectionTracker {
     if (hostSpec == null) {
       return;
     }
-    invalidateAllConnections(hostSpec.getHostId(), hostSpec.getHost());
+    invalidateAllConnections(hostSpec.getHostAndPort(), hostSpec.getHost(), hostSpec.getHostId());
   }
 
   public void invalidateAllConnections(final String... keys) {
@@ -134,15 +134,15 @@ public class OpenedConnectionTracker {
   }
 
   public void removeConnectionTracking(final HostSpec hostSpec, final Connection connection) {
-    final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
-        ? hostSpec.getHost()
+    final String hostAndPort = rdsUtils.isRdsInstance(hostSpec.getHost())
+        ? hostSpec.getHostAndPort()
         : null;
 
-    if (StringUtils.isNullOrEmpty(host)) {
+    if (StringUtils.isNullOrEmpty(hostAndPort)) {
       return;
     }
 
-    final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(host);
+    final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(hostAndPort);
     if (connectionQueue != null) {
       connectionQueue.removeIf(
           connectionWeakReference -> Objects.equals(connectionWeakReference.get(), connection));
