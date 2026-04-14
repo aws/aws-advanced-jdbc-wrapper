@@ -30,6 +30,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
+import software.amazon.jdbc.plugin.TrackedConnectionList;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.StateSnapshotProvider;
@@ -257,6 +258,23 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
   <T> T getPlugin(final Class<T> pluginClazz);
 
   boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
+
+  // Connection tracking node for O(1) removal from the tracked connection list
+
+  /**
+   * Returns the tracked connection list node associated with the current connection.
+   *
+   * @return the node, or null if the current connection is not tracked
+   */
+  @Nullable TrackedConnectionList.Node getTrackedConnectionNode();
+
+  /**
+   * Sets the tracked connection list node for the current connection.
+   *
+   * @param node the node returned by
+   *             {@link software.amazon.jdbc.plugin.OpenedConnectionTracker#populateOpenedConnectionQueue}
+   */
+  void setTrackedConnectionNode(@Nullable TrackedConnectionList.Node node);
 
   // JDBC call context functions
 

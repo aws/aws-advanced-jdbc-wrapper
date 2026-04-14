@@ -42,6 +42,7 @@ import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
+import software.amazon.jdbc.plugin.TrackedConnectionList;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -696,6 +697,18 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public void setIsPooledConnection(Boolean pooledConnection) {
     // This service implementation doesn't support call context.
+    // Do nothing.
+  }
+
+  @Override
+  public @Nullable TrackedConnectionList.Node getTrackedConnectionNode() {
+    // This service implementation doesn't support connection tracking.
+    return null;
+  }
+
+  @Override
+  public void setTrackedConnectionNode(@Nullable TrackedConnectionList.Node node) {
+    // This service implementation doesn't support connection tracking.
     // Do nothing.
   }
 

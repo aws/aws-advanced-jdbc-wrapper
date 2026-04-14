@@ -99,7 +99,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
           this.pluginService.setRoutedHostSpec(identifiedHostSpec);
         }
       }
-      tracker.populateOpenedConnectionQueue(connectionHostSpec, conn);
+      final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(hostSpec, conn);
+      this.pluginService.setTrackedConnectionNode(node);
     }
 
     return conn;
@@ -138,7 +139,13 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       final T result = jdbcMethodFunc.call();
       if ((methodName.equals(JdbcMethod.CONNECTION_CLOSE.methodName)
           || methodName.equals(JdbcMethod.CONNECTION_ABORT.methodName))) {
-        tracker.removeConnectionTracking(currentHostSpec, this.pluginService.getCurrentConnection());
+        final TrackedConnectionList.Node node = this.pluginService.getTrackedConnectionNode();
+        if (node != null) {
+          tracker.removeConnectionTracking(node);
+          this.pluginService.setTrackedConnectionNode(null);
+        } else {
+          tracker.removeConnectionTracking(currentHostSpec, this.pluginService.getCurrentConnection());
+        }
       }
       return result;
 
