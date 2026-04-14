@@ -95,10 +95,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final SessionStateService sessionStateService;
 
   protected final ResourceLock connectionSwitchLock = new ResourceLock();
+  protected TrackedConnectionList.@Nullable Node trackedConnectionNode = null;
 
   // JDBC call context members
   protected Boolean pooledConnection = null;
-  protected TrackedConnectionList.@Nullable Node trackedConnectionNode = null;
 
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
