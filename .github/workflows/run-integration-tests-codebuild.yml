@@ -1,4 +1,4 @@
-name: Run Aurora Integration Tests CodeBuild
+name: Run Aurora Integration Tests Custom Service Endpoint
 
 on:
   workflow_dispatch:
@@ -15,9 +15,8 @@ jobs:
   aurora-integration-tests:
     strategy:
       matrix:
-        engine_version: ["latest"]
         environment: ["mysql", "pg"]
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     environment: ${{ matrix.environment }}_integ
     steps:
       - name: 'Clone repository'
@@ -40,27 +39,28 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora-internal
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          RDS_DB_REGION: ${{ env.SERVICE_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
           RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
-          MYSQL_VERSION: "latest"
-          PG_VERSION: "latest"
-      - name: 'Archive junit results ${{ matrix.engine_version }}'
+          MYSQL_VERSION: ${{ env.MYSQL_ENGINE_VERSION }}
+          PG_VERSION: ${{ env.PG_ENGINE_VERSION }}
+
+      - name: 'Archive junit results ${{ matrix.environment }}'
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-${{ matrix.engine_version }}
+          name: junit-report-${{ matrix.environment }}
           path: ./wrapper/build/test-results
           retention-days: 5
-      - name: 'Archive html summary report ${{ matrix.engine_version }}'
+      - name: 'Archive html summary report ${{ matrix.environment }}'
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-${{ matrix.engine_version }}
+          name: html-summary-report-${{ matrix.environment }}
           path: ./wrapper/build/report
           retention-days: 5

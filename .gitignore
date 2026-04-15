@@ -4,6 +4,7 @@ build/
 .gradle/
 **/.idea
 **/build
+**/bin
 
 # Log file
 *.log

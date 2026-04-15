@@ -35,6 +35,8 @@ import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -56,15 +58,19 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 import software.amazon.awssdk.services.rds.model.DbClusterEndpointNotFoundException;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
+import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -75,7 +81,8 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
     TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY,
+})
 @EnableOnNumOfInstances(min = 3)
 @MakeSureFirstInstanceWriter
 @Order(16)
@@ -89,13 +96,26 @@ public class CustomEndpointTest {
 
   protected String currentWriter;
 
+  private static RdsClient buildRdsClient(String region, String rdsEndpoint) {
+    RdsClientBuilder builder = RdsClient.builder().region(Region.of(region));
+    if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
+      try {
+        builder.endpointOverride(new URI(rdsEndpoint));
+      } catch (URISyntaxException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return builder.build();
+  }
+
   @BeforeAll
   public static void setupEndpoint() {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
-    String clusterId = envInfo.getRdsDbName();
-    String region = envInfo.getRegion();
+    final String clusterId = envInfo.getRdsDbName();
+    final String region = envInfo.getRegion();
+    final String rdsEndpoint = envInfo.getRdsEndpoint();
 
-    try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
+    try (RdsClient client = buildRdsClient(region, rdsEndpoint)) {
       if (reuseExistingEndpoint) {
         waitUntilEndpointAvailable(client);
         return;
@@ -209,8 +229,8 @@ public class CustomEndpointTest {
       return;
     }
 
-    String region = TestEnvironment.getCurrent().getInfo().getRegion();
-    try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
+    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    try (RdsClient client = buildRdsClient(envInfo.getRegion(), envInfo.getRdsEndpoint())) {
       deleteEndpoint(client);
     }
   }
@@ -228,6 +248,13 @@ public class CustomEndpointTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "customEndpoint,readWriteSplitting,failover");
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
+
+    String rdsEndpoint = TestEnvironment.getCurrent().getInfo().getRdsEndpoint();
+    if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
+      AwsCredentialsManager.setCustomHandler((hostSpec, properties) ->
+          DefaultCredentialsProvider.builder().build());
+    }
+
     return props;
   }
 
@@ -273,7 +300,7 @@ public class CustomEndpointTest {
              DriverManager.getConnection(
                  ConnectionStringHelper.getWrapperUrl(endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
                   props);
-         final RdsClient client = RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
+         final RdsClient client = buildRdsClient(envInfo.getRegion(), envInfo.getRdsEndpoint())) {
       List<String> endpointMembers = endpointInfo.staticMembers();
       String instanceId1 = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId1));
