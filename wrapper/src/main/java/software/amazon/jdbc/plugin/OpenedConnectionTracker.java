@@ -158,7 +158,7 @@ public class OpenedConnectionTracker {
       return;
     }
 
-    final TrackedConnectionList connectionList = openedConnections.get(host);
+    final TrackedConnectionList connectionList = openedConnections.get(hostAndPort);
     if (connectionList != null) {
       final Connection target = connection;
       connectionList.removeIf(

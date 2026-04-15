@@ -207,7 +207,10 @@ public class TrackedConnectionList {
     try {
       Node current = head;
       while (current != null) {
-        builder.append("\n\t\t").append(current.connectionRef.get());
+        Connection conn = current.connectionRef.get();
+        if (conn != null) {
+          builder.append("\n\t\t").append(conn);
+        }
         current = current.next;
       }
     } finally {
