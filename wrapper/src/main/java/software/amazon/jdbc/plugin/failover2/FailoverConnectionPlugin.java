@@ -708,7 +708,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           () -> Messages.get("Failover.writerFailoverElapsed", new Object[]{elapsedMs}));
 
       if (results != null
-          && this.pluginService.getCurrentConnection() != results.getConnection()) {
+          && this.pluginService.getCurrentConnection() != results.getConnection()
+          && results.getConnection() != null) {
         try {
           results.getConnection().close();
         } catch (SQLException ex) {

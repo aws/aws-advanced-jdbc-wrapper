@@ -87,7 +87,7 @@ public class RetryUtil {
       final @NonNull Supplier<Set<HostSpec>> allowedHosts,
       @Nullable String strategy,
       @Nullable HostRole verifyRole,
-      final long failoverEndNano)
+      final long retryEndNano)
       throws TimeoutException, SQLException {
 
     if (StringUtils.isNullOrEmpty(strategy)) {
@@ -119,7 +119,7 @@ public class RetryUtil {
           continue;
         }
 
-        while (!remainingAllowedHosts.isEmpty() && System.nanoTime() < failoverEndNano) {
+        while (!remainingAllowedHosts.isEmpty() && System.nanoTime() < retryEndNano) {
           HostSpec candidateHost = null;
           try {
             candidateHost = pluginService.getHostSpecByStrategy(
@@ -166,7 +166,7 @@ public class RetryUtil {
             }
           }
         }
-      } while (System.nanoTime() < failoverEndNano); // All hosts failed. Keep trying until we hit the timeout.
+      } while (System.nanoTime() < retryEndNano); // All hosts failed. Keep trying until we hit the timeout.
 
       throw new TimeoutException(Messages.get("RetryUtil.timeout"));
 

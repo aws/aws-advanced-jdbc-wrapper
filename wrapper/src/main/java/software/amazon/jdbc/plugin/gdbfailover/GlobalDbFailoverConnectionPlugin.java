@@ -338,7 +338,9 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       throw new FailoverFailedSQLException(
           Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
     } finally {
-      if (result != null && result.getConnection() != this.pluginService.getCurrentConnection()) {
+      if (result != null
+          && result.getConnection() != null
+          && result.getConnection() != this.pluginService.getCurrentConnection()) {
         try {
           result.getConnection().close();
         } catch (SQLException ex) {
