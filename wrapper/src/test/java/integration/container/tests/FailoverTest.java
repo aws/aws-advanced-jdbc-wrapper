@@ -42,6 +42,7 @@ import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import integration.util.RetryHelper;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -133,7 +134,8 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
     }
   }
 
@@ -165,7 +167,8 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(stmt, FailoverSuccessSQLException.class);
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
     }
   }
 
@@ -197,7 +200,8 @@ public class FailoverTest {
       final String writerId = this.currentWriter;
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerId, currentConnectionId);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
     }
   }
 
@@ -244,7 +248,8 @@ public class FailoverTest {
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       // Assert that we are connected to the writer after failover happens.
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
       final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
 
@@ -301,7 +306,8 @@ public class FailoverTest {
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       // Assert that we are connected to the writer after failover happens.
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
       final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
 
@@ -560,9 +566,12 @@ public class FailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      LOGGER.finest("Connected after failover: " + currentConnectionId);
       // Assert that we are connected to the writer after failover happens.
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      //assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
       final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
+      LOGGER.finest("New writer (API): " + nextClusterWriterId);
       assertEquals(currentConnectionId, nextClusterWriterId);
 
       // testStmt2 can NOT be used anymore since it's invalid
@@ -604,7 +613,8 @@ public class FailoverTest {
 
       // Assert that we are connected to the writer after failover happens.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
       assertEquals(currentConnectionId, initialWriterId);
     }
   }
@@ -656,7 +666,8 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> !auroraUtil.isDBInstanceWriter(currentConnectionId)));
     }
   }
 

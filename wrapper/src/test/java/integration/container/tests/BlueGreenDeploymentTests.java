@@ -98,7 +98,10 @@ import software.amazon.jdbc.util.storage.StorageService;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
 @DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})

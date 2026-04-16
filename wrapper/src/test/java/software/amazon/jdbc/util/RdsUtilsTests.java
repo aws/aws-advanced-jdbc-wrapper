@@ -615,6 +615,7 @@ public class RdsUtilsTests {
     assertNull(target.getRdsClusterHostUrl(usIsoEastRegionClusterTrailingDot + prefix));
     assertEquals("?", target.getRdsInstanceHostPattern(usEastRegionCluster + prefix));
     assertNull(target.getRdsRegion(usEastRegionCluster + prefix));
+    assertEquals(RdsUrlType.OTHER, target.identifyRdsType(usEastRegionCluster + prefix));
 
     RdsUtils.setPrepareHostFunc((host) -> {
       if (host.endsWith(prefix)) {
@@ -641,6 +642,7 @@ public class RdsUtilsTests {
     assertEquals(
         "?.XYZ.us-east-2.rds.amazonaws.com", target.getRdsInstanceHostPattern(usEastRegionCluster + prefix));
     assertEquals("us-east-2", target.getRdsRegion(usEastRegionCluster + prefix));
+    assertEquals(RdsUrlType.RDS_WRITER_CLUSTER, target.identifyRdsType(usEastRegionCluster + prefix));
 
     RdsUtils.resetPrepareHostFunc();
     assertFalse(target.isRdsDns(usEastRegionCluster + prefix));
@@ -656,5 +658,6 @@ public class RdsUtilsTests {
     assertNull(target.getRdsClusterHostUrl(usIsoEastRegionClusterTrailingDot + prefix));
     assertEquals("?", target.getRdsInstanceHostPattern(usEastRegionCluster + prefix));
     assertNull(target.getRdsRegion(usEastRegionCluster + prefix));
+    assertEquals(RdsUrlType.OTHER, target.identifyRdsType(usEastRegionCluster + prefix));
   }
 }

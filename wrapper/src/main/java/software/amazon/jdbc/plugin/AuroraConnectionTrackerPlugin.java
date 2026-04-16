@@ -99,7 +99,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
           this.pluginService.setRoutedHostSpec(identifiedHostSpec);
         }
       }
-      final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(hostSpec, conn);
+      final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(connectionHostSpec, conn);
       this.pluginService.setTrackedConnectionNode(node);
     }
 

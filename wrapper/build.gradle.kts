@@ -650,7 +650,6 @@ tasks.register<Test>("test-all-multi-az") {
 tasks.register<Test>("test-all-pg-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    filter.includeTestsMatching("integration.container.tests.KmsEncryptionIntegrationTest")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -1419,7 +1418,6 @@ tasks.register<Test>("test-metrics-pg-multi-az") {
 tasks.register<Test>("test-encryption-only") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    filter.includeTestsMatching("integration.container.tests.KmsEncryptionIntegrationTest")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")

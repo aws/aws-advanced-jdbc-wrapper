@@ -16,7 +16,7 @@
 
 package integration.container.tests;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.TestEnvironmentFeatures;
 import integration.TestInstanceInfo;
@@ -28,11 +28,11 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.RetryHelper;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -108,7 +108,8 @@ public class GdbFailoverTest extends FailoverTest {
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> !auroraUtil.isDBInstanceWriter(currentConnectionId)));
     }
   }
 
