@@ -266,11 +266,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws SQLException {
     if (HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.
-      throw new SQLException("DefaultConnectionPlugin.unknownRoleRequested");
+      return null;
     }
 
     if (hosts.isEmpty()) {
-      throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
+      return null;
     }
 
     return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy, this.pluginService.getProperties());

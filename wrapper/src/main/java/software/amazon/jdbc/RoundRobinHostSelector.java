@@ -85,7 +85,7 @@ public class RoundRobinHostSelector implements HostSelector {
           .collect(Collectors.toList());
 
       if (eligibleHosts.isEmpty()) {
-        throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
+        return null;
       }
 
       // Create new cache entries for provided hosts if necessary. All hosts point to the same cluster info.

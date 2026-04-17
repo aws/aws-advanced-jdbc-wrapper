@@ -70,10 +70,6 @@ public class WeightedRandomHostSelector implements HostSelector {
 
     HostSpec selected = selectWeightedRandom(hosts, role, hostWeightMap);
 
-    if (selected == null) {
-      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[] {role}));
-    }
-
     return selected;
   }
 

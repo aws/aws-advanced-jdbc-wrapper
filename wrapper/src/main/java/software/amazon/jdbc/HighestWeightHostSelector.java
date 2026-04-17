@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.util.Messages;
 
 public class HighestWeightHostSelector implements HostSelector {
 
@@ -42,11 +41,11 @@ public class HighestWeightHostSelector implements HostSelector {
         .collect(Collectors.toList());
 
     if (eligibleHosts.isEmpty()) {
-      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
+      return null;
     }
 
     return eligibleHosts.stream()
         .max(Comparator.comparing(HostSpec::getWeight))
-        .orElseThrow(() -> new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role})));
+        .orElse(null);
   }
 }
