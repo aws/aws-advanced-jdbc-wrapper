@@ -729,7 +729,7 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenPluginWithNoSubscriptions_thenReturnsNull() throws SQLException {
+  public void testGetHostSpecByStrategy_givenPluginWithNoSubscriptions_thenThrowsSqlException() throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods()).thenReturn(Collections.emptySet());
     when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
@@ -743,11 +743,13 @@ public class ConnectionPluginManagerTests {
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
 
-    assertNull(connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
+    assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenPluginWithDiffSubscription_thenReturnsNull() throws SQLException {
+  public void testGetHostSpecByStrategy_givenPluginWithDiffSubscription_thenThrowsSqlException() throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.CONNECT.methodName)));
@@ -762,7 +764,9 @@ public class ConnectionPluginManagerTests {
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
 
-    assertNull(connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
+    assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
   }
 
   @Test
