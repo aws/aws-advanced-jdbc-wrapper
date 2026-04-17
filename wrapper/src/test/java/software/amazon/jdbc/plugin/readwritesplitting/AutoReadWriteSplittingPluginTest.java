@@ -35,32 +35,34 @@ public class AutoReadWriteSplittingPluginTest {
 
   private AutoCloseable closeable;
   private AutoReadWriteSplittingPlugin plugin;
+  private PluginCallContext callContext;
 
   @Mock PluginService mockPluginService;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockPluginService.getCallContext()).thenReturn(PluginCallContext.current());
+    callContext = new PluginCallContext();
+    when(mockPluginService.getCallContext()).thenReturn(callContext);
     plugin = new AutoReadWriteSplittingPlugin(mockPluginService, new Properties());
   }
 
   @AfterEach
   void cleanUp() throws Exception {
-    PluginCallContext.reset();
+    callContext.reset();
     closeable.close();
   }
 
   private void setContextQueryType(String queryType) {
-    PluginCallContext.current().setAttribute(SqlContextKeys.QUERY_TYPE, queryType);
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, queryType);
   }
 
   private void setContextCleanSql(String sql) {
-    PluginCallContext.current().setAttribute(SqlContextKeys.CLEAN_SQL, sql);
+    callContext.setAttribute(SqlContextKeys.CLEAN_SQL, sql);
   }
 
   private void setContextRoutingHint(String hint) {
-    PluginCallContext.current().setAttribute(SqlContextKeys.ROUTING_HINT, hint);
+    callContext.setAttribute(SqlContextKeys.ROUTING_HINT, hint);
   }
 
   @Test
@@ -114,7 +116,7 @@ public class AutoReadWriteSplittingPluginTest {
   @Test
   void test_selectForUpdate_routesToWriter() {
     setContextQueryType("SELECT");
-    PluginCallContext.current().setAttribute(SqlContextKeys.FOR_UPDATE, true);
+    callContext.setAttribute(SqlContextKeys.FOR_UPDATE, true);
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
     assertFalse(plugin.shouldRouteToReader("PreparedStatement.executeQuery"));

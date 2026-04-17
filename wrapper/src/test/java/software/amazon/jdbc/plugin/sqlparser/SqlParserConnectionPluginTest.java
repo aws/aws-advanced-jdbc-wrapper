@@ -39,19 +39,21 @@ public class SqlParserConnectionPluginTest {
 
   private AutoCloseable closeable;
   private SqlParserConnectionPlugin plugin;
+  private PluginCallContext callContext;
 
   @Mock PluginService mockPluginService;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockPluginService.getCallContext()).thenReturn(PluginCallContext.current());
+    callContext = new PluginCallContext();
+    when(mockPluginService.getCallContext()).thenReturn(callContext);
     plugin = new SqlParserConnectionPlugin(mockPluginService, new Properties());
   }
 
   @AfterEach
   void cleanUp() throws Exception {
-    PluginCallContext.reset();
+    callContext.reset();
     closeable.close();
   }
 
@@ -65,7 +67,7 @@ public class SqlParserConnectionPluginTest {
   void test_selectQuery_setsQueryTypeSelect() throws Exception {
     executeWithSql("SELECT name FROM users WHERE id = ?");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("SELECT", ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class));
   }
 
@@ -73,7 +75,7 @@ public class SqlParserConnectionPluginTest {
   void test_insertQuery_setsQueryTypeInsert() throws Exception {
     executeWithSql("INSERT INTO users (name) VALUES (?)");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("INSERT", ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class));
   }
 
@@ -81,7 +83,7 @@ public class SqlParserConnectionPluginTest {
   void test_updateQuery_setsQueryTypeUpdate() throws Exception {
     executeWithSql("UPDATE users SET name = ? WHERE id = ?");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("UPDATE", ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class));
   }
 
@@ -89,7 +91,7 @@ public class SqlParserConnectionPluginTest {
   void test_deleteQuery_setsQueryTypeDelete() throws Exception {
     executeWithSql("DELETE FROM users WHERE id = ?");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("DELETE", ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class));
   }
 
@@ -97,7 +99,7 @@ public class SqlParserConnectionPluginTest {
   void test_populatesTables() throws Exception {
     executeWithSql("SELECT * FROM users");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     Set<String> tables = ctx.getAttribute(SqlContextKeys.TABLES, Set.class);
     assertTrue(tables.contains("users"));
   }
@@ -106,7 +108,7 @@ public class SqlParserConnectionPluginTest {
   void test_readerHint_parsed() throws Exception {
     executeWithSql("/*@reader*/ SELECT * FROM users");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("reader", ctx.getAttribute(SqlContextKeys.ROUTING_HINT, String.class));
   }
 
@@ -114,7 +116,7 @@ public class SqlParserConnectionPluginTest {
   void test_writerHint_parsed() throws Exception {
     executeWithSql("/*@writer*/ SELECT * FROM users FOR UPDATE");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("writer", ctx.getAttribute(SqlContextKeys.ROUTING_HINT, String.class));
   }
 
@@ -122,7 +124,7 @@ public class SqlParserConnectionPluginTest {
   void test_noHint_routingHintIsNull() throws Exception {
     executeWithSql("SELECT * FROM users");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertNull(ctx.getAttribute(SqlContextKeys.ROUTING_HINT, String.class));
   }
 
@@ -130,7 +132,7 @@ public class SqlParserConnectionPluginTest {
   void test_hintIsCaseInsensitive() throws Exception {
     executeWithSql("/*@READER*/ SELECT * FROM users");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals("reader", ctx.getAttribute(SqlContextKeys.ROUTING_HINT, String.class));
   }
 
@@ -138,7 +140,7 @@ public class SqlParserConnectionPluginTest {
   void test_hintStrippedFromCleanSql() throws Exception {
     executeWithSql("/*@reader*/ SELECT * FROM users");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     String cleanSql = ctx.getAttribute(SqlContextKeys.CLEAN_SQL, String.class);
     assertFalse(cleanSql.contains("@reader"));
     assertTrue(cleanSql.contains("SELECT"));
@@ -150,7 +152,7 @@ public class SqlParserConnectionPluginTest {
     plugin.execute(Object.class, SQLException.class, null,
         "Connection.prepareStatement", callable, new Object[]{42});
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertNull(ctx.getAttribute(SqlContextKeys.QUERY_TYPE, String.class));
   }
 
@@ -158,7 +160,7 @@ public class SqlParserConnectionPluginTest {
   void test_selectForUpdate_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users WHERE id = 1 FOR UPDATE");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
   }
 
@@ -166,7 +168,7 @@ public class SqlParserConnectionPluginTest {
   void test_selectForShare_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users FOR SHARE");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
   }
 
@@ -174,7 +176,7 @@ public class SqlParserConnectionPluginTest {
   void test_selectForNoKeyUpdate_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users FOR NO KEY UPDATE");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
   }
 
@@ -182,7 +184,7 @@ public class SqlParserConnectionPluginTest {
   void test_selectForKeyShare_setsForUpdate() throws Exception {
     executeWithSql("SELECT * FROM users FOR KEY SHARE");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals(Boolean.TRUE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
   }
 
@@ -190,7 +192,7 @@ public class SqlParserConnectionPluginTest {
   void test_plainSelect_forUpdateIsFalse() throws Exception {
     executeWithSql("SELECT * FROM users WHERE id = 1");
 
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     assertEquals(Boolean.FALSE, ctx.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
   }
 }

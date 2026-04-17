@@ -686,7 +686,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public PluginCallContext getCallContext() {
-    return PluginCallContext.current();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCallContext"}));
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {

@@ -112,6 +112,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
   protected final ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected List<ConnectionPlugin> plugins;
+  protected PluginManagerService pluginManagerService;
 
   public ConnectionPluginManager(
       final @NonNull Properties props,
@@ -165,6 +166,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
   public void initPlugins(
       final FullServicesContainer servicesContainer,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
+    this.pluginManagerService = servicesContainer.getPluginManagerService();
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
         servicesContainer,
@@ -317,7 +319,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
     // Stale context from a failed call persists until the next execute() resets it.
     // This is safe because getCallContext() should only be called within the plugin
     // pipeline, and reset() runs at the start of every pipeline invocation.
-    PluginCallContext.reset();
+    this.pluginManagerService.resetCallContext();
     return executeWithSubscribedPlugins(
         jdbcMethod,
         (plugin, func) ->
@@ -586,8 +588,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
             ((CanReleaseResources) plugin).releaseResources();
           }
         });
-
-    PluginCallContext.destroy();
   }
 
   @Override

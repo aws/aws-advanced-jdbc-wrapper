@@ -98,6 +98,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   // JDBC call context members
   protected Boolean pooledConnection = null;
+  protected final PluginCallContext callContext = new PluginCallContext();
 
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
@@ -826,7 +827,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public PluginCallContext getCallContext() {
-    return PluginCallContext.current();
+    return this.callContext;
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {
@@ -863,6 +864,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void resetCallContext() {
     this.pooledConnection = null;
+    this.callContext.reset();
   }
 
   @Override

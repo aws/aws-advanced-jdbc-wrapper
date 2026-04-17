@@ -125,7 +125,9 @@ public class ConnectionPluginChainBuilder {
           put(FailoverConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 900);
           put(GlobalDbFailoverConnectionPluginFactory.class, 1000);
+          put(SqlParserConnectionPluginFactory.class, 1050);
           put(ReadWriteSplittingPluginFactory.class, 1100);
+          put(AutoReadWriteSplittingPluginFactory.class, 1150);
           put(SimpleReadWriteSplittingPluginFactory.class, 1200);
           put(GdbReadWriteSplittingPluginFactory.class, 1300);
           put(HostMonitoringConnectionPluginV1Factory.class, 1400);

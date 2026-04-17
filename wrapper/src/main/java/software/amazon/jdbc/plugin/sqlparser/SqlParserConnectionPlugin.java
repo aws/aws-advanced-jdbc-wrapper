@@ -96,7 +96,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       throws E {
 
     // On prepareStatement close: remove cached parse result
-    if ("PreparedStatement.close".equals(methodName)
+    if (JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName.equals(methodName)
         && methodInvokeOn instanceof PreparedStatement) {
       parsedSqlCache.remove(methodInvokeOn);
       return jdbcMethodFunc.call();

@@ -52,6 +52,7 @@ public class KmsEncryptionConnectionPluginTest {
 
   private AutoCloseable closeable;
   private KmsEncryptionConnectionPlugin plugin;
+  private PluginCallContext callContext;
 
   @Mock PluginService mockPluginService;
   @Mock KmsEncryptionUtility mockUtility;
@@ -70,6 +71,7 @@ public class KmsEncryptionConnectionPluginTest {
   @BeforeEach
   void setUp() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
+    callContext = new PluginCallContext();
 
     when(mockUtility.getMetadataManager()).thenReturn(mockMetadataManager);
     when(mockUtility.getKeyManager()).thenReturn(mockKeyManager);
@@ -77,19 +79,19 @@ public class KmsEncryptionConnectionPluginTest {
     when(mockPluginService.getTargetDriverDialect())
         .thenReturn(new GenericTargetDriverDialect());
     when(mockPluginService.getCallContext())
-        .thenReturn(PluginCallContext.current());
+        .thenReturn(callContext);
 
     plugin = new KmsEncryptionConnectionPlugin(mockPluginService, mockUtility);
   }
 
   @AfterEach
   void cleanUp() throws Exception {
-    PluginCallContext.reset();
+    callContext.reset();
     closeable.close();
   }
 
   private void populateContext(String tableName, java.util.Map<Integer, String> paramMapping) {
-    PluginCallContext ctx = PluginCallContext.current();
+    PluginCallContext ctx = callContext;
     java.util.Set<String> tables = new java.util.HashSet<>();
     if (tableName != null) {
       tables.add(tableName);

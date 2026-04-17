@@ -23,42 +23,22 @@ import java.util.Map;
  * Per-JDBC-call context that flows through the plugin pipeline.
  * Plugins can store and retrieve attributes, similar to servlet request attributes.
  *
- * <p>The context is scoped to the current thread and JDBC call. It is automatically
- * cleared before each call begins. Upstream plugins (e.g., SQL parsing) can populate
- * attributes that downstream plugins (e.g., encryption, caching) consume.
+ * <p>The context is scoped to the {@link PluginServiceImpl} instance, which has the same
+ * lifecycle as the wrapper connection. It is automatically cleared before each call begins.
+ * Upstream plugins (e.g., SQL parsing) can populate attributes that downstream plugins
+ * (e.g., encryption, caching) consume.
  *
  * <p>Access the context from any plugin via {@link PluginService#getCallContext()}.
  */
 public class PluginCallContext {
 
-  private static final ThreadLocal<PluginCallContext> CURRENT = ThreadLocal.withInitial(PluginCallContext::new);
-
   private final Map<String, Object> attributes = new HashMap<>();
 
   /**
-   * Returns the context for the current thread.
-   *
-   * @return the current call context
+   * Clears all attributes from the context.
    */
-  public static PluginCallContext current() {
-    return CURRENT.get();
-  }
-
-  /**
-   * Clears the context for the current thread. Called by the plugin manager
-   * before each JDBC call pipeline begins.
-   */
-  public static void reset() {
-    CURRENT.get().attributes.clear();
-  }
-
-  /**
-   * Removes the ThreadLocal entry for the current thread. Must be called when
-   * the connection or plugin manager is closed to prevent classloader leaks
-   * in application servers with thread pools.
-   */
-  public static void destroy() {
-    CURRENT.remove();
+  public void reset() {
+    attributes.clear();
   }
 
   /**
