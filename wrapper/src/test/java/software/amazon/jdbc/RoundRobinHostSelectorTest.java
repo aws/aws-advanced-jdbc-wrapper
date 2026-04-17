@@ -17,6 +17,7 @@
 package software.amazon.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.SQLException;
@@ -222,9 +223,8 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  void testGetHost_NoReaders() {
-    assertThrows(SQLException.class,
-        () -> roundRobinHostSelector.getHost(writerHostsList, HostRole.READER, defaultProps));
+  void testGetHost_NoReaders() throws SQLException {
+    assertNull(roundRobinHostSelector.getHost(writerHostsList, HostRole.READER, defaultProps));
   }
 
   @Test

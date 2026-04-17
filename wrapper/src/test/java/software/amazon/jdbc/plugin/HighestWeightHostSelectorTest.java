@@ -17,7 +17,7 @@
 package software.amazon.jdbc.plugin;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -46,20 +46,19 @@ public class HighestWeightHostSelectorTest {
   }
 
   @Test
-  void testGetHost_emptyHostList() {
+  void testGetHost_emptyHostList() throws SQLException {
     final List<HostSpec> emptyHostList = Collections.emptyList();
-    assertThrows(SQLException.class, () -> highestWeightHostSelector.getHost(emptyHostList, HostRole.WRITER, props));
+    assertNull(highestWeightHostSelector.getHost(emptyHostList, HostRole.WRITER, props));
   }
 
   @Test
-  void testGetHost_noEligibleHosts() {
+  void testGetHost_noEligibleHosts() throws SQLException {
     final List<HostSpec> noEligibleHostsList = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.READER).build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.READER).build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.READER).build()
     );
-    assertThrows(SQLException.class,
-        () -> highestWeightHostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
+    assertNull(highestWeightHostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
   }
 
   @Test

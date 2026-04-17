@@ -17,6 +17,7 @@
 package software.amazon.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 import static software.amazon.jdbc.WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS;
@@ -52,16 +53,16 @@ class WeightedRandomHostSelectorTests {
   }
 
   @Test
-  void testGetHost_emptyHostList_withProperty() {
+  void testGetHost_emptyHostList_withProperty() throws SQLException {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
     props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:1");
     final List<HostSpec> emptyHostList = Collections.emptyList();
-    assertThrows(SQLException.class, () -> hostSelector.getHost(emptyHostList, HostRole.WRITER, props));
+    assertNull(hostSelector.getHost(emptyHostList, HostRole.WRITER, props));
   }
 
   @Test
-  void testGetHost_noEligibleHosts_withProperty() {
+  void testGetHost_noEligibleHosts_withProperty() throws SQLException {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
     props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:1,instance-2:1,instance-3:1");
@@ -71,8 +72,7 @@ class WeightedRandomHostSelectorTests {
             .availability(HostAvailability.NOT_AVAILABLE).build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.READER).build()
     );
-    assertThrows(SQLException.class,
-        () -> hostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
+    assertNull(hostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
   }
 
   @Test
@@ -292,15 +292,15 @@ class WeightedRandomHostSelectorTests {
   }
 
   @Test
-  void testGetHost_emptyHostList_withoutProperty() {
+  void testGetHost_emptyHostList_withoutProperty() throws SQLException {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
     final List<HostSpec> emptyHostList = Collections.emptyList();
-    assertThrows(SQLException.class, () -> hostSelector.getHost(emptyHostList, HostRole.WRITER, props));
+    assertNull(hostSelector.getHost(emptyHostList, HostRole.WRITER, props));
   }
 
   @Test
-  void testGetHost_noEligibleHosts_withoutProperty() {
+  void testGetHost_noEligibleHosts_withoutProperty() throws SQLException {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
     final List<HostSpec> noEligibleHostsList = Arrays.asList(
@@ -309,8 +309,7 @@ class WeightedRandomHostSelectorTests {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER)
             .availability(HostAvailability.NOT_AVAILABLE).weight(1).build()
     );
-    assertThrows(SQLException.class,
-        () -> hostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
+    assertNull(hostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
   }
 
   @Test
