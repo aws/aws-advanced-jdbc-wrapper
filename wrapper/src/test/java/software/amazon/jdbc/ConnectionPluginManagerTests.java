@@ -770,7 +770,7 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenUnsupportedPlugin_thenReturnsNull() throws SQLException {
+  public void testGetHostSpecByStrategy_givenUnsupportedPlugin_thenThrowsSqlException() throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
