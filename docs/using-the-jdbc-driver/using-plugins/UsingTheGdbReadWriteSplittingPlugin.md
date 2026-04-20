@@ -29,7 +29,7 @@ properties.setProperty(PropertyDefinition.PLUGINS.name, "gdbReadWriteSplitting")
 
 ## Using the GDB Read/Write Splitting Plugin against non-GDB clusters
 
-The GDB Read/Write Splitting Plugin can be used against Aurora clusters and RDS clusters. However, since these cluster types are single-region clusters, setting a home region does not make much sense. 
+The GDB Read/Write Splitting Plugin can be used against Aurora clusters and RDS clusters. However, since these cluster types are single-region clusters, setting a home region does not make much sense. In these cases, use the original [Read/Write Splitting Plugin](./UsingTheReadWriteSplittingPlugin.md) instead.
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
