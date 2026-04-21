@@ -49,7 +49,7 @@ dependencies {
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
     optionalImplementation("org.apache.commons:commons-pool2:2.13.1")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
-    optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.0")
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.61.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.61.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.61.0")
@@ -105,7 +105,7 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
     testImplementation("tools.jackson.core:jackson-databind:3.1.2") // Required for java17 multi-release classes under Java 17+
-    testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.0")
     testImplementation("io.opentelemetry:opentelemetry-api:1.61.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.61.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.61.0")
