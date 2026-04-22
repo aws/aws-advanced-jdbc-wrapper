@@ -134,8 +134,8 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
       }
     }
 
-    throw new SQLException(Messages.get("bgd.inProgressCantOpenConnection",
-        new Object[] {this.substituteHostSpec.getHostAndPort()}));
+    // returning no connection so the next routing can handle it
+    return null;
   }
 
   @Override
