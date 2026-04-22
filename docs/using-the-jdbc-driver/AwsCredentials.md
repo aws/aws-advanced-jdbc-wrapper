@@ -1,6 +1,6 @@
 # AWS Credentials Requirement
 
-Valid AWS credentials are required by the wrapper plugins that use the AWS SDK. The wrapper uses the AWS SDK's default credentials provider chain to authenticate with AWS services. If you are using temporary credentials, you will need to ensure that they are automatically refreshed before they expire. This document provides guidance to ensure that the wrapper has access to valid credentials. For a list of plugins that require the AWS SDK and valid AWS credentials, please see [this table](./UsingThePythonWrapper.md#list-of-available-plugins).
+Valid AWS credentials are required by the wrapper plugins that use the AWS SDK. The wrapper uses the AWS SDK's default credentials provider chain to authenticate with AWS services. If you are using temporary credentials, you will need to ensure that they are automatically refreshed before they expire. This document provides guidance to ensure that the wrapper has access to valid credentials. For a list of plugins that require the AWS SDK and valid AWS credentials, please see [this table](./UsingTheJdbcDriver.md#list-of-available-plugins).
 
 ## Credential Configuration
 
