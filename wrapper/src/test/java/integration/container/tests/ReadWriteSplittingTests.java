@@ -499,7 +499,7 @@ public class ReadWriteSplittingTests {
 
       // Assert that we are connected to the writer after failover happens.
       String newWriterId = auroraUtil.queryInstanceId(conn);
-      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, newWriterId), "Writer (API) mismatch");
 
       conn.setReadOnly(true);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
