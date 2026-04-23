@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Logger;
-import integration.container.tests.FailoverTest;
 
 public class RetryHelper {
 
