@@ -32,7 +32,6 @@ import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
@@ -56,7 +55,6 @@ import software.amazon.jdbc.plugin.cache.CacheConnection;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(25)
-@Disabled
 @Tag("caching")
 public class SpringCachingTests {
 

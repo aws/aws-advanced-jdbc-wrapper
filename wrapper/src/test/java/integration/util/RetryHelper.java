@@ -17,9 +17,14 @@
 package integration.util;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Logger;
+import integration.container.tests.FailoverTest;
 
 public class RetryHelper {
+
+  private static final Logger LOGGER = Logger.getLogger(RetryHelper.class.getName());
 
   /**
    * Retries the given condition check until it returns true or the timeout is reached.
@@ -55,5 +60,14 @@ public class RetryHelper {
    */
   public static boolean retryUntil(BooleanSupplier condition) {
     return retryUntil(60000, 5000, condition);
+  }
+
+  public static boolean verifyWriter(AuroraTestUtility auroraUtil, String expectedWriterId) {
+    AtomicReference<String> apiWriterId = new AtomicReference<>();
+    return RetryHelper.retryUntil(TimeUnit.MINUTES.toMillis(5), 5000, () -> {
+      apiWriterId.set(auroraUtil.getDBClusterWriterInstanceId());
+      LOGGER.finest("Writer (API): " + apiWriterId.get());
+      return expectedWriterId.equalsIgnoreCase(apiWriterId.get());
+    });
   }
 }

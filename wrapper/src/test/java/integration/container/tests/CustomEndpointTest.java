@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -87,7 +86,6 @@ import software.amazon.jdbc.util.StringUtils;
 @EnableOnNumOfInstances(min = 3)
 @MakeSureFirstInstanceWriter
 @Order(16)
-@Disabled
 public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
   protected static final String endpointId = "test-endpoint-1-" + UUID.randomUUID();

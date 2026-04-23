@@ -26,7 +26,6 @@ import integration.container.condition.DisableOnTestFeature;
 import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -46,7 +45,6 @@ import software.amazon.jdbc.PropertyDefinition;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(13)
-@Disabled
 public class SpringTests {
 
   @TestTemplate

@@ -65,7 +65,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -104,7 +103,6 @@ import software.amazon.jdbc.util.StringUtils;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(12)
-@Disabled
 public class ReadWriteSplittingTests {
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
@@ -501,8 +499,7 @@ public class ReadWriteSplittingTests {
 
       // Assert that we are connected to the writer after failover happens.
       String newWriterId = auroraUtil.queryInstanceId(conn);
-      // RDS API lags behind the writer election, so we retry the check.
-      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(newWriterId)));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
 
       conn.setReadOnly(true);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -1060,8 +1057,7 @@ public class ReadWriteSplittingTests {
 
       // After failover, we should be connected to the new writer (which was the original reader)
       final String newWriterId = auroraUtil.queryInstanceId(conn);
-      // RDS API lags behind the writer election, so we retry the check.
-      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(newWriterId)));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, newWriterId), "Writer (API) mismatch");
       assertEquals(originalReaderId, newWriterId, "The original reader should now be the writer");
 
       // The old cached reader connection pointed to what is now the writer

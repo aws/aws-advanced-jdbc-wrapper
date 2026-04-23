@@ -70,7 +70,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -107,7 +106,6 @@ import software.amazon.jdbc.util.storage.StorageService;
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @Order(20)
-@Disabled
 public class BlueGreenDeploymentTests {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenDeploymentTests.class.getName());

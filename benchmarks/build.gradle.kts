@@ -29,7 +29,7 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.55.1")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
     implementation("org.apache.commons:commons-pool2:2.13.1")
-    jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+    jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.36")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.14.3")
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8

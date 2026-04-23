@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -91,7 +90,6 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(8)
-@Disabled
 public class HikariTests {
 
   private static final Logger LOGGER = Logger.getLogger(HikariTests.class.getName());

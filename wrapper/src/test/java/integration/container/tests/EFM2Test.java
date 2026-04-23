@@ -40,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -65,7 +64,6 @@ import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(17)
-@Disabled
 public class EFM2Test {
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
