@@ -53,6 +53,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -570,9 +572,16 @@ public class FailoverTest {
       // Assert that we are connected to the writer after failover happens.
       // RDS API lags behind the writer election, so we retry the check.
       //assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(currentConnectionId)));
-      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
-      LOGGER.finest("New writer (API): " + nextClusterWriterId);
-      assertEquals(currentConnectionId, nextClusterWriterId);
+
+      // Wait API gets updated
+      AtomicReference<String> nextClusterWriterId = new AtomicReference<>();
+      boolean isWriterMatch = RetryHelper.retryUntil(TimeUnit.MINUTES.toMillis(5), 5000, () -> {
+        nextClusterWriterId.set(auroraUtil.getDBClusterWriterInstanceId());
+        return currentConnectionId.equalsIgnoreCase(nextClusterWriterId.get());
+      });
+      LOGGER.finest("New writer (API): " + nextClusterWriterId.get());
+      //assertEquals(currentConnectionId, nextClusterWriterId);
+      assertTrue(isWriterMatch);
 
       // testStmt2 can NOT be used anymore since it's invalid
       final Statement testStmt3 = conn.createStatement();

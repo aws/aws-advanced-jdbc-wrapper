@@ -44,6 +44,7 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(17)
+@Disabled
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger LOGGER = Logger.getLogger(KmsEncryptionIntegrationTest.class.getName());

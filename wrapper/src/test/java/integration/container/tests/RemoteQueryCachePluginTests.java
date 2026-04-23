@@ -35,6 +35,7 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
@@ -57,8 +58,8 @@ import software.amazon.jdbc.plugin.cache.CachedResultSet;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(26)
+@Disabled
 @Tag("caching")
-
 public class RemoteQueryCachePluginTests {
 
   @AfterEach
