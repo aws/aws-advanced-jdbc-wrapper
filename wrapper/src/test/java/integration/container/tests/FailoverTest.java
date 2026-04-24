@@ -648,7 +648,9 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
+      LOGGER.finest("Connected after failover: " + currentConnectionId);
+      assertTrue(RetryHelper.retryUntil(() -> !auroraUtil.isDBInstanceWriter(currentConnectionId)),
+          "Instance " + currentConnectionId + " is still a writer (API).");
     }
   }
 

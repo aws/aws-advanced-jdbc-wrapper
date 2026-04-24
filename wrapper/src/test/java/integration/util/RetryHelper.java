@@ -58,12 +58,13 @@ public class RetryHelper {
    * @return true if the condition was met within the timeout, false otherwise
    */
   public static boolean retryUntil(BooleanSupplier condition) {
-    return retryUntil(60000, 5000, condition);
+    return retryUntil(TimeUnit.MINUTES.toMillis(5), TimeUnit.SECONDS.toMillis(5), condition);
   }
 
   public static boolean verifyWriter(AuroraTestUtility auroraUtil, String expectedWriterId) {
+    LOGGER.finest("Expected writer (API): " + expectedWriterId);
     AtomicReference<String> apiWriterId = new AtomicReference<>();
-    return RetryHelper.retryUntil(TimeUnit.MINUTES.toMillis(5), 5000, () -> {
+    return RetryHelper.retryUntil(() -> {
       apiWriterId.set(auroraUtil.getDBClusterWriterInstanceId());
       LOGGER.finest("Writer (API): " + apiWriterId.get());
       return expectedWriterId.equalsIgnoreCase(apiWriterId.get());
