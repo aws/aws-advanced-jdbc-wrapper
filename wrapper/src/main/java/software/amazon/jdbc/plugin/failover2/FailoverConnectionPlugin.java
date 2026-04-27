@@ -432,34 +432,84 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
 
   protected ReaderFailoverResult getReaderFailoverConnection(long failoverEndTimeNano) throws TimeoutException {
 
-    // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
-    final List<HostSpec> hosts = this.pluginService.getHosts();
-    final Set<HostSpec> readerCandidates = hosts.stream()
-        .filter(hostSpec -> HostRole.READER.equals(hostSpec.getRole()))
-        .collect(Collectors.toSet());
-    final HostSpec originalWriter = hosts.stream()
-        .filter(hostSpec -> HostRole.WRITER.equals(hostSpec.getRole()))
-        .findFirst()
-        .orElse(null);
+    HostSpec originalWriter = null;
     boolean isOriginalWriterStillWriter = false;
+    boolean needDelay = false;
 
     do {
+      if (needDelay) {
+        try {
+          TimeUnit.MILLISECONDS.sleep(100);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(ex);
+        }
+      }
+      needDelay = true;
+
+      // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
+      final List<HostSpec> hosts = this.pluginService.getHosts();
+      final Set<HostSpec> readerCandidates = hosts.stream()
+          .filter(hostSpec -> HostRole.READER.equals(hostSpec.getRole()))
+          .collect(Collectors.toSet());
+      if (originalWriter == null) {
+        HostSpec newOriginalWriter = hosts.stream()
+            .filter(hostSpec -> HostRole.WRITER.equals(hostSpec.getRole()))
+            .findFirst()
+            .orElse(null);
+        if (newOriginalWriter != null) {
+          if (originalWriter == null || !newOriginalWriter.equals(originalWriter)) {
+            originalWriter = newOriginalWriter;
+            isOriginalWriterStillWriter = false;
+          }
+        }
+      }
+
       // First, try all original readers
       final Set<HostSpec> remainingReaders = new HashSet<>(readerCandidates);
       while (!remainingReaders.isEmpty() && System.nanoTime() < failoverEndTimeNano) {
-        HostSpec readerCandidate;
+        HostSpec readerCandidate = null;
         try {
           readerCandidate =
               this.pluginService.getHostSpecByStrategy(
                   new ArrayList<>(remainingReaders),
                   HostRole.READER,
                   this.failoverReaderHostSelectorStrategySetting);
-        } catch (UnsupportedOperationException | SQLException ex) {
-          LOGGER.finest(
+        } catch (UnsupportedOperationException ex) {
+          // Strategy isn't available or is wrong.
+          LOGGER.severe(
               LogUtils.logTopology(
                   new ArrayList<>(remainingReaders),
                   Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
-          break;
+          throw ex;
+        } catch (SQLException ex) {
+          // No host found.
+        }
+
+        if (readerCandidate == null) {
+          // Try all readers assuming they all are available
+          final List<HostSpec> allAvailableReaders = remainingReaders.stream()
+              .map(x -> this.pluginService.getHostSpecBuilder()
+                  .copyFrom(x)
+                  .availability(HostAvailability.AVAILABLE)
+                  .build())
+              .collect(Collectors.toList());
+          try {
+            readerCandidate =
+                this.pluginService.getHostSpecByStrategy(
+                    allAvailableReaders,
+                    HostRole.READER,
+                    this.failoverReaderHostSelectorStrategySetting);
+          } catch (UnsupportedOperationException ex) {
+            // Strategy isn't available or is wrong.
+            LOGGER.severe(
+                LogUtils.logTopology(
+                    allAvailableReaders,
+                    Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
+            throw ex;
+          } catch (SQLException ex) {
+            // No host found.
+          }
         }
 
         if (readerCandidate == null) {

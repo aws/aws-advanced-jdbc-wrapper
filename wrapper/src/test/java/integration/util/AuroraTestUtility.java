@@ -1386,6 +1386,10 @@ public class AuroraTestUtility {
               LOGGER.finest(
                   "Proxied host " + instanceInfo.getHost() + " resolves to IP address "
                       + this.hostToIP(host, false));
+            } else {
+              LOGGER.finest(
+                  "Host " + instanceInfo.getHost() + " resolves to IP address "
+                      + this.hostToIP(host, false));
             }
 
             remainingInstances.remove(instanceInfo.getHost());
@@ -1488,13 +1492,13 @@ public class AuroraTestUtility {
 
         DatabaseEngineDeployment deployment =
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
-        String clusterEndpoint = 
+        String clusterEndpoint =
             TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint();
-        String clusterReadOnlyEndpoint = 
+        String clusterReadOnlyEndpoint =
             TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterReadOnlyEndpoint();
 
         ProxyHelper.disableConnectivity(instanceName);
-        
+
         // In multi-az, we need to disable the cluster endpoint as well.
         if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
           ProxyHelper.disableConnectivity(clusterEndpoint);
@@ -1551,23 +1555,32 @@ public class AuroraTestUtility {
     if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
       LOGGER.finest(String.format("failover from: %s", initialWriterId));
     } else {
-      LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
+      LOGGER.finest(String.format("failover from %s to target (suggested): %s", initialWriterId, targetWriterId));
     }
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final String clusterEndpoint = dbInfo.getClusterEndpoint();
+    String clusterIp = hostToIP(clusterEndpoint);
+    String newWriterId = getDBClusterWriterInstanceId(clusterId);
 
     failoverClusterToTarget(
         clusterId,
         // TAZ cluster doesn't support target node
         deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER ? targetWriterId : null);
 
-    String clusterIp = hostToIP(clusterEndpoint);
+    // Wait for RDS gets updated
+    long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+    LOGGER.finest("Writer (before wait): " + initialWriterId);
+    while (initialWriterId.equalsIgnoreCase(newWriterId) && System.nanoTime() < waitTillNanoTime) {
+      TimeUnit.SECONDS.sleep(5);
+      newWriterId = getDBClusterWriterInstanceId(clusterId);
+    }
+    LOGGER.finest("Writer (after wait): " + newWriterId);
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
     if (deployment == DatabaseEngineDeployment.AURORA) {
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterIp = hostToIP(clusterEndpoint);
-      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
       while (clusterIp != null && clusterIp.equals(newClusterIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         newClusterIp = hostToIP(clusterEndpoint);
@@ -1590,7 +1603,7 @@ public class AuroraTestUtility {
       // Waiting for clusterEndpoint changes IP address
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterEndpointIp = hostToIP(clusterEndpoint);
-      final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
       while (clusterIp.equals(newClusterEndpointIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         newClusterEndpointIp = hostToIP(clusterEndpoint);
@@ -1821,8 +1834,10 @@ public class AuroraTestUtility {
   }
 
   public String getDBClusterWriterInstanceId(String clusterId) {
-    final List<DBClusterMember> matchedMemberList =
-        getDBClusterMemberList(clusterId).stream()
+    final List<DBClusterMember> memberList = getDBClusterMemberList(clusterId);
+    LOGGER.finest("Obtained cluster " + clusterId + " member list:\n"
+        + memberList.stream().map(DBClusterMember::toString).collect(Collectors.joining("\n")));
+    final List<DBClusterMember> matchedMemberList = memberList.stream()
             .filter(DBClusterMember::isClusterWriter)
             .collect(Collectors.toList());
     if (matchedMemberList.isEmpty()) {

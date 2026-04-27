@@ -49,6 +49,7 @@ import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import integration.util.RetryHelper;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -498,7 +499,7 @@ public class ReadWriteSplittingTests {
 
       // Assert that we are connected to the writer after failover happens.
       String newWriterId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(newWriterId));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, newWriterId), "Writer (API) mismatch");
 
       conn.setReadOnly(true);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -1029,7 +1030,8 @@ public class ReadWriteSplittingTests {
              DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
 
       final String originalWriterId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(originalWriterId));
+      // RDS API lags behind the writer election, so we retry the check.
+      assertTrue(RetryHelper.retryUntil(() -> auroraUtil.isDBInstanceWriter(originalWriterId)));
 
       // Switch to reader to establish cached reader connection
       conn.setReadOnly(true);
@@ -1055,7 +1057,7 @@ public class ReadWriteSplittingTests {
 
       // After failover, we should be connected to the new writer (which was the original reader)
       final String newWriterId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(newWriterId));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, newWriterId), "Writer (API) mismatch");
       assertEquals(originalReaderId, newWriterId, "The original reader should now be the writer");
 
       // The old cached reader connection pointed to what is now the writer

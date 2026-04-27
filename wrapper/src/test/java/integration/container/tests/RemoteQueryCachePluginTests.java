@@ -50,11 +50,14 @@ import software.amazon.jdbc.plugin.cache.CachedResultSet;
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
 @DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(26)
 @Tag("caching")
-
 public class RemoteQueryCachePluginTests {
 
   @AfterEach

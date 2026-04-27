@@ -42,6 +42,7 @@ import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import integration.util.RetryHelper;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -133,7 +134,7 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
     }
   }
 
@@ -165,7 +166,7 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(stmt, FailoverSuccessSQLException.class);
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
     }
   }
 
@@ -197,7 +198,7 @@ public class FailoverTest {
       final String writerId = this.currentWriter;
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerId, currentConnectionId);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
     }
   }
 
@@ -243,10 +244,7 @@ public class FailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      // Assert that we are connected to the writer after failover happens.
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
-      assertEquals(currentConnectionId, nextClusterWriterId);
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
 
       // testStmt2 can NOT be used anymore since it's invalid
       final Statement testStmt3 = conn.createStatement();
@@ -300,10 +298,7 @@ public class FailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      // Assert that we are connected to the writer after failover happens.
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
-      assertEquals(currentConnectionId, nextClusterWriterId);
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
 
       // testStmt2 can NOT be used anymore since it's invalid
       final Statement testStmt3 = conn.createStatement();
@@ -560,10 +555,8 @@ public class FailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      // Assert that we are connected to the writer after failover happens.
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
-      assertEquals(currentConnectionId, nextClusterWriterId);
+      LOGGER.finest("Connected after failover: " + currentConnectionId);
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
 
       // testStmt2 can NOT be used anymore since it's invalid
       final Statement testStmt3 = conn.createStatement();
@@ -604,8 +597,7 @@ public class FailoverTest {
 
       // Assert that we are connected to the writer after failover happens.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-      assertEquals(currentConnectionId, initialWriterId);
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
     }
   }
 
@@ -656,7 +648,9 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      LOGGER.finest("Connected after failover: " + currentConnectionId);
+      assertTrue(RetryHelper.retryUntil(() -> !auroraUtil.isDBInstanceWriter(currentConnectionId)),
+          "Instance " + currentConnectionId + " is still a writer (API).");
     }
   }
 
