@@ -326,8 +326,8 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       throwFailoverSuccessException();
 
     } catch (FailoverSuccessSQLException ex) {
-      if (this.failoverWriterFailedCounter != null) {
-        this.failoverWriterFailedCounter.inc();
+      if (this.failoverWriterSuccessCounter != null) {
+        this.failoverWriterSuccessCounter.inc();
       }
       throw ex;
     } catch (TimeoutException e) {

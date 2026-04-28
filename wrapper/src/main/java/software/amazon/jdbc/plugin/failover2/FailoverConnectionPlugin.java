@@ -635,7 +635,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
 
     long failoverStartTimeNano = System.nanoTime();
     long timeoutEndNano = failoverStartTimeNano
-        + TimeUnit.MICROSECONDS.toNanos(this.failoverTimeoutMsSetting);
+        + TimeUnit.MILLISECONDS.toNanos(this.failoverTimeoutMsSetting);
     final RetryUtil retryUtil = new RetryUtil();
 
     RetryUtil.Results results = null;
