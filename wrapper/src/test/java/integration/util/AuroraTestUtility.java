@@ -1575,6 +1575,9 @@ public class AuroraTestUtility {
       newWriterId = getDBClusterWriterInstanceId(clusterId);
     }
     LOGGER.finest("Writer (after wait): " + newWriterId);
+    if (initialWriterId.equalsIgnoreCase(newWriterId)) {
+      throw new RuntimeException("Writer hasn't changed (API) after 10min. It seems that failover hasn't occurred.");
+    }
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
     if (deployment == DatabaseEngineDeployment.AURORA) {

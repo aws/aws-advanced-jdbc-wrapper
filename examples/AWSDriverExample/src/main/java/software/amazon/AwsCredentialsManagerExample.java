@@ -54,7 +54,7 @@ public class AwsCredentialsManagerExample {
       if (MYSQL_URL.equals(hostSpec.getHost())) {
         return EnvironmentVariableCredentialsProvider.create();
       } else {
-        return DefaultCredentialsProvider.create();
+        return DefaultCredentialsProvider.builder().build();
       }
     });
 
