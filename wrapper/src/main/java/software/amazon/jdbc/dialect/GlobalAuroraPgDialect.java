@@ -54,7 +54,7 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuro
         }
 
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
+        LOGGER.finest(() -> Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
         if (!auroraUtils) {
           return false;
         }

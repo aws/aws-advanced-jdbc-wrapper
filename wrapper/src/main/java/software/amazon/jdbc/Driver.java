@@ -157,7 +157,7 @@ public class Driver implements java.sql.Driver {
       return null;
     }
 
-    LOGGER.finest("Opening connection to " + url);
+    LOGGER.finest(() -> Messages.get("Driver.openingConnection", new Object[] {url}));
 
     ConnectionUrlParser.parsePropertiesFromUrl(url, info);
     final Properties props = PropertyUtils.copyProperties(info);

@@ -78,7 +78,7 @@ public abstract class TopologyUtils {
          final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (rs.getMetaData().getColumnCount() == 0) {
         // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-        LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
+        LOGGER.finest(() -> Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
 

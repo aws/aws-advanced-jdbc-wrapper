@@ -126,7 +126,7 @@ public class BlueGreenStatusMonitor {
   protected final AtomicBoolean connectionHostSpecCorrect = new AtomicBoolean(false);
   protected final AtomicBoolean panicMode = new AtomicBoolean(true);
   protected Future<Void> openConnectionFuture = null;
-  
+
   protected final AtomicReference<PreparedStatement> checkStatusStatement = new AtomicReference<>(null);
 
   public BlueGreenStatusMonitor(
@@ -199,12 +199,7 @@ public class BlueGreenStatusMonitor {
           LOGGER.finest(() -> Messages.get("bgd.interrupted", new Object[] {this.role}));
           return;
         } catch (Exception ex) {
-          if (LOGGER.isLoggable(Level.WARNING)) {
-            LOGGER.log(
-                Level.WARNING,
-                Messages.get("bgd.monitoringUnhandledException", new Object[] {this.role}),
-                ex);
-          }
+          LOGGER.log(Level.WARNING, ex, () -> Messages.get("bgd.monitoringUnhandledException", new Object[] {this.role}));
         }
       }
     } finally {
@@ -361,7 +356,7 @@ public class BlueGreenStatusMonitor {
     try {
       this.currentTopology.set(this.hostListProvider.forceRefresh());
     } catch (TimeoutException e) {
-      LOGGER.finest("bgd.forceRefreshTimeout");
+      LOGGER.finest(() -> Messages.get("bgd.forceRefreshTimeout"));
       return;
     }
 
@@ -394,7 +389,7 @@ public class BlueGreenStatusMonitor {
       statement = conn.prepareStatement(this.blueGreenDialect.getBlueGreenStatusQuery());
       this.checkStatusStatement.set(statement);
     }
-  
+
     return statement.executeQuery();
   }
 
@@ -524,12 +519,7 @@ public class BlueGreenStatusMonitor {
 
     } catch (SQLSyntaxErrorException sqlSyntaxErrorException) {
       this.currentPhase = BlueGreenPhase.NOT_CREATED;
-      if (LOGGER.isLoggable(Level.WARNING)) {
-        LOGGER.log(
-            Level.WARNING,
-            Messages.get("bgd.exception", new Object[] {this.role, BlueGreenPhase.NOT_CREATED}),
-            sqlSyntaxErrorException);
-      }
+      LOGGER.log(Level.WARNING, sqlSyntaxErrorException, () -> Messages.get("bgd.exception", new Object[] {this.role, BlueGreenPhase.NOT_CREATED}));
     } catch (SQLException e) {
       if (!this.isConnectionClosed(conn)) {
         // It's normal to get connection closed during BGD switchover.
@@ -543,17 +533,13 @@ public class BlueGreenStatusMonitor {
         }
 
         // Let's log it.
-        if (LOGGER.isLoggable(Level.FINEST)) {
-          LOGGER.log(Level.FINEST, Messages.get("bgd.unhandledSqlException", new Object[] {this.role}), e);
-        }
+        LOGGER.log(Level.FINEST, e, () -> Messages.get("bgd.unhandledSqlException", new Object[] {this.role}));
       }
       this.clearCheckStatusStatement();
       this.connection.set(null);
       this.panicMode.set(true);
     } catch (Exception e) {
-      if (LOGGER.isLoggable(Level.FINEST)) {
-        LOGGER.log(Level.FINEST, Messages.get("bgd.unhandledException", new Object[] {this.role}), e);
-      }
+      LOGGER.log(Level.FINEST, e, () -> Messages.get("bgd.unhandledException", new Object[] {this.role}));
     }
   }
 

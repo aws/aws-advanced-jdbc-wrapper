@@ -409,15 +409,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       Thread.currentThread().interrupt();
     } catch (final Exception ex) {
       // This should not be reached.
-      if (LOGGER.isLoggable(Level.FINEST)) {
-        // We want to print the full trace stack of the exception.
-        LOGGER.log(
-            Level.FINEST,
-            Messages.get(
-                "ClusterTopologyMonitorImpl.exceptionDuringMonitoringStop",
-                new Object[] {this.initialHostSpec.getHost()}),
-            ex);
-      }
+      // We want to print the full trace stack of the exception.
+      LOGGER.log(Level.FINEST, ex, () -> Messages.get(
+              "ClusterTopologyMonitorImpl.exceptionDuringMonitoringStop",
+              new Object[] {this.initialHostSpec.getHost()}));
 
       throw ex;
     } finally {
@@ -709,11 +704,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       // Ignore exceptions related to network. Log other exceptions.
       if (!this.servicesContainer.getPluginService().isNetworkException(ex,
           this.servicesContainer.getPluginService().getTargetDriverDialect())) {
-        if (LOGGER.isLoggable(Level.FINEST)) {
-          LOGGER.log(Level.FINEST,
-              Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}),
-              ex);
-        }
+        LOGGER.log(Level.FINEST, ex, () -> Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}));
       }
     }
 
