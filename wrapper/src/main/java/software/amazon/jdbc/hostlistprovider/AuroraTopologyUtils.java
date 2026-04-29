@@ -54,7 +54,7 @@ public class AuroraTopologyUtils extends TopologyUtils {
         hostsMap.merge(host.getHost(), host, (oldValue, newValue) -> 
             oldValue.getLastUpdateTime().before(newValue.getLastUpdateTime()) ? newValue : oldValue);
       } catch (Exception e) {
-        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
+        LOGGER.finest(() -> Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }

@@ -609,7 +609,7 @@ public class BlueGreenStatusProvider {
 
     // We want to limit switchover duration to DEFAULT_POST_STATUS_DURATION_NANO.
     if (this.isSwitchoverTimerExpired()) {
-      LOGGER.finest(Messages.get("bgd.switchoverTimeout"));
+      LOGGER.finest(() -> Messages.get("bgd.switchoverTimeout"));
       if (this.rollback) {
         return this.getStatusOfCreated();
       }
@@ -682,7 +682,7 @@ public class BlueGreenStatusProvider {
 
     // We want to limit switchover duration to DEFAULT_POST_STATUS_DURATION_NANO.
     if (this.isSwitchoverTimerExpired()) {
-      LOGGER.finest(Messages.get("bgd.switchoverTimeout"));
+      LOGGER.finest(() -> Messages.get("bgd.switchoverTimeout"));
       if (this.rollback) {
         return this.getStatusOfCreated();
       }
@@ -807,7 +807,7 @@ public class BlueGreenStatusProvider {
 
     // We want to limit switchover duration to DEFAULT_POST_STATUS_DURATION_NANO.
     if (this.isSwitchoverTimerExpired()) {
-      LOGGER.finest(Messages.get("bgd.switchoverTimeout"));
+      LOGGER.finest(() -> Messages.get("bgd.switchoverTimeout"));
       if (this.rollback) {
         return this.getStatusOfCreated();
       }
@@ -960,7 +960,7 @@ public class BlueGreenStatusProvider {
 
     // We want to limit switchover duration to DEFAULT_POST_STATUS_DURATION_NANO.
     if (this.isSwitchoverTimerExpired()) {
-      LOGGER.finest(Messages.get("bgd.switchoverTimeout"));
+      LOGGER.finest(() -> Messages.get("bgd.switchoverTimeout"));
       if (this.rollback) {
         return this.getStatusOfCreated();
       }
@@ -1010,7 +1010,7 @@ public class BlueGreenStatusProvider {
           .allMatch(x -> x.getValue().stream().anyMatch(y -> !x.getKey().equals(y)));
 
       if (allHostChangedNames && !this.allGreenNodesChangedName.get()) {
-        LOGGER.finest("allGreenNodesChangedName: true");
+        LOGGER.finest(() -> "allGreenNodesChangedName: true");
         this.allGreenNodesChangedName.set(true);
         this.storeGreenNodeChangeNameTime();
       }
@@ -1139,7 +1139,7 @@ public class BlueGreenStatusProvider {
         .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchoverOrCompleted());
 
     if (switchoverCompleted && hasActiveSwitchoverPhases) {
-      LOGGER.finest(Messages.get("bgd.resetContext"));
+      LOGGER.finest(() -> Messages.get("bgd.resetContext"));
       final BlueGreenStatusMonitor sourceMonitor = this.monitors[BlueGreenRole.SOURCE.getValue()];
       this.monitors[BlueGreenRole.SOURCE.getValue()] = null;
       if (sourceMonitor != null) {

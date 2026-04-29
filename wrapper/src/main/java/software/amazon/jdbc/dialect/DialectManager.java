@@ -270,7 +270,7 @@ public class DialectManager implements DialectProvider {
   }
 
   private void logCurrentDialect() {
-    LOGGER.finest(Messages.get(
+    LOGGER.finest(() -> Messages.get(
         "DialectManager.currentDialect",
         new Object[] {this.dialectCode, this.dialect == null ? "<null>" : this.dialect, this.canUpdate}));
   }

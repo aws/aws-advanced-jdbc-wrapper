@@ -68,7 +68,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
          final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (rs.getMetaData().getColumnCount() == 0) {
         // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-        LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
+        LOGGER.finest(() -> Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
 
@@ -92,7 +92,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplatesByRegion);
         hostsMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
+        LOGGER.finest(() -> Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }
@@ -151,7 +151,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
               hostValidator.accept(v.getValue2().getHost());
               return v.getValue2();
             }));
-    LOGGER.finest(Messages.get(
+    LOGGER.finest(() -> Messages.get(
         "GlobalAuroraTopologyUtils.detectedGdbPatterns",
         new Object[] {LogUtils.toLogString(instanceTemplates)}));
 

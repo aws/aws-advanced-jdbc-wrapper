@@ -222,7 +222,7 @@ public class OpenedConnectionTracker {
     builder.append(host).append("\n[");
     list.appendTo(builder);
     builder.append("\n]");
-    LOGGER.finest(Messages.get("OpenedConnectionTracker.invalidatingConnections",
+    LOGGER.finest(() -> Messages.get("OpenedConnectionTracker.invalidatingConnections",
         new Object[] {builder.toString()}));
   }
 
