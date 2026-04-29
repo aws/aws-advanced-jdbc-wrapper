@@ -63,7 +63,7 @@ import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
-@Order(17)
+@Order(15)
 public class EFM2Test {
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();

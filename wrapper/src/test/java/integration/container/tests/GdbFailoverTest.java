@@ -54,7 +54,7 @@ import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
-@Order(16)
+@Order(26)
 public class GdbFailoverTest extends FailoverTest {
 
   @TestTemplate

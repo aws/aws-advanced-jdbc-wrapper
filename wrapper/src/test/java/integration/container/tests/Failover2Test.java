@@ -39,7 +39,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
-@Order(15)
+@Order(25)
 public class Failover2Test extends FailoverTest {
 
   @Override

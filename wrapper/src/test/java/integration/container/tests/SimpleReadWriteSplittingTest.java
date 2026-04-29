@@ -55,7 +55,7 @@ import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
-@Order(23)
+@Order(21)
 public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   String pluginCode = "srw";
   String pluginCodesWithFailover = "failover2,efm2,srw";

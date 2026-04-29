@@ -85,7 +85,7 @@ import software.amazon.jdbc.util.StringUtils;
 })
 @EnableOnNumOfInstances(min = 3)
 @MakeSureFirstInstanceWriter
-@Order(16)
+@Order(14)
 public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
   protected static final String endpointId = "test-endpoint-1-" + UUID.randomUUID();

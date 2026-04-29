@@ -60,7 +60,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
-@Order(18)
+@Order(17)
 public class FastestResponseStrategyTest {
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 
