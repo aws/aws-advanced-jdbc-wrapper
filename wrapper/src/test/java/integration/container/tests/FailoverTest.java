@@ -82,7 +82,7 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
-@Order(14)
+@Order(24)
 public class FailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(FailoverTest.class.getName());

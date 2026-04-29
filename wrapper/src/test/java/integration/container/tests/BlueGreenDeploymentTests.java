@@ -105,7 +105,7 @@ import software.amazon.jdbc.util.storage.StorageService;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
-@Order(20)
+@Order(19)
 public class BlueGreenDeploymentTests {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenDeploymentTests.class.getName());

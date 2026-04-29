@@ -108,7 +108,7 @@ tasks.withType<Test> {
     dependsOn(tasks.named(hibernateTest.compileJavaTaskName))
 
     testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test") + hibernateTest.output.classesDirs
-    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test") + hibernateTest.output
+    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test") + project.files("./test/resources") + hibernateTest.output
     outputs.upToDateWhen { false }
 
     useJUnitPlatform {

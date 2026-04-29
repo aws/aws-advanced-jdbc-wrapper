@@ -54,7 +54,7 @@ import software.amazon.jdbc.plugin.cache.CacheConnection;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
-@Order(25)
+@Order(22)
 @Tag("caching")
 public class SpringCachingTests {
 

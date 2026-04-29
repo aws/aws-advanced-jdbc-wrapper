@@ -75,7 +75,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
-@Order(17)
+@Order(16)
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger LOGGER = Logger.getLogger(KmsEncryptionIntegrationTest.class.getName());
