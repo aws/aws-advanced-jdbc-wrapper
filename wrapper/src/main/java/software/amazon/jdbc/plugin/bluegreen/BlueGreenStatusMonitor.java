@@ -199,7 +199,8 @@ public class BlueGreenStatusMonitor {
           LOGGER.finest(() -> Messages.get("bgd.interrupted", new Object[] {this.role}));
           return;
         } catch (Exception ex) {
-          LOGGER.log(Level.WARNING, ex, () -> Messages.get("bgd.monitoringUnhandledException", new Object[] {this.role}));
+          LOGGER.log(Level.WARNING, ex,
+              () -> Messages.get("bgd.monitoringUnhandledException", new Object[] {this.role}));
         }
       }
     } finally {
@@ -519,7 +520,8 @@ public class BlueGreenStatusMonitor {
 
     } catch (SQLSyntaxErrorException sqlSyntaxErrorException) {
       this.currentPhase = BlueGreenPhase.NOT_CREATED;
-      LOGGER.log(Level.WARNING, sqlSyntaxErrorException, () -> Messages.get("bgd.exception", new Object[] {this.role, BlueGreenPhase.NOT_CREATED}));
+      LOGGER.log(Level.WARNING, sqlSyntaxErrorException,
+          () -> Messages.get("bgd.exception", new Object[] {this.role, BlueGreenPhase.NOT_CREATED}));
     } catch (SQLException e) {
       if (!this.isConnectionClosed(conn)) {
         // It's normal to get connection closed during BGD switchover.

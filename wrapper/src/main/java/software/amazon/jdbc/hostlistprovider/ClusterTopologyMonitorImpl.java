@@ -704,7 +704,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       // Ignore exceptions related to network. Log other exceptions.
       if (!this.servicesContainer.getPluginService().isNetworkException(ex,
           this.servicesContainer.getPluginService().getTargetDriverDialect())) {
-        LOGGER.log(Level.FINEST, ex, () -> Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}));
+        LOGGER.log(Level.FINEST, ex,
+            () -> Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}));
       }
     }
 
