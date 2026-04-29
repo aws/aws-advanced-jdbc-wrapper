@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 
 import java.sql.Connection;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -350,13 +351,17 @@ public class TrackedConnectionListTest {
     final CountDownLatch startLatch = new CountDownLatch(1);
     final CountDownLatch addDoneLatch = new CountDownLatch(addThreads);
     final ExecutorService executor = Executors.newFixedThreadPool(addThreads + 1);
+    // Keep strong references so GC cannot clear the WeakReferences before drainAll.
+    final List<Connection> strongRefs = new CopyOnWriteArrayList<>();
 
     for (int t = 0; t < addThreads; t++) {
       executor.submit(() -> {
         try {
           startLatch.await();
           for (int i = 0; i < connectionsPerThread; i++) {
-            list.add(mock(Connection.class));
+            final Connection conn = mock(Connection.class);
+            strongRefs.add(conn);
+            list.add(conn);
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
