@@ -43,6 +43,7 @@ import software.amazon.jdbc.plugin.failover2.ReaderFailoverResult;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RetryUtil;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -83,13 +84,14 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     PropertyDefinition.registerPluginProperties(GlobalDbFailoverConnectionPlugin.class);
   }
 
+  protected final RetryUtil retryUtil = new RetryUtil();
+
   // Inherited failoverMode member should not be used in this class.
   // Use activeHomeFailoverMode and inactiveHomeFailoverMode instead.
   protected GlobalDbFailoverMode activeHomeFailoverMode;
   protected GlobalDbFailoverMode inactiveHomeFailoverMode;
 
   protected String homeRegion;
-
 
   public GlobalDbFailoverConnectionPlugin(final FullServicesContainer servicesContainer,
       Properties properties) {
@@ -212,7 +214,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
 
       switch (currentFailoverMode) {
         case STRICT_WRITER:
-          this.failoverToWriter(writerCandidate);
+          this.failoverToWriter(writerCandidate, failoverEndNano);
           break;
         case STRICT_HOME_READER:
           this.failoverToAllowedHost(
@@ -302,71 +304,45 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     }
   }
 
-  protected void failoverToWriter(HostSpec writerCandidate) throws SQLException {
+  protected void failoverToWriter(final HostSpec writerCandidate, final long failoverEndNano)
+      throws SQLException {
+
     if (this.failoverWriterTriggeredCounter != null) {
       this.failoverWriterTriggeredCounter.inc();
     }
-    Connection writerCandidateConn = null;
+
+    RetryUtil.Results result = null;
     try {
-      final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsHostAndPort(allowedHosts, writerCandidate.getHostAndPort())) {
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        String topologyString = LogUtils.logTopology(allowedHosts, "");
-        LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
-            new Object[]{writerCandidate.getUrl(), topologyString}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.newWriterNotAllowed",
-                new Object[]{writerCandidate.getUrl(), topologyString}));
-      }
+      result = this.retryUtil.getWriterConnection(
+          this.pluginService,
+          this.properties,
+          this,
+          true,
+          failoverEndNano);
+      this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
+      result = null;
+      LOGGER.info(() -> Messages.get("Failover.establishedConnection",
+          new Object[] {this.pluginService.getCurrentHostSpec()}));
+      throwFailoverSuccessException();
 
-      try {
-        writerCandidateConn = this.pluginService.connect(writerCandidate, this.properties, this);
-      } catch (SQLException ex) {
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        LOGGER.severe(
-            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}), ex);
-      }
-
-      HostRole role = this.pluginService.getHostRole(writerCandidateConn);
-      if (role != HostRole.WRITER) {
-        try {
-          writerCandidateConn.close();
-          writerCandidateConn = null;
-        } catch (SQLException ex) {
-          // do nothing
-        }
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        LOGGER.severe(
-            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-      }
-
-      this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
-      writerCandidateConn = null; // Prevent connection to be closed in the finally block.
-
+    } catch (FailoverSuccessSQLException ex) {
       if (this.failoverWriterSuccessCounter != null) {
         this.failoverWriterSuccessCounter.inc();
       }
-    } catch (FailoverFailedSQLException ex) {
       throw ex;
-    } catch (Exception ex) {
+    } catch (TimeoutException e) {
       if (this.failoverWriterFailedCounter != null) {
         this.failoverWriterFailedCounter.inc();
       }
-      throw ex;
+      LOGGER.severe(Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
+      throw new FailoverFailedSQLException(
+          Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
     } finally {
-      if (writerCandidateConn != null && this.pluginService.getCurrentConnection() != writerCandidateConn) {
+      if (result != null
+          && result.getConnection() != null
+          && result.getConnection() != this.pluginService.getCurrentConnection()) {
         try {
-          writerCandidateConn.close();
+          result.getConnection().close();
         } catch (SQLException ex) {
           // do nothing
         }
@@ -384,25 +360,33 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       this.failoverReaderTriggeredCounter.inc();
     }
 
-    ReaderFailoverResult result = null;
+    RetryUtil.Results result = null;
     try {
-      try {
-        result = this.getAllowedFailoverConnection(allowedHosts, verifyRole, failoverEndNano);
-        this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
-        result = null;
-      } catch (TimeoutException e) {
-        LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
-      }
-
+      result = this.retryUtil.getAllowedConnection(
+          this.pluginService,
+          this.properties,
+          this,
+          allowedHosts,
+          this.failoverReaderHostSelectorStrategySetting,
+          verifyRole,
+          failoverEndNano);
+      this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
+      result = null;
       LOGGER.info(() -> Messages.get("Failover.establishedConnection",
               new Object[] {this.pluginService.getCurrentHostSpec()}));
       throwFailoverSuccessException();
+
     } catch (FailoverSuccessSQLException ex) {
       if (this.failoverReaderSuccessCounter != null) {
         this.failoverReaderSuccessCounter.inc();
       }
       throw ex;
+    } catch (TimeoutException e) {
+      if (this.failoverReaderFailedCounter != null) {
+        this.failoverReaderFailedCounter.inc();
+      }
+      LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
+      throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
     } catch (Exception ex) {
       if (this.failoverReaderFailedCounter != null) {
         this.failoverReaderFailedCounter.inc();
@@ -416,91 +400,6 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
           // do nothing
         }
       }
-    }
-  }
-
-  protected ReaderFailoverResult getAllowedFailoverConnection(
-      final @NonNull Supplier<Set<HostSpec>> allowedHosts,
-      @Nullable HostRole verifyRole,
-      final long failoverEndNano)
-      throws TimeoutException, SQLException {
-
-    do {
-      // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
-      this.pluginService.refreshHostList();
-      Set<HostSpec> updatedAllowedHosts = allowedHosts.get();
-      // Make a copy of hosts and set their availability.
-      updatedAllowedHosts = updatedAllowedHosts.stream()
-          .map(x -> this.pluginService.getHostSpecBuilder()
-              .copyFrom(x)
-              .availability(HostAvailability.AVAILABLE)
-              .build())
-          .collect(Collectors.toSet());
-      final Set<HostSpec> remainingAllowedHosts = new HashSet<>(updatedAllowedHosts);
-
-      if (remainingAllowedHosts.isEmpty()) {
-        this.shortDelay();
-        continue;
-      }
-
-      while (!remainingAllowedHosts.isEmpty() && System.nanoTime() < failoverEndNano) {
-        HostSpec candidateHost = null;
-        try {
-          candidateHost = this.pluginService.getHostSpecByStrategy(
-              new ArrayList<>(remainingAllowedHosts),
-              verifyRole,
-              this.failoverReaderHostSelectorStrategySetting);
-        } catch (SQLException ex) {
-          // Strategy can't get a host according to requested conditions.
-          // Do nothing
-        }
-
-        if (candidateHost == null) {
-          LOGGER.finest(
-              LogUtils.logTopology(
-                  new ArrayList<>(remainingAllowedHosts),
-                  Messages.get("GlobalDbFailoverConnectionPlugin.candidateNull", new Object[]{verifyRole})));
-          this.shortDelay();
-          break;
-        }
-
-        Connection candidateConn = null;
-        try {
-          candidateConn = this.pluginService.connect(candidateHost, this.properties, this);
-          // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
-          HostRole role = verifyRole == null ? null : this.pluginService.getHostRole(candidateConn);
-          if (verifyRole == null || verifyRole == role) {
-            HostSpec updatedHostSpec = new HostSpec(candidateHost, role);
-            return new ReaderFailoverResult(candidateConn, updatedHostSpec);
-          }
-
-          // The role is not as expected, so the connection is not valid.
-          remainingAllowedHosts.remove(candidateHost);
-          candidateConn.close();
-          candidateConn = null;
-
-        } catch (SQLException ex) {
-          remainingAllowedHosts.remove(candidateHost);
-          if (candidateConn != null) {
-            try {
-              candidateConn.close();
-            } catch (SQLException e) {
-              // Ignore
-            }
-          }
-        }
-      }
-    } while (System.nanoTime() < failoverEndNano); // All hosts failed. Keep trying until we hit the timeout.
-
-    throw new TimeoutException(Messages.get("Failover.failoverReaderTimeout"));
-  }
-
-  protected void shortDelay() {
-    try {
-      TimeUnit.MILLISECONDS.sleep(100);
-    } catch (InterruptedException ex1) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(ex1);
     }
   }
 

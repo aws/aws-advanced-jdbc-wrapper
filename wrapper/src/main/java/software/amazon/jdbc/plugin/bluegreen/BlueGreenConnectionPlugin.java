@@ -39,7 +39,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
-import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.StorageService;
