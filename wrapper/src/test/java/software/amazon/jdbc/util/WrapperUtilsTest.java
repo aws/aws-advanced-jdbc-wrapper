@@ -46,6 +46,8 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
@@ -81,6 +83,7 @@ public class WrapperUtilsTest {
     when(mockServicesContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new GenericTargetDriverDialect());
   }
 
   private void mockExecuteReturnValue(Object returnValue) {

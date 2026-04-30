@@ -61,4 +61,18 @@ public interface TargetDriverDialect {
   String getSQLState(final Throwable throwable);
 
   Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties);
+
+  /**
+   * Check if two connection references represent the same logical connection.
+   * This is needed for drivers that use proxy objects (e.g. MySQL's loadbalance://
+   * protocol), where Statement.getConnection() may return a different object than
+   * the original connection while still representing the same logical connection.
+   *
+   * @param connA First connection
+   * @param connB Second connection
+   * @return true if the connections represent the same logical connection
+   */
+  default boolean isSameConnection(final @NonNull Connection connA, final @NonNull Connection connB) {
+    return connA == connB;
+  }
 }

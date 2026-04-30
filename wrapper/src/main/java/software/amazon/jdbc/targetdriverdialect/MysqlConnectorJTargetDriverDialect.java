@@ -147,4 +147,13 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
     final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
     return helper.getSQLState(throwable);
   }
+
+  @Override
+  public boolean isSameConnection(final @NonNull Connection connA, final @NonNull Connection connB) {
+    if (connA == connB) {
+      return true;
+    }
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    return helper.isSameConnection(connA, connB);
+  }
 }

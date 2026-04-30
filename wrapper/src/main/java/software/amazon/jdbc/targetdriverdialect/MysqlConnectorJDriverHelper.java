@@ -17,7 +17,9 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import com.mysql.cj.exceptions.CJException;
+import com.mysql.cj.jdbc.JdbcConnection;
 import com.mysql.cj.jdbc.MysqlDataSource;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -96,5 +98,21 @@ public class MysqlConnectorJDriverHelper {
 
   public String getSQLState(final Throwable throwable) {
     return throwable instanceof CJException ? ((CJException) throwable).getSQLState() : null;
+  }
+
+  /**
+   * Check if two connection references represent the same logical MySQL connection.
+   * MySQL's loadbalance:// and replication:// protocols use JDK dynamic proxies.
+   * Both the original connection proxy and proxies returned by Statement.getConnection()
+   * delegate to the same MultiHostConnectionProxy, which returns the same
+   * {@code thisAsConnection} object from {@link JdbcConnection#getMultiHostSafeProxy()}.
+   */
+  public boolean isSameConnection(final Connection connA, final Connection connB) {
+    if (connA instanceof JdbcConnection && connB instanceof JdbcConnection) {
+      final JdbcConnection safeA = ((JdbcConnection) connA).getMultiHostSafeProxy();
+      final JdbcConnection safeB = ((JdbcConnection) connB).getMultiHostSafeProxy();
+      return safeA == safeB;
+    }
+    return false;
   }
 }
