@@ -249,7 +249,7 @@ public class WrapperUtils {
       // The target driver may block on Statement.getConnection().
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-        if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
+        if (conn != null && !WrapperUtils.isSameConnection(conn, connectionWrapper.getCurrentConnection())) {
           throw new SQLException(Messages.get(
               "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
         }
@@ -324,7 +324,7 @@ public class WrapperUtils {
       // The target driver may block on Statement.getConnection().
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-        if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
+        if (conn != null && !WrapperUtils.isSameConnection(conn, connectionWrapper.getCurrentConnection())) {
           throw new SQLException(Messages.get(
               "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
         }
@@ -616,6 +616,142 @@ public class WrapperUtils {
     }
 
     return null;
+  }
+
+  /**
+   * Check if two connection references represent the same logical connection.
+   * This handles the case where MySQL's loadbalance:// or replication:// protocols
+   * use JDK dynamic proxies as connection objects. The original connection uses a
+   * LoadBalancedConnectionProxy as its InvocationHandler, while Statement.getConnection()
+   * returns a different proxy using a JdbcInterfaceProxy handler. These are different
+   * Java objects representing the same logical connection, so object identity (==) fails.
+   *
+   * @param connA First connection (e.g. from Statement.getConnection())
+   * @param connB Second connection (e.g. from PluginService.getCurrentConnection())
+   * @return true if the connections represent the same logical connection
+   */
+  public static boolean isSameConnection(final Connection connA, final Connection connB) {
+    if (connA == connB) {
+      return true;
+    }
+
+    final boolean aIsProxy = java.lang.reflect.Proxy.isProxyClass(connA.getClass());
+    final boolean bIsProxy = java.lang.reflect.Proxy.isProxyClass(connB.getClass());
+
+    // If both are JDK dynamic proxies, check if they share the same underlying
+    // MultiHostConnectionProxy (MySQL's LoadBalancedConnectionProxy or ReplicationConnectionProxy).
+    // The original connection's handler IS the MultiHostConnectionProxy.
+    // Statement.getConnection() returns a proxy whose handler is a JdbcInterfaceProxy
+    // with a "this$0" field pointing back to the original MultiHostConnectionProxy.
+    if (aIsProxy && bIsProxy) {
+      try {
+        final Object handlerA = java.lang.reflect.Proxy.getInvocationHandler(connA);
+        final Object handlerB = java.lang.reflect.Proxy.getInvocationHandler(connB);
+        if (handlerA == handlerB) {
+          return true;
+        }
+        // Check if one handler's enclosing instance (this$0) is the other handler
+        final Object outerA = getEnclosingInstance(handlerA);
+        final Object outerB = getEnclosingInstance(handlerB);
+        if ((outerA != null && outerA == handlerB)
+            || (outerB != null && outerB == handlerA)) {
+          return true;
+        }
+      } catch (final Exception e) {
+        // ignore
+      }
+    }
+
+    // If only one is a proxy, check if the proxy wraps the non-proxy connection.
+    if (aIsProxy != bIsProxy) {
+      final Connection proxy = aIsProxy ? connA : connB;
+      final Connection other = aIsProxy ? connB : connA;
+      if (proxyWraps(proxy, other)) {
+        return true;
+      }
+    }
+
+    // Fallback: try isWrapperFor which works for some JDBC wrapper implementations.
+    try {
+      if (connA.isWrapperFor(connB.getClass())) {
+        return true;
+      }
+    } catch (final Exception e) {
+      // ignore - may throw SQLException, NullPointerException (from JDK proxies), etc.
+    }
+    try {
+      if (connB.isWrapperFor(connA.getClass())) {
+        return true;
+      }
+    } catch (final Exception e) {
+      // ignore
+    }
+
+    return false;
+  }
+
+  /**
+   * Get the enclosing instance (this$0) of an inner class object, if it exists.
+   * MySQL Connector/J's JdbcInterfaceProxy is an inner class of MultiHostConnectionProxy,
+   * so its this$0 field points to the enclosing MultiHostConnectionProxy instance.
+   *
+   * @param obj The object to inspect
+   * @return The enclosing instance, or null if not found
+   */
+  private static @Nullable Object getEnclosingInstance(final Object obj) {
+    try {
+      final Field field = obj.getClass().getDeclaredField("this$0");
+      field.setAccessible(true);
+      return field.get(obj);
+    } catch (final Exception e) {
+      return null;
+    }
+  }
+
+  /**
+   * Check if a JDK dynamic proxy connection wraps the given target connection.
+   * Uses reflection to inspect the proxy's InvocationHandler for a "thisAsConnection"
+   * field (used by MySQL Connector/J's MultiHostConnectionProxy) or an "invokeOn"
+   * field (used by JdbcInterfaceProxy) and checks if it matches the target.
+   *
+   * @param proxy  A JDK dynamic proxy Connection
+   * @param target The connection to check against
+   * @return true if the proxy's underlying connection is the target
+   */
+  private static boolean proxyWraps(final Connection proxy, final Connection target) {
+    try {
+      final java.lang.reflect.InvocationHandler handler =
+          java.lang.reflect.Proxy.getInvocationHandler(proxy);
+
+      // Check "invokeOn" field (JdbcInterfaceProxy)
+      try {
+        final Field invokeOnField = handler.getClass().getDeclaredField("invokeOn");
+        invokeOnField.setAccessible(true);
+        if (invokeOnField.get(handler) == target) {
+          return true;
+        }
+      } catch (final NoSuchFieldException e) {
+        // not a JdbcInterfaceProxy
+      }
+
+      // Check "thisAsConnection" field (MultiHostConnectionProxy hierarchy)
+      Class<?> handlerClass = handler.getClass();
+      while (handlerClass != null) {
+        try {
+          final Field field = handlerClass.getDeclaredField("thisAsConnection");
+          field.setAccessible(true);
+          if (field.get(handler) == target) {
+            return true;
+          }
+          break;
+        } catch (final NoSuchFieldException e) {
+          handlerClass = handlerClass.getSuperclass();
+        }
+      }
+    } catch (final Exception e) {
+      // ignore - not a MySQL proxy or reflection failed
+    }
+    return false;
   }
 
   /**
