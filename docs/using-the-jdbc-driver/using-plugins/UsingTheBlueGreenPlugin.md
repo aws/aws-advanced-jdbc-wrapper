@@ -39,6 +39,9 @@ The AWS Advanced JDBC Wrapper leverages the Blue/Green Deployment approach by in
 >
 > **No action is required** if your database does not include the new metadata table -- the driver will continue to operate as before. If you have questions or encounter issues, please open an issue in this repository.
 >
+> Aurora PostgreSQL clusters running Engine Release `17.7, 16.11, 15.15, 14.20, 13.23` or above experience shorter switchover downtime compared to earlier versions.
+> - This improvement follows the source (blue) cluster's engine version.
+>
 > Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.<br>
 > Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.<br>
 > Supported Aurora MySQL Versions: Engine Release `3.07` and above.
