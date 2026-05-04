@@ -197,6 +197,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       connection might be closed since recent failover so failover plugin needs to handle it. */
       methods.add(JdbcMethod.CONNECTION_CLEARWARNINGS.methodName);
 
+      /* Open Liberty calls getMoreResults on a PreparedStatement before returning it to its
+      statement cache. If the statement is bound to a stale connection after failover, the
+      failover plugin needs to handle it so the statement is not silently cached and reused. */
+      methods.add(JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS.methodName);
+
       methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
       methods.add(JdbcMethod.CONNECT.methodName);
       methods.add(JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName);
