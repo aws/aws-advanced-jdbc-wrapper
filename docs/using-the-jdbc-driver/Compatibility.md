@@ -11,3 +11,17 @@ We encourage users to verify their configurations and ensure that their configur
 - [Database type compatibility](./CompatibilityDatabaseTypes.md)
 - [Database URL type compatibility](./CompatibilityEndpoints.md)
 - [Cross Plugins compatibility](./CompatibilityCrossPlugins.md)
+
+## Universally Compatible Plugins
+
+The following plugins operate independently of connection management and are compatible with all plugins, database types, and endpoint types:
+
+| Plugin                                                                      | Description                                                                      |
+|-----------------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| [kmsEncryption](./using-plugins/UsingTheKmsEncryptionPlugin.md)             | Transparent column-level encryption using AWS KMS.                               |
+| [remoteQueryCache](./using-plugins/UsingTheRemoteQueryCachePlugin.md)       | Caches read-only query results in a remote Valkey cache using SQL query hints.   |
+| [driverMetaData](./using-plugins/UsingTheDriverMetadataConnectionPlugin.md) | Overrides driver metadata information reported to the database.                  |
+| [dev](./using-plugins/UsingTheDeveloperPlugin.md)                           | Developer utility plugin for debugging and diagnostics.                          |
+| executionTime                                                               | Logs the time taken to execute any JDBC method.                                  |
+| logQuery                                                                    | Tracks and logs the SQL statements to be executed.                               |
+| dataCache                                                                   | Caches results locally from SQL queries matching a configured trigger condition. |
