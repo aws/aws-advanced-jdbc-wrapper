@@ -47,6 +47,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.idc.IdentityCenterAuthPlugin;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
@@ -88,6 +89,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class, "plugin:failover2");
           put(software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin.class, "plugin:gdbFailover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
+          put(IdentityCenterAuthPlugin.class, "plugin:idc");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
           put(FederatedAuthPlugin.class, "plugin:federatedAuth");
           put(OktaAuthPlugin.class, "plugin:okta");

@@ -50,6 +50,7 @@ import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
 import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
+import software.amazon.jdbc.plugin.idc.IdentityCenterAuthPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
@@ -83,6 +84,7 @@ public class ConnectionPluginChainBuilder {
           put("failover2", new software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory());
           put("gdbFailover", new GlobalDbFailoverConnectionPluginFactory());
           put("iam", new IamAuthConnectionPluginFactory());
+          put("idc", new IdentityCenterAuthPluginFactory());
           put("awsSecretsManager", new AwsSecretsManagerConnectionPluginFactory());
           put("federatedAuth", new FederatedAuthPluginFactory());
           put("okta", new OktaAuthPluginFactory());
@@ -129,6 +131,7 @@ public class ConnectionPluginChainBuilder {
           put(FastestResponseStrategyPluginFactory.class, 1600);
           put(LimitlessConnectionPluginFactory.class, 1700);
           put(IamAuthConnectionPluginFactory.class, 1800);
+          put(IdentityCenterAuthPluginFactory.class, 1801);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1900);
           put(FederatedAuthPluginFactory.class, 2000);
           put(LogQueryConnectionPluginFactory.class, 2100);
