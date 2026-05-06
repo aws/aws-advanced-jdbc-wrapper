@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :crab: Breaking Changes
 
 > [!WARNING]\
-> 4.0 removes aliases from `HostSpec` and related APIs ([PR #1790](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1790)).
+> This breaking change only impacts customers implementing their own custom plugins. Otherwise no changes are required. 4.0 removes aliases from `HostSpec` and related APIs ([PR #1790](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1790)).
 > #### Alias Removal
 > - Removed aliases from `HostSpec`.
 > - Removed `PluginService.fillAliases()`; use `PluginService.identifyConnection()` instead.
