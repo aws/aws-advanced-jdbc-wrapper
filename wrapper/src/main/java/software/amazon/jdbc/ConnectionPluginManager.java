@@ -43,6 +43,7 @@ import software.amazon.jdbc.plugin.cache.RemoteQueryCachePlugin;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.plugin.efm.v1.HostMonitoringConnectionPluginV1;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
+import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin;
@@ -80,6 +81,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
           put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
           put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");
+          put(KmsEncryptionConnectionPlugin.class, "plugin:kmsEncryption");
           put(DataLocalCacheConnectionPlugin.class, "plugin:dataCache");
           put(RemoteQueryCachePlugin.class, "plugin:remoteQueryCache");
           put(HostMonitoringConnectionPluginV1.class, "plugin:efm");
