@@ -29,17 +29,10 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon -x test build
           ./gradlew --no-parallel --no-daemon -x test shadowJar
-      - name: 'Decode Key Ring'
-        env:
-          GPG_SECRET_KEY_FILE: ${{ secrets.GPG_SECRET_KEY_FILE }}
-        run: |
-          mkdir -p ~/.gradle
-          echo "$GPG_SECRET_KEY_FILE" > ~/.gradle/secring.gpg.b64
-          base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
       - name: 'Publish to Maven'
         run: |
           ./gradlew --no-parallel --no-daemon publishToMavenLocal -Prelease=true -PjacocoEnabled=false
         env:
-          ORG_GRADLE_PROJECT_signing.keyId: ${{ secrets.GPG_KEY_ID }}
-          ORG_GRADLE_PROJECT_signing.password: ${{ secrets.GPG_PASSPHRASE }}
-          ORG_GRADLE_PROJECT_signing.secretKeyRingFile: ${{ github.workspace }}/.gradle/secring.gpg
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
