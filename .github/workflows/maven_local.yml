@@ -29,10 +29,17 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon -x test build
           ./gradlew --no-parallel --no-daemon -x test shadowJar
+      - name: 'Strip GPG Passphrase'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --export-secret-keys --armor "$GPG_KEY_ID" > /tmp/signing-key.asc
       - name: 'Publish to Maven'
         run: |
-          ./gradlew --no-parallel --no-daemon publishToMavenLocal -Prelease=true -PjacocoEnabled=false
+          ORG_GRADLE_PROJECT_signingKey=$(cat /tmp/signing-key.asc) ./gradlew --no-parallel --no-daemon publishToMavenLocal -Prelease=true -PjacocoEnabled=false
         env:
           ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_SECRET_KEY_FILE }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingPassword: ""

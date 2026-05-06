@@ -59,7 +59,8 @@ jobs:
           gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --export-secret-keys --armor "$GPG_KEY_ID" > ~/.gradle/signing-key-no-passphrase.asc
       - name: 'Publish to Maven'
         run: |
-          ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Prelease=true -PjacocoEnabled=false
+          GPG_KEY=$(echo "$ORG_GRADLE_PROJECT_signingKey" | base64 -d)
+          ORG_GRADLE_PROJECT_signingKey="$GPG_KEY" ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Prelease=true -PjacocoEnabled=false
           ./gradlew --no-parallel --no-daemon postPublishToMaven
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
