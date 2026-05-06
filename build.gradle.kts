@@ -141,13 +141,18 @@ allprojects {
                 }
 
                 signing {
-                    if (project.hasProperty("signing.keyId")
-                        && project.property("signing.keyId") != ""
-                        && project.hasProperty("signing.password")
-                        && project.property("signing.password") != ""
-                        && project.hasProperty("signing.secretKeyRingFile")
-                        && project.property("signing.secretKeyRingFile") != ""
+                    if (project.hasProperty("signingKeyId")
+                        && project.property("signingKeyId") != ""
+                        && project.hasProperty("signingPassword")
+                        && project.property("signingPassword") != ""
+                        && project.hasProperty("signingKey")
+                        && project.property("signingKey") != ""
                     ) {
+                        useInMemoryPgpKeys(
+                            project.property("signingKeyId") as String,
+                            project.property("signingKey") as String,
+                            project.property("signingPassword") as String
+                        )
                         sign(publishing.publications[project.name])
                     }
                 }
