@@ -34,5 +34,5 @@ jobs:
           ./gradlew --no-parallel --no-daemon publishToMavenLocal -Prelease=true -PjacocoEnabled=false
         env:
           ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_SECRET_KEY_FILE }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
