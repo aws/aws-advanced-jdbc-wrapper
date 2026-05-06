@@ -1,0 +1,45 @@
+name: 'Release to Maven'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - main-2.x
+      - fix/env-var-signing-properties
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-latest-jdbc-wrapper-release-to-maven:
+    name: 'Build And Release to Maven'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Clone Repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Build Driver'
+        run: |
+          ./gradlew --no-parallel --no-daemon -x test build
+          ./gradlew --no-parallel --no-daemon -x test shadowJar
+      - name: 'Decode Key Ring'
+        env:
+          GPG_SECRET_KEY_FILE: ${{ secrets.GPG_SECRET_KEY_FILE }}
+        run: |
+          mkdir -p ~/.gradle
+          echo "$GPG_SECRET_KEY_FILE" > ~/.gradle/secring.gpg.b64
+          base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+      - name: 'Publish to Maven'
+        run: |
+          ./gradlew --no-parallel --no-daemon publishToMavenLocal -Prelease=true -PjacocoEnabled=false
+        env:
+          ORG_GRADLE_PROJECT_signing.keyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signing.password: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signing.secretKeyRingFile: ${{ github.workspace }}/.gradle/secring.gpg

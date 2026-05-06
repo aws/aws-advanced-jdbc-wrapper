@@ -56,6 +56,7 @@ jobs:
           echo "test" > ~/.gradle/test.txt
           gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} ~/.gradle/test.txt && echo "The correct passphrase was entered for this key"
           gpg --verify --batch ~/.gradle/test.txt.asc ~/.gradle/test.txt && echo "Signature has verified"
+          gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --export-secret-keys --armor "$GPG_KEY_ID" > ~/.gradle/signing-key-no-passphrase.asc
       - name: 'Publish to Maven'
         run: |
           ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Prelease=true -PjacocoEnabled=false
