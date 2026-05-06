@@ -141,7 +141,13 @@ allprojects {
                 }
 
                 signing {
-                    if (project.hasProperty("signing.keyId")
+                    if (project.hasProperty("signingKey") && project.property("signingKey") != "") {
+                        val signingKey: String? by project
+                        val signingPassword: String? by project
+                        val signingKeyId: String? by project
+                        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+                        sign(publishing.publications[project.name])
+                    } else if (project.hasProperty("signing.keyId")
                         && project.property("signing.keyId") != ""
                         && project.hasProperty("signing.password")
                         && project.property("signing.password") != ""
