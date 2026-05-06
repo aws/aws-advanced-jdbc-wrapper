@@ -1,7 +1,7 @@
 # Using the KMS Encryption Plugin
 
 ## Plugin Availability
-The plugin is available since version 3.4.0.
+The plugin is available since version 4.0.0.
 
 The KMS Encryption Plugin provides transparent client-side encryption using AWS Key Management Service (KMS). This plugin automatically encrypts sensitive data before storing it in the database and decrypts it when retrieving data, based on metadata configuration.
 
