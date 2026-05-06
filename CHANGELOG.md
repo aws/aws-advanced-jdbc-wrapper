@@ -3,6 +3,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [4.0.0] - 2026-05-06
+
+### :crab: Breaking Changes
+
+> [!WARNING]\
+> This breaking change only impacts customers implementing their own custom plugins. Otherwise no changes are required. 4.0 removes aliases from `HostSpec` and related APIs ([PR #1790](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1790)).
+> #### Alias Removal
+> - Removed aliases from `HostSpec`.
+> - Removed `PluginService.fillAliases()`; use `PluginService.identifyConnection()` instead.
+> - Changed `PluginService.setAvailability()` signature.
+> - Added `PluginService.setRoutedHostSpec()` to record connection routing events and use it for the current connection info.
+>
+> If you have custom plugins that use `fillAliases()` or rely on `HostSpec` aliases, please update them to use `identifyConnection()` and the new `setRoutedHostSpec()` method.
+
+### :magic_wand: Added
+- Added KMS Encryption Plugin for encrypting/decrypting database credentials using AWS KMS ([PR #1772](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1772), [PR #1894](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1894)).
+- Added support for Global Write Forwarding in secondary region ([PR #1842](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1842)).
+- Added `verifyInitialConnectionRole` property to verify the initial connection role matches the expected role ([PR #1811](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1811)).
+- Added support for Jackson 3 in Secrets Manager plugin and Okta plugin ([PR #1803](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1803)).
+- Added GPG keys verification to release workflow ([PR #1816](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1816)).
+- Added OpenSSF scorecard and SLSA provenance ([PR #1804](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1804)).
+
+### :bug: Fixed
+- Fixed `AuroraStaleDnsHelper.getVerifiedConnection()` returning `null` when the topology contained a writer with cluster DNS, causing connection pools like HikariCP to silently drain to zero ([PR #1789](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1789), [PR #1810](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1810)).
+- Fixed `ConfigurationProfile` plugin list being missed in `ServiceUtility.createMinimalServiceContainer` method ([Issue #1800](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1800), [PR #1802](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1802)).
+- Fixed EFM monitoring the cluster endpoint instead of the instance endpoint by using `getHost` instead of `getUrl` in `identifyRdsType` ([PR #1823](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1823)).
+- Fixed Blue/Green connect routing issue ([PR #1872](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1872)).
+- Fixed stale `PreparedStatement` caching after failover events, which caused permanent failure states in application servers like Open Liberty ([PR #1889](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1889)).
+
+### :crab: Changed
+- Improved connection tracker by using a double-linked list to store connection weak references, improving performance of removing connections from the tracked connection list when connections close ([PR #1856](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1856)).
+- Improved least connections strategy to randomly choose among pools with equal connection counts, evenly distributing traffic ([PR #1847](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1847)).
+- Refactored retry logic into a utility class ([PR #1857](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1857)).
+- Return `null` when no eligible hosts found in host strategy method ([PR #1860](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1860)).
+- Improved logging and cleaned up message file ([PR #1881](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1881)).
+- Security improvements: replaced mutable action tags with SHA, added `SECURITY.md` and `CODEOWNERS.md`, added SLSA provenance ([PR #1804](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1804)).
+- Documentation:
+  - Added Open Liberty support documentation ([PR #1891](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1891)).
+  - Improved Blue/Green permission guidance ([PR #1845](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1845)).
+  - Noted reduced switchover downtime on recent Aurora PostgreSQL versions for Blue/Green plugin ([PR #1883](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1883)).
+  - Updated universally compatible plugins documentation ([PR #1890](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1890)).
+  - Fixed broken link ([PR #1871](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1871)).
+
 ## [3.3.0] - 2026-03-26
 
 ### :magic_wand: Added
@@ -743,6 +786,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[4.0.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.3.0...4.0.0
 [3.3.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.2.0...3.3.0
 [3.2.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.1.0...3.2.0
 [3.1.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.0.0...3.1.0
