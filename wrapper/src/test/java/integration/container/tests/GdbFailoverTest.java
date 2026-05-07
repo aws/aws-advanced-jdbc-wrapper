@@ -69,6 +69,9 @@ public class GdbFailoverTest extends FailoverTest {
     final Properties props = initDefaultProxiedProps();
     props.setProperty(GlobalDbFailoverConnectionPlugin.ACTIVE_HOME_FAILOVER_MODE.name, "home-reader-or-writer");
     props.setProperty(GlobalDbFailoverConnectionPlugin.INACTIVE_HOME_FAILOVER_MODE.name, "home-reader-or-writer");
+    // Enable connect failover to handle transient CommunicationsException from the proxy network
+    // during initial connection establishment.
+    props.setProperty(FailoverConnectionPlugin.ENABLE_CONNECT_FAILOVER.name, "true");
 
     try (final Connection conn =
         DriverManager.getConnection(

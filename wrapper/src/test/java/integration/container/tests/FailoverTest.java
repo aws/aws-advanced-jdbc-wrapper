@@ -635,6 +635,9 @@ public class FailoverTest {
 
     final Properties props = initDefaultProxiedProps();
     props.setProperty("failoverMode", "strict-reader");
+    // Increase failover timeout to allow Aurora enough time to complete failover and for the driver
+    // to find a valid reader. The default (300s) may not be sufficient when Aurora failover is slow.
+    props.setProperty("failoverTimeoutMs", "600000");
 
     try (final Connection conn =
              DriverManager.getConnection(
