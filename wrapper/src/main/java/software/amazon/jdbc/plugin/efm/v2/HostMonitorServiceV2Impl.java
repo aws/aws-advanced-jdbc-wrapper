@@ -185,7 +185,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
     state.add(Pair.create("failureDetectionTimeMillis", this.failureDetectionTimeMillis));
     state.add(Pair.create("failureDetectionIntervalMillis", this.failureDetectionIntervalMillis));
     state.add(Pair.create("failureDetectionCount", this.failureDetectionCount));
-    state.add(Pair.create("monitorKey", this.monitorKey.toString()));
+    state.add(Pair.create("monitorKey", this.monitorKey == null ? "null" : this.monitorKey.toString()));
     return state;
   }
 
