@@ -408,6 +408,11 @@ public class CacheConnection {
   /**
    * Builds Glide client configuration using instance fields.
    * Delegates to static method for actual configuration building.
+   *
+   * @param hostname the cache server hostname
+   * @param port the cache server port
+   * @param isRead true for read-only replica connections, false for primary connections
+   * @return the configured BaseClientConfiguration
    */
   protected BaseClientConfiguration buildClientConfiguration(String hostname, int port, Boolean isRead) {
     return buildClientConfigurationStatic(hostname, port, this.useSSL, this.cacheConnectionTimeout,
@@ -419,8 +424,18 @@ public class CacheConnection {
    * Builds Glide client configuration for standalone or cluster mode.
    * Returns GlideClientConfiguration for standalone or GlideClusterClientConfiguration for cluster mode.
    *
-   * @param isRead        true for read-only replica connections, false for primary connections
+   * @param hostname the cache server hostname
+   * @param port the cache server port
+   * @param useSSL whether to use TLS for the connection
+   * @param connectionTimeout the connection timeout duration
+   * @param iamAuthEnabled whether IAM authentication is enabled
+   * @param cacheIamRegion the AWS region for IAM authentication
+   * @param cacheName the cache name for IAM authentication
+   * @param cacheUsername the username for cache authentication
+   * @param cachePassword the password for cache authentication
+   * @param isRead true for read-only replica connections, false for primary connections
    * @param isClusterMode true for cluster mode (CME), false for standalone mode (CMD)
+   * @param caCert the CA certificate bytes for TLS, or null
    * @return BaseClientConfiguration configured for the specified mode
    */
   protected static BaseClientConfiguration buildClientConfigurationStatic(

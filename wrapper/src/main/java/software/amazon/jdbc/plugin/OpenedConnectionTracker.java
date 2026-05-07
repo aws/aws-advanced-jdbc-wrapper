@@ -148,6 +148,9 @@ public class OpenedConnectionTracker {
   /**
    * Removes a tracked connection by scanning the list for the given host.
    * This is the O(n) fallback used when no node reference is available.
+   *
+   * @param hostSpec the host specification identifying the connection's host
+   * @param connection the connection to remove from tracking
    */
   public void removeConnectionTracking(final HostSpec hostSpec, final Connection connection) {
     final String hostAndPort = rdsUtils.isRdsInstance(hostSpec.getHost())

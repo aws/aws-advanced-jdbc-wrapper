@@ -194,6 +194,10 @@ public class CachedResultSet implements ResultSet {
   /**
    * Form a ResultSet from the raw data from the cache server. Each of the column objects are stored as
    * raw bytes and the actual de-serialization into Java objects will happen lazily upon access later on.
+   *
+   * @param data the serialized byte array to deserialize
+   * @return a ResultSet reconstructed from the byte array
+   * @throws SQLException if deserialization fails
    */
   public static ResultSet deserializeFromByteArray(byte[] data) throws SQLException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
