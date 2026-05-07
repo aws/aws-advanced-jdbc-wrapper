@@ -670,6 +670,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
+  @Override
+  public PluginCallContext getCallContext() {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCallContext"}));
+  }
+
   public <T> T getPlugin(final Class<T> pluginClazz) {
     for (ConnectionPlugin p : this.pluginManager.plugins) {
       if (pluginClazz.isAssignableFrom(p.getClass())) {

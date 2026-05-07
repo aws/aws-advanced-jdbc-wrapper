@@ -30,7 +30,6 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
-import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
@@ -57,11 +56,6 @@ public class KmsEncryptionUtility {
   // Plugin services
   private PluginService pluginService;
   private IndependentDataSource independentDataSource;
-
-  // SQL Analysis
-  private SqlAnalysisService sqlAnalysisService;
-
-  // Monitoring and metrics
   private AuditLogger auditLogger;
 
   // Plugin lifecycle state
@@ -175,10 +169,6 @@ public class KmsEncryptionUtility {
         this.keyManager = new KeyManager(kmsClient, pluginService, config);
         this.metadataManager = new MetadataManager(pluginService, config);
         metadataManager.initialize();
-
-        // Initialize SQL analysis service
-        this.sqlAnalysisService = new SqlAnalysisService(pluginService, metadataManager);
-
         LOGGER.info(Messages.get("KmsEncryptionUtility.initWithPluginService"));
 
       } else {
@@ -226,11 +216,6 @@ public class KmsEncryptionUtility {
       }
       registeredConnections.put(conn, Boolean.TRUE);
     }
-  }
-
-
-  public SqlAnalysisService getSqlAnalysisService() {
-    return sqlAnalysisService;
   }
 
   /**

@@ -114,6 +114,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
   protected final ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected List<ConnectionPlugin> plugins;
+  protected PluginManagerService pluginManagerService;
 
   public ConnectionPluginManager(
       final @NonNull Properties props,
@@ -167,6 +168,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
   public void initPlugins(
       final FullServicesContainer servicesContainer,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
+    this.pluginManagerService = servicesContainer.getPluginManagerService();
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
         servicesContainer,
@@ -314,11 +316,18 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+    // Reset context before each call. No reset in finally — context must remain
+    // available for deferred consumers (e.g., ResultSet iteration after execute returns).
+    // Stale context from a failed call persists until the next execute() resets it.
+    // This is safe because getCallContext() should only be called within the plugin
+    // pipeline, and reset() runs at the start of every pipeline invocation.
+    this.pluginManagerService.resetCallContext();
     return executeWithSubscribedPlugins(
         jdbcMethod,
         (plugin, func) ->
             plugin.execute(
-                resultType, exceptionClass, methodInvokeOn, jdbcMethod.methodName, func, jdbcMethodArgs),
+                resultType, exceptionClass, methodInvokeOn, jdbcMethod.methodName, func,
+                jdbcMethodArgs),
         jdbcMethodFunc,
         null);
   }
@@ -574,10 +583,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
    */
   public void releaseResources() {
     LOGGER.finest(() -> Messages.get("ConnectionPluginManager.releaseResources"));
-
-    // This step allows all connection plugins a chance to clean up any dangling resources or
-    // perform any
-    // last tasks before shutting down.
 
     this.plugins.forEach(
         (plugin) -> {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.parser;
+package software.amazon.jdbc.parser;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -74,6 +74,7 @@ public final class JSQLParserAnalyzer {
     public List<ColumnInfo> whereColumns = new ArrayList<>();
     public Set<String> tables = new HashSet<>();
     public boolean hasParameters = false;
+    public boolean forUpdate = false;
 
     @Override
     public String toString() {
@@ -143,17 +144,21 @@ public final class JSQLParserAnalyzer {
   private static void extractFromSelect(Select select, QueryAnalysis analysis) {
     // Extract table names
     TablesNamesFinder tablesFinder = new TablesNamesFinder();
-    List<String> tableList = tablesFinder.getTableList(select);
+    List<String> tableList = tablesFinder.getTableList((Statement) select);
     analysis.tables.addAll(tableList);
 
     // Extract columns from SELECT clause
     if (select.getSelectBody() instanceof PlainSelect) {
       PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
 
+      // Detect row-locking clauses (FOR UPDATE, FOR SHARE, FOR NO KEY UPDATE, etc.)
+      if (plainSelect.getForMode() != null) {
+        analysis.forUpdate = true;
+      }
+
       // Extract WHERE clause columns only if there are parameters
       if (plainSelect.getWhere() != null) {
         String whereClause = plainSelect.getWhere().toString();
-        // Only extract columns if WHERE clause contains parameters
         if (whereClause.contains("?")) {
           extractColumnsFromExpression(plainSelect.getWhere(), analysis.whereColumns);
         }
