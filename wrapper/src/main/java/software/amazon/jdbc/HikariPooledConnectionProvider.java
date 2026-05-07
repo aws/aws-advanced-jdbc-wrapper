@@ -481,8 +481,13 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       poolInfo.add(Pair.create("dataSource", dataSource.toString()));
       if (dataSource instanceof HikariDataSource) {
         HikariPoolMXBean bean = ((HikariDataSource) dataSource).getHikariPoolMXBean();
-        poolInfo.add(Pair.create("activeConnections", bean.getActiveConnections()));
-        poolInfo.add(Pair.create("totalConnections", bean.getTotalConnections()));
+        if (bean != null) {
+          poolInfo.add(Pair.create("activeConnections", bean.getActiveConnections()));
+          poolInfo.add(Pair.create("totalConnections", bean.getTotalConnections()));
+        } else {
+          poolInfo.add(Pair.create("activeConnections", "(unknown)"));
+          poolInfo.add(Pair.create("totalConnections", "(unknown)"));
+        }
       }
       pools.add(Pair.create(key.toString(), poolInfo));
     });

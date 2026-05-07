@@ -58,7 +58,12 @@ public class Topology implements StateSnapshotProvider {
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     for (HostSpec host : this.hosts) {
-      state.add(Pair.create(host.getHostId(), host.toString()));
+      if (host != null) {
+        String hostId = host.getHostId() != null ? host.getHostId() : "null";
+        state.add(Pair.create(hostId, host.toString()));
+      } else {
+        state.add(Pair.create("null", "null"));
+      }
     }
     return state;
   }
