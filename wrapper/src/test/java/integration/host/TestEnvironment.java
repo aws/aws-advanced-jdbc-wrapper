@@ -690,6 +690,9 @@ public class TestEnvironment implements AutoCloseable {
 
         LOGGER.finer("Using " + engine + " " + engineVersion);
 
+        // Pre-check cluster and instance quota before attempting creation
+        env.auroraUtil.checkClusterQuota(numOfInstances);
+
         env.auroraUtil.createCluster(
             env.info.getDatabaseInfo().getUsername(),
             env.info.getDatabaseInfo().getPassword(),

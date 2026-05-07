@@ -969,6 +969,73 @@ public class AuroraTestUtility {
     }
   }
 
+  /**
+   * Checks whether the AWS account has sufficient quota to create a new DB cluster
+   * with the specified number of instances. This pre-check helps avoid cluster creation
+   * failures due to quota limits, which can leave resources in a partially-created state.
+   *
+   * @param numInstances the number of DB instances that will be created for the cluster
+   * @throws RuntimeException if the account does not have sufficient quota
+   */
+  public void checkClusterQuota(int numInstances) {
+    try {
+      final software.amazon.awssdk.services.rds.model.DescribeAccountAttributesResponse response =
+          rdsClient.describeAccountAttributes();
+      if (!response.hasAccountQuotas()) {
+        LOGGER.warning("Unable to retrieve account quotas. Proceeding without quota validation.");
+        return;
+      }
+
+      int clusterLimit = -1;
+      int clusterUsage = -1;
+      int instanceLimit = -1;
+      int instanceUsage = -1;
+
+      for (software.amazon.awssdk.services.rds.model.AccountQuota quota : response.accountQuotas()) {
+        if ("DBClusters".equals(quota.accountQuotaName())) {
+          clusterLimit = quota.max().intValue();
+          clusterUsage = quota.used().intValue();
+        } else if ("DBInstances".equals(quota.accountQuotaName())) {
+          instanceLimit = quota.max().intValue();
+          instanceUsage = quota.used().intValue();
+        }
+      }
+
+      if (clusterLimit >= 0 && clusterUsage >= 0) {
+        int availableClusters = clusterLimit - clusterUsage;
+        LOGGER.finest(String.format("DB Cluster quota: %d/%d used (%d available)",
+            clusterUsage, clusterLimit, availableClusters));
+        if (availableClusters < 1) {
+          throw new RuntimeException(String.format(
+              "Insufficient DB cluster quota. Limit: %d, Used: %d, Available: %d. "
+                  + "Cannot create a new cluster. Please delete unused clusters or request a quota increase.",
+              clusterLimit, clusterUsage, availableClusters));
+        }
+      }
+
+      if (instanceLimit >= 0 && instanceUsage >= 0) {
+        int availableInstances = instanceLimit - instanceUsage;
+        LOGGER.finest(String.format("DB Instance quota: %d/%d used (%d available, need %d)",
+            instanceUsage, instanceLimit, availableInstances, numInstances));
+        if (availableInstances < numInstances) {
+          throw new RuntimeException(String.format(
+              "Insufficient DB instance quota. Limit: %d, Used: %d, Available: %d, Needed: %d. "
+                  + "Cannot create %d instance(s). Please delete unused instances or request a quota increase.",
+              instanceLimit, instanceUsage, availableInstances, numInstances, numInstances));
+        }
+      }
+
+      LOGGER.finer("Cluster quota pre-check passed.");
+    } catch (RuntimeException e) {
+      // Re-throw RuntimeExceptions (including our quota exceeded exceptions)
+      throw e;
+    } catch (Exception e) {
+      // Log but don't fail on unexpected errors - the actual creation will fail with a clearer message
+      LOGGER.warning("Quota pre-check encountered an error: " + e.getMessage()
+          + ". Proceeding with cluster creation.");
+    }
+  }
+
   public DBCluster getClusterInfo(final String clusterId) {
     final DescribeDbClustersRequest request =
         DescribeDbClustersRequest.builder().dbClusterIdentifier(clusterId).build();
@@ -1545,6 +1612,25 @@ public class AuroraTestUtility {
       String clusterId, String initialWriterId, String targetWriterId)
       throws InterruptedException {
 
+    failoverClusterToATargetAndWaitUntilWriterChanged(
+        clusterId, initialWriterId, targetWriterId, 1);
+  }
+
+  /**
+   * Triggers a cluster failover and waits until the writer instance has changed.
+   * If the writer does not change within the timeout period, the method will retry
+   * the entire failover operation up to {@code maxRetries} times.
+   *
+   * @param clusterId       the cluster identifier
+   * @param initialWriterId the current writer instance ID before failover
+   * @param targetWriterId  the desired target writer instance ID (suggestion only for Aurora)
+   * @param maxRetries      maximum number of retry attempts if the writer does not change
+   * @throws InterruptedException if the thread is interrupted while waiting
+   */
+  public void failoverClusterToATargetAndWaitUntilWriterChanged(
+      String clusterId, String initialWriterId, String targetWriterId, int maxRetries)
+      throws InterruptedException {
+
     DatabaseEngineDeployment deployment =
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
 
@@ -1560,30 +1646,62 @@ public class AuroraTestUtility {
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final String clusterEndpoint = dbInfo.getClusterEndpoint();
     String clusterIp = hostToIP(clusterEndpoint);
+
+    // Increased timeout from 10 to 15 minutes to accommodate slower failover scenarios.
+    final long writerChangeTimeoutMinutes = 15;
+
+    int attempt = 0;
     String newWriterId = getDBClusterWriterInstanceId(clusterId);
 
-    failoverClusterToTarget(
-        clusterId,
-        // TAZ cluster doesn't support target node
-        deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER ? targetWriterId : null);
+    while (attempt < maxRetries) {
+      attempt++;
+      LOGGER.finest(String.format("Failover attempt %d of %d", attempt, maxRetries));
 
-    // Wait for RDS gets updated
-    long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
-    LOGGER.finest("Writer (before wait): " + initialWriterId);
-    while (initialWriterId.equalsIgnoreCase(newWriterId) && System.nanoTime() < waitTillNanoTime) {
-      TimeUnit.SECONDS.sleep(5);
-      newWriterId = getDBClusterWriterInstanceId(clusterId);
+      failoverClusterToTarget(
+          clusterId,
+          // TAZ cluster doesn't support target node
+          deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER ? targetWriterId : null);
+
+      // Wait for RDS to update the writer
+      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
+      LOGGER.finest("Writer (before wait): " + initialWriterId);
+      while (initialWriterId.equalsIgnoreCase(newWriterId) && System.nanoTime() < waitTillNanoTime) {
+        TimeUnit.SECONDS.sleep(5);
+        newWriterId = getDBClusterWriterInstanceId(clusterId);
+      }
+      LOGGER.finest("Writer (after wait): " + newWriterId);
+
+      if (!initialWriterId.equalsIgnoreCase(newWriterId)) {
+        // Writer has changed, break out of retry loop
+        break;
+      }
+
+      if (attempt < maxRetries) {
+        LOGGER.warning(String.format(
+            "Writer hasn't changed (API) after %d min on attempt %d. Retrying failover...",
+            writerChangeTimeoutMinutes, attempt));
+        // Brief pause before retrying to allow cluster to stabilize
+        TimeUnit.SECONDS.sleep(10);
+        // Re-fetch writer ID in case it changed during the pause
+        newWriterId = getDBClusterWriterInstanceId(clusterId);
+        if (!initialWriterId.equalsIgnoreCase(newWriterId)) {
+          LOGGER.finest("Writer changed during retry pause: " + newWriterId);
+          break;
+        }
+      }
     }
-    LOGGER.finest("Writer (after wait): " + newWriterId);
+
     if (initialWriterId.equalsIgnoreCase(newWriterId)) {
-      throw new RuntimeException("Writer hasn't changed (API) after 10min. It seems that failover hasn't occurred.");
+      throw new RuntimeException(String.format(
+          "Writer hasn't changed (API) after %d min with %d attempt(s). It seems that failover hasn't occurred.",
+          writerChangeTimeoutMinutes, maxRetries));
     }
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
     if (deployment == DatabaseEngineDeployment.AURORA) {
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterIp = hostToIP(clusterEndpoint);
-      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
       while (clusterIp != null && clusterIp.equals(newClusterIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         newClusterIp = hostToIP(clusterEndpoint);
@@ -1591,7 +1709,7 @@ public class AuroraTestUtility {
       LOGGER.finest("Cluster endpoint resolves to (after wait): " + newClusterIp);
 
       // Wait for initial writer instance to be verified as not writer.
-      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
       while (isDBInstanceWriter(initialWriterId) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
       }
@@ -1606,7 +1724,7 @@ public class AuroraTestUtility {
       // Waiting for clusterEndpoint changes IP address
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterEndpointIp = hostToIP(clusterEndpoint);
-      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
       while (clusterIp.equals(newClusterEndpointIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         newClusterEndpointIp = hostToIP(clusterEndpoint);
