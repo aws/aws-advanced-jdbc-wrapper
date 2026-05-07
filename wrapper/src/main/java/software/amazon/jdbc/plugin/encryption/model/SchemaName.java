@@ -54,7 +54,11 @@ public final class SchemaName {
     return new SchemaName(name);
   }
 
-  /** Returns the validated schema name string. */
+  /**
+   * Returns the validated schema name string.
+   *
+   * @return the schema name value
+   */
   public String getValue() {
     return value;
   }

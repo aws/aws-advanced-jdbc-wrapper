@@ -159,12 +159,23 @@ public class SqlAnalysisService {
     }
   }
 
-  /** Gets column-to-parameter mapping for prepared statement parameters. */
+  /**
+   * Gets column-to-parameter mapping for prepared statement parameters.
+   *
+   * @param sql the SQL statement to analyze
+   * @return a map of parameter index to column name
+   */
   public Map<Integer, String> getColumnParameterMapping(String sql) {
     return getColumnParameterMapping(sql, null);
   }
 
-  /** Gets column-to-parameter mapping. */
+  /**
+   * Gets column-to-parameter mapping.
+   *
+   * @param sql the SQL statement to analyze
+   * @param jdbcUrl the JDBC URL for context, or null
+   * @return a map of parameter index to column name
+   */
   public Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
     Map<Integer, String> mapping = new HashMap<>();
 

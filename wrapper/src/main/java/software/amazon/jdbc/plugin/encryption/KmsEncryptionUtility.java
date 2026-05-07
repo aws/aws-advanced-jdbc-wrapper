@@ -236,6 +236,8 @@ public class KmsEncryptionUtility {
   /**
    * Removes the type registration entry for a connection.
    * Called on connection close so types are re-registered on the next connection.
+   *
+   * @param conn the connection being closed
    */
   public void onConnectionClosed(Connection conn) {
     registeredConnections.remove(conn);
@@ -244,6 +246,9 @@ public class KmsEncryptionUtility {
   /**
    * Ensures the plugin is initialized with a database connection.
    * Called lazily when the first PreparedStatement is created.
+   *
+   * @param conn the database connection to initialize with
+   * @throws SQLException if the plugin is not initialized or type registration fails
    */
   public void ensureInitializedWithConnection(Connection conn) throws SQLException {
     if (!initialized.get()) {
