@@ -2,6 +2,9 @@ name: Run Integration Tests Latest against Java LTS versions
 
 on:
   workflow_dispatch:
+  schedule:
+    # Every working day (Mon-Fri) at 5:00 AM PST (13:00 UTC), ~4.5 hours after "latest"
+    - cron: '0 13 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
