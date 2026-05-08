@@ -2,10 +2,9 @@ name: Run Aurora Integration Tests Latest
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - main-2.x
+  schedule:
+    # Every working day (Mon-Fri) at 12:30 AM PST (8:30 AM UTC), ~4.5 hours after "default"
+    - cron: '30 8 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

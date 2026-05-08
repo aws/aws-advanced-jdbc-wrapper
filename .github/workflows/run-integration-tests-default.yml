@@ -2,10 +2,10 @@ name: Run Aurora Integration Tests Default
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - main-2.x
+  schedule:
+    # Every working day (Mon-Fri) at 8:00 PM PST (4:00 AM UTC next day)
+    # Staggered: runs first, followed by "latest" at 12:30 AM PST, then "mysql-aurora-java-lts" at 5:00 AM PST
+    - cron: '0 4 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
