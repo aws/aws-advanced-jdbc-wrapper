@@ -2426,6 +2426,7 @@ public class AuroraTestUtility {
         if (!bgd.blueGreenDeploymentName().startsWith("bgd-test-")) {
           continue;
         }
+        // Only delete deployments in a terminal or stable state.
         if (!"available".equalsIgnoreCase(bgd.status())
             && !"switchover_completed".equalsIgnoreCase(bgd.status())
             && !"invalid_configuration".equalsIgnoreCase(bgd.status())) {
@@ -2433,7 +2434,7 @@ public class AuroraTestUtility {
         }
         if (bgd.createTime() != null
             && bgd.createTime().plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
-          // deployment was created less than 12 hours ago
+          // Deployment was created less than 12 hours ago, do not delete.
           continue;
         }
 
