@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -51,8 +52,11 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
@@ -89,7 +93,7 @@ public class CachedResultSet implements ResultSet {
       // De-serialize the data object from raw bytes if needed.
       if (rowData[columnIndex - 1] == null && rawData[columnIndex - 1] != null) {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(rawData[columnIndex - 1]);
-             ObjectInputStream ois = new ObjectInputStream(bis)) {
+             ObjectInputStream ois = new SafeObjectInputStream(bis)) {
           rowData[columnIndex - 1] = ois.readObject();
           rawData[columnIndex - 1] = null;
         } catch (ClassNotFoundException e) {
@@ -100,6 +104,126 @@ public class CachedResultSet implements ResultSet {
         }
       }
       return rowData[columnIndex - 1];
+    }
+  }
+
+  /**
+   * A restricted ObjectInputStream that only allows deserialization of known-safe classes.
+   * This prevents Remote Code Execution via cache poisoning attacks where an attacker
+   * injects malicious serialized objects (gadget chains) into the remote cache.
+   *
+   */
+  private static class SafeObjectInputStream extends ObjectInputStream {
+    private static final Set<String> ALLOWED_CLASSES;
+
+    static {
+      Set<String> allowed = new HashSet<>();
+
+      // --- Internal cache serialization classes ---
+      allowed.add("software.amazon.jdbc.plugin.cache.CachedResultSetMetaData");
+      allowed.add("software.amazon.jdbc.plugin.cache.CachedResultSetMetaData$Field");
+      allowed.add("[Lsoftware.amazon.jdbc.plugin.cache.CachedResultSetMetaData$Field;");
+      allowed.add("software.amazon.jdbc.plugin.cache.CachedSQLXML");
+
+      // --- Java primitive wrappers ---
+      allowed.add("java.lang.String");
+      allowed.add("java.lang.Integer");
+      allowed.add("java.lang.Long");
+      allowed.add("java.lang.Double");
+      allowed.add("java.lang.Float");
+      allowed.add("java.lang.Short");
+      allowed.add("java.lang.Byte");
+      allowed.add("java.lang.Boolean");
+      allowed.add("java.lang.Character");
+      allowed.add("java.lang.Number");
+      allowed.add("java.math.BigDecimal");
+      allowed.add("java.math.BigInteger");
+
+      // --- SQL/JDBC date and time types ---
+      allowed.add("java.sql.Date");
+      allowed.add("java.sql.Time");
+      allowed.add("java.sql.Timestamp");
+
+      // --- java.time types (modern JDBC drivers) ---
+      allowed.add("java.time.LocalDate");
+      allowed.add("java.time.LocalTime");
+      allowed.add("java.time.LocalDateTime");
+      allowed.add("java.time.OffsetDateTime");
+      allowed.add("java.time.OffsetTime");
+      allowed.add("java.time.ZonedDateTime");
+      allowed.add("java.time.Instant");
+      allowed.add("java.time.ZoneId");
+      allowed.add("java.time.ZoneOffset");
+      allowed.add("java.time.ZoneRegion");
+      allowed.add("java.time.Duration");
+      allowed.add("java.time.Period");
+      allowed.add("java.time.Ser");
+
+      // --- Common JDBC column value types ---
+      allowed.add("java.util.UUID");
+      allowed.add("java.util.Date");
+      allowed.add("java.net.URL");
+      allowed.add("java.net.URI");
+
+      // --- Java collections (can appear as column values from getObject()) ---
+      allowed.add("java.util.ArrayList");
+      allowed.add("java.util.LinkedList");
+      allowed.add("java.util.HashSet");
+      allowed.add("java.util.LinkedHashSet");
+      allowed.add("java.util.TreeSet");
+      allowed.add("java.util.HashMap");
+      allowed.add("java.util.LinkedHashMap");
+      allowed.add("java.util.TreeMap");
+      allowed.add("java.util.Collections$EmptyList");
+      allowed.add("java.util.Collections$EmptyMap");
+      allowed.add("java.util.Collections$EmptySet");
+      allowed.add("java.util.Collections$SingletonList");
+      allowed.add("java.util.Collections$SingletonMap");
+      allowed.add("java.util.Collections$SingletonSet");
+      allowed.add("java.util.Collections$UnmodifiableList");
+      allowed.add("java.util.Collections$UnmodifiableMap");
+      allowed.add("java.util.Collections$UnmodifiableSet");
+      allowed.add("java.util.Collections$UnmodifiableRandomAccessList");
+      allowed.add("java.util.Arrays$ArrayList");
+
+      // --- Byte and primitive arrays ---
+      allowed.add("[B");
+      allowed.add("[I");
+      allowed.add("[J");
+      allowed.add("[D");
+      allowed.add("[F");
+      allowed.add("[S");
+      allowed.add("[C");
+      allowed.add("[Z");
+
+      // --- Object arrays (JDBC Array types can produce these) ---
+      allowed.add("[Ljava.lang.Object;");
+      allowed.add("[Ljava.lang.String;");
+      allowed.add("[Ljava.lang.Integer;");
+      allowed.add("[Ljava.lang.Long;");
+      allowed.add("[Ljava.lang.Double;");
+      allowed.add("[Ljava.lang.Float;");
+      allowed.add("[Ljava.lang.Short;");
+      allowed.add("[Ljava.lang.Byte;");
+      allowed.add("[Ljava.lang.Boolean;");
+      allowed.add("[Ljava.math.BigDecimal;");
+
+      ALLOWED_CLASSES = Collections.unmodifiableSet(allowed);
+    }
+
+    SafeObjectInputStream(InputStream in) throws IOException {
+      super(in);
+    }
+
+    @Override
+    protected Class<?> resolveClass(ObjectStreamClass desc)
+        throws IOException, ClassNotFoundException {
+      String className = desc.getName();
+      if (!ALLOWED_CLASSES.contains(className)) {
+        throw new ClassNotFoundException(
+            Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));
+      }
+      return super.resolveClass(desc);
     }
   }
 
@@ -201,7 +325,7 @@ public class CachedResultSet implements ResultSet {
    */
   public static ResultSet deserializeFromByteArray(byte[] data) throws SQLException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
-         ObjectInputStream ois = new ObjectInputStream(bis)) {
+         ObjectInputStream ois = new SafeObjectInputStream(bis)) {
       CachedResultSetMetaData metadata = (CachedResultSetMetaData) ois.readObject();
       int numRows = ois.readInt();
       int numColumns = metadata.getColumnCount();
