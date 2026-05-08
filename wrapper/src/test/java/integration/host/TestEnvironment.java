@@ -194,6 +194,7 @@ public class TestEnvironment implements AutoCloseable {
       // should be whitelisted.
 
       if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+        env.auroraUtil.testBlueGreenDeploymentsCleanUp();
         env.auroraUtil.testClustersCleanUp();
         env.auroraUtil.testInstancesCleanUp();
         env.auroraUtil.securityGroupRulesCleanUp();

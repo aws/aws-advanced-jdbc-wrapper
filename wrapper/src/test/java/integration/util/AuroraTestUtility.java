@@ -144,6 +144,7 @@ import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRe
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentResponse;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
+import software.amazon.awssdk.utils.builder.SdkBuilder;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
@@ -2411,6 +2412,38 @@ public class AuroraTestUtility {
           } catch (Exception ex) {
             LOGGER.warning(ex.getMessage());
           }
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  public void testBlueGreenDeploymentsCleanUp() {
+    try {
+      DescribeBlueGreenDeploymentsResponse response = rdsClient.describeBlueGreenDeployments(SdkBuilder::build);
+      for (BlueGreenDeployment bgd : response.blueGreenDeployments()) {
+        if (!bgd.blueGreenDeploymentName().startsWith("bgd-test-")) {
+          continue;
+        }
+        if (!"available".equalsIgnoreCase(bgd.status())
+            && !"switchover_completed".equalsIgnoreCase(bgd.status())) {
+          continue;
+        }
+        if (bgd.createTime() != null
+            && bgd.createTime().plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
+          // deployment was created less than 12 hours ago
+          continue;
+        }
+
+        LOGGER.finest("Deleting blue/green deployment " + bgd.blueGreenDeploymentName());
+        try {
+          rdsClient.deleteBlueGreenDeployment(
+              DeleteBlueGreenDeploymentRequest.builder()
+                  .blueGreenDeploymentIdentifier(bgd.blueGreenDeploymentIdentifier())
+                  .build());
+        } catch (Exception ex) {
+          LOGGER.warning(ex.getMessage());
         }
       }
     } catch (Exception ex) {
