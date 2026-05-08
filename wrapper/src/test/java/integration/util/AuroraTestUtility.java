@@ -2427,7 +2427,8 @@ public class AuroraTestUtility {
           continue;
         }
         if (!"available".equalsIgnoreCase(bgd.status())
-            && !"switchover_completed".equalsIgnoreCase(bgd.status())) {
+            && !"switchover_completed".equalsIgnoreCase(bgd.status())
+            && !"invalid_configuration".equalsIgnoreCase(bgd.status())) {
           continue;
         }
         if (bgd.createTime() != null
