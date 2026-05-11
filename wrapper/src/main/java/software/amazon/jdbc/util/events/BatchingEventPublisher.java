@@ -105,4 +105,8 @@ public class BatchingEventPublisher implements EventPublisher {
       eventMessages.add(event);
     }
   }
+
+  public static void releaseResources() {
+    publishingExecutor.shutdownNow();
+  }
 }

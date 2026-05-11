@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.plugin;
 
-import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -252,6 +251,12 @@ public class OpenedConnectionTracker {
   }
 
   public static void clearCache() {
+    openedConnections.clear();
+  }
+
+  public static void releaseResources() {
+    pruneConnectionsExecutorService.shutdownNow();
+    invalidateConnectionsExecutorService.shutdownNow();
     openedConnections.clear();
   }
 }

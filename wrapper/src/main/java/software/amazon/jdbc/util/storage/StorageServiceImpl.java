@@ -29,17 +29,17 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.EventPublisher;
 
-public class StorageServiceImpl implements StorageService {
+public class StorageServiceImpl implements StorageService, CanReleaseResources {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected static final Map<Class<?>, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
@@ -181,6 +181,12 @@ public class StorageServiceImpl implements StorageService {
     for (ExpirationCache<Object, ?> cache : caches.values()) {
       cache.clear();
     }
+  }
+
+  @Override
+  public void releaseResources() {
+    cleanupExecutor.shutdownNow();
+    clearAll();
   }
 
   @Override

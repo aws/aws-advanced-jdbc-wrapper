@@ -34,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProviderManager.ConnectionInitFunc;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
@@ -58,6 +59,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.events.BatchingEventPublisher;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -447,7 +449,13 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void releaseResources() {
-    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
+    CoreServicesContainer.getInstance().getMonitorService().releaseResources();
+    StorageService storageService = CoreServicesContainer.getInstance().getStorageService();
+    if (storageService instanceof CanReleaseResources) {
+      ((CanReleaseResources) storageService).releaseResources();
+    }
+    BatchingEventPublisher.releaseResources();
+    OpenedConnectionTracker.releaseResources();
     ConnectionProviderManager.releaseResources();
     InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();
