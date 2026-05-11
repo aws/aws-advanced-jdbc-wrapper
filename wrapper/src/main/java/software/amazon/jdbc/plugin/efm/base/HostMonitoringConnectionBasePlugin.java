@@ -262,7 +262,9 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
           this.monitoringHostSpec = this.pluginService.identifyConnection(
               this.pluginService.getCurrentConnection(), this.pluginService.getCurrentHostSpec());
           if (this.monitoringHostSpec == null) {
-            this.monitoringHostSpec = this.pluginService.getCurrentHostSpec();
+            this.monitoringHostSpec = this.pluginService.getRoutedHostSpec() != null
+                ? this.pluginService.getRoutedHostSpec()
+                : this.pluginService.getCurrentHostSpec();
           } else {
             // Update identified HostSpec for the current connection
             this.pluginService.setCurrentConnection(this.pluginService.getCurrentConnection(), this.monitoringHostSpec);
