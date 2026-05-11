@@ -50,8 +50,11 @@ import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -119,74 +122,23 @@ public class CachedResultSet implements ResultSet {
     static {
       Set<String> allowed = new HashSet<>();
 
-      // --- Internal cache serialization classes ---
+      // Internal cache serialization classes
       allowed.add("software.amazon.jdbc.plugin.cache.CachedResultSetMetaData");
       allowed.add("software.amazon.jdbc.plugin.cache.CachedResultSetMetaData$Field");
       allowed.add("[Lsoftware.amazon.jdbc.plugin.cache.CachedResultSetMetaData$Field;");
       allowed.add("software.amazon.jdbc.plugin.cache.CachedSQLXML");
 
-      // --- Java primitive wrappers ---
+      // Types with no useful base class for isAssignableFrom
       allowed.add("java.lang.String");
-      allowed.add("java.lang.Integer");
-      allowed.add("java.lang.Long");
-      allowed.add("java.lang.Double");
-      allowed.add("java.lang.Float");
-      allowed.add("java.lang.Short");
-      allowed.add("java.lang.Byte");
       allowed.add("java.lang.Boolean");
       allowed.add("java.lang.Character");
-      allowed.add("java.lang.Number");
-      allowed.add("java.math.BigDecimal");
-      allowed.add("java.math.BigInteger");
-
-      // --- SQL/JDBC date and time types ---
-      allowed.add("java.sql.Date");
-      allowed.add("java.sql.Time");
-      allowed.add("java.sql.Timestamp");
-
-      // --- java.time types (modern JDBC drivers) ---
-      allowed.add("java.time.LocalDate");
-      allowed.add("java.time.LocalTime");
-      allowed.add("java.time.LocalDateTime");
-      allowed.add("java.time.OffsetDateTime");
-      allowed.add("java.time.OffsetTime");
-      allowed.add("java.time.ZonedDateTime");
-      allowed.add("java.time.Instant");
-      allowed.add("java.time.ZoneId");
-      allowed.add("java.time.ZoneOffset");
-      allowed.add("java.time.ZoneRegion");
-      allowed.add("java.time.Duration");
-      allowed.add("java.time.Period");
-      allowed.add("java.time.Ser");
-
-      // --- Common JDBC column value types ---
       allowed.add("java.util.UUID");
-      allowed.add("java.util.Date");
       allowed.add("java.net.URL");
       allowed.add("java.net.URI");
+      // Package-private JVM serialization proxy for java.time types; cannot be referenced by class literal
+      allowed.add("java.time.Ser");
 
-      // --- Java collections (can appear as column values from getObject()) ---
-      allowed.add("java.util.ArrayList");
-      allowed.add("java.util.LinkedList");
-      allowed.add("java.util.HashSet");
-      allowed.add("java.util.LinkedHashSet");
-      allowed.add("java.util.TreeSet");
-      allowed.add("java.util.HashMap");
-      allowed.add("java.util.LinkedHashMap");
-      allowed.add("java.util.TreeMap");
-      allowed.add("java.util.Collections$EmptyList");
-      allowed.add("java.util.Collections$EmptyMap");
-      allowed.add("java.util.Collections$EmptySet");
-      allowed.add("java.util.Collections$SingletonList");
-      allowed.add("java.util.Collections$SingletonMap");
-      allowed.add("java.util.Collections$SingletonSet");
-      allowed.add("java.util.Collections$UnmodifiableList");
-      allowed.add("java.util.Collections$UnmodifiableMap");
-      allowed.add("java.util.Collections$UnmodifiableSet");
-      allowed.add("java.util.Collections$UnmodifiableRandomAccessList");
-      allowed.add("java.util.Arrays$ArrayList");
-
-      // --- Byte and primitive arrays ---
+      // Primitive arrays
       allowed.add("[B");
       allowed.add("[I");
       allowed.add("[J");
@@ -196,7 +148,7 @@ public class CachedResultSet implements ResultSet {
       allowed.add("[C");
       allowed.add("[Z");
 
-      // --- Object arrays (JDBC Array types can produce these) ---
+      // Object arrays
       allowed.add("[Ljava.lang.Object;");
       allowed.add("[Ljava.lang.String;");
       allowed.add("[Ljava.lang.Integer;");
@@ -219,11 +171,31 @@ public class CachedResultSet implements ResultSet {
     protected Class<?> resolveClass(ObjectStreamClass desc)
         throws IOException, ClassNotFoundException {
       String className = desc.getName();
-      if (!ALLOWED_CLASSES.contains(className)) {
-        throw new ClassNotFoundException(
-            Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));
+      if (ALLOWED_CLASSES.contains(className)) {
+        return super.resolveClass(desc);
       }
-      return super.resolveClass(desc);
+      // Only load classes from standard Java/javax packages for dynamic hierarchy checks.
+      // Never call super.resolveClass for third-party or application classes — loading them
+      // before throwing gives the JVM a window to invoke readObject() on a partially
+      // constructed object in some implementations.
+      if (className.startsWith("java.") || className.startsWith("javax.")) {
+        Class<?> cls = super.resolveClass(desc);
+        // Supported data types for deserialization. To support additional JDBC types
+        // (e.g. CLOB, BLOB, Array), add the corresponding base class or interface here.
+        if (Number.class.isAssignableFrom(cls)
+            || Collection.class.isAssignableFrom(cls)
+            || Map.class.isAssignableFrom(cls)
+            || java.util.Date.class.isAssignableFrom(cls)
+            || RowId.class.isAssignableFrom(cls)
+            || SQLXML.class.isAssignableFrom(cls)
+            || Temporal.class.isAssignableFrom(cls)
+            || TemporalAmount.class.isAssignableFrom(cls)
+            || ZoneId.class.isAssignableFrom(cls)) {
+          return cls;
+        }
+      }
+      throw new ClassNotFoundException(
+          Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));
     }
   }
 
@@ -349,7 +321,7 @@ public class CachedResultSet implements ResultSet {
         resultRows.add(row);
       }
       return new CachedResultSet(metadata, resultRows);
-    } catch (ClassNotFoundException e) {
+    } catch (ClassNotFoundException | ClassCastException e) {
       throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserializeResultSet"), e);
     } catch (IOException e) {
       throw new SQLException(Messages.get("CachedResultSet.ioExceptionDeserializeResultSet"), e);
