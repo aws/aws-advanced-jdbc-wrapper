@@ -21,18 +21,12 @@ permissions:
   contents: read
 
 jobs:
-  markdown-link-check:
+  check-changes:
+    name: 'Check for changes'
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - uses: tcort/github-action-markdown-link-check@e7c7a18363c842693fadde5d41a3bd3573a7a225  # v1
-        with:
-          use-quiet-mode: 'yes'
-          folder-path: 'docs'
-          config-file: '.github/workflows/mlc_config.json'
-  build-driver:
-    name: 'Run non-container integration tests'
-    runs-on: ubuntu-latest
+    outputs:
+      only_docs: ${{ steps.check.outputs.ONLY_DOCS }}
+      docs_changed: ${{ steps.check.outputs.DOCS_CHANGED }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -48,26 +42,88 @@ jobs:
               - '**/docs/**'
               - '**/*.jpg'
               - '**/*.png'
-      - name: 'Check changed files'
-        id: changed-files
-        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
-        run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
+      - name: 'Determine change type'
+        id: check
+        run: |
+          if [[ "${{ steps.changed-files-specific.outputs.doc_only_changed }}" == "true" || "${{ steps.changed-files-specific.outputs.doc_only_modified }}" == "true" ]]; then
+            echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
+          else
+            echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{ steps.changed-files-specific.outputs.doc_any_changed }}" == "true" ]]; then
+            echo "DOCS_CHANGED=true" >> $GITHUB_OUTPUT
+          else
+            echo "DOCS_CHANGED=false" >> $GITHUB_OUTPUT
+          fi
+
+  markdown-link-check:
+    name: 'Markdown link check'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs_changed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: tcort/github-action-markdown-link-check@e7c7a18363c842693fadde5d41a3bd3573a7a225  # v1
+        with:
+          use-quiet-mode: 'yes'
+          folder-path: 'docs'
+          config-file: '.github/workflows/mlc_config.json'
+
+  lint:
+    name: 'Static analysis'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 50
       - name: 'Set up JDK 8'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
         with:
           distribution: 'corretto'
           java-version: 8
-      - name: 'Run all checks'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
-        run: |
-          echo ${{steps.changed-files.outputs.ONLY_DOCS}}
-          ./gradlew check
-      - name: 'Generate code coverage report'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
-        run: ./gradlew jacocoTestReport
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run checkstyle and spotbugs'
+        run: ./gradlew --build-cache checkstyleMain checkstyleTest spotbugsMain spotbugsTest
+
+  test:
+    name: 'Unit tests and coverage'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run tests with coverage'
+        run: ./gradlew --build-cache test jacocoTestReport jacocoTestCoverageVerification
       - name: 'Archive test results'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: 'junit-report'
