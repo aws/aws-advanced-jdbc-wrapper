@@ -63,6 +63,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.WrapperUtils;
 
 public class CachedResultSet implements ResultSet {
 
@@ -193,6 +194,12 @@ public class CachedResultSet implements ResultSet {
             || ZoneId.class.isAssignableFrom(cls)) {
           return cls;
         }
+      }
+      // Allow user-registered third-party classes and packages (via Driver.skipWrappingForType
+      // or Driver.skipWrappingForPackage). See security note in UsingTheJdbcDriver.md.
+      if (WrapperUtils.skipWrappingForClasses.stream().anyMatch(c -> c.getName().equals(className))
+          || WrapperUtils.skipWrappingForPackages.stream().anyMatch(p -> className.startsWith(p + "."))) {
+        return super.resolveClass(desc);
       }
       throw new ClassNotFoundException(
           Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));

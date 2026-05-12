@@ -445,3 +445,5 @@ Driver.skipWrappingForPackage("com.pgvector");
 This feature can be used to allow the AWS Advanced JDBC Wrapper to properly handle popular database extensions like [PGvector](https://github.com/pgvector/pgvector-java) and [PostGIS](https://github.com/postgis/postgis-java).
 
 Using `Driver.skipWrappingForPackage()` method and using driver configuration parameter `skipWrappingForPackages` are functionally similar. The configuration parameter receives a comma separated list of package names while `Driver.skipWrappingForPackage()` accepts just one package at at time.
+
+> **Security Note:** When using the `RemoteQueryCachePlugin`, classes and packages registered here are also permitted during Java deserialization of cached query results. Since cache data is treated as untrusted input, ensure that any registered third-party classes have safe deserialization behavior (i.e. no dangerous `readObject()` implementations) and cannot be used as part of a gadget chain attack. This does not affect other plugins or driver operations.

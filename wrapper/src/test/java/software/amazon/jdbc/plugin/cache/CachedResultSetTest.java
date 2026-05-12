@@ -58,6 +58,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.util.WrapperUtils;
 
 public class CachedResultSetTest {
   private CachedResultSet testResultSet;
@@ -1021,6 +1022,59 @@ public class CachedResultSetTest {
     row.putRaw(1, blockedBytes);
 
     assertThrows(SQLException.class, () -> row.get(1));
+  }
+
+  static class ThirdPartyType implements Serializable {
+    private static final long serialVersionUID = 1L;
+    final String value;
+
+    ThirdPartyType(String value) {
+      this.value = value;
+    }
+  }
+
+  @Test
+  void test_user_registered_class_allowed_in_deserialization() throws Exception {
+    WrapperUtils.skipWrappingForClasses.add(ThirdPartyType.class);
+    try {
+      byte[] serialized;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+           ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(new ThirdPartyType("test"));
+        oos.flush();
+        serialized = baos.toByteArray();
+      }
+      CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+      row.putRaw(1, serialized);
+      Object result = row.get(1);
+      assertNotNull(result);
+      assertEquals(ThirdPartyType.class, result.getClass());
+      assertEquals("test", ((ThirdPartyType) result).value);
+    } finally {
+      WrapperUtils.skipWrappingForClasses.remove(ThirdPartyType.class);
+    }
+  }
+
+  @Test
+  void test_user_registered_package_allowed_in_deserialization() throws Exception {
+    String packageName = ThirdPartyType.class.getPackage().getName();
+    WrapperUtils.skipWrappingForPackages.add(packageName);
+    try {
+      byte[] serialized;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+           ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(new ThirdPartyType("test"));
+        oos.flush();
+        serialized = baos.toByteArray();
+      }
+      CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+      row.putRaw(1, serialized);
+      Object result = row.get(1);
+      assertNotNull(result);
+      assertEquals(ThirdPartyType.class, result.getClass());
+    } finally {
+      WrapperUtils.skipWrappingForPackages.remove(packageName);
+    }
   }
 
   @Test
