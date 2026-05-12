@@ -29,18 +29,18 @@ import software.amazon.jdbc.util.Messages;
 
 public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuroraTopologyDialect {
 
-  protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY = "select 'aurora_global_db_status'::regproc";
+  protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY = "select 'pg_catalog.aurora_global_db_status'::regproc";
   protected static final String GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY =
-      "select 'aurora_global_db_instance_status'::regproc";
+      "select 'pg_catalog.aurora_global_db_instance_status'::regproc";
 
   protected static final String GLOBAL_TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
-          + "FROM aurora_global_db_instance_status()";
+          + "FROM pg_catalog.aurora_global_db_instance_status()";
 
-  protected static final String REGION_COUNT_QUERY = "SELECT count(1) FROM aurora_global_db_status()";
+  protected static final String REGION_COUNT_QUERY = "SELECT count(1) FROM pg_catalog.aurora_global_db_status()";
   protected static final String REGION_BY_INSTANCE_ID_QUERY =
-      "SELECT AWS_REGION FROM aurora_global_db_instance_status() WHERE SERVER_ID = ?";
+      "SELECT AWS_REGION FROM pg_catalog.aurora_global_db_instance_status() WHERE SERVER_ID = ?";
 
   private static final Logger LOGGER = Logger.getLogger(GlobalAuroraPgDialect.class.getName());
 
