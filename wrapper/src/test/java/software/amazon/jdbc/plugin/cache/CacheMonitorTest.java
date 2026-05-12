@@ -466,7 +466,7 @@ public class CacheMonitorTest {
     sleepCount.set(0);
     CacheMonitor finalSpy1 = spy;
     doAnswer(inv -> {
-      if (sleepCount.incrementAndGet() >= 2) {  // ← ADD counter check back
+      if (sleepCount.incrementAndGet() >= 2) {  // ADD counter check back
         Field stopField = AbstractMonitor.class.getDeclaredField("stop");
         stopField.setAccessible(true);
         ((AtomicBoolean) stopField.get(finalSpy1)).set(true);
