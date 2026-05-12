@@ -17,9 +17,11 @@ permissions:
   contents: read
 
 jobs:
-  standard-integration-tests:
-    name: 'Run standard container integration tests'
+  check-changes:
+    name: 'Check for non-doc changes'
     runs-on: ubuntu-latest
+    outputs:
+      only_docs: ${{ steps.changed-files.outputs.ONLY_DOCS }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -37,36 +39,129 @@ jobs:
               - '**/*.png'
       - name: 'Check changed files'
         id: changed-files
-        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
-        run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "${{ steps.changed-files-specific.outputs.doc_only_changed }}" == "true" || "${{ steps.changed-files-specific.outputs.doc_only_modified }}" == "true" ]]; then
+            echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
+          else
+            echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
+          fi
+
+  docker-tests:
+    name: 'Docker [${{ matrix.engine }}, ${{ matrix.jvm }}]'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [mysql, pg, mariadb]
+        jvm: ${{ github.event_name == 'pull_request' && fromJSON('["openjdk8", "openjdk21"]') || fromJSON('["openjdk8", "openjdk11", "openjdk17", "openjdk21", "openjdk24", "graalvm"]') }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 50
       - name: 'Set up JDK 8'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
         with:
           distribution: 'corretto'
           java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
       - name: 'Run standard integration tests'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-docker
-      - name: 'Run caching integration tests'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
-        run: |
-          ./gradlew --no-parallel --no-daemon test-all-caching
+          ./gradlew --no-parallel --no-daemon test-all-docker \
+            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
+            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }} \
+            -Dtest-no-mariadb-engine=${{ matrix.engine != 'mariadb' }} \
+            -Dtest-no-openjdk8=${{ matrix.jvm != 'openjdk8' }} \
+            -Dtest-no-openjdk11=${{ matrix.jvm != 'openjdk11' }} \
+            -Dtest-no-openjdk17=${{ matrix.jvm != 'openjdk17' }} \
+            -Dtest-no-openjdk21=${{ matrix.jvm != 'openjdk21' }} \
+            -Dtest-no-openjdk24=${{ matrix.jvm != 'openjdk24' }} \
+            -Dtest-no-graalvm=${{ matrix.jvm != 'graalvm' }}
       - name: Mask data
+        if: ${{ !cancelled() }}
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
       - name: 'Archive junit results'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report
+          name: junit-report-docker-${{ matrix.engine }}-${{ matrix.jvm }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report
+          name: html-summary-report-docker-${{ matrix.engine }}-${{ matrix.jvm }}
+          path: ./wrapper/build/report
+          retention-days: 5
+
+  caching-tests:
+    name: 'Caching [${{ matrix.engine }}, ${{ matrix.jvm }}]'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [mysql, pg, mariadb]
+        jvm: ${{ github.event_name == 'pull_request' && fromJSON('["openjdk8", "openjdk21"]') || fromJSON('["openjdk8", "openjdk11", "openjdk17", "openjdk21", "openjdk24", "graalvm"]') }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run caching integration tests'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-all-caching \
+            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
+            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }} \
+            -Dtest-no-mariadb-engine=${{ matrix.engine != 'mariadb' }} \
+            -Dtest-no-openjdk8=${{ matrix.jvm != 'openjdk8' }} \
+            -Dtest-no-openjdk11=${{ matrix.jvm != 'openjdk11' }} \
+            -Dtest-no-openjdk17=${{ matrix.jvm != 'openjdk17' }} \
+            -Dtest-no-openjdk21=${{ matrix.jvm != 'openjdk21' }} \
+            -Dtest-no-openjdk24=${{ matrix.jvm != 'openjdk24' }} \
+            -Dtest-no-graalvm=${{ matrix.jvm != 'graalvm' }}
+      - name: Mask data
+        if: ${{ !cancelled() }}
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: 'Archive junit results'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: junit-report-caching-${{ matrix.engine }}-${{ matrix.jvm }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: 'Archive html summary report'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: html-summary-report-caching-${{ matrix.engine }}-${{ matrix.jvm }}
           path: ./wrapper/build/report
           retention-days: 5
