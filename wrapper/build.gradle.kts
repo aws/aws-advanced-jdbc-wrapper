@@ -58,7 +58,7 @@ dependencies {
 
     compileOnly("org.checkerframework:checker-qual:3.55.1")
     compileOnly("com.mysql:mysql-connector-j:9.6.0")
-    compileOnly("org.postgresql:postgresql:42.7.10")
+    compileOnly("org.postgresql:postgresql:42.7.11")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.8")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
@@ -79,7 +79,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.14.0")
-    testImplementation("org.postgresql:postgresql:42.7.10")
+    testImplementation("org.postgresql:postgresql:42.7.11")
     testImplementation("com.mysql:mysql-connector-j:9.6.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.8")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
