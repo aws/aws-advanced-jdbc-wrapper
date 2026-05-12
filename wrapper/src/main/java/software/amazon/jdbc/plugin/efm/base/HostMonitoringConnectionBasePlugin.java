@@ -259,17 +259,13 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
         if (rdsUrlType != RdsUrlType.RDS_INSTANCE) {
           LOGGER.finest("Monitoring HostSpec is associated with a cluster endpoint, "
               + "plugin needs to identify the cluster connection.");
-          this.monitoringHostSpec = this.pluginService.identifyConnection(
+          final HostSpec identifiedHostSpec = this.pluginService.identifyConnection(
               this.pluginService.getCurrentConnection(), this.pluginService.getCurrentHostSpec());
-          if (this.monitoringHostSpec == null) {
-            throw new RuntimeException(Messages.get(
-                "HostMonitoringConnectionPlugin.unableToIdentifyConnection",
-                new Object[] {
-                    this.pluginService.getCurrentHostSpec().getHost(),
-                    this.pluginService.getHostListProvider()}));
+          if (identifiedHostSpec != null) {
+            // Update identified HostSpec for the current connection
+            this.monitoringHostSpec = identifiedHostSpec;
+            this.pluginService.setCurrentConnection(this.pluginService.getCurrentConnection(), this.monitoringHostSpec);
           }
-          // Update identified HostSpec for the current connection
-          this.pluginService.setCurrentConnection(this.pluginService.getCurrentConnection(), this.monitoringHostSpec);
         }
       } catch (SQLException e) {
         // Log and throw.
