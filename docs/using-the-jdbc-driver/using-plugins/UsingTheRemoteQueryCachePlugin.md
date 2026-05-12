@@ -366,5 +366,8 @@ public void main(String status) {
 }
 ```
 
+## Security Considerations
+The Remote Query Cache Plugin uses Java deserialization to reconstruct cached query results from the cache server. Since cache data is treated as untrusted input, deserialization is restricted to a set of known-safe types. If your query results contain third-party types (e.g. from database extensions like PGVector), you must register them via `Driver.skipWrappingForType()` or `Driver.skipWrappingForPackage()` to allow deserialization. Ensure that any registered classes have safe deserialization behavior and cannot be used as part of a gadget chain attack. See [Enable Third Party Classes and Packages](../UsingTheJdbcDriver.md#enable-third-party-classes-and-packages) for details.
+
 ## Other Example Programs
 [DatabaseConnectionWithCacheExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/DatabaseConnectionWithCacheExample.java) demonstrates how to enable and configure Remote Query Cache Plugin with the AWS Advanced JDBC Wrapper.
