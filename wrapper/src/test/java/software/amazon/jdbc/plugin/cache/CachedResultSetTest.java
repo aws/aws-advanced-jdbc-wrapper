@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.cache;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,6 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -47,11 +52,13 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.util.WrapperUtils;
 
 public class CachedResultSetTest {
   private CachedResultSet testResultSet;
@@ -905,6 +912,169 @@ public class CachedResultSetTest {
     // Test invalid unwrap attempts should throw SQLException
     assertThrows(SQLException.class, () -> cachedRs.unwrap(String.class));
     assertThrows(SQLException.class, () -> cachedRs.unwrap(Integer.class));
+  }
+
+  static class MaliciousPayload implements Serializable {
+    private static final long serialVersionUID = 1L;
+    static final AtomicBoolean CODE_EXECUTED = new AtomicBoolean(false);
+
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
+      CODE_EXECUTED.set(true);
+    }
+  }
+
+  @Test
+  void test_malicious_payload_blocked_in_deserialize_from_byte_array() throws IOException {
+    MaliciousPayload.CODE_EXECUTED.set(false);
+
+    byte[] maliciousBytes;
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject(new MaliciousPayload());
+      oos.flush();
+      maliciousBytes = baos.toByteArray();
+    }
+
+    assertThrows(SQLException.class, () -> CachedResultSet.deserializeFromByteArray(maliciousBytes));
+    assertFalse(MaliciousPayload.CODE_EXECUTED.get(),
+        "Malicious readObject() must not execute before the class is blocked");
+  }
+
+  @Test
+  void test_wrong_metadata_type_throws_in_deserialize() throws IOException {
+    // Serialize a non-CachedResultSetMetaData object in place of metadata
+    byte[] corruptedBytes;
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject("not-a-metadata-object");
+      oos.flush();
+      corruptedBytes = baos.toByteArray();
+    }
+    assertThrows(SQLException.class, () -> CachedResultSet.deserializeFromByteArray(corruptedBytes));
+  }
+
+  @Test
+  void test_primitive_array_round_trip() throws Exception {
+    Object[] primitiveArrays = {
+        new int[]{1, 2, 3},
+        new long[]{100L, 200L},
+        new double[]{1.1, 2.2},
+        new float[]{3.3f, 4.4f},
+        new short[]{10, 20},
+        new char[]{'a', 'b'},
+        new boolean[]{true, false}
+    };
+    for (Object arr : primitiveArrays) {
+      byte[] serialized;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+           ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(arr);
+        oos.flush();
+        serialized = baos.toByteArray();
+      }
+      CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+      row.putRaw(1, serialized);
+      // Verify deserialization succeeded and type is preserved
+      assertNotNull(row.get(1));
+      assertEquals(arr.getClass(), row.get(1).getClass());
+    }
+  }
+
+  @Test
+  void test_object_array_round_trip() throws Exception {
+    Object[][] objectArrays = {
+        new String[]{"a", "b"},
+        new Integer[]{1, 2},
+        new Long[]{1L, 2L},
+        new Double[]{1.0, 2.0},
+        new Float[]{1.0f, 2.0f},
+        new Short[]{1, 2},
+        new Byte[]{1, 2},
+        new Boolean[]{true, false},
+        new BigDecimal[]{new BigDecimal("1.23"), new BigDecimal("4.56")}
+    };
+    for (Object arr : objectArrays) {
+      byte[] serialized;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+           ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(arr);
+        oos.flush();
+        serialized = baos.toByteArray();
+      }
+      CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+      row.putRaw(1, serialized);
+      assertArrayEquals((Object[]) arr, (Object[]) row.get(1));
+    }
+  }
+
+  @Test
+  void test_blocked_type_rejected_in_lazy_deserialization() throws Exception {
+    byte[] blockedBytes;
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject(new MaliciousPayload());
+      oos.flush();
+      blockedBytes = baos.toByteArray();
+    }
+
+    CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+    row.putRaw(1, blockedBytes);
+
+    assertThrows(SQLException.class, () -> row.get(1));
+  }
+
+  static class ThirdPartyType implements Serializable {
+    private static final long serialVersionUID = 1L;
+    final String value;
+
+    ThirdPartyType(String value) {
+      this.value = value;
+    }
+  }
+
+  @Test
+  void test_user_registered_class_allowed_in_deserialization() throws Exception {
+    WrapperUtils.skipWrappingForClasses.add(ThirdPartyType.class);
+    try {
+      byte[] serialized;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+           ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(new ThirdPartyType("test"));
+        oos.flush();
+        serialized = baos.toByteArray();
+      }
+      CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+      row.putRaw(1, serialized);
+      Object result = row.get(1);
+      assertNotNull(result);
+      assertEquals(ThirdPartyType.class, result.getClass());
+      assertEquals("test", ((ThirdPartyType) result).value);
+    } finally {
+      WrapperUtils.skipWrappingForClasses.remove(ThirdPartyType.class);
+    }
+  }
+
+  @Test
+  void test_user_registered_package_allowed_in_deserialization() throws Exception {
+    String packageName = ThirdPartyType.class.getPackage().getName();
+    WrapperUtils.skipWrappingForPackages.add(packageName);
+    try {
+      byte[] serialized;
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+           ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+        oos.writeObject(new ThirdPartyType("test"));
+        oos.flush();
+        serialized = baos.toByteArray();
+      }
+      CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+      row.putRaw(1, serialized);
+      Object result = row.get(1);
+      assertNotNull(result);
+      assertEquals(ThirdPartyType.class, result.getClass());
+    } finally {
+      WrapperUtils.skipWrappingForPackages.remove(packageName);
+    }
   }
 
   @Test

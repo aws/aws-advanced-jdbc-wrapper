@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -49,13 +50,20 @@ import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.WrapperUtils;
 
 public class CachedResultSet implements ResultSet {
 
@@ -89,7 +97,7 @@ public class CachedResultSet implements ResultSet {
       // De-serialize the data object from raw bytes if needed.
       if (rowData[columnIndex - 1] == null && rawData[columnIndex - 1] != null) {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(rawData[columnIndex - 1]);
-             ObjectInputStream ois = new ObjectInputStream(bis)) {
+             ObjectInputStream ois = new SafeObjectInputStream(bis)) {
           rowData[columnIndex - 1] = ois.readObject();
           rawData[columnIndex - 1] = null;
         } catch (ClassNotFoundException e) {
@@ -100,6 +108,101 @@ public class CachedResultSet implements ResultSet {
         }
       }
       return rowData[columnIndex - 1];
+    }
+  }
+
+  /**
+   * A restricted ObjectInputStream that only allows deserialization of known-safe classes.
+   * This prevents Remote Code Execution via cache poisoning attacks where an attacker
+   * injects malicious serialized objects (gadget chains) into the remote cache.
+   *
+   */
+  private static class SafeObjectInputStream extends ObjectInputStream {
+    private static final Set<String> ALLOWED_CLASSES;
+
+    static {
+      Set<String> allowed = new HashSet<>();
+
+      // Internal cache serialization classes
+      allowed.add("software.amazon.jdbc.plugin.cache.CachedResultSetMetaData");
+      allowed.add("software.amazon.jdbc.plugin.cache.CachedResultSetMetaData$Field");
+      allowed.add("[Lsoftware.amazon.jdbc.plugin.cache.CachedResultSetMetaData$Field;");
+      allowed.add("software.amazon.jdbc.plugin.cache.CachedSQLXML");
+
+      // Types with no useful base class for isAssignableFrom
+      allowed.add("java.lang.String");
+      allowed.add("java.lang.Boolean");
+      allowed.add("java.lang.Character");
+      allowed.add("java.util.UUID");
+      allowed.add("java.net.URL");
+      allowed.add("java.net.URI");
+      // Package-private JVM serialization proxy for java.time types; cannot be referenced by class literal
+      allowed.add("java.time.Ser");
+
+      // Primitive arrays
+      allowed.add("[B");
+      allowed.add("[I");
+      allowed.add("[J");
+      allowed.add("[D");
+      allowed.add("[F");
+      allowed.add("[S");
+      allowed.add("[C");
+      allowed.add("[Z");
+
+      // Object arrays
+      allowed.add("[Ljava.lang.Object;");
+      allowed.add("[Ljava.lang.String;");
+      allowed.add("[Ljava.lang.Integer;");
+      allowed.add("[Ljava.lang.Long;");
+      allowed.add("[Ljava.lang.Double;");
+      allowed.add("[Ljava.lang.Float;");
+      allowed.add("[Ljava.lang.Short;");
+      allowed.add("[Ljava.lang.Byte;");
+      allowed.add("[Ljava.lang.Boolean;");
+      allowed.add("[Ljava.math.BigDecimal;");
+
+      ALLOWED_CLASSES = Collections.unmodifiableSet(allowed);
+    }
+
+    SafeObjectInputStream(InputStream in) throws IOException {
+      super(in);
+    }
+
+    @Override
+    protected Class<?> resolveClass(ObjectStreamClass desc)
+        throws IOException, ClassNotFoundException {
+      String className = desc.getName();
+      if (ALLOWED_CLASSES.contains(className)) {
+        return super.resolveClass(desc);
+      }
+      // Only load classes from standard Java/javax packages for dynamic hierarchy checks.
+      // Never call super.resolveClass for third-party or application classes — loading them
+      // before throwing gives the JVM a window to invoke readObject() on a partially
+      // constructed object in some implementations.
+      if (className.startsWith("java.") || className.startsWith("javax.")) {
+        Class<?> cls = super.resolveClass(desc);
+        // Supported data types for deserialization. To support additional JDBC types
+        // (e.g. CLOB, BLOB, Array), add the corresponding base class or interface here.
+        if (Number.class.isAssignableFrom(cls)
+            || Collection.class.isAssignableFrom(cls)
+            || Map.class.isAssignableFrom(cls)
+            || java.util.Date.class.isAssignableFrom(cls)
+            || RowId.class.isAssignableFrom(cls)
+            || SQLXML.class.isAssignableFrom(cls)
+            || Temporal.class.isAssignableFrom(cls)
+            || TemporalAmount.class.isAssignableFrom(cls)
+            || ZoneId.class.isAssignableFrom(cls)) {
+          return cls;
+        }
+      }
+      // Allow user-registered third-party classes and packages (via Driver.skipWrappingForType
+      // or Driver.skipWrappingForPackage). See security note in UsingTheJdbcDriver.md.
+      if (WrapperUtils.skipWrappingForClasses.stream().anyMatch(c -> c.getName().equals(className))
+          || WrapperUtils.skipWrappingForPackages.stream().anyMatch(p -> className.startsWith(p + "."))) {
+        return super.resolveClass(desc);
+      }
+      throw new ClassNotFoundException(
+          Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));
     }
   }
 
@@ -201,7 +304,7 @@ public class CachedResultSet implements ResultSet {
    */
   public static ResultSet deserializeFromByteArray(byte[] data) throws SQLException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
-         ObjectInputStream ois = new ObjectInputStream(bis)) {
+         ObjectInputStream ois = new SafeObjectInputStream(bis)) {
       CachedResultSetMetaData metadata = (CachedResultSetMetaData) ois.readObject();
       int numRows = ois.readInt();
       int numColumns = metadata.getColumnCount();
@@ -225,7 +328,7 @@ public class CachedResultSet implements ResultSet {
         resultRows.add(row);
       }
       return new CachedResultSet(metadata, resultRows);
-    } catch (ClassNotFoundException e) {
+    } catch (ClassNotFoundException | ClassCastException e) {
       throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserializeResultSet"), e);
     } catch (IOException e) {
       throw new SQLException(Messages.get("CachedResultSet.ioExceptionDeserializeResultSet"), e);

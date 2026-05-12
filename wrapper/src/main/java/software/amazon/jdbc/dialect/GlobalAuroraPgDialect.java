@@ -29,7 +29,8 @@ import software.amazon.jdbc.util.Messages;
 
 public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuroraTopologyDialect {
 
-  protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY = "select 'pg_catalog.aurora_global_db_status'::regproc";
+  protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY =
+      "select 'pg_catalog.aurora_global_db_status'::regproc";
   protected static final String GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY =
       "select 'pg_catalog.aurora_global_db_instance_status'::regproc";
 
