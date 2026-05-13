@@ -226,6 +226,10 @@ public class ConnectionStringHelper {
       // will get the error "RSA public key is not available client side" when connecting. The mariadb driver may not
       // fully support mysql 8.4's SSL mechanisms, which is why this property is only required for newer mysql versions.
       props.setProperty("allowPublicKeyRetrieval", "true");
+      // Enable SSL for the MariaDB driver to satisfy Aurora MySQL instances that have
+      // require_secure_transport=ON. Using "trust" mode enables SSL without certificate verification,
+      // which is appropriate for test environments.
+      props.setProperty("sslMode", "trust");
     }
 
     props.setProperty(PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.name, "true");

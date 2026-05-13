@@ -302,6 +302,11 @@ public class TestEnvironment implements AutoCloseable {
               && env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
             createCustomClusterParameterGroup(env);
           }
+          if (!env.reuseDb
+              && env.info.getClusterParameterGroupName() == null
+              && env.info.getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+            createMysqlClusterParameterGroup(env);
+          }
           createDbCluster(env);
           configureIamAccess(env);
           break;
@@ -418,6 +423,14 @@ public class TestEnvironment implements AutoCloseable {
     String engineVersion = getDbEngineVersion(engine, env);
     env.auroraUtil.createCustomClusterParameterGroup(
         groupName, engine, engineVersion, env.info.getRequest().getDatabaseEngine());
+    env.info.setClusterParameterGroupName(groupName);
+  }
+
+  private static void createMysqlClusterParameterGroup(TestEnvironment env) {
+    String groupName = String.format("test-mysql-cpg-%s", env.info.getRandomBase());
+    String engine = getDbEngine(env.info.getRequest());
+    String engineVersion = getDbEngineVersion(engine, env);
+    env.auroraUtil.createMysqlClusterParameterGroup(groupName, engine, engineVersion);
     env.info.setClusterParameterGroupName(groupName);
   }
 
@@ -1548,6 +1561,9 @@ public class TestEnvironment implements AutoCloseable {
           deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
         } else {
           deleteDbCluster(false);
+          if (!StringUtils.isNullOrEmpty(this.info.getClusterParameterGroupName())) {
+            deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
+          }
         }
         deAuthorizeIP(this);
         break;
@@ -1743,6 +1759,10 @@ public class TestEnvironment implements AutoCloseable {
 
                 if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
                   createCustomClusterParameterGroup(env);
+                }
+                if (env.info.getClusterParameterGroupName() == null
+                    && env.info.getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+                  createMysqlClusterParameterGroup(env);
                 }
                 createDbCluster(env);
                 configureIamAccess(env);
