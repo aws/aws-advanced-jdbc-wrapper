@@ -34,6 +34,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -45,10 +46,9 @@ public class OpenedConnectionTracker {
   static final Map<String, TrackedConnectionList> openedConnections = new ConcurrentHashMap<>();
   private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
   private static final int PRUNE_INTERVAL_SEC = 30;
-  private static final ScheduledExecutorService pruneConnectionsExecutorService =
-      ExecutorFactory.newSingleThreadScheduledThreadExecutor("pruneConnection");
-  private static final ExecutorService invalidateConnectionsExecutorService =
-      ExecutorFactory.newCachedThreadPool("invalidateConnection");
+  private static final ResourceLock lock = new ResourceLock();
+  private static volatile ScheduledExecutorService pruneConnectionsExecutorService;
+  private static volatile ExecutorService invalidateConnectionsExecutorService;
   private static final Executor abortConnectionExecutor = new SynchronousExecutor();
 
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());
@@ -62,9 +62,34 @@ public class OpenedConnectionTracker {
 
   private final PluginService pluginService;
 
-  static {
-    pruneConnectionsExecutorService.scheduleAtFixedRate(
-        OpenedConnectionTracker::pruneConnections, PRUNE_INTERVAL_SEC, PRUNE_INTERVAL_SEC, TimeUnit.SECONDS);
+  private static ScheduledExecutorService getOrCreatePruneExecutor() {
+    ScheduledExecutorService executor = pruneConnectionsExecutorService;
+    if (executor == null || executor.isShutdown()) {
+      try (ResourceLock ignored = lock.obtain()) {
+        executor = pruneConnectionsExecutorService;
+        if (executor == null || executor.isShutdown()) {
+          executor = ExecutorFactory.newSingleThreadScheduledThreadExecutor("pruneConnection");
+          executor.scheduleAtFixedRate(
+              OpenedConnectionTracker::pruneConnections, PRUNE_INTERVAL_SEC, PRUNE_INTERVAL_SEC, TimeUnit.SECONDS);
+          pruneConnectionsExecutorService = executor;
+        }
+      }
+    }
+    return executor;
+  }
+
+  private static ExecutorService getOrCreateInvalidateExecutor() {
+    ExecutorService executor = invalidateConnectionsExecutorService;
+    if (executor == null || executor.isShutdown()) {
+      try (ResourceLock ignored = lock.obtain()) {
+        executor = invalidateConnectionsExecutorService;
+        if (executor == null || executor.isShutdown()) {
+          executor = ExecutorFactory.newCachedThreadPool("invalidateConnection");
+          invalidateConnectionsExecutorService = executor;
+        }
+      }
+    }
+    return executor;
   }
 
   public OpenedConnectionTracker(final PluginService pluginService) {
@@ -176,6 +201,7 @@ public class OpenedConnectionTracker {
     if (connection == null) {
       return null;
     }
+    getOrCreatePruneExecutor();
     final TrackedConnectionList connectionList =
         openedConnections.computeIfAbsent(
             instanceEndpoint,
@@ -187,7 +213,7 @@ public class OpenedConnectionTracker {
     if (connectionList == null || connectionList.isEmpty()) {
       return;
     }
-    invalidateConnectionsExecutorService.submit(() -> {
+    getOrCreateInvalidateExecutor().submit(() -> {
       final List<Connection> connections = connectionList.drainAll();
       for (final Connection conn : connections) {
         try {
@@ -255,8 +281,14 @@ public class OpenedConnectionTracker {
   }
 
   public static void releaseResources() {
-    pruneConnectionsExecutorService.shutdownNow();
-    invalidateConnectionsExecutorService.shutdownNow();
-    openedConnections.clear();
+    try (ResourceLock ignored = lock.obtain()) {
+      if (pruneConnectionsExecutorService != null) {
+        pruneConnectionsExecutorService.shutdownNow();
+      }
+      if (invalidateConnectionsExecutorService != null) {
+        invalidateConnectionsExecutorService.shutdownNow();
+      }
+      openedConnections.clear();
+    }
   }
 }

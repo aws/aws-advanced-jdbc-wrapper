@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.ResourceLock;
 
 /**
  * An event publisher that periodically publishes a batch of all unique events encountered during the latest time
@@ -37,8 +38,10 @@ public class BatchingEventPublisher implements EventPublisher {
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
-  protected static final ScheduledExecutorService publishingExecutor =
+  private static final ResourceLock lock = new ResourceLock();
+  protected static volatile ScheduledExecutorService publishingExecutor =
       ExecutorFactory.newSingleThreadScheduledThreadExecutor("bep");
+  protected final long messageIntervalNanos;
 
   public BatchingEventPublisher() {
     this(DEFAULT_MESSAGE_INTERVAL_NANOS);
@@ -50,12 +53,27 @@ public class BatchingEventPublisher implements EventPublisher {
    * @param messageIntervalNanos the rate at which messages batches should be sent, in nanoseconds.
    */
   public BatchingEventPublisher(long messageIntervalNanos) {
+    this.messageIntervalNanos = messageIntervalNanos;
     initPublishingThread(messageIntervalNanos);
   }
 
   protected void initPublishingThread(long messageIntervalNanos) {
-    publishingExecutor.scheduleAtFixedRate(
+    getOrCreatePublishingExecutor().scheduleAtFixedRate(
         this::sendMessages, messageIntervalNanos, messageIntervalNanos, TimeUnit.NANOSECONDS);
+  }
+
+  private static ScheduledExecutorService getOrCreatePublishingExecutor() {
+    ScheduledExecutorService executor = publishingExecutor;
+    if (executor.isShutdown()) {
+      try (ResourceLock ignored = lock.obtain()) {
+        executor = publishingExecutor;
+        if (executor.isShutdown()) {
+          executor = ExecutorFactory.newSingleThreadScheduledThreadExecutor("bep");
+          publishingExecutor = executor;
+        }
+      }
+    }
+    return executor;
   }
 
   protected void sendMessages() {
@@ -102,7 +120,14 @@ public class BatchingEventPublisher implements EventPublisher {
     if (event.isImmediateDelivery()) {
       this.deliverEvent(event);
     } else {
+      ensureExecutorRunning();
       eventMessages.add(event);
+    }
+  }
+
+  private void ensureExecutorRunning() {
+    if (publishingExecutor.isShutdown()) {
+      initPublishingThread(this.messageIntervalNanos);
     }
   }
 

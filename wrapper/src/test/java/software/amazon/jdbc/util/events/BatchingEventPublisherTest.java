@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util.events;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -26,6 +27,8 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,5 +77,80 @@ class BatchingEventPublisherTest {
     publisher.sendMessages();
     assertTrue(publisher.eventMessages.isEmpty());
     verify(subscriber, times(1)).processEvent(eq(event));
+  }
+
+  @Test
+  public void testReleaseResources_shutsDownExecutor() {
+    BatchingEventPublisher publisher = new BatchingEventPublisher() {
+      @Override
+      protected void initPublishingThread(long messageIntervalNanos) {
+        // Do nothing
+      }
+    };
+
+    // Release resources should not throw
+    BatchingEventPublisher.releaseResources();
+
+    // The static executor should be shut down
+    assertTrue(BatchingEventPublisher.publishingExecutor.isShutdown());
+  }
+
+  @Test
+  public void testExecutorRecreatedAfterReleaseResources() {
+    // Release resources to shut down the executor
+    BatchingEventPublisher.releaseResources();
+    assertTrue(BatchingEventPublisher.publishingExecutor.isShutdown());
+
+    // Creating a new publisher should recreate the executor
+    BatchingEventPublisher publisher = new BatchingEventPublisher() {
+      @Override
+      protected void initPublishingThread(long messageIntervalNanos) {
+        // Call super to trigger executor recreation
+        super.initPublishingThread(messageIntervalNanos);
+      }
+    };
+
+    // Executor should be recreated and running
+    assertFalse(BatchingEventPublisher.publishingExecutor.isShutdown());
+  }
+
+  @Test
+  public void testPublishAfterReleaseResources() throws InterruptedException {
+    // Release resources to shut down the executor
+    BatchingEventPublisher.releaseResources();
+    assertTrue(BatchingEventPublisher.publishingExecutor.isShutdown());
+
+    // Create a publisher with a short interval for testing
+    final long shortInterval = TimeUnit.MILLISECONDS.toNanos(100);
+    final CountDownLatch latch = new CountDownLatch(1);
+
+    BatchingEventPublisher publisher = new BatchingEventPublisher(shortInterval);
+
+    Set<Class<? extends Event>> eventSubscriptions = new HashSet<>(Collections.singletonList(DataAccessEvent.class));
+    publisher.subscribe(new EventSubscriber() {
+      @Override
+      public void processEvent(Event event) {
+        latch.countDown();
+      }
+    }, eventSubscriptions);
+
+    // Publish an event - this should trigger executor recreation via ensureExecutorRunning
+    DataAccessEvent event = new DataAccessEvent(CustomEndpointInfo.class, "key");
+    publisher.publish(event);
+
+    // Wait for the scheduled task to deliver the event
+    assertTrue(latch.await(2, TimeUnit.SECONDS), "Event should have been delivered after executor recreation");
+  }
+
+  @Test
+  public void testMultipleReleaseResourcesCalls() {
+    // Calling releaseResources multiple times should not throw
+    BatchingEventPublisher.releaseResources();
+    BatchingEventPublisher.releaseResources();
+    BatchingEventPublisher.releaseResources();
+
+    // Should still be able to create a publisher after multiple releases
+    BatchingEventPublisher publisher = new BatchingEventPublisher();
+    assertFalse(BatchingEventPublisher.publishingExecutor.isShutdown());
   }
 }
