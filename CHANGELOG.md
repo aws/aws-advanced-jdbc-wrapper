@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Fixed static executors not being recreatable after `releaseResources()`, causing silent task discards in subsequent test runs and failover scenarios ([PR #1914](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1914)).
 - Fixed NPE in various classes ([PR #1898](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1898)).
 - Added allowlist classes for `CacheResultSet` deserialization to prevent unsafe Java deserialization ([PR #1905](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1905)).
-- Fixed PostgreSQL topology detection queries to use fully qualified function calls and `regproc` cast for function existence checks ([commit](https://github.com/aws/aws-advanced-jdbc-wrapper/commit/01be7ea47b13cd98754fff459ba95a97191cbd41)).
+- Fixed PostgreSQL topology detection queries to ensure function calls are fully qualified ([commit](https://github.com/aws/aws-advanced-jdbc-wrapper/commit/01be7ea47b13cd98754fff459ba95a97191cbd41)).
 
 ### :crab: Changed
 - Added missing javadocs ([PR #1899](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1899)).
