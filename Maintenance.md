@@ -46,6 +46,7 @@
 | February 4, 2026   | [Release 3.2.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.2.0) |
 | March 26, 2026     | [Release 3.3.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.3.0) |
 | May 6, 2026        | [Release 4.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/4.0.0) |
+| May 13, 2026       | [Release 4.0.1](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/4.0.1) |
 
 `aws-advanced-jdbc-wrapper` [follows semver](https://semver.org/#semantic-versioning-200) which means we will only
 release breaking changes in major versions. Generally speaking patches will be released to fix existing problems without
@@ -101,4 +102,4 @@ from the updated source after the PRs are merged.
 | 1             | 1.0.2                | Maintenance | Oct 5, 2022     | Apr 28, 2023             | Apr 28, 2024           | 
 | 2             | 2.6.8                | Maintenance | Apr 28, 2023    | Dec 18, 2025             | Dec 31, 2026           | 
 | 3             | 3.3.0                | Maintenance | Dec 18, 2025    | May 6, 2026              | May 6, 2027            | 
-| 4             | 4.0.0                | Current     | May 6, 2026     | N/A                      | N/A                    | 
+| 4             | 4.0.1                | Current     | May 6, 2026     | N/A                      | N/A                    | 
