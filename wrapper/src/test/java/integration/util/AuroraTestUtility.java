@@ -52,8 +52,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -74,7 +72,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.jupiter.api.Test;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -109,6 +106,7 @@ import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
+import software.amazon.awssdk.services.rds.model.DBClusterParameterGroup;
 import software.amazon.awssdk.services.rds.model.DBEngineVersion;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
@@ -120,6 +118,7 @@ import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.DescribeBlueGreenDeploymentsResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbClusterParameterGroupsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRequest;
@@ -991,6 +990,8 @@ public class AuroraTestUtility {
       int clusterUsage = -1;
       int instanceLimit = -1;
       int instanceUsage = -1;
+      int paramGroupLimit = -1;
+      int paramGroupUsage = -1;
 
       for (software.amazon.awssdk.services.rds.model.AccountQuota quota : response.accountQuotas()) {
         if ("DBClusters".equals(quota.accountQuotaName())) {
@@ -999,13 +1000,16 @@ public class AuroraTestUtility {
         } else if ("DBInstances".equals(quota.accountQuotaName())) {
           instanceLimit = quota.max().intValue();
           instanceUsage = quota.used().intValue();
+        } else if ("DBClusterParameterGroups".equals(quota.accountQuotaName())) {
+          paramGroupLimit = quota.max().intValue();
+          paramGroupUsage = quota.used().intValue();
         }
       }
 
       if (clusterLimit >= 0 && clusterUsage >= 0) {
         int availableClusters = clusterLimit - clusterUsage;
-        LOGGER.finest(String.format("DB Cluster quota: %d/%d used (%d available)",
-            clusterUsage, clusterLimit, availableClusters));
+        LOGGER.finest(String.format("DB Cluster quota: %d/%d used (%d available, need %d)",
+            clusterUsage, clusterLimit, availableClusters, 1));
         if (availableClusters < 1) {
           throw new RuntimeException(String.format(
               "Insufficient DB cluster quota. Limit: %d, Used: %d, Available: %d. "
@@ -1023,6 +1027,19 @@ public class AuroraTestUtility {
               "Insufficient DB instance quota. Limit: %d, Used: %d, Available: %d, Needed: %d. "
                   + "Cannot create %d instance(s). Please delete unused instances or request a quota increase.",
               instanceLimit, instanceUsage, availableInstances, numInstances, numInstances));
+        }
+      }
+
+      if (paramGroupLimit >= 0 && paramGroupUsage >= 0) {
+        int availableParamGroups = paramGroupLimit - paramGroupUsage;
+        LOGGER.finest(String.format("DB Parameter Group quota: %d/%d used (%d available, need %d)",
+            paramGroupUsage, paramGroupLimit, availableParamGroups, 1));
+        if (availableParamGroups < 1) {
+          throw new RuntimeException(String.format(
+              "Insufficient DB parameter group quota. Limit: %d, Used: %d, Available: %d. "
+                  + "Cannot create a new parameter group. "
+                  + "Please delete unused parameter groups or request a quota increase.",
+              paramGroupLimit, paramGroupUsage, availableParamGroups));
         }
       }
 
@@ -2530,6 +2547,43 @@ public class AuroraTestUtility {
           } catch (Exception ex) {
             LOGGER.warning(ex.getMessage());
           }
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  public void testClusterParameterGroupsCleanUp() {
+    try {
+      // Collect parameter group names currently in use by test clusters.
+      Set<String> inUseParameterGroups = ConcurrentHashMap.newKeySet();
+      try {
+        DescribeDbClustersResponse describeDbClustersResponse = rdsClient.describeDBClusters();
+        for (DBCluster dbCluster : describeDbClustersResponse.dbClusters()) {
+          if (dbCluster.dbClusterParameterGroup() != null) {
+            inUseParameterGroups.add(dbCluster.dbClusterParameterGroup());
+          }
+        }
+      } catch (Exception ex) {
+        LOGGER.warning("Error listing clusters for parameter group cleanup: " + ex.getMessage());
+      }
+
+      DescribeDbClusterParameterGroupsResponse response = rdsClient.describeDBClusterParameterGroups();
+      for (DBClusterParameterGroup paramGroup : response.dbClusterParameterGroups()) {
+        if (!paramGroup.dbClusterParameterGroupName().startsWith("test-cpg-")) {
+          continue;
+        }
+        if (inUseParameterGroups.contains(paramGroup.dbClusterParameterGroupName())) {
+          continue;
+        }
+        LOGGER.finest("Deleting cluster parameter group " + paramGroup.dbClusterParameterGroupName());
+        try {
+          rdsClient.deleteDBClusterParameterGroup(builder -> builder
+              .dbClusterParameterGroupName(paramGroup.dbClusterParameterGroupName())
+              .build());
+        } catch (Exception ex) {
+          LOGGER.warning(ex.getMessage());
         }
       }
     } catch (Exception ex) {
