@@ -181,7 +181,8 @@ public class DriverHelper {
   public static String getDriverRequiredParameters(
       DatabaseEngine databaseEngine, TestDriver testDriver) {
     if (testDriver == TestDriver.MARIADB && databaseEngine == DatabaseEngine.MYSQL) {
-      return "?permitMysqlScheme&sslMode=trust";
+      //return "?permitMysqlScheme&sslMode=trust";
+      return "?permitMysqlScheme";
     }
     return "";
   }

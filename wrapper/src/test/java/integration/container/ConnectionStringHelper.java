@@ -229,7 +229,7 @@ public class ConnectionStringHelper {
       // Enable SSL for the MariaDB driver to satisfy Aurora MySQL instances that have
       // require_secure_transport=ON. Using "trust" mode enables SSL without certificate verification,
       // which is appropriate for test environments.
-      props.setProperty("sslMode", "trust");
+      //props.setProperty("sslMode", "trust");
     }
 
     props.setProperty(PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.name, "true");
