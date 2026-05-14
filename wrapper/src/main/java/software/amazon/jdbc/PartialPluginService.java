@@ -90,24 +90,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) throws SQLException {
-    this(
-        servicesContainer,
-        new ExceptionManager(),
-        props,
-        originalUrl,
-        targetDriverProtocol,
-        targetDriverDialect,
-        dbDialect,
-        null);
-  }
-
-  public PartialPluginService(
-      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
