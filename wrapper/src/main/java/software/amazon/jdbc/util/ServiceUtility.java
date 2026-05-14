@@ -25,6 +25,7 @@ import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -117,11 +118,13 @@ public class ServiceUtility {
 
     PartialPluginService pluginService = new PartialPluginService(
         serviceContainer,
+        new ExceptionManager(),
         props,
         originalUrl,
         targetDriverProtocol,
         driverDialect,
-        dbDialect
+        dbDialect,
+        configurationProfile
     );
 
     serviceContainer.setHostListProviderService(pluginService);
@@ -129,6 +132,8 @@ public class ServiceUtility {
     serviceContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(serviceContainer, configurationProfile);
+
+    serviceContainer.setConfigurationProfile(configurationProfile);
     return serviceContainer;
   }
 
