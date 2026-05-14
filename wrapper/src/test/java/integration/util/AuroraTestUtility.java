@@ -659,7 +659,8 @@ public class AuroraTestUtility {
             .dbClusterParameterGroupName(groupName)
             .parameters(Parameter.builder()
                 .parameterName("require_secure_transport")
-                .parameterValue("OFF")
+                //.parameterValue("OFF")
+                .parameterValue("ON")
                 .applyMethod(ApplyMethod.IMMEDIATE)
                 .build())
             .build());
