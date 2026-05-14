@@ -35,6 +35,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -293,6 +294,13 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
       return rs.getBytes((Integer) columnRef);
     }
     return rs.getBytes((String) columnRef);
+  }
+
+  @Override
+  public void updateInternalState(
+      final @NonNull PluginService pluginService,
+      final @NonNull Properties props) throws SQLException {
+    // No-op for the generic dialect.
   }
 
   // Get the SQL query string from a PreparedStatement which comes after a dialect specific header

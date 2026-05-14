@@ -33,10 +33,13 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.wrapper.PgEncryptedDataHelper;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ResourceLock;
+import software.amazon.jdbc.util.StringUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -217,5 +220,30 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   @Override
   public byte[] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
     return getPgEncryptedDataHelper().getEncryptedBytes(rs, columnRef);
+  }
+
+  @Override
+  public void updateInternalState(
+      final @NonNull PluginService pluginService,
+      final @NonNull Properties props) throws SQLException {
+
+    final String currentSchema = props.getProperty("currentSchema");
+    if (!StringUtils.isNullOrEmpty(currentSchema)) {
+      LOGGER.finest(() -> Messages.get(
+          "PgTargetDriverDialect.transferringPropertyToSessionState",
+          new Object[] {"currentSchema", currentSchema}));
+      pluginService.getSessionStateService().setupPristineSchema(currentSchema);
+      pluginService.getSessionStateService().setSchema(currentSchema);
+    }
+
+    final String readOnlyValue = props.getProperty("readOnly");
+    if (!StringUtils.isNullOrEmpty(readOnlyValue)) {
+      final boolean readOnly = Boolean.parseBoolean(readOnlyValue);
+      LOGGER.finest(() -> Messages.get(
+          "PgTargetDriverDialect.transferringPropertyToSessionState",
+          new Object[] {"readOnly", readOnly}));
+      pluginService.getSessionStateService().setupPristineReadOnly(readOnly);
+      pluginService.getSessionStateService().setReadOnly(readOnly);
+    }
   }
 }

@@ -145,6 +145,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       this.pluginService.setCurrentConnection(conn, connectedHostSpec);
       this.pluginService.setRoutedHostSpec(null);
       this.pluginService.refreshHostList();
+
+      this.pluginService.getTargetDriverDialect()
+          .updateInternalState(this.pluginService, props);
     }
   }
 
