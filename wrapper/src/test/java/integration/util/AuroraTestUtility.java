@@ -608,11 +608,17 @@ public class AuroraTestUtility {
         response2 = rdsClient.modifyDBClusterParameterGroup(
             ModifyDbClusterParameterGroupRequest.builder()
                 .dbClusterParameterGroupName(groupName)
-                .parameters(Parameter.builder()
-                    .parameterName("binlog_format")
-                    .parameterValue("ROW")
-                    .applyMethod(ApplyMethod.PENDING_REBOOT)
-                    .build())
+                .parameters(
+                    Parameter.builder()
+                        .parameterName("binlog_format")
+                        .parameterValue("ROW")
+                        .applyMethod(ApplyMethod.PENDING_REBOOT)
+                        .build(),
+                    Parameter.builder()
+                        .parameterName("require_secure_transport")
+                        .parameterValue("OFF")
+                        .applyMethod(ApplyMethod.IMMEDIATE)
+                        .build())
                 .build());
         break;
       case PG:
@@ -1186,6 +1192,9 @@ public class AuroraTestUtility {
       case "aurora-mysql":
         if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
           return "aurora-mysql8.0";
+        }
+        if (engineVersion.contains("8.4")) {
+          return "aurora-mysql8.4";
         }
         return "aurora-mysql5.7";
       default:
