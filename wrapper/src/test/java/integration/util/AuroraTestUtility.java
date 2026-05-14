@@ -990,6 +990,8 @@ public class AuroraTestUtility {
       int clusterUsage = -1;
       int instanceLimit = -1;
       int instanceUsage = -1;
+      int paramGroupLimit = -1;
+      int paramGroupUsage = -1;
 
       for (software.amazon.awssdk.services.rds.model.AccountQuota quota : response.accountQuotas()) {
         if ("DBClusters".equals(quota.accountQuotaName())) {
@@ -998,13 +1000,16 @@ public class AuroraTestUtility {
         } else if ("DBInstances".equals(quota.accountQuotaName())) {
           instanceLimit = quota.max().intValue();
           instanceUsage = quota.used().intValue();
+        } else if ("DBClusterParameterGroups".equals(quota.accountQuotaName())) {
+          paramGroupLimit = quota.max().intValue();
+          paramGroupUsage = quota.used().intValue();
         }
       }
 
       if (clusterLimit >= 0 && clusterUsage >= 0) {
         int availableClusters = clusterLimit - clusterUsage;
-        LOGGER.finest(String.format("DB Cluster quota: %d/%d used (%d available)",
-            clusterUsage, clusterLimit, availableClusters));
+        LOGGER.finest(String.format("DB Cluster quota: %d/%d used (%d available, need %d)",
+            clusterUsage, clusterLimit, availableClusters, 1));
         if (availableClusters < 1) {
           throw new RuntimeException(String.format(
               "Insufficient DB cluster quota. Limit: %d, Used: %d, Available: %d. "
@@ -1022,6 +1027,19 @@ public class AuroraTestUtility {
               "Insufficient DB instance quota. Limit: %d, Used: %d, Available: %d, Needed: %d. "
                   + "Cannot create %d instance(s). Please delete unused instances or request a quota increase.",
               instanceLimit, instanceUsage, availableInstances, numInstances, numInstances));
+        }
+      }
+
+      if (paramGroupLimit >= 0 && paramGroupUsage >= 0) {
+        int availableParamGroups = paramGroupLimit - paramGroupUsage;
+        LOGGER.finest(String.format("DB Parameter Group quota: %d/%d used (%d available, need %d)",
+            paramGroupUsage, paramGroupLimit, availableParamGroups, 1));
+        if (availableParamGroups < 1) {
+          throw new RuntimeException(String.format(
+              "Insufficient DB parameter group quota. Limit: %d, Used: %d, Available: %d. "
+                  + "Cannot create a new parameter group. "
+                  + "Please delete unused parameter groups or request a quota increase.",
+              paramGroupLimit, paramGroupUsage, availableParamGroups));
         }
       }
 
