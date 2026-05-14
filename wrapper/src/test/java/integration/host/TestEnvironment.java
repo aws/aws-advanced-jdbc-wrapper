@@ -197,6 +197,7 @@ public class TestEnvironment implements AutoCloseable {
         env.auroraUtil.testBlueGreenDeploymentsCleanUp();
         env.auroraUtil.testClustersCleanUp();
         env.auroraUtil.testInstancesCleanUp();
+        env.auroraUtil.testClusterParameterGroupsCleanUp();
         env.auroraUtil.securityGroupRulesCleanUp();
       }
     }

@@ -115,7 +115,9 @@ import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DbInstanceNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentResponse;
+import software.amazon.awssdk.services.rds.model.DBClusterParameterGroup;
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbClusterParameterGroupsResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
@@ -2530,6 +2532,43 @@ public class AuroraTestUtility {
           } catch (Exception ex) {
             LOGGER.warning(ex.getMessage());
           }
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  public void testClusterParameterGroupsCleanUp() {
+    try {
+      // Collect parameter group names currently in use by test clusters.
+      Set<String> inUseParameterGroups = ConcurrentHashMap.newKeySet();
+      try {
+        DescribeDbClustersResponse describeDbClustersResponse = rdsClient.describeDBClusters();
+        for (DBCluster dbCluster : describeDbClustersResponse.dbClusters()) {
+          if (dbCluster.dbClusterParameterGroup() != null) {
+            inUseParameterGroups.add(dbCluster.dbClusterParameterGroup());
+          }
+        }
+      } catch (Exception ex) {
+        LOGGER.warning("Error listing clusters for parameter group cleanup: " + ex.getMessage());
+      }
+
+      DescribeDbClusterParameterGroupsResponse response = rdsClient.describeDBClusterParameterGroups();
+      for (DBClusterParameterGroup paramGroup : response.dbClusterParameterGroups()) {
+        if (!paramGroup.dbClusterParameterGroupName().startsWith("test-cpg-")) {
+          continue;
+        }
+        if (inUseParameterGroups.contains(paramGroup.dbClusterParameterGroupName())) {
+          continue;
+        }
+        LOGGER.finest("Deleting cluster parameter group " + paramGroup.dbClusterParameterGroupName());
+        try {
+          rdsClient.deleteDBClusterParameterGroup(builder -> builder
+              .dbClusterParameterGroupName(paramGroup.dbClusterParameterGroupName())
+              .build());
+        } catch (Exception ex) {
+          LOGGER.warning(ex.getMessage());
         }
       }
     } catch (Exception ex) {
