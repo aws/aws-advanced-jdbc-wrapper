@@ -608,11 +608,17 @@ public class AuroraTestUtility {
         response2 = rdsClient.modifyDBClusterParameterGroup(
             ModifyDbClusterParameterGroupRequest.builder()
                 .dbClusterParameterGroupName(groupName)
-                .parameters(Parameter.builder()
-                    .parameterName("binlog_format")
-                    .parameterValue("ROW")
-                    .applyMethod(ApplyMethod.PENDING_REBOOT)
-                    .build())
+                .parameters(
+                    Parameter.builder()
+                        .parameterName("binlog_format")
+                        .parameterValue("ROW")
+                        .applyMethod(ApplyMethod.PENDING_REBOOT)
+                        .build(),
+                    Parameter.builder()
+                        .parameterName("require_secure_transport")
+                        .parameterValue("OFF")
+                        .applyMethod(ApplyMethod.IMMEDIATE)
+                        .build())
                 .build());
         break;
       case PG:
@@ -632,6 +638,41 @@ public class AuroraTestUtility {
 
     if (!response2.sdkHttpResponse().isSuccessful()) {
       throw new RuntimeException("Error updating parameter. " + response2.sdkHttpResponse());
+    }
+  }
+
+  /**
+   * Creates a cluster parameter group for MySQL Aurora clusters that disables require_secure_transport.
+   * This is needed because recent Aurora MySQL versions enable require_secure_transport by default,
+   * which prevents the MariaDB driver from connecting without explicit SSL configuration in health
+   * check connections (e.g., makeSureInstancesUp).
+   */
+  public void createMysqlClusterParameterGroup(String groupName, String engine, String engineVersion) {
+    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
+        CreateDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .description("Test cluster parameter group with require_secure_transport disabled.")
+            .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException(
+          "Error creating MySQL cluster parameter group. " + response.sdkHttpResponse());
+    }
+
+    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
+        ModifyDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .parameters(Parameter.builder()
+                .parameterName("require_secure_transport")
+                .parameterValue("OFF")
+                .applyMethod(ApplyMethod.IMMEDIATE)
+                .build())
+            .build());
+
+    if (!response2.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException(
+          "Error setting require_secure_transport=OFF. " + response2.sdkHttpResponse());
     }
   }
 
@@ -1151,6 +1192,9 @@ public class AuroraTestUtility {
       case "aurora-mysql":
         if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
           return "aurora-mysql8.0";
+        }
+        if (engineVersion.contains("8.4")) {
+          return "aurora-mysql8.4";
         }
         return "aurora-mysql5.7";
       default:
