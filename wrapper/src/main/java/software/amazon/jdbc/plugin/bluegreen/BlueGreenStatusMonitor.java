@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -591,18 +592,21 @@ public class BlueGreenStatusMonitor {
       try {
 
         if (this.useIpAddress.get() && connectedIpAddressCopy != null) {
-          final HostSpec connectionWithIpHostSpec = this.hostSpecBuilder.copyFrom(connectionHostSpecCopy)
-              .host(connectedIpAddressCopy)
-              .build();
-          final Properties connectWithIpProperties = PropertyUtils.copyProperties(this.props);
-          IamAuthConnectionPlugin.IAM_HOST.set(connectWithIpProperties, connectionHostSpecCopy.getHost());
+          // Try connecting to all known instance IPs in parallel to minimize disconnected time.
+          // This is especially important during switchover when individual nodes may be
+          // briefly unavailable.
+          Connection established = this.tryConnectToAllInstances(connectionHostSpecCopy);
+          if (established != null) {
+            this.connection.set(established);
+            LOGGER.finest(() -> Messages.get("bgd.openedConnectionWithIp",
+                new Object[] {this.role, this.connectedIpAddress.get()}));
+            this.panicMode.set(false);
+            this.notifyChanges();
+            return null;
+          }
 
-          LOGGER.finest(() -> Messages.get("bgd.openingConnectionWithIp",
-              new Object[] {this.role, connectionWithIpHostSpec.getHost()}));
-
-          this.connection.set(this.pluginService.forceConnect(connectionWithIpHostSpec, connectWithIpProperties));
-          LOGGER.finest(() -> Messages.get("bgd.openedConnectionWithIp",
-                  new Object[] {this.role, connectionWithIpHostSpec.getHost()}));
+          // Parallel attempts all failed — fall through to throw
+          throw new SQLException("All parallel connection attempts failed.");
 
         } else {
 
@@ -629,6 +633,149 @@ public class BlueGreenStatusMonitor {
       }
       return null;
     });
+  }
+
+  /**
+   * Attempts to connect to all known instance IPs in parallel and returns the first
+   * successful connection. Each task races to set a shared {@link AtomicConnection} via
+   * compareAndSet — the first to succeed wins, and all others close their connections
+   * immediately. The AtomicConnection's GC-based cleanup provides a safety net for any
+   * edge case where a connection might otherwise leak.
+   *
+   * <p>IP connections are prioritized over endpoint connections to avoid stale DNS data.
+   *
+   * @param connectionHostSpecCopy the host spec to use as a template (for port, etc.)
+   * @return the first successful connection, or null if all attempts failed
+   */
+  protected @Nullable Connection tryConnectToAllInstances(HostSpec connectionHostSpecCopy) {
+    // Collect all unique known IPs for instances in this cluster.
+    Set<String> candidateIps = this.startIpAddressesByHostMap.values().stream()
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .collect(Collectors.toSet());
+
+    String previousIp = this.connectedIpAddress.get();
+
+    if (candidateIps.isEmpty()) {
+      // No known IPs — fall back to single connection attempt with the previous IP.
+      if (previousIp != null) {
+        return this.tryConnectToSingleIp(previousIp, connectionHostSpecCopy);
+      }
+      return null;
+    }
+
+    // Always include the previously connected IP as a candidate.
+    if (previousIp != null) {
+      candidateIps.add(previousIp);
+    }
+
+    LOGGER.finest(() -> Messages.get("bgd.openingConnectionWithIp",
+        new Object[] {this.role, String.join(", ", candidateIps)}));
+
+    // Each task gets its own AtomicConnection to hold its result. AtomicConnection's
+    // LazyCleaner guarantees that any connection left in it will be closed when the
+    // AtomicConnection becomes unreachable — eliminating leak risk for late completions.
+    final AtomicReference<String> winnerIp = new AtomicReference<>(null);
+    final AtomicReference<AtomicConnection> winnerHolder = new AtomicReference<>(null);
+    // Latch signals when either a connection succeeds or all tasks complete.
+    final CountDownLatch resultReady = new CountDownLatch(1);
+    final AtomicInteger completedCount = new AtomicInteger(0);
+
+    ExecutorService parallelConnExecutor = Executors.newFixedThreadPool(
+        Math.min(candidateIps.size(), 15));
+
+    final boolean trackUnclosedConnections = PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(this.props);
+
+    try {
+      final int totalTasks = candidateIps.size();
+
+      for (String ip : candidateIps) {
+        final AtomicConnection taskConnection = new AtomicConnection(this, trackUnclosedConnections);
+
+        parallelConnExecutor.submit(() -> {
+          try {
+            HostSpec ipHostSpec = this.hostSpecBuilder.copyFrom(connectionHostSpecCopy)
+                .host(ip)
+                .build();
+            Properties connectProps = PropertyUtils.copyProperties(this.props);
+            IamAuthConnectionPlugin.IAM_HOST.set(connectProps, connectionHostSpecCopy.getHost());
+
+            // Store connection in this task's AtomicConnection.
+            taskConnection.set(this.pluginService.forceConnect(ipHostSpec, connectProps));
+
+            if (taskConnection.get() != null) {
+              // Race to be the winner.
+              if (winnerHolder.compareAndSet(null, taskConnection)) {
+                winnerIp.set(ip);
+                resultReady.countDown(); // Wake up the waiting thread immediately.
+              }
+
+              // If we lost the race, taskConnection still holds our connection and we can close it.
+              // It also will be closed by LazyCleaner when taskConnection becomes unreachable.
+              taskConnection.clean();
+            }
+          } catch (SQLException e) {
+            // Connection attempt failed — nothing to clean up.
+          } finally {
+            // If all tasks have completed (all failed), signal so we don't wait forever.
+            if (completedCount.incrementAndGet() >= totalTasks) {
+              resultReady.countDown();
+            }
+          }
+        });
+      }
+
+      // Wait for the first successful connection or all tasks to complete/timeout.
+      long timeoutMs = PropertyDefinition.CONNECT_TIMEOUT.getLong(this.props);
+      try {
+        resultReady.await(timeoutMs, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+
+      AtomicConnection winnerConn = winnerHolder.get();
+      if (winnerConn != null) {
+        Connection winner = winnerConn.get();
+        if (winner != null && !winner.isClosed()) {
+          // Take ownership: clear the AtomicConnection so LazyCleaner won't close our winner.
+          winnerConn.set(null, false);
+          this.connectedIpAddress.set(winnerIp.get());
+          return winner;
+        }
+      }
+
+    } catch (SQLException e) {
+      // winner.isClosed() threw — no valid connection.
+    } finally {
+      parallelConnExecutor.shutdownNow();
+      // All non-winner AtomicConnection instances will be cleaned up by LazyCleaner
+      // when they become unreachable, closing any connections they hold.
+    }
+
+    return null;
+  }
+
+  /**
+   * Attempts a single IP connection. Used as a fallback when only one IP is known.
+   */
+  protected @Nullable Connection tryConnectToSingleIp(String ip, HostSpec connectionHostSpecCopy) {
+    try {
+      HostSpec ipHostSpec = this.hostSpecBuilder.copyFrom(connectionHostSpecCopy)
+          .host(ip)
+          .build();
+      Properties connectProps = PropertyUtils.copyProperties(this.props);
+      IamAuthConnectionPlugin.IAM_HOST.set(connectProps, connectionHostSpecCopy.getHost());
+
+      LOGGER.finest(() -> Messages.get("bgd.openingConnectionWithIp",
+          new Object[] {this.role, ip}));
+
+      Connection conn = this.pluginService.forceConnect(ipHostSpec, connectProps);
+      this.connectedIpAddress.set(ip);
+      return conn;
+    } catch (SQLException ex) {
+      return null;
+    }
   }
 
   protected void notifyChanges() {
