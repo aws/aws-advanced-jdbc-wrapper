@@ -92,8 +92,14 @@ public class SuspendConnectRouting extends BaseConnectRouting {
       }
 
       if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
-        throw new SQLTimeoutException(
-                Messages.get("bgd.inProgressTryConnectLater", new Object[] {BG_CONNECT_TIMEOUT.getLong(props)}));
+        // Phase is still IN_PROGRESS after timeout. Check if the status is null or has
+        // transitioned — if so, the switchover likely completed but the status wasn't updated.
+        // Re-read one final time in case the status provider updated it during our last sleep.
+        bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
+        if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
+          throw new SQLTimeoutException(
+              Messages.get("bgd.inProgressTryConnectLater", new Object[] {BG_CONNECT_TIMEOUT.getLong(props)}));
+        }
       }
       LOGGER.finest(Messages.get("bgd.switchoverCompleteContinueWithConnect",
               new Object[] {TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));

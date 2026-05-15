@@ -228,6 +228,12 @@ public class BlueGreenStatusProvider {
       if (this.interimStatusHashes[role.getValue()] == statusHash
           && this.lastContextHash == contextHash) {
         // no changes detected
+
+        // Even when no changes are detected, check if the switchover timer has expired.
+        // This prevents the plugin from remaining stuck in IN_PROGRESS when the monitor
+        // cannot reconnect to detect the phase change from RDS.
+        this.checkSwitchoverTimerExpiry();
+
         return;
       }
 
@@ -1184,6 +1190,37 @@ public class BlueGreenStatusProvider {
 
   protected boolean isSwitchoverTimerExpired() {
     return this.postStatusEndTimeNano > 0 && this.postStatusEndTimeNano < this.getNanoTime();
+  }
+
+  /**
+   * Checks if the switchover timer has expired while the plugin is still in an active switchover
+   * phase (IN_PROGRESS or POST). If expired, forces a transition to COMPLETED (or CREATED on
+   * rollback) and updates the status cache. This ensures the plugin does not remain stuck
+   * indefinitely when the monitor cannot detect the phase change from RDS.
+   */
+  protected void checkSwitchoverTimerExpiry() {
+    if (!this.isSwitchoverTimerExpired()) {
+      return;
+    }
+
+    BlueGreenPhase currentPhase = this.latestStatusPhase;
+    if (currentPhase != BlueGreenPhase.IN_PROGRESS
+        && currentPhase != BlueGreenPhase.POST
+        && currentPhase != BlueGreenPhase.PREPARATION) {
+      return;
+    }
+
+    LOGGER.warning(() -> Messages.get("bgd.switchoverTimeout"));
+
+    if (this.rollback) {
+      this.summaryStatus = this.getStatusOfCreated();
+    } else {
+      this.summaryStatus = this.getStatusOfCompleted();
+    }
+
+    this.updateMonitors();
+    this.updateStatusCache();
+    this.logCurrentContext();
   }
 
   protected void logCurrentContext() {
