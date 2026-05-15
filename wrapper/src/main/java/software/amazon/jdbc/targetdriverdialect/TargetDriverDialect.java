@@ -27,6 +27,7 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 
 public interface TargetDriverDialect {
 
@@ -78,4 +79,26 @@ public interface TargetDriverDialect {
       throws SQLException;
 
   byte[] getEncryptedBytes(final @NonNull ResultSet rs, Object columnRef) throws SQLException;
+
+  /**
+   * Allows each target driver dialect to perform last-minute adjustments to the wrapper's
+   * internal state after the initial connection is established. This includes transferring
+   * driver-specific connection properties (e.g. PostgreSQL's {@code currentSchema}) into
+   * the wrapper's session state so they are preserved across connection switches
+   * (failover, read-write splitting, initial connection strategy, etc.).
+   *
+   * <p>Each dialect implementation should inspect the provided properties for driver-specific
+   * settings that affect session state and register them with the appropriate services
+   * (e.g. {@link software.amazon.jdbc.states.SessionStateService}).
+   *
+   * <p>This method is called once after the initial connection is established in
+   * {@code ConnectionWrapper.init()}.
+   *
+   * @param pluginService the plugin service providing access to session state and other services
+   * @param props         the connection properties that may contain driver-specific settings
+   * @throws SQLException if an error occurs while updating internal state
+   */
+  void updateInternalState(
+      final @NonNull PluginService pluginService,
+      final @NonNull Properties props) throws SQLException;
 }
