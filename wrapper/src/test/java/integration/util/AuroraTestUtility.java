@@ -1291,6 +1291,10 @@ public class AuroraTestUtility {
     return dbClusterList.get(0);
   }
 
+  public void waitUntilInstanceHasRightState(String instanceId) throws InterruptedException {
+    waitUntilInstanceHasRightState(instanceId, "available");
+  }
+
   public void waitUntilInstanceHasRightState(String instanceId, String... allowedStatuses) throws InterruptedException {
 
     String status = getDBInstance(instanceId).dbInstanceStatus();
