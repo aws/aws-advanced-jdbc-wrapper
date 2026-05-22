@@ -22,10 +22,18 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
+import software.amazon.jdbc.util.RdsUtils;
 
 public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements GlobalAuroraTopologyDialect {
+
+  protected final RdsUtils rdsUtils = new RdsUtils();
 
   protected static final String GLOBAL_STATUS_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
@@ -86,5 +94,19 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements Glob
   @Override
   public String getRegionByInstanceIdQuery() {
     return REGION_BY_INSTANCE_ID_QUERY;
+  }
+
+  @Override
+  public List<HostSpec> filterAvailableHosts(
+      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
+    if (accessibleRegions == null || accessibleRegions.isEmpty()) {
+      return hosts;
+    }
+    return hosts.stream()
+        .filter(host -> {
+          final String region = this.rdsUtils.getRdsRegion(host.getHost());
+          return region != null && accessibleRegions.contains(region.toLowerCase());
+        })
+        .collect(Collectors.toList());
   }
 }

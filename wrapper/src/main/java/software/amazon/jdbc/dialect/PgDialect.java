@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
@@ -119,5 +120,11 @@ public class PgDialect implements Dialect {
   @Override
   public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
     return this.dialectUtils.getInstanceId(connection, HOST_ID_QUERY);
+  }
+
+  @Override
+  public List<HostSpec> filterAvailableHosts(
+      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
+    return hosts;
   }
 }

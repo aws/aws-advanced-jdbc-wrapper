@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -133,6 +134,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   private final long openConnectionRetryTimeoutNano;
   private final @Nullable String selectionStrategyPropValue;
   private final @Nullable String verifyRolePropValue;
+  private final @Nullable Set<String> accessibleRegions;
   private HostListProviderService hostListProviderService;
 
   static {
@@ -154,6 +156,17 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       this.selectionStrategyPropValue = HOST_SELECTOR_STRATEGY.getString(properties);
     } else {
       this.selectionStrategyPropValue = READER_HOST_SELECTOR_STRATEGY.getString(properties);
+    }
+
+    final String accessibleRegionsStr = PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(properties);
+    if (!StringUtils.isNullOrEmpty(accessibleRegionsStr)) {
+      this.accessibleRegions = Arrays.stream(accessibleRegionsStr.split(","))
+          .map(String::trim)
+          .filter(s -> !s.isEmpty())
+          .map(String::toLowerCase)
+          .collect(Collectors.toSet());
+    } else {
+      this.accessibleRegions = null;
     }
   }
 
@@ -476,7 +489,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     if (substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER) {
-      return Utils.getWriter(this.pluginService.getAllHosts());
+      final List<HostSpec> availableHosts = this.pluginService.getDialect()
+          .filterAvailableHosts(this.pluginService.getAllHosts(), this.accessibleRegions);
+      return Utils.getWriter(availableHosts);
     }
 
     HostRole targetRole = InstanceSubstitutionStrategy.toTargetRole(substitutionStrategy);
@@ -491,13 +506,18 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final String awsRegion = urlType.hasRegion()
           ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost())
           : null;
+
+      // Apply dialect-specific accessible region filtering. For non-global Aurora dialects this is a no-op.
+      List<HostSpec> availableHosts = this.pluginService.getDialect()
+          .filterAvailableHosts(this.pluginService.getHosts(), this.accessibleRegions);
+
       if (!StringUtils.isNullOrEmpty(awsRegion)) {
-        final List<HostSpec> hostsInRegion = this.pluginService.getHosts().stream()
+        final List<HostSpec> hostsInRegion = availableHosts.stream()
             .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
             .collect(Collectors.toList());
         return this.pluginService.getHostSpecByStrategy(hostsInRegion, targetRole, this.selectionStrategyPropValue);
       } else {
-        return this.pluginService.getHostSpecByStrategy(targetRole, this.selectionStrategyPropValue);
+        return this.pluginService.getHostSpecByStrategy(availableHosts, targetRole, this.selectionStrategyPropValue);
       }
     } catch (SQLException ex) {
       // Unable to find candidate host.

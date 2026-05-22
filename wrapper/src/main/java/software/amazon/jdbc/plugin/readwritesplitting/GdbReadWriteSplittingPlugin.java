@@ -19,8 +19,10 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -71,6 +73,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
   protected final boolean restrictWriterToHomeRegion;
   protected final boolean restrictReaderToHomeRegion;
   protected final boolean enableGwf;
+  protected Set<String> accessibleRegions;
 
   static {
     PropertyDefinition.registerPluginProperties(GdbReadWriteSplittingPlugin.class);
@@ -107,6 +110,27 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
     LOGGER.finest(() -> Messages.get(
         "GdbReadWriteSplittingPlugin.parameterValue",
         new Object[] {"gdbRwHomeRegion", this.homeRegion}));
+
+    final String accessibleRegionsStr = PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(props);
+    if (!StringUtils.isNullOrEmpty(accessibleRegionsStr)) {
+      this.accessibleRegions = Arrays.stream(accessibleRegionsStr.split(","))
+          .map(String::trim)
+          .filter(s -> !s.isEmpty())
+          .map(String::toLowerCase)
+          .collect(Collectors.toSet());
+      LOGGER.finest(() -> Messages.get(
+          "GdbReadWriteSplittingPlugin.parameterValue",
+          new Object[] {"gdbAccessibleRegions", this.accessibleRegions}));
+    } else {
+      this.accessibleRegions = null;
+    }
+
+    if (this.accessibleRegions != null
+        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase())) {
+      throw new SQLException(Messages.get(
+          "GdbReadWriteSplittingPlugin.homeRegionNotInAccessibleRegions",
+          new Object[]{this.homeRegion, this.accessibleRegions}));
+    }
   }
 
   @Override
@@ -123,6 +147,13 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
 
   @Override
   protected void initializeWriterConnection() throws SQLException {
+    if (this.writerHostSpec != null && !isInAccessibleRegion(this.writerHostSpec)) {
+      throw new ReadWriteSplittingSQLException(Messages.get(
+          "GdbReadWriteSplittingPlugin.writerNotInAccessibleRegion",
+          new Object[]{this.writerHostSpec.getHost(),
+              this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()), this.accessibleRegions}));
+    }
+
     if (this.restrictWriterToHomeRegion
         && this.writerHostSpec != null
         && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
@@ -143,6 +174,13 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
 
   @Override
   protected void setWriterConnection(final Connection conn, final HostSpec host) throws SQLException {
+    if (this.writerHostSpec != null && !isInAccessibleRegion(this.writerHostSpec)) {
+      throw new ReadWriteSplittingSQLException(Messages.get(
+          "GdbReadWriteSplittingPlugin.writerNotInAccessibleRegion",
+          new Object[]{this.writerHostSpec.getHost(),
+              this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()), this.accessibleRegions}));
+    }
+
     if (this.restrictWriterToHomeRegion
         && this.writerHostSpec != null
         && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
@@ -155,8 +193,17 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
 
   @Override
   protected List<HostSpec> getReaderHostCandidates() throws SQLException {
+    List<HostSpec> candidates = this.pluginService.getHosts();
+
+    // Filter by accessible regions first
+    if (this.accessibleRegions != null) {
+      candidates = candidates.stream()
+          .filter(this::isInAccessibleRegion)
+          .collect(Collectors.toList());
+    }
+
     if (this.restrictReaderToHomeRegion) {
-      final List<HostSpec> hostsInRegion = this.pluginService.getHosts().stream()
+      final List<HostSpec> hostsInRegion = candidates.stream()
           .filter(x -> this.rdsHelper.getRdsRegion(x.getHost())
               .equalsIgnoreCase(this.homeRegion))
           .collect(Collectors.toList());
@@ -169,7 +216,15 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
       }
       return hostsInRegion;
     }
-    return super.getReaderHostCandidates();
+    return candidates;
+  }
+
+  protected boolean isInAccessibleRegion(final HostSpec host) {
+    if (this.accessibleRegions == null) {
+      return true;
+    }
+    final String region = this.rdsHelper.getRdsRegion(host.getHost());
+    return region != null && this.accessibleRegions.contains(region.toLowerCase());
   }
 
   @Override

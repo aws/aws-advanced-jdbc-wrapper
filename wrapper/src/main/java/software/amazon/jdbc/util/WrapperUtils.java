@@ -658,9 +658,9 @@ public class WrapperUtils {
 
     String snapshotState = collectState(servicesContainer);
     String latestEvents = collectLatestEvents(servicesContainer);
-    String context = String.format("\nState snapshot: %sLatest events:%s",
-        StringUtils.isNullOrEmpty(snapshotState) ? BLANK + "\n" : "\n" + snapshotState,
-        StringUtils.isNullOrEmpty(latestEvents) ? BLANK : "\n" + latestEvents);
+    String context = String.format("\nState snapshot:\n  Latest events:%s%s",
+        StringUtils.isNullOrEmpty(latestEvents) ? BLANK + "\n" : "\n" + latestEvents,
+        StringUtils.isNullOrEmpty(snapshotState) ? BLANK : "\n" + snapshotState);
 
     switch (snapshotStateInjectionType) {
       case INJECT_TO_MESSAGE:
