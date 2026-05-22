@@ -1743,18 +1743,21 @@ public class TestEnvironment implements AutoCloseable {
             switch (env.info.getRequest().getDatabaseEngineDeployment()) {
               case RDS_MULTI_AZ_INSTANCE:
                 initEnv(env);
+                cleanUp(env);
                 authorizeRunnerIpAddress(env);
                 createMultiAzInstance(env);
                 configureIamAccess(env);
                 break;
               case RDS_MULTI_AZ_CLUSTER:
                 initEnv(env);
+                cleanUp(env);
                 authorizeRunnerIpAddress(env);
                 createDbCluster(env);
                 configureIamAccess(env);
                 break;
               case AURORA:
                 initEnv(env);
+                cleanUp(env);
                 authorizeRunnerIpAddress(env);
 
                 if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {

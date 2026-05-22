@@ -2619,7 +2619,7 @@ public class AuroraTestUtility {
 
       DescribeDbClusterParameterGroupsResponse response = rdsClient.describeDBClusterParameterGroups();
       for (DBClusterParameterGroup paramGroup : response.dbClusterParameterGroups()) {
-        if (!paramGroup.dbClusterParameterGroupName().startsWith("test-cpg-")) {
+        if (!paramGroup.dbClusterParameterGroupName().startsWith("test-")) {
           continue;
         }
         if (inUseParameterGroups.contains(paramGroup.dbClusterParameterGroupName())) {
