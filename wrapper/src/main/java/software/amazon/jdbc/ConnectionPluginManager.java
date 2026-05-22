@@ -176,6 +176,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
         configurationProfile);
   }
 
+  @SuppressWarnings("unchecked")
   protected <T, E extends Exception> T executeWithSubscribedPlugins(
       final JdbcMethod jdbcMethod,
       final PluginPipeline<T, E> pluginPipeline,

@@ -28,6 +28,7 @@ import java.sql.SQLException;
 import java.sql.SQLXML;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.transform.Result;
@@ -38,7 +39,6 @@ import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.XMLReaderFactory;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
@@ -105,6 +105,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T extends Source> T getSource(Class<T> sourceClass) throws SQLException {
     checkFreed();
     if (this.data == null) {
@@ -118,7 +119,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
       }
 
       if (SAXSource.class.equals(sourceClass)) {
-        XMLReader reader = XMLReaderFactory.createXMLReader();
+        XMLReader reader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
         return sourceClass.cast(new SAXSource(reader, new InputSource(new StringReader(data))));
       }
 

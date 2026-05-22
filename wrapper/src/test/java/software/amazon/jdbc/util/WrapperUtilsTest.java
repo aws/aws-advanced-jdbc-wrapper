@@ -53,6 +53,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.PreparedStatementWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
+@SuppressWarnings("unchecked")
 public class WrapperUtilsTest {
 
   @Mock ConnectionWrapper mockConnectionWrapper;

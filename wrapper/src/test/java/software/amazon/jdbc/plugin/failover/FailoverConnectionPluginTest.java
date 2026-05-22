@@ -72,6 +72,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
+@SuppressWarnings("unchecked")
 class FailoverConnectionPluginTest {
 
   private static final Class<Connection> MONITOR_METHOD_INVOKE_ON = Connection.class;

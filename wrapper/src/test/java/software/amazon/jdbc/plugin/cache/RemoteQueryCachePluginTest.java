@@ -54,6 +54,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
+@SuppressWarnings({"unchecked", "deprecation"})
 public class RemoteQueryCachePluginTest {
   private Properties props;
   private final String methodName = "Statement.executeQuery";

@@ -53,6 +53,7 @@ import org.testcontainers.utility.MountableFile;
 import org.testcontainers.utility.TestEnvironment;
 import software.amazon.jdbc.util.StringUtils;
 
+@SuppressWarnings("unchecked")
 public class ContainerHelper {
 
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.31";

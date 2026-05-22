@@ -58,6 +58,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
+@SuppressWarnings("unchecked")
 class DefaultConnectionPluginTest {
 
   private DefaultConnectionPlugin plugin;
