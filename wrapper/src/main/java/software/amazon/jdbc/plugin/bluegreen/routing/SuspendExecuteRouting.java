@@ -94,9 +94,14 @@ public class SuspendExecuteRouting extends BaseExecuteRouting {
       }
 
       if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
-        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass,
-            new SQLTimeoutException(Messages.get("bgd.stillInProgressTryMethodLater",
-                new Object[] {BG_CONNECT_TIMEOUT.getLong(props), methodName})));
+        // Phase is still IN_PROGRESS after timeout. Re-read one final time in case the
+        // status provider updated it during our last sleep (e.g. via timer expiry).
+        bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
+        if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
+          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass,
+              new SQLTimeoutException(Messages.get("bgd.stillInProgressTryMethodLater",
+                  new Object[] {BG_CONNECT_TIMEOUT.getLong(props), methodName})));
+        }
       }
       LOGGER.finest(() -> Messages.get("bgd.switchoverCompletedContinueWithMethod", new Object[] {
           methodName,
