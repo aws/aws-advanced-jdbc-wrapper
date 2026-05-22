@@ -83,6 +83,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
+@SuppressWarnings("unchecked")
 public class ConnectionPluginManagerBenchmarks {
 
   private static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
