@@ -129,6 +129,8 @@ import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.InvalidDbClusterStateException;
 import software.amazon.awssdk.services.rds.model.InvalidDbInstanceStateException;
+import software.amazon.awssdk.services.rds.model.ListTagsForResourceRequest;
+import software.amazon.awssdk.services.rds.model.ListTagsForResourceResponse;
 import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.Parameter;
@@ -596,6 +598,7 @@ public class AuroraTestUtility {
                 .dbClusterParameterGroupName(groupName)
                 .description("Test custom cluster parameter group for BGD.")
                 .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+                .tags(this.getTag())
                 .build());
 
     if (!response.sdkHttpResponse().isSuccessful()) {
@@ -653,6 +656,7 @@ public class AuroraTestUtility {
             .dbClusterParameterGroupName(groupName)
             .description("Test cluster parameter group with require_secure_transport disabled.")
             .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+            .tags(this.getTag())
             .build());
 
     if (!response.sdkHttpResponse().isSuccessful()) {
@@ -2625,6 +2629,44 @@ public class AuroraTestUtility {
         if (inUseParameterGroups.contains(paramGroup.dbClusterParameterGroupName())) {
           continue;
         }
+
+        // Check age via the "created" tag — skip groups younger than 2 hours to protect
+        // parameter groups that have been created but not yet attached to a cluster.
+        if (paramGroup.dbClusterParameterGroupArn() != null) {
+          try {
+            ListTagsForResourceResponse tagsResponse = rdsClient.listTagsForResource(
+                ListTagsForResourceRequest.builder()
+                    .resourceName(paramGroup.dbClusterParameterGroupArn())
+                    .build());
+            String createdValue = null;
+            for (Tag tag : tagsResponse.tagList()) {
+              if ("created".equals(tag.key())) {
+                createdValue = tag.value();
+                break;
+              }
+            }
+            if (createdValue != null) {
+              try {
+                ZonedDateTime createdTime = ZonedDateTime.parse(
+                    createdValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzz"));
+                if (createdTime.toInstant().plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
+                  // Parameter group is less than 12 hours old — skip it
+                  continue;
+                }
+              } catch (Exception parseEx) {
+                // If we can't parse the tag, proceed with deletion (best-effort)
+                LOGGER.finest("Could not parse 'created' tag for " + paramGroup.dbClusterParameterGroupName()
+                    + ": " + parseEx.getMessage());
+              }
+            }
+            // If no "created" tag exists, proceed with deletion (legacy parameter group)
+          } catch (Exception tagEx) {
+            // If we can't read tags, proceed with deletion (best-effort)
+            LOGGER.finest("Could not read tags for " + paramGroup.dbClusterParameterGroupName()
+                + ": " + tagEx.getMessage());
+          }
+        }
+
         LOGGER.finest("Deleting cluster parameter group " + paramGroup.dbClusterParameterGroupName());
         try {
           rdsClient.deleteDBClusterParameterGroup(builder -> builder
