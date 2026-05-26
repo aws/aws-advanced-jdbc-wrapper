@@ -344,7 +344,14 @@ public class CustomEndpointTest {
           LOGGER.fine("FailoverSuccessSQLException during setReadOnly after endpoint change. "
               + "This is acceptable during custom endpoint modifications.");
         }
-        String instanceId2 = auroraUtil.queryInstanceId(conn);
+        String instanceId2;
+        try {
+          instanceId2 = auroraUtil.queryInstanceId(conn);
+        } catch (FailoverSuccessSQLException e) {
+          LOGGER.fine("FailoverSuccessSQLException during queryInstanceId after endpoint change. "
+              + "Retrying query on the new connection.");
+          instanceId2 = auroraUtil.queryInstanceId(conn);
+        }
         assertTrue(
             instanceId2.equals(newMember) || instanceId2.equals(instanceId1),
             "Expected connection to be on " + newMember + " or " + instanceId1
@@ -365,11 +372,26 @@ public class CustomEndpointTest {
       }
 
       // We should not be able to switch again because newMember was removed from the custom endpoint.
+      // A FailoverSuccessSQLException may occur here if the connection went stale during the endpoint
+      // modification (which takes ~140s). After a successful failover, the connection is still valid
+      // and we can retry the verification.
       if (newReadOnlyValue) {
         // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
         // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
-        conn.setReadOnly(newReadOnlyValue);
-        String newInstanceId = auroraUtil.queryInstanceId(conn);
+        try {
+          conn.setReadOnly(newReadOnlyValue);
+        } catch (FailoverSuccessSQLException e) {
+          LOGGER.fine("FailoverSuccessSQLException during setReadOnly after endpoint revert. "
+              + "This is acceptable during custom endpoint modifications.");
+        }
+        String newInstanceId;
+        try {
+          newInstanceId = auroraUtil.queryInstanceId(conn);
+        } catch (FailoverSuccessSQLException e) {
+          LOGGER.fine("FailoverSuccessSQLException during queryInstanceId after endpoint revert. "
+              + "Retrying query on the new connection.");
+          newInstanceId = auroraUtil.queryInstanceId(conn);
+        }
         assertEquals(instanceId1, newInstanceId);
       } else {
         // We are connected to the reader. Attempting to switch to the writer will throw an exception.
