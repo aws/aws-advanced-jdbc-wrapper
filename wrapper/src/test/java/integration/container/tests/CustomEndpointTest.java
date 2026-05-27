@@ -343,6 +343,9 @@ public class CustomEndpointTest {
         TimeUnit.SECONDS.sleep(35);
 
         // We should now be able to switch to newMember.
+        // During custom endpoint changes, a FailoverSuccessSQLException may occur if the driver
+        // detects a topology change and triggers an internal failover. This is acceptable behavior
+        // since the connection will still end up on a valid endpoint member.
         try {
           conn.setReadOnly(newReadOnlyValue);
         } catch (FailoverSuccessSQLException e) {
