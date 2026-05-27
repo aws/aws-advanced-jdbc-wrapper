@@ -60,6 +60,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.util.WrapperUtils;
 
+@SuppressWarnings("unchecked")
 public class CachedResultSetTest {
   private CachedResultSet testResultSet;
   @Mock

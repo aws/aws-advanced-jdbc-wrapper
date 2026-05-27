@@ -83,7 +83,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
-@SuppressWarnings("resource")
+@SuppressWarnings({"resource", "unchecked"})
 public class AwsSecretsManagerConnectionPluginTest {
 
   private static final String TEST_PG_PROTOCOL = "jdbc:aws-wrapper:postgresql:";

@@ -253,6 +253,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Deprecated
+  @SuppressWarnings("deprecation")
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
     final ConnectionProvider connectionProvider =
         this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);

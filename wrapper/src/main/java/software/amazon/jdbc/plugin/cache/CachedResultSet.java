@@ -518,12 +518,14 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public BigDecimal getBigDecimal(final String columnLabel, final int scale) throws SQLException {
     return getBigDecimal(checkAndGetColumnIndex(columnLabel), scale);
   }
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public BigDecimal getBigDecimal(final int columnIndex, final int scale) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
@@ -785,12 +787,14 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public InputStream getUnicodeStream(final int columnIndex) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public InputStream getUnicodeStream(final String columnLabel) throws SQLException {
     throw new UnsupportedOperationException();
   }

@@ -57,6 +57,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
+@SuppressWarnings("unchecked")
 class FederatedAuthPluginTest {
 
   private static final int DEFAULT_PORT = 1234;

@@ -106,6 +106,7 @@ import software.amazon.jdbc.util.storage.StorageService;
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @Order(19)
+@SuppressWarnings("deprecation")
 public class BlueGreenDeploymentTests {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenDeploymentTests.class.getName());

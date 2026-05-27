@@ -155,6 +155,7 @@ import software.amazon.jdbc.util.StringUtils;
  * Provides useful functions for RDS integration testing. To use this functionality the following environment variables
  * must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
  */
+@SuppressWarnings({"deprecation", "unchecked"})
 public class AuroraTestUtility {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraTestUtility.class.getName());
@@ -1581,7 +1582,7 @@ public class AuroraTestUtility {
         });
   }
 
-  public void assertFirstQueryThrows(Statement stmt, Class expectedSQLExceptionClass) {
+  public void assertFirstQueryThrows(Statement stmt, Class<? extends Exception> expectedSQLExceptionClass) {
     assertThrows(
         expectedSQLExceptionClass,
         () -> {

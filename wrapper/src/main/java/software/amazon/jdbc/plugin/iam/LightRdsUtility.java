@@ -25,7 +25,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.CredentialUtils;
-import software.amazon.awssdk.auth.signer.Aws4Signer;
 import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
@@ -64,7 +63,8 @@ public class LightRdsUtility implements IamTokenUtility {
     // method generateAuthenticationToken(GenerateAuthenticationTokenRequest request).
     // Update this code when the original method changes.
 
-    final Aws4Signer signer = Aws4Signer.create();
+    final software.amazon.awssdk.auth.signer.Aws4Signer signer =
+        software.amazon.awssdk.auth.signer.Aws4Signer.create();
 
     final SdkHttpFullRequest httpRequest = SdkHttpFullRequest.builder()
         .method(SdkHttpMethod.GET)

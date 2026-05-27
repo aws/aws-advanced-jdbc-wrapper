@@ -62,6 +62,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+@SuppressWarnings("unchecked")
 public class CacheConnectionTest {
   @Mock
   GenericObjectPool<BaseClient> mockReadConnPool;

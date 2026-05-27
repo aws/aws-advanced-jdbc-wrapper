@@ -260,6 +260,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBIGDECIMAL)) {
       return WrapperUtils.executeWithPlugins(
@@ -279,6 +280,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBIGDECIMAL)) {
       return WrapperUtils.executeWithPlugins(
@@ -1436,6 +1438,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public InputStream getUnicodeStream(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETUNICODESTREAM)) {
       return WrapperUtils.executeWithPlugins(
@@ -1454,6 +1457,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @Override
   @Deprecated
+  @SuppressWarnings("deprecation")
   public InputStream getUnicodeStream(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETUNICODESTREAM)) {
       return WrapperUtils.executeWithPlugins(

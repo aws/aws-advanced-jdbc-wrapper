@@ -35,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
+@SuppressWarnings("unchecked")
 public class TestEnvironmentProvider implements TestTemplateInvocationContextProvider {
 
   static final ArrayList<EnvPreCreateInfo> preCreateInfos = new ArrayList<>();

@@ -36,6 +36,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
+@SuppressWarnings("unchecked")
 class DataLocalCacheConnectionPluginTest {
 
   private static final Properties props = new Properties();

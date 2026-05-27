@@ -191,6 +191,7 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className)
       throws SQLException {
     org.postgresql.PGConnection pgConn = connection.unwrap(org.postgresql.PGConnection.class);
