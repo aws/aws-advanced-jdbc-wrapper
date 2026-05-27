@@ -286,7 +286,8 @@ public class CustomEndpointTest {
   }
 
   @TestTemplate
-  public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges() throws SQLException {
+  public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges()
+      throws SQLException, InterruptedException {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
@@ -334,24 +335,21 @@ public class CustomEndpointTest {
       try {
         waitUntilEndpointHasMembers(client, endpointId, Arrays.asList(instanceId1, newMember));
 
+        // Wait for the driver's internal custom endpoint monitor to pick up the change.
+        // The waitUntilEndpointHasMembers call above confirms the change at the AWS API level,
+        // but the driver's CustomEndpointMonitorImpl polls on its own interval
+        // (customEndpointInfoRefreshRateMs, default 30s). We need to wait for at least one full
+        // monitor cycle so the driver's internal allowed hosts list is updated.
+        TimeUnit.SECONDS.sleep(35);
+
         // We should now be able to switch to newMember.
-        // During custom endpoint changes, a FailoverSuccessSQLException may occur if the driver
-        // detects a topology change and triggers an internal failover. This is acceptable behavior
-        // since the connection will still end up on a valid endpoint member.
         try {
           conn.setReadOnly(newReadOnlyValue);
         } catch (FailoverSuccessSQLException e) {
           LOGGER.fine("FailoverSuccessSQLException during setReadOnly after endpoint change. "
               + "This is acceptable during custom endpoint modifications.");
         }
-        String instanceId2;
-        try {
-          instanceId2 = auroraUtil.queryInstanceId(conn);
-        } catch (FailoverSuccessSQLException e) {
-          LOGGER.fine("FailoverSuccessSQLException during queryInstanceId after endpoint change. "
-              + "Retrying query on the new connection.");
-          instanceId2 = auroraUtil.queryInstanceId(conn);
-        }
+        String instanceId2 = auroraUtil.queryInstanceId(conn);
         assertTrue(
             instanceId2.equals(newMember) || instanceId2.equals(instanceId1),
             "Expected connection to be on " + newMember + " or " + instanceId1
@@ -371,10 +369,10 @@ public class CustomEndpointTest {
         waitUntilEndpointHasMembers(client, endpointId, Collections.singletonList(instanceId1));
       }
 
+      // Wait for the driver's internal custom endpoint monitor to pick up the revert.
+      TimeUnit.SECONDS.sleep(35);
+
       // We should not be able to switch again because newMember was removed from the custom endpoint.
-      // A FailoverSuccessSQLException may occur here if the connection went stale during the endpoint
-      // modification (which takes ~140s). After a successful failover, the connection is still valid
-      // and we can retry the verification.
       if (newReadOnlyValue) {
         // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
         // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
@@ -384,14 +382,7 @@ public class CustomEndpointTest {
           LOGGER.fine("FailoverSuccessSQLException during setReadOnly after endpoint revert. "
               + "This is acceptable during custom endpoint modifications.");
         }
-        String newInstanceId;
-        try {
-          newInstanceId = auroraUtil.queryInstanceId(conn);
-        } catch (FailoverSuccessSQLException e) {
-          LOGGER.fine("FailoverSuccessSQLException during queryInstanceId after endpoint revert. "
-              + "Retrying query on the new connection.");
-          newInstanceId = auroraUtil.queryInstanceId(conn);
-        }
+        String newInstanceId = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId1, newInstanceId);
       } else {
         // We are connected to the reader. Attempting to switch to the writer will throw an exception.
