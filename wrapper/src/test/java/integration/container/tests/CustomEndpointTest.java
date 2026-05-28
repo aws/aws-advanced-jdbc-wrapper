@@ -286,7 +286,8 @@ public class CustomEndpointTest {
   }
 
   @TestTemplate
-  public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges() throws SQLException {
+  public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges()
+      throws SQLException, InterruptedException {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
@@ -334,6 +335,13 @@ public class CustomEndpointTest {
       try {
         waitUntilEndpointHasMembers(client, endpointId, Arrays.asList(instanceId1, newMember));
 
+        // Wait for the driver's internal custom endpoint monitor to pick up the change.
+        // The waitUntilEndpointHasMembers call above confirms the change at the AWS API level,
+        // but the driver's CustomEndpointMonitorImpl polls on its own interval
+        // (customEndpointInfoRefreshRateMs, default 30s). We need to wait for at least one full
+        // monitor cycle so the driver's internal allowed hosts list is updated.
+        TimeUnit.SECONDS.sleep(35);
+
         // We should now be able to switch to newMember.
         // During custom endpoint changes, a FailoverSuccessSQLException may occur if the driver
         // detects a topology change and triggers an internal failover. This is acceptable behavior
@@ -364,12 +372,30 @@ public class CustomEndpointTest {
         waitUntilEndpointHasMembers(client, endpointId, Collections.singletonList(instanceId1));
       }
 
+      // Wait for the driver's internal custom endpoint monitor to pick up the revert.
+      TimeUnit.SECONDS.sleep(35);
+
       // We should not be able to switch again because newMember was removed from the custom endpoint.
       if (newReadOnlyValue) {
-        // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
-        // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
+        // We are connected to the writer. Attempting to switch to the reader will not throw an exception:
+        // - If we previously switched to a reader: the driver will close the reader (not in allowed hosts),
+        //   then try to find another reader. With no readers in the endpoint, it falls back to the writer
+        //   silently with a WARNING log.
+        // - If we previously fell back to the writer: setReadOnly(true) again falls back silently.
+        // In either case, no exception is thrown by setReadOnly.
         conn.setReadOnly(newReadOnlyValue);
-        String newInstanceId = auroraUtil.queryInstanceId(conn);
+
+        // queryInstanceId is the first network call after ~175s of inactivity (endpoint modification + sleep).
+        // The writer connection may have gone stale, in which case the driver triggers a writer failover
+        // and throws FailoverSuccessSQLException. After failover, the connection is valid — retry the query.
+        String newInstanceId;
+        try {
+          newInstanceId = auroraUtil.queryInstanceId(conn);
+        } catch (FailoverSuccessSQLException e) {
+          LOGGER.fine("FailoverSuccessSQLException during queryInstanceId after endpoint revert. "
+              + "Retrying query on the new connection.");
+          newInstanceId = auroraUtil.queryInstanceId(conn);
+        }
         assertEquals(instanceId1, newInstanceId);
       } else {
         // We are connected to the reader. Attempting to switch to the writer will throw an exception.
