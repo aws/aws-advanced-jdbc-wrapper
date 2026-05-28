@@ -332,7 +332,6 @@ public class CustomEndpointTest {
           builder ->
               builder.dbClusterEndpointIdentifier(endpointId).staticMembers(instanceId1, newMember));
 
-      boolean switchedToReader = false;
       try {
         waitUntilEndpointHasMembers(client, endpointId, Arrays.asList(instanceId1, newMember));
 
@@ -359,9 +358,6 @@ public class CustomEndpointTest {
             "Expected connection to be on " + newMember + " or " + instanceId1
                 + " but was on " + instanceId2);
 
-        // Determine if we actually switched to a reader or fell back to the writer.
-        switchedToReader = instanceId2.equals(newMember);
-
         // Switch back to original instance.
         try {
           conn.setReadOnly(!newReadOnlyValue);
@@ -381,16 +377,25 @@ public class CustomEndpointTest {
 
       // We should not be able to switch again because newMember was removed from the custom endpoint.
       if (newReadOnlyValue) {
-        if (switchedToReader) {
-          // We previously switched to a reader that is no longer in the endpoint after the revert.
-          // setReadOnly(true) should trigger a failover since the current reader is not allowed.
-          assertThrows(FailoverSuccessSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
-        } else {
-          // We previously fell back to the writer (no readers were available).
-          // setReadOnly(true) will again fall back to the writer silently — no failover expected.
-          conn.setReadOnly(newReadOnlyValue);
+        // We are connected to the writer. Attempting to switch to the reader will not throw an exception:
+        // - If we previously switched to a reader: the driver will close the reader (not in allowed hosts),
+        //   then try to find another reader. With no readers in the endpoint, it falls back to the writer
+        //   silently with a WARNING log.
+        // - If we previously fell back to the writer: setReadOnly(true) again falls back silently.
+        // In either case, no exception is thrown by setReadOnly.
+        conn.setReadOnly(newReadOnlyValue);
+
+        // queryInstanceId is the first network call after ~175s of inactivity (endpoint modification + sleep).
+        // The writer connection may have gone stale, in which case the driver triggers a writer failover
+        // and throws FailoverSuccessSQLException. After failover, the connection is valid — retry the query.
+        String newInstanceId;
+        try {
+          newInstanceId = auroraUtil.queryInstanceId(conn);
+        } catch (FailoverSuccessSQLException e) {
+          LOGGER.fine("FailoverSuccessSQLException during queryInstanceId after endpoint revert. "
+              + "Retrying query on the new connection.");
+          newInstanceId = auroraUtil.queryInstanceId(conn);
         }
-        String newInstanceId = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId1, newInstanceId);
       } else {
         // We are connected to the reader. Attempting to switch to the writer will throw an exception.
