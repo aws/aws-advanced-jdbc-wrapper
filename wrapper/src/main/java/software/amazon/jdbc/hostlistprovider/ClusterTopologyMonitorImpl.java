@@ -471,7 +471,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       return;
     }
 
-    List<String> readerIds = latestHosts.stream().map(HostSpec::getHostId).collect(Collectors.toList());
+    // Only check hosts we are actually monitoring. Subclasses may filter the topology (e.g., GDB filters out
+    // hosts in non-accessible regions). Without this filter, hosts that we never spawned node workers for would
+    // perpetually appear "incomplete" and prevent the stable-topology detection from ever succeeding.
+    List<String> readerIds = this.filterHostsForNodeMonitoring(latestHosts).stream()
+        .map(HostSpec::getHostId).collect(Collectors.toList());
     for (String id : readerIds) {
       Boolean completedOneCycle = this.completedOneCycle.getOrDefault(id, Boolean.FALSE);
       if (!completedOneCycle) {
@@ -513,6 +517,31 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
           "ClusterTopologyMonitorImpl.matchingReaderTopologies",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)})));
       this.updateTopologyCache(readerTopology);
+
+      // Reader topology is stable. Even though no writer was detected by node threads (e.g., the writer may live
+      // in a region we don't monitor), the readers we did probe have established connections that we can use as
+      // the monitoring connection. Stop node threads, harvest their connections, and let the handler pick the best
+      // one so we can exit panic mode.
+      if (this.monitoringConnection.get() == null && !this.nodeThreadsConnections.isEmpty()) {
+        this.nodeThreadsStop.set(true);
+        this.closeNodeMonitors();
+
+        final HostSpec selected = this.getConnectionHandler().acceptConnections(
+            this.nodeThreadsConnections,
+            this.writerHostSpec.get(),
+            readerTopology);
+
+        for (Map.Entry<HostSpec, AtomicConnection> entry : this.nodeThreadsConnections.entrySet()) {
+          if (selected == null || !selected.equals(entry.getKey())) {
+            entry.getValue().clean();
+          }
+        }
+        this.nodeThreadsConnections.clear();
+
+        this.submittedNodes.clear();
+        this.readerTopologiesById.clear();
+        this.completedOneCycle.clear();
+      }
     }
   }
 
@@ -894,6 +923,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
           if (this.connection.get() != null) {
             boolean isWriter = false;
             try {
+              // Use topology metadata to check on the currently connected instance
               isWriter = this.monitor.topologyUtils.isWriterInstance(this.connection.get());
             } catch (SQLSyntaxErrorException ex) {
               LOGGER.severe(() -> Messages.get(
@@ -906,6 +936,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
 
             if (isWriter) {
               try {
+                // Check if connected instance is read_only
                 if (this.servicesContainer.getPluginService().getHostRole(this.connection.get()) != HostRole.WRITER) {
                   // The first connection after failover may be stale.
                   isWriter = false;
