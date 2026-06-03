@@ -81,6 +81,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   private static final Random random = new Random();
 
   protected final AtomicReference<HostSpec> writerHostSpec = new AtomicReference<>(null);
+  /**
+   * The last writer we believed to be the cluster's writer, retained even after {@link #writerHostSpec} is
+   * cleared on errors. Used by panic-mode node threads as a baseline for writer-change detection.
+   */
+  protected volatile @Nullable HostSpec lastKnownWriterHostSpec = null;
   protected AtomicConnection monitoringConnection;
 
   protected final Object topologyUpdated = new Object();
@@ -307,7 +312,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
             this.createNodeExecutorService();
 
             if (hosts != null && !this.isVerifiedWriterConnection) {
-              for (HostSpec hostSpec : this.filterHostsForNodeMonitoring(hosts)) {
+              final List<HostSpec> monitoredHosts = this.filterHostsForNodeMonitoring(hosts);
+              final boolean someRegionsInaccessible = monitoredHosts.size() < hosts.size();
+              final HostSpec baselineWriter = this.lastKnownWriterHostSpec;
+              for (HostSpec hostSpec : monitoredHosts) {
                 // A list is used to store the exception since lambdas require references to outer variables to be
                 // final. This allows us to identify if an error occurred while creating the node monitoring worker.
                 final List<Exception> exceptionList = new ArrayList<>();
@@ -317,7 +325,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
                       if (nodeExecutorServiceCopy != null) {
                         try {
                           this.nodeExecutorService.submit(
-                              this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                              this.getNodeMonitoringWorker(
+                                  hostSpec, baselineWriter, someRegionsInaccessible));
                         } catch (SQLException e) {
                           exceptionList.add(e);
                           return null;
@@ -342,6 +351,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
                       new Object[] {writerConnectionHostSpec}));
 
               this.writerHostSpec.set(writerConnectionHostSpec);
+              this.lastKnownWriterHostSpec = writerConnectionHostSpec;
               this.isVerifiedWriterConnection = true;
               this.highRefreshRateEndTimeNano = System.nanoTime() + highRefreshPeriodAfterPanicNano;
 
@@ -374,7 +384,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
               // Update node monitors with the new instances in the topology
               List<HostSpec> hosts = this.nodeThreadsLatestTopology.get();
               if (hosts != null && !this.nodeThreadsStop.get()) {
-                for (HostSpec hostSpec : this.filterHostsForNodeMonitoring(hosts)) {
+                final List<HostSpec> monitoredHosts = this.filterHostsForNodeMonitoring(hosts);
+                final boolean someRegionsInaccessible = monitoredHosts.size() < hosts.size();
+                final HostSpec baselineWriter = this.lastKnownWriterHostSpec;
+                for (HostSpec hostSpec : monitoredHosts) {
                   // A list is used to store the exception since lambdas require references to outer variables to be
                   // final. This allows us to identify if an error occurred while creating the node monitoring worker.
                   final List<Exception> exceptionList = new ArrayList<>();
@@ -382,7 +395,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
                       (key) -> {
                         try {
                           this.nodeExecutorService.submit(
-                              this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                              this.getNodeMonitoringWorker(
+                                  hostSpec, baselineWriter, someRegionsInaccessible));
                         } catch (SQLException e) {
                           exceptionList.add(e);
                           return null;
@@ -419,8 +433,21 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
             // Attempt to fetch topology failed, so we switch to panic mode.
             this.monitoringConnection.set(null);
             this.isVerifiedWriterConnection = false;
+            // Clear the live writerHostSpec — it can no longer be considered current. The previously known
+            // writer remains in lastKnownWriterHostSpec so that panic-mode node threads can use it as a baseline
+            // for writer-change detection.
             this.writerHostSpec.set(null);
             continue;
+          }
+
+          // Refresh lastKnownWriterHostSpec from the freshly fetched topology so that, if the monitoring
+          // connection later breaks, panic-mode node threads have an accurate baseline for change detection.
+          final HostSpec topologyWriter = hosts.stream()
+              .filter(h -> h.getRole() == HostRole.WRITER)
+              .findFirst()
+              .orElse(null);
+          if (topologyWriter != null) {
+            this.lastKnownWriterHostSpec = topologyWriter;
           }
 
           // Attempt to upgrade the monitoring connection if not at highest priority.
@@ -565,6 +592,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     this.monitoringConnection.set(null);
     this.isVerifiedWriterConnection = false;
     this.writerHostSpec.set(null);
+    this.lastKnownWriterHostSpec = null;
     if (this.connectionHandler != null) {
       this.connectionHandler.close();
     }
@@ -675,11 +703,18 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   }
 
   protected Runnable getNodeMonitoringWorker(
-      final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) throws SQLException {
+      final HostSpec hostSpec,
+      final @Nullable HostSpec writerHostSpec,
+      final boolean someRegionsInaccessible) throws SQLException {
     FullServicesContainer newServiceContainer =
         ServiceUtility.getInstance().createMinimalServiceContainer(this.servicesContainer, this.properties);
     return new NodeMonitoringWorker(
-        newServiceContainer, this, hostSpec, writerHostSpec, this.logUnclosedConnections);
+        newServiceContainer,
+        this,
+        hostSpec,
+        writerHostSpec,
+        someRegionsInaccessible,
+        this.logUnclosedConnections);
   }
 
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
@@ -712,6 +747,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
           try {
             if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
               this.writerHostSpec.set(this.initialHostSpec);
+              this.lastKnownWriterHostSpec = this.initialHostSpec;
               LOGGER.finest(() -> Messages.get(
                   "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                   new Object[] {this.writerHostSpec.get().getHost()}));
@@ -723,6 +759,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
                 HostSpec writerHost = this.topologyUtils.createHost(
                     pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
                 this.writerHostSpec.set(writerHost);
+                this.lastKnownWriterHostSpec = writerHost;
                 LOGGER.finest(() -> Messages.get(
                     "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                     new Object[] {this.writerHostSpec.get().getHost()}));
@@ -864,6 +901,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     protected final ClusterTopologyMonitorImpl monitor;
     protected final HostSpec hostSpec;
     protected final @Nullable HostSpec writerHostSpec;
+    /**
+     * Snapshot of whether some AWS regions are inaccessible at the time this worker was created.
+     * When {@code true}, this worker will signal panic-mode exit on observed writer changes
+     * (since it may be the only way to detect a writer in an inaccessible region).
+     */
+    protected final boolean someRegionsInaccessible;
     protected boolean writerChanged = false;
     protected int connectionAttempts = 0;
     protected AtomicConnection connection;
@@ -873,12 +916,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
         final ClusterTopologyMonitorImpl monitor,
         final HostSpec hostSpec,
         final @Nullable HostSpec writerHostSpec,
+        final boolean someRegionsInaccessible,
         final boolean logUnclosedConnections
     ) {
       this.servicesContainer = servicesContainer;
       this.monitor = monitor;
       this.hostSpec = hostSpec;
       this.writerHostSpec = writerHostSpec;
+      this.someRegionsInaccessible = someRegionsInaccessible;
       this.connection = new AtomicConnection(this, logUnclosedConnections);
     }
 
@@ -1058,6 +1103,21 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
         this.monitor.updateHostsAvailability(hosts);
         this.monitor.updateTopologyCache(hosts);
         LOGGER.fine(() -> LogUtils.logTopology(hosts));
+
+        // Signal the main loop that the writer has changed — but only when some regions are inaccessible
+        // (e.g., GDB with a restricted accessibleRegions list). In that case, no node thread may be able to
+        // reach the new writer to confirm it via isWriterInstance(), so reader-observed writer changes are the
+        // only fast way to exit panic mode.
+        // When all regions are accessible, we let the standard exit path run (the node thread connecting to the
+        // new writer will call isWriterInstance() and report it directly), which is more reliable since it also
+        // verifies a working connection to the writer.
+        if (this.someRegionsInaccessible
+            && this.monitor.nodeThreadsWriterHostSpec.compareAndSet(null, latestWriterHostSpec)) {
+          LOGGER.finest(() -> Messages.get(
+              "NodeMonitoringThread.writerChangeExitTriggered",
+              new Object[] {latestWriterHostSpec.getHost()}));
+          this.monitor.nodeThreadsStop.set(true);
+        }
       }
     }
 
