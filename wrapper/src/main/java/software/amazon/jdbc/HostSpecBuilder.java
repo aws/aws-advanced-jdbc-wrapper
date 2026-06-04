@@ -28,6 +28,7 @@ public class HostSpecBuilder {
   private HostAvailability availability = HostAvailability.AVAILABLE;
   private HostRole role = HostRole.WRITER;
   private long weight = HostSpec.DEFAULT_WEIGHT; // Greater than or equal to 0. Healthier nodes have lower weights.
+  private long loadValue = HostSpec.UNKNOWN_LOAD;
   private Timestamp lastUpdateTime;
   private HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -42,6 +43,7 @@ public class HostSpecBuilder {
     this.availability = hostSpecBuilder.availability;
     this.role = hostSpecBuilder.role;
     this.weight = hostSpecBuilder.weight;
+    this.loadValue = hostSpecBuilder.loadValue;
     this.lastUpdateTime = hostSpecBuilder.lastUpdateTime;
     this.hostAvailabilityStrategy = hostSpecBuilder.hostAvailabilityStrategy;
   }
@@ -54,6 +56,7 @@ public class HostSpecBuilder {
     this.availability = hostSpec.availability;
     this.lastUpdateTime = hostSpec.lastUpdateTime;
     this.weight = hostSpec.weight;
+    this.loadValue = hostSpec.loadValue;
     return this;
   }
 
@@ -87,6 +90,11 @@ public class HostSpecBuilder {
     return this;
   }
 
+  public HostSpecBuilder loadValue(long loadValue) {
+    this.loadValue = loadValue;
+    return this;
+  }
+
   public HostSpecBuilder hostAvailabilityStrategy(HostAvailabilityStrategy hostAvailabilityStrategy) {
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
     return this;
@@ -100,7 +108,7 @@ public class HostSpecBuilder {
   public HostSpec build() {
     checkHostIsSet();
     return new HostSpec(this.host, this.port, this.hostId, this.role, this.availability,
-        this.weight, this.lastUpdateTime, this.hostAvailabilityStrategy);
+        this.weight, this.loadValue, this.lastUpdateTime, this.hostAvailabilityStrategy);
   }
 
   private void checkHostIsSet() {
