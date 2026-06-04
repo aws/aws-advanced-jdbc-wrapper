@@ -163,6 +163,33 @@ public abstract class TopologyUtils {
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
+    return createHost(instanceId, instanceName, isWriter, weight, HostSpec.UNKNOWN_LOAD,
+        lastUpdateTime, initialHostSpec, instanceTemplate);
+  }
+
+  /**
+   * Creates a {@link HostSpec} from the given topology information, including a load value.
+   *
+   * @param instanceId       the database instance identifier.
+   * @param instanceName     the database instance name.
+   * @param isWriter         true if this is a writer instance, false for reader.
+   * @param weight           the instance weight for load balancing.
+   * @param loadValue        the current load value for this host (lower means less loaded);
+   *                         {@link HostSpec#UNKNOWN_LOAD} if unknown.
+   * @param lastUpdateTime   the timestamp of the last update to this instance's information.
+   * @param initialHostSpec  the original host specification used for connecting.
+   * @param instanceTemplate the template used to construct the new {@link HostSpec}.
+   * @return a {@link HostSpec} representing the given information.
+   */
+  public HostSpec createHost(
+      String instanceId,
+      String instanceName,
+      final boolean isWriter,
+      final long weight,
+      final long loadValue,
+      final Timestamp lastUpdateTime,
+      final HostSpec initialHostSpec,
+      final HostSpec instanceTemplate) {
     instanceName = instanceName == null ? "?" : instanceName;
     final String endpoint = instanceTemplate.getHost().replace("?", instanceName);
     final int port = instanceTemplate.isPortSpecified()
@@ -176,6 +203,7 @@ public abstract class TopologyUtils {
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
         .availability(HostAvailability.AVAILABLE)
         .weight(weight)
+        .loadValue(loadValue)
         .lastUpdateTime(lastUpdateTime)
         .build();
     return hostSpec;

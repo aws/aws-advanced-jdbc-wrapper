@@ -120,7 +120,8 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     }
 
     return this.createHost(
-        hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
+        hostName, hostName, isWriter, weight, weight, Timestamp.from(Instant.now()), initialHostSpec,
+        instanceTemplate);
   }
 
   public @Nullable String getRegion(String instanceId, Connection conn) throws SQLException {
