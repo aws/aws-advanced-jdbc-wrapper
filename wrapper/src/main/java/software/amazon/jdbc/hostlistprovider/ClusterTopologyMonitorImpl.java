@@ -79,6 +79,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   private static final long INITIAL_BACKOFF_MS = 100;
   private static final long MAX_BACKOFF_MS = 10000;
   private static final Random random = new Random();
+  private static final long STABLE_TOPOLOGIES_DURATION_NANO = TimeUnit.SECONDS.toNanos(15);
 
   protected final AtomicReference<HostSpec> writerHostSpec = new AtomicReference<>(null);
   /**
@@ -106,7 +107,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   // Tracks whether all node monitors have completed at least one work cycle, even if an exception occurs. We use this
   // map to guard against concluding all reader topologies are stable when not all monitors have booted up yet.
   protected final Map<String, Boolean> completedOneCycle = new ConcurrentHashMap<>();
-  protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(15);
   protected long stableTopologiesStartNano;
   // When comparing topologies, we don't want to check HostSpec.weight, which is used in HostSpec#equals. We will use
   // this function to compare the other fields.
@@ -195,13 +195,20 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   public List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException {
 
-    if (verifyTopology) {
-      // Enter panic mode, which will verify the topology for us.
-      this.monitoringConnection.set(null);
-      this.isVerifiedWriterConnection = false;
-    }
+    final long currentTimeNano = System.nanoTime();
+    try {
+      if (verifyTopology) {
+        // Enter panic mode, which will verify the topology for us.
+        this.monitoringConnection.set(null);
+        this.isVerifiedWriterConnection = false;
+      }
 
-    return this.waitForTopologyUpdate(timeoutMs);
+      return this.waitForTopologyUpdate(timeoutMs);
+    } finally {
+      LOGGER.finest(() -> Messages.get(
+          "ClusterTopologyMonitorImpl.topologyUpdated",
+          new Object[] {TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - currentTimeNano)}));
+    }
   }
 
   protected List<HostSpec> waitForTopologyUpdate(final long timeoutMs) throws TimeoutException {
@@ -536,13 +543,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       this.stableTopologiesStartNano = System.nanoTime();
     }
 
-    if (System.nanoTime() > this.stableTopologiesStartNano + this.stableTopologiesDurationNano) {
+    if (System.nanoTime() > this.stableTopologiesStartNano + this.getStableTopologiesDurationNano()) {
       // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
       this.stableTopologiesStartNano = 0;
       this.updateHostsAvailability(readerTopology);
       LOGGER.finest(() -> LogUtils.logTopology(readerTopology, Messages.get(
           "ClusterTopologyMonitorImpl.matchingReaderTopologies",
-          new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)})));
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(this.getStableTopologiesDurationNano())})));
       this.updateTopologyCache(readerTopology);
 
       // Reader topology is stable. Even though no writer was detected by node threads (e.g., the writer may live
@@ -1126,6 +1133,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       backoff = Math.min(backoff, MAX_BACKOFF_MS);
       return Math.round(backoff * (0.5 + random.nextDouble() * 0.5));
     }
+  }
+
+  protected long getStableTopologiesDurationNano() {
+    return STABLE_TOPOLOGIES_DURATION_NANO;
   }
 
   @Override

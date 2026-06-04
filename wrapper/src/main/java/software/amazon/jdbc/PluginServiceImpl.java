@@ -170,9 +170,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
-    this.dialect = this.configurationProfile != null && this.configurationProfile.getDialect() != null
-        ? this.configurationProfile.getDialect()
-        : this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
+    if (this.configurationProfile != null && this.configurationProfile.getDialect() != null) {
+      this.dialect = this.configurationProfile.getDialect();
+      this.isDialectConfirmed = true;
+    } else {
+      this.dialect = this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
+      this.isDialectConfirmed = this.dialectProvider.isConfirmedDialect();
+    }
   }
 
   @Override

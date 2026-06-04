@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
@@ -37,6 +38,8 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   private static final Logger LOGGER = Logger.getLogger(GlobalAuroraTopologyMonitor.class.getName());
+
+  private static final long STABLE_TOPOLOGIES_DURATION_NANO = TimeUnit.SECONDS.toNanos(30);
 
   protected final Map<String, HostSpec> instanceTemplatesByRegion;
   protected final GlobalAuroraTopologyUtils topologyUtils;
@@ -135,6 +138,11 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
         this.monitoringProperties,
         this.writerHostSpec,
         this::wakeUpMonitoringLoop);
+  }
+
+  @Override
+  protected long getStableTopologiesDurationNano() {
+    return STABLE_TOPOLOGIES_DURATION_NANO;
   }
 
   @Override
