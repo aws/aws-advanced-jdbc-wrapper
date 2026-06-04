@@ -36,6 +36,7 @@ public class HostSpec {
 
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
+  public static final long UNKNOWN_LOAD = -1L;
 
   protected final String host; // full domain name
   protected final int port;
@@ -43,6 +44,7 @@ public class HostSpec {
   protected final Timestamp lastUpdateTime;
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
+  protected volatile long loadValue = UNKNOWN_LOAD; // -1 = unknown; lower means less loaded
   protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -72,6 +74,20 @@ public class HostSpec {
       final long weight,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
+    this(host, port, hostId, role, availability, weight, UNKNOWN_LOAD, lastUpdateTime,
+        hostAvailabilityStrategy);
+  }
+
+  HostSpec(
+      final String host,
+      final int port,
+      final String hostId,
+      final HostRole role,
+      final HostAvailability availability,
+      final long weight,
+      final long loadValue,
+      final Timestamp lastUpdateTime,
+      final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
     this.host = host;
     this.port = port;
@@ -79,6 +95,7 @@ public class HostSpec {
     this.availability = availability;
     this.role = role;
     this.weight = weight;
+    this.loadValue = loadValue;
     this.lastUpdateTime = lastUpdateTime;
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
   }
@@ -151,6 +168,17 @@ public class HostSpec {
     try (ResourceLock ignored = this.resourceLock.obtain()) {
       this.toString = null;
       this.weight = weight;
+    }
+  }
+
+  public long getLoadValue() {
+    return this.loadValue;
+  }
+
+  public void setLoadValue(long loadValue) {
+    try (ResourceLock ignored = this.resourceLock.obtain()) {
+      this.toString = null;
+      this.loadValue = loadValue;
     }
   }
 

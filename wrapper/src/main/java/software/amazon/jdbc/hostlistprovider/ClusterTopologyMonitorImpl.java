@@ -58,6 +58,7 @@ import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.MonitorResetEvent;
+import software.amazon.jdbc.util.events.TopologyRefreshedEvent;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 
 public class ClusterTopologyMonitorImpl extends AbstractMonitor
@@ -876,6 +877,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
         this.topologyUpdated.notifyAll();
       }
     }
+    this.servicesContainer.getEventPublisher().publish(new TopologyRefreshedEvent(this.clusterId));
   }
 
   protected void clearTopologyCache() {
