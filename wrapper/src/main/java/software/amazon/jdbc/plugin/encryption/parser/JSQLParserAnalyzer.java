@@ -141,14 +141,15 @@ public final class JSQLParserAnalyzer {
   }
 
   private static void extractFromSelect(Select select, QueryAnalysis analysis) {
-    // Extract table names
+    // Extract table names. In jsqlparser 4.9, Select implements both Statement and
+    // Expression, so the Statement cast is required to disambiguate the getTables overloads.
     TablesNamesFinder tablesFinder = new TablesNamesFinder();
-    List<String> tableList = tablesFinder.getTableList(select);
-    analysis.tables.addAll(tableList);
+    analysis.tables.addAll(tablesFinder.getTables((Statement) select));
 
-    // Extract columns from SELECT clause
-    if (select.getSelectBody() instanceof PlainSelect) {
-      PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
+    // Extract columns from SELECT clause. In jsqlparser 4.9, Select is itself the
+    // body, so PlainSelect can be obtained via a direct instanceof check.
+    if (select instanceof PlainSelect) {
+      PlainSelect plainSelect = (PlainSelect) select;
 
       // Extract WHERE clause columns only if there are parameters
       if (plainSelect.getWhere() != null) {

@@ -54,7 +54,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.62.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.62.0")
     optionalImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
-    optionalImplementation("com.github.jsqlparser:jsqlparser:4.5")
+    optionalImplementation("com.github.jsqlparser:jsqlparser:4.9")
 
     compileOnly("org.checkerframework:checker-qual:3.55.1")
     compileOnly("com.mysql:mysql-connector-j:9.6.0")
