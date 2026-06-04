@@ -67,7 +67,7 @@ jobs:
           distribution: 'corretto'
           java-version: 8
       - name: 'Cache Gradle packages'
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v4
         with:
           path: |
             ~/.gradle/caches
@@ -127,7 +127,7 @@ jobs:
           distribution: 'corretto'
           java-version: 8
       - name: 'Cache Gradle packages'
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v4
         with:
           path: |
             ~/.gradle/caches
