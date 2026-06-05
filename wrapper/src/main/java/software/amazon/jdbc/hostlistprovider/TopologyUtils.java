@@ -163,8 +163,8 @@ public abstract class TopologyUtils {
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
-    return createHost(instanceId, instanceName, isWriter, weight, HostSpec.UNKNOWN_LOAD,
-        lastUpdateTime, initialHostSpec, instanceTemplate);
+    return createHost(instanceId, instanceName, isWriter, weight, HostSpec.UNKNOWN_CPU_PERCENT,
+        HostSpec.UNKNOWN_LAG, lastUpdateTime, initialHostSpec, instanceTemplate);
   }
 
   /**
@@ -174,8 +174,6 @@ public abstract class TopologyUtils {
    * @param instanceName     the database instance name.
    * @param isWriter         true if this is a writer instance, false for reader.
    * @param weight           the instance weight for load balancing.
-   * @param loadValue        the current load value for this host (lower means less loaded);
-   *                         {@link HostSpec#UNKNOWN_LOAD} if unknown.
    * @param lastUpdateTime   the timestamp of the last update to this instance's information.
    * @param initialHostSpec  the original host specification used for connecting.
    * @param instanceTemplate the template used to construct the new {@link HostSpec}.
@@ -186,7 +184,8 @@ public abstract class TopologyUtils {
       String instanceName,
       final boolean isWriter,
       final long weight,
-      final long loadValue,
+      final long cpuPercent,
+      final long lag,
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
@@ -203,7 +202,8 @@ public abstract class TopologyUtils {
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
         .availability(HostAvailability.AVAILABLE)
         .weight(weight)
-        .loadValue(loadValue)
+        .cpuPercent(cpuPercent)
+        .lag(lag)
         .lastUpdateTime(lastUpdateTime)
         .build();
     return hostSpec;

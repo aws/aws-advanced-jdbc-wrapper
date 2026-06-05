@@ -51,7 +51,7 @@ public class AuroraTopologyUtils extends TopologyUtils {
       try {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplate);
         // Ensure newer records replace the older ones if there are duplicated keys.
-        hostsMap.merge(host.getHost(), host, (oldValue, newValue) -> 
+        hostsMap.merge(host.getHost(), host, (oldValue, newValue) ->
             oldValue.getLastUpdateTime().before(newValue.getLastUpdateTime()) ? newValue : oldValue);
       } catch (Exception e) {
         LOGGER.finest(() -> Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
@@ -92,7 +92,10 @@ public class AuroraTopologyUtils extends TopologyUtils {
     // Calculate weight based on instance lag in time and CPU utilization.
     final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, hostName, isWriter, weight, weight, lastUpdateTime, initialHostSpec,
+    final long cpuPercent = Math.round(cpuUtilization);
+    final long lag = Math.round(instanceLag) ; // TODO: check if this right
+
+    return createHost(hostName, hostName, isWriter, weight, cpuPercent, lag, lastUpdateTime, initialHostSpec,
         instanceTemplate);
   }
 }

@@ -39,8 +39,9 @@ import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.events.TopologyRefreshedEvent;
 
 /**
- * Host selector that picks the lowest-loaded reader using {@link HostSpec#getLoadValue()}, with cold-start herd
- * protection so a fleet bringing up connection pools does not pile onto the same "least loaded" host.
+ * Host selector that picks the lowest-loaded reader using a calculated load derived from
+ * {@link HostSpec#getCpuPercent()} and {@link HostSpec#getLag()}, with cold-start herd protection so a fleet
+ * bringing up connection pools does not pile onto the same "least loaded" host.
  *
  * <p>Selection is weighted-random over the lowest-loaded top-K candidates, where K scales with the size of the
  * eligible pool. Each pick inflates the chosen host's effective load by a configurable amount, so subsequent picks in
@@ -65,6 +66,14 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
       "lowestLoadPendingPickAlpha", "50.0",
       "Per-pending-pick load inflation. Each pick made by the lowestLoad strategy inflates the chosen "
           + "host's effective load by this amount until the next topology refresh resets the counter.");
+
+  public static final AwsWrapperProperty LOWEST_LOAD_CPU_WEIGHT = new AwsWrapperProperty(
+      "lowestLoadCpuWeight", "1",
+      "The weight of CPU utilization percent in the calculation of a host's load.");
+
+  public static final AwsWrapperProperty LOWEST_LOAD_LAG_WEIGHT = new AwsWrapperProperty(
+      "lowestLoadLagWeight", "100",
+      "The weight of lag in the calculation of a host's load.");
 
   // Safety belt: if the topology monitor stalls and pending-picks never reset, the counter must not
   // grow unbounded. Cleared and warned at this ceiling.
@@ -98,17 +107,15 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
     }
 
     final List<HostSpec> withLoad = eligible.stream()
-        .filter(h -> h.getLoadValue() >= 0)
+        .filter(h -> calculateLoad(h, props) >= 0)
         .collect(Collectors.toList());
 
     if (withLoad.isEmpty()) {
       return this.randomFallback.getHost(eligible, role, props);
     }
 
-    final int maxK = props == null ? 5 : LOWEST_LOAD_MAX_K.getInteger(props);
-    final double alpha = props == null
-        ? 50.0
-        : Double.parseDouble(LOWEST_LOAD_PENDING_PICK_ALPHA.getString(props));
+    final int maxK = LOWEST_LOAD_MAX_K.getInteger(props);
+    final double alpha = Double.parseDouble(LOWEST_LOAD_PENDING_PICK_ALPHA.getString(props));
 
     // Adaptive K: ceil(n/2), clamped to [2, maxK].
     final int k = Math.max(2, Math.min(maxK, (withLoad.size() + 1) / 2));
@@ -119,7 +126,7 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
     final List<HostEffectiveLoad> ranked = new ArrayList<>(withLoad.size());
     for (final HostSpec h : withLoad) {
       final int pending = pendingCount(h.getHostId());
-      final double effective = (double) h.getLoadValue() + alpha * pending;
+      final double effective = (double) calculateLoad(h, props) + alpha * pending;
       ranked.add(new HostEffectiveLoad(h, effective));
     }
     ranked.sort((a, b) -> Double.compare(a.effectiveLoad, b.effectiveLoad));
@@ -155,6 +162,14 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
     if (event instanceof TopologyRefreshedEvent) {
       pendingPicks.clear();
     }
+  }
+
+  private long calculateLoad(final HostSpec host, @Nullable final Properties props) {
+    final long cpuPercentWeighted = (host.getCpuPercent() == HostSpec.UNKNOWN_CPU_PERCENT ? 0 : host.getCpuPercent())
+        * LOWEST_LOAD_CPU_WEIGHT.getInteger(props);
+    final long lagWeighted = (host.getCpuPercent() == HostSpec.UNKNOWN_LAG ? 0 : host.getCpuPercent())
+        * LOWEST_LOAD_LAG_WEIGHT.getInteger(props);
+    return cpuPercentWeighted + lagWeighted;
   }
 
   private int pendingCount(final String hostId) {
