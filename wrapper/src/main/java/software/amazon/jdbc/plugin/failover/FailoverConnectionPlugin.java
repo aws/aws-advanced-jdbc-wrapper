@@ -679,7 +679,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
       // session state if required. "
-      LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
+      LOGGER.info(() -> Messages.get("Failover.connectionChangedError"));
       throw new FailoverSuccessSQLException();
     }
   }
