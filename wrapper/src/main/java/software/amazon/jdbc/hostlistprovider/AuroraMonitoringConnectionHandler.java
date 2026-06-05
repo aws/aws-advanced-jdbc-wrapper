@@ -100,7 +100,7 @@ public class AuroraMonitoringConnectionHandler implements MonitoringConnectionHa
       final Properties monitoringProperties,
       final @Nullable Runnable upgradeReadyNotifier) {
     this.monitoringConnection = monitoringConnection;
-    this.upgradeConnection = new AtomicConnection(null, false);
+    this.upgradeConnection = new AtomicConnection(this, false);
     this.pluginService = pluginService;
     this.topologyUtils = topologyUtils;
     this.monitoringProperties = monitoringProperties;

@@ -103,7 +103,7 @@ public class GdbMonitoringConnectionHandler implements MonitoringConnectionHandl
       final AtomicReference<HostSpec> writerHostSpec,
       final @Nullable Runnable upgradeReadyNotifier) {
     this.monitoringConnection = monitoringConnection;
-    this.upgradeConnection = new AtomicConnection(null, false);
+    this.upgradeConnection = new AtomicConnection(this, false);
     this.pluginService = pluginService;
     this.topologyUtils = topologyUtils;
     this.monitoringProperties = monitoringProperties;
