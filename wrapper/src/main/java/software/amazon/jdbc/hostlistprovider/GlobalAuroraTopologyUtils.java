@@ -113,6 +113,8 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L;
 
+    final long lag = Math.round(nodeLag); // TODO: check if this right
+
     final HostSpec instanceTemplate = instanceTemplatesByRegion.get(awsRegion);
     if (instanceTemplate == null) {
       throw new SQLException(Messages.get(
@@ -120,8 +122,8 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     }
 
     return this.createHost(
-        hostName, hostName, isWriter, weight, weight, Timestamp.from(Instant.now()), initialHostSpec,
-        instanceTemplate);
+        hostName, hostName, isWriter, weight, HostSpec.UNKNOWN_CPU_PERCENT, lag,
+        Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 
   public @Nullable String getRegion(String instanceId, Connection conn) throws SQLException {

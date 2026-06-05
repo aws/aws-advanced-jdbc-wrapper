@@ -28,7 +28,8 @@ public class HostSpecBuilder {
   private HostAvailability availability = HostAvailability.AVAILABLE;
   private HostRole role = HostRole.WRITER;
   private long weight = HostSpec.DEFAULT_WEIGHT; // Greater than or equal to 0. Healthier nodes have lower weights.
-  private long loadValue = HostSpec.UNKNOWN_LOAD;
+  private long cpuPercent = HostSpec.UNKNOWN_CPU_PERCENT;
+  private long lag = HostSpec.UNKNOWN_LAG;
   private Timestamp lastUpdateTime;
   private HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -43,7 +44,8 @@ public class HostSpecBuilder {
     this.availability = hostSpecBuilder.availability;
     this.role = hostSpecBuilder.role;
     this.weight = hostSpecBuilder.weight;
-    this.loadValue = hostSpecBuilder.loadValue;
+    this.cpuPercent = hostSpecBuilder.cpuPercent;
+    this.lag = hostSpecBuilder.lag;
     this.lastUpdateTime = hostSpecBuilder.lastUpdateTime;
     this.hostAvailabilityStrategy = hostSpecBuilder.hostAvailabilityStrategy;
   }
@@ -56,7 +58,8 @@ public class HostSpecBuilder {
     this.availability = hostSpec.availability;
     this.lastUpdateTime = hostSpec.lastUpdateTime;
     this.weight = hostSpec.weight;
-    this.loadValue = hostSpec.loadValue;
+    this.cpuPercent = hostSpec.cpuPercent;
+    this.lag = hostSpec.lag;
     return this;
   }
 
@@ -90,8 +93,13 @@ public class HostSpecBuilder {
     return this;
   }
 
-  public HostSpecBuilder loadValue(long loadValue) {
-    this.loadValue = loadValue;
+  public HostSpecBuilder cpuPercent(long cpuPercent) {
+    this.cpuPercent = cpuPercent;
+    return this;
+  }
+
+  public HostSpecBuilder lag(long lag) {
+    this.lag = lag;
     return this;
   }
 
@@ -108,7 +116,8 @@ public class HostSpecBuilder {
   public HostSpec build() {
     checkHostIsSet();
     return new HostSpec(this.host, this.port, this.hostId, this.role, this.availability,
-        this.weight, this.loadValue, this.lastUpdateTime, this.hostAvailabilityStrategy);
+        this.weight, this.cpuPercent, this.lag, this.lastUpdateTime,
+        this.hostAvailabilityStrategy);
   }
 
   private void checkHostIsSet() {

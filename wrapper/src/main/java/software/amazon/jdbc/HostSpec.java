@@ -18,15 +18,10 @@ package software.amazon.jdbc;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.util.ResourceLock;
-import software.amazon.jdbc.util.StringUtils;
 
 /**
  * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
@@ -36,7 +31,8 @@ public class HostSpec {
 
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
-  public static final long UNKNOWN_LOAD = -1L;
+  public static final long UNKNOWN_CPU_PERCENT = -1L;
+  public static final long UNKNOWN_LAG = -1L;
 
   protected final String host; // full domain name
   protected final int port;
@@ -44,7 +40,8 @@ public class HostSpec {
   protected final Timestamp lastUpdateTime;
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
-  protected volatile long loadValue = UNKNOWN_LOAD; // -1 = unknown; lower means less loaded
+  protected volatile long cpuPercent = UNKNOWN_CPU_PERCENT; // -1 = unknown; percentage of CPU utilization
+  protected volatile long lag = UNKNOWN_LAG; // -1 = unknown; replication lag in milliseconds
   protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -74,8 +71,8 @@ public class HostSpec {
       final long weight,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
-    this(host, port, hostId, role, availability, weight, UNKNOWN_LOAD, lastUpdateTime,
-        hostAvailabilityStrategy);
+    this(host, port, hostId, role, availability, weight, UNKNOWN_CPU_PERCENT,
+        UNKNOWN_LAG, lastUpdateTime, hostAvailabilityStrategy);
   }
 
   HostSpec(
@@ -85,7 +82,8 @@ public class HostSpec {
       final HostRole role,
       final HostAvailability availability,
       final long weight,
-      final long loadValue,
+      final long cpuPercent,
+      final long lag,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
@@ -95,7 +93,8 @@ public class HostSpec {
     this.availability = availability;
     this.role = role;
     this.weight = weight;
-    this.loadValue = loadValue;
+    this.cpuPercent = cpuPercent;
+    this.lag = lag;
     this.lastUpdateTime = lastUpdateTime;
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
   }
@@ -171,14 +170,25 @@ public class HostSpec {
     }
   }
 
-  public long getLoadValue() {
-    return this.loadValue;
+  public long getCpuPercent() {
+    return this.cpuPercent;
   }
 
-  public void setLoadValue(long loadValue) {
+  public void setCpuPercent(long cpuPercent) {
     try (ResourceLock ignored = this.resourceLock.obtain()) {
       this.toString = null;
-      this.loadValue = loadValue;
+      this.cpuPercent = cpuPercent;
+    }
+  }
+
+  public long getLag() {
+    return this.lag;
+  }
+
+  public void setLag(long lag) {
+    try (ResourceLock ignored = this.resourceLock.obtain()) {
+      this.toString = null;
+      this.lag = lag;
     }
   }
 
@@ -212,9 +222,11 @@ public class HostSpec {
     if (this.toString == null) {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
         if (this.toString == null) {
-          this.toString = String.format("HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
+          this.toString = String.format(
+              "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%d, lag=%d, %s]",
               Integer.toHexString(System.identityHashCode(this)),
-              this.hostId, this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
+              this.hostId, this.host, this.port, this.role, this.availability,
+              this.weight, this.cpuPercent, this.lag, this.lastUpdateTime);
         }
       }
     }
@@ -240,6 +252,8 @@ public class HostSpec {
         && this.port == spec.port
         && this.availability == spec.availability
         && this.role == spec.role
-        && this.weight == spec.weight;
+        && this.weight == spec.weight
+        && this.cpuPercent == spec.cpuPercent
+        && this.lag == spec.lag;
   }
 }
