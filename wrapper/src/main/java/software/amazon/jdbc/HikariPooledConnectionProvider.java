@@ -58,6 +58,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   protected static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
+          put(HighestLoadHostSelector.STRATEGY_HIGHEST_LOAD, new HighestLoadHostSelector());
           put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
           put(LowestLoadHostSelector.STRATEGY_LOWEST_LOAD, new LowestLoadHostSelector());
           put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
