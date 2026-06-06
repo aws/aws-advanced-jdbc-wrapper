@@ -16,6 +16,11 @@ To balance connections to instances more evenly, different selection strategies 
 | `lowestLoad`            | See the following rows for configuration parameters.  | Selects the least-loaded reader using server-side load data. **Aurora-only** — falls back to the `random` strategy on dialects that do not populate load. See the [Lowest Load Strategy](#lowest-load-strategy) section below for details on the load formula, the lag-vs-CPU weighting, and cold-start herd protection.                                                                                                                                                                                                                                          | N/A           | 2.6.0                   |
 |                         | `lowestLoadMaxK`                                      | Hard cap on the number of candidate hosts the strategy randomizes over. The actual K used per call is `clamp(ceil(numEligibleWithLoad / 2), 2, lowestLoadMaxK)`. Larger values spread picks across more hosts; smaller values concentrate picks on the lightest few.                                                                                                                                                                                                                                                                                              | `5`           |                         |
 |                         | `lowestLoadPendingPickAlpha`                          | Per-pending-pick load inflation. Each pick made by the strategy inflates the chosen host's effective load by this amount until the next topology refresh resets the counter. Larger values spread connection-pool fills more aggressively across the top-K; smaller values track the raw server-side load more tightly.                                                                                                                                                                                                                                          | `50.0`        |                         |
+| `highestLoad`           | See the following rows for configuration parameters.  | Selects the most-loaded reader using server-side load data. **Aurora-only** — falls back to the `random` strategy on dialects that do not populate load. See the [Highest Load Strategy](#highest-load-strategy) section below for details on the load formula and herd protection.                                                                                                                                                                                                                                                                               | N/A           | 2.6.0                   |
+|                         | `highestLoadMaxK`                                     | Hard cap on the number of candidate hosts the strategy randomizes over. The actual K used per call is `clamp(ceil(numEligibleWithLoad / 2), 2, highestLoadMaxK)`. Larger values spread picks across more hosts; smaller values concentrate picks on the heaviest few.                                                                                                                                                                                                                                                                                             | `5`           |                         |
+|                         | `highestLoadPendingPickAlpha`                         | Per-pending-pick load deflation. Each pick made by the strategy deflates the chosen host's effective load by this amount until the next topology refresh resets the counter. Larger values spread connection-pool fills more aggressively across the top-K; smaller values track the raw server-side load more tightly.                                                                                                                                                                                                                                          | `50.0`        |                         |
+|                         | `highestLoadCpuWeight`                                | The weight of CPU utilization percent in the calculation of a host's load.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `1`           |                         |
+|                         | `highestLoadLagWeight`                                | The weight of lag (in milliseconds) in the calculation of a host's load.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `100`         |                         |
 
 
 These strategies are applicable when using the following plugins:
@@ -69,3 +74,47 @@ Naively picking `min(loadValue)` on every call would cause every JVM in a fleet 
 
 - `lowestLoad` and `leastConnections` (Hikari only) optimize different things. `leastConnections` reads the in-flight connection count from this JVM's local Hikari pools; it is process-local and immediate. `lowestLoad` reads server-side load and is fleet-wide. If your fleet is small or single-instance, `leastConnections` may be sufficient and reacts faster. If your application is one of many sharing the cluster, `lowestLoad` will steer you away from genuinely overloaded hosts.
 - `lowestLoad` is the inverse of `highestWeight` for Aurora topology data, but `highestWeight` was not designed for this purpose — its only sensible use is the Limitless router-fitness convention, where higher weight means healthier. Do not use `highestWeight` for Aurora reader load balancing.
+
+## Highest Load Strategy
+
+The `highestLoad` strategy picks the most-loaded reader using load data the topology monitor already collects from Aurora's cluster-wide replica status view. It is the inverse of `lowestLoad` — instead of preferring the lightest reader, it preferring the heaviest. This is useful in scenarios such as connection draining, where you want to direct traffic toward already-busy instances (e.g., to consolidate load before scaling in).
+
+### Load formula
+
+The load formula is identical to the one used by `lowestLoad`:
+
+```
+loadValue = lag_ms * highestLoadLagWeight + cpu_percent * highestLoadCpuWeight
+```
+
+The default weights are `highestLoadLagWeight=100` and `highestLoadCpuWeight=1`, matching the `lowestLoad` defaults but configurable independently. Higher `loadValue` means the host is busier and will be preferred by this strategy.
+
+| Reader scenario               | lag_ms | cpu_percent | loadValue (defaults) |
+|-------------------------------|--------|-------------|----------------------|
+| Idle reader, fully caught up  | 0      | 5           | 5                    |
+| Busy reader, fully caught up  | 0      | 95          | 95                   |
+| Idle reader, 1 ms lag         | 1      | 5           | 105                  |
+| Lightly lagging reader        | 5      | 20          | 520                  |
+| Significantly lagging reader  | 50     | 0           | 5000                 |
+
+### Aurora-only with safe fallback
+
+Like `lowestLoad`, this strategy only works on Aurora dialects that populate `HostSpec.cpuPercent` and `HostSpec.lagMs`. On other dialects or before the first topology refresh, it falls back to `random` transparently.
+
+### Herd protection
+
+The strategy uses the same adaptive top-K weighted-random mechanism as `lowestLoad`, but in reverse:
+
+1. **Top-K by highest load.** Candidates are sorted descending by effective load. The top-K (configured by `highestLoadMaxK`, default 5) are kept, where K = `clamp(ceil(numEligibleWithLoad / 2), 2, highestLoadMaxK)`.
+
+2. **Weighted random favoring higher load.** Within the top-K, hosts are selected with probability proportional to their effective load (higher load = more likely). This contrasts with `lowestLoad` which uses inverse-load weighting.
+
+3. **Pending-picks deflation.** Each pick *subtracts* `highestLoadPendingPickAlpha` (default 50.0) from the chosen host's effective load on subsequent picks. This prevents all connections in a pool fill from piling onto the single most-loaded host. The counter resets on topology refresh.
+
+### When to use
+
+- **Scale-in / connection draining:** Direct new connections toward already-busy instances so that lightly-loaded instances can be drained and terminated.
+- **Testing / chaos engineering:** Intentionally stress the busiest host to observe failure behavior under peak load.
+- **Consolidation workloads:** When you want to pack connections onto fewer instances to reduce idle resource cost.
+
+For normal read-scaling workloads, prefer `lowestLoad` instead.
