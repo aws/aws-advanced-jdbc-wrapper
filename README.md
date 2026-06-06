@@ -82,7 +82,7 @@ For detailed configuration instructions, see [Aurora Global Databases](./docs/us
 
 ### Plain Amazon RDS databases
 
-The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provided databases that are not Aurora, see the compatability matrix for details.
+The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provided databases that are not Aurora, see the compatibility matrix for details.
 
 ### RDS Proxy
 
