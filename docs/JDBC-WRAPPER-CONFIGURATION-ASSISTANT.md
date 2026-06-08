@@ -121,7 +121,7 @@ Each track lists the questions to ask **in order**, the decision they drive, and
 1. **What metric is bad?** (connect latency / query latency / pool wait time / CPU / memory)
 2. **Baseline without the wrapper?** (helps separate wrapper overhead from app overhead)
 3. **Plugin list currently in use?** (each adds a small per-call cost)
-4. **Topology refresh rate / failover settings?** (`clusterTopologyRefreshRateMs`, EFM settings)
+4. **Topology refresh rate / failover settings?** (`clusterTopologyRefreshRateMs` / `clusterTopologyHighRefreshRateMs` for `failover2` / `gdbFailover`; `failoverClusterTopologyRefreshRateMs` for legacy `failover` v1; EFM settings)
 5. **Pool config?** (max size, idle timeout, max lifetime)
 6. **Where is the app deployed?** (Lambda cold-starts, EKS, ECS, EC2 — different bottlenecks)
 
@@ -587,6 +587,8 @@ Also relevant for GDB:
 - `globalClusterInstanceHostPatterns` (driver-wide via `failover2` / `gdbFailover`) — comma-separated patterns for **every** region, e.g., `?.XYZ1.us-east-1.rds.amazonaws.com,?.XYZ2.us-west-2.rds.amazonaws.com`.
 - `gdbAccessibleRegions` (driver-wide) — restrict topology consideration to a subset of regions. **Set this to your reachable regions when there's no cross-region network connectivity.** See §6.6.
 - `skipInactiveWriterClusterEndpointCheck` (from `auroraStaleDns` / shared) — set `true` for write-forwarding scenarios where the inactive cluster writer endpoint should not be probed.
+
+**Topology refresh tuning** — same as `failover2`: `gdbFailover` reads topology from `RdsHostListProvider`, so `clusterTopologyRefreshRateMs` (default `30000` ms) and `clusterTopologyHighRefreshRateMs` (default `100` ms) are the levers for tuning detection speed. See §5.1 and §6.4 for details. Do not use the v1-only `failover*` rate parameters with `gdbFailover`.
 
 ### 5.4 `efm2` — Enhanced Failure Monitoring
 
