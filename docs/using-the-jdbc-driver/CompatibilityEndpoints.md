@@ -116,7 +116,7 @@ There are many different URL types (endpoints) that can be used with The AWS Adv
 | fastestResponseStrategy                                                               | <span style="color:yellow;font-size:15px">&check;</span>                                   | <span style="color:yellow;font-size:15px">&check;</span>                                  | 
 | [initialConnection](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) | <span style="color:red;font-size:20px">&cross;</span>                                      | <span style="color:red;font-size:20px">&cross;</span>                                     | 
 | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md)                     | <span style="color:yellow;font-size:15px">&check;</span>                                   | <span style="color:yellow;font-size:15px">&check;</span>                                  | 
-| [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span> (requires special configuration)  | <span style="color:yellow;font-size:15px">&check;</span> (requires special configuration) | 
+| [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span> (requires special configuration)  | <span style="color:red;font-size:20px">&cross;</span>                                     | 
 
 <br>
 

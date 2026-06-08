@@ -146,8 +146,8 @@ Each track lists the questions to ask **in order**, the decision they drive, and
 
 ### 2.7 Track G — Blue/Green Deployment
 
-1. **DB engine + version?** (`bg` plugin works on Aurora MySQL / PG and RDS MySQL/PG Multi-AZ DB Cluster — not on Aurora Global, not on Limitless)
-2. **Endpoint?** (cluster writer/reader/custom endpoint, RDS Proxy, IP, or custom domain)
+1. **DB engine + version?** (`bg` plugin works on Aurora MySQL/PG clusters and RDS MySQL/PG instances. **Not** supported: RDS Multi-AZ DB Cluster (3-instance), Aurora Global Database, Limitless. Engine-version minimums apply — see §13.5 / `UsingTheBlueGreenPlugin.md`.)
+2. **Endpoint?** (cluster writer/reader/custom endpoint, instance, RDS Proxy, IP. **CNAME aliases (custom domains) are not supported** by the `bg` plugin.)
 3. **Multiple deployments at once?** (drives `bgdId`)
 4. **Open Liberty / Wildfly?** (need `identifyException` for failover SQL states — see §15)
 
@@ -473,6 +473,11 @@ Never use these together:
 - `efm` + `efm2`
 - `iam` + `awsSecretsManager` + `federatedAuth` + `okta` (pick one auth plugin)
 - `readWriteSplitting` + `srw` + `gdbReadWriteSplitting` (pick one)
+- `initialConnection` + `srw`
+- `initialConnection` + `connectTime`
+- `initialConnection` + `auroraStaleDns`
+- `auroraStaleDns` + `srw`
+- `auroraStaleDns` + `gdbReadWriteSplitting`
 - `limitless` + `failover` / `failover2` / `gdbFailover` / `customEndpoint` / `fastestResponseStrategy` / `bg` / read-write splitting plugins
 
 See the full matrix in §10.
@@ -733,7 +738,7 @@ Two-endpoint splitter: connects to one endpoint for reads, another for writes. U
 
 - **Compatible with:** Aurora, RDS Multi-AZ, RDS Proxy, Limitless. Community DBs (with `verifyNewSrwConnections=false`).
 - **Not compatible with:** RDS Single-AZ.
-- **Mutually exclusive with:** `readWriteSplitting`, `gdbReadWriteSplitting`.
+- **Mutually exclusive with:** `readWriteSplitting`, `gdbReadWriteSplitting`, `initialConnection`, `auroraStaleDns`.
 - **Strongly recommended:** enable the internal connection pool (`connectionPoolType=hikari`). Same reason as `readWriteSplitting` — `setReadOnly()` flips otherwise risk opening fresh physical connections to the read or write endpoint.
 
 **Parameters:**
@@ -751,7 +756,7 @@ Two-endpoint splitter: connects to one endpoint for reads, another for writes. U
 
 Like `readWriteSplitting` but home-region aware. Use only with Aurora Global Database when you need region-aware routing.
 
-- **Mutually exclusive with:** `readWriteSplitting`, `srw`.
+- **Mutually exclusive with:** `readWriteSplitting`, `srw`, `auroraStaleDns`.
 - **Strongly recommended:** enable the internal connection pool (`connectionPoolType=hikari`). Same reason as `readWriteSplitting`.
 
 **Parameters:**
@@ -789,7 +794,8 @@ Tracks open connections per host **across an external connection pool** and inva
 Resolves a cluster endpoint to a specific instance during the initial connect. Mitigates stale DNS issues (writer endpoint pointing at the old writer briefly after failover) and ensures the connection lands on the correct host role.
 
 - **Compatible with:** Aurora cluster endpoints, RDS Multi-AZ cluster endpoints, Aurora Global writer endpoint.
-- **Not compatible with:** Custom endpoint, instance endpoint, IP, custom domain (incompatible with `auroraStaleDns`).
+- **Not compatible with:** Custom endpoint, instance endpoint, IP, custom domain.
+- **Mutually exclusive with:** `auroraStaleDns`, `srw`, `connectTime`.
 
 **Parameters:**
 
@@ -809,7 +815,7 @@ Resolves a cluster endpoint to a specific instance during the initial connect. M
 
 Detects stale DNS for the cluster writer endpoint and reconnects. **Deprecated**; use `bg` plugin (for Blue/Green) or `initialConnection` (for general stale-DNS handling) instead. Listed for completeness.
 
-- **Mutually exclusive with:** `initialConnection`.
+- **Mutually exclusive with:** `initialConnection`, `srw`, `gdbReadWriteSplitting`.
 
 **Parameters:**
 
@@ -821,8 +827,14 @@ Detects stale DNS for the cluster writer endpoint and reconnects. **Deprecated**
 
 Tracks Blue/Green deployment status and routes connections to the right side during switchover. Survives the deployment without app changes.
 
-- **Compatible with:** Aurora MySQL/PG, RDS MySQL/PG (Multi-AZ DB Cluster, Multi-AZ Instance, Single-AZ). Endpoints: cluster writer/reader/custom, instance, RDS Proxy, IP, custom domain.
-- **Not compatible with:** Aurora Global, Limitless, community DBs.
+- **Plugin availability:** since wrapper version 2.6.0.
+- **Compatible deployments** (per `UsingTheBlueGreenPlugin.md` and the integration test suite, which only exercises `AURORA` and `RDS_MULTI_AZ_INSTANCE`):
+  - Aurora MySQL clusters (engine release 3.07+).
+  - Aurora PostgreSQL clusters (engine release 13.21 / 14.18 / 15.13 / 16.9 / 17.5 and above).
+  - RDS MySQL instances (Single-AZ and Multi-AZ Instance, the 2-instance variant).
+  - RDS PostgreSQL instances (Single-AZ and Multi-AZ Instance) — requires the `rds_tools` extension (`rds_tools v1.7` / PG 12.21, 13.17, 14.14, 15.9, 16.5, 17.1 and above).
+- **Not supported deployments:** RDS Multi-AZ DB Cluster (3-instance), Aurora Global Database, Aurora Limitless, community DBs.
+- **Endpoint constraint:** CNAME aliases (custom domains) are **not supported**. Use Aurora cluster writer/reader/custom endpoints, instance endpoints, RDS Proxy, or IP addresses.
 
 **Parameters:**
 
@@ -878,7 +890,10 @@ Routes connections through Aurora Limitless transaction routers. Aurora Limitles
 
 Caches per-host response time and selects the fastest reader. Used in conjunction with `readerHostSelectorStrategy=fastestResponse` on a read/write splitting plugin.
 
-- **Compatible with:** Aurora cluster endpoints (writer/reader/custom/instance), Aurora Global. Not compatible with RDS Single-AZ / Multi-AZ Instance / community DBs / Limitless / RDS Multi-AZ Cluster reader.
+- **Compatible endpoints** (per `CompatibilityEndpoints.md`): Aurora Global, Aurora cluster writer/reader/custom/instance, RDS Multi-AZ DB Cluster writer/reader, RDS Proxy, IP, custom domain.
+- **Not compatible endpoints:** Limitless DB Shard Group.
+- **Compatible database types** (per `CompatibilityDatabaseTypes.md`): Aurora Global, Aurora cluster, RDS Multi-AZ DB Cluster (3-instance).
+- **Not compatible database types:** RDS Multi-AZ Instance (2-instance), RDS Single-AZ, community MySQL/PostgreSQL.
 - **Mutually exclusive with:** `limitless`.
 
 **Parameters:**
@@ -950,9 +965,11 @@ Logs SQL statements as they execute.
 
 Logs the time taken to execute each JDBC method. No parameters.
 
-### 5.25 `connectTime` — Connect timing (universal)
+### 5.25 `connectTime` — Connect timing
 
 Logs the time taken by the underlying driver to establish a connection. No parameters.
+
+- **Mutually exclusive with:** `initialConnection`. Despite serving an observability role, `connectTime` is **not** universally compatible — see `CompatibilityCrossPlugins.md`.
 
 ### 5.26 `driverMetaData` — Driver name override (universal)
 
@@ -1221,6 +1238,10 @@ These combinations are **forbidden**:
 | `readWriteSplitting` + `gdbReadWriteSplitting` | Same. |
 | `srw` + `gdbReadWriteSplitting` | Same. |
 | `auroraStaleDns` + `initialConnection` | `initialConnection` supersedes. |
+| `auroraStaleDns` + `srw` | Per `CompatibilityCrossPlugins.md`: `auroraStaleDns` only operates on Aurora cluster writer endpoints; `srw` is a two-endpoint splitter that doesn't use Aurora topology. |
+| `auroraStaleDns` + `gdbReadWriteSplitting` | Per `CompatibilityCrossPlugins.md`: `auroraStaleDns` is single-cluster Aurora; GDB R/W splitting is multi-region. |
+| `initialConnection` + `srw` | Per `CompatibilityCrossPlugins.md`: `initialConnection` resolves Aurora cluster endpoints to instances via topology; `srw` uses two configured endpoints and bypasses topology. |
+| `initialConnection` + `connectTime` | Per `CompatibilityCrossPlugins.md`. (Note: `connectTime` is **not** universally compatible despite serving an observability role; this is its only listed conflict.) |
 | `limitless` + `failover` / `failover2` / `gdbFailover` | Limitless has its own routing. |
 | `limitless` + `customEndpoint` | Limitless uses shard group endpoints, not custom. |
 | `limitless` + `fastestResponseStrategy` | No traditional reader topology. |
@@ -1247,7 +1268,7 @@ These combinations are **forbidden**:
 | `fastestResponseStrategy` | yes | yes | yes | no | no | no |
 | `initialConnection` | yes | yes | yes | no | no | no |
 | `limitless` | no | yes (PG only) | yes | no | no | no |
-| `bg` | no | yes | yes | yes | yes | no |
+| `bg` | no | yes | no | yes | yes | no |
 
 ### 10.3 Endpoint type compatibility (summary)
 
@@ -1262,9 +1283,10 @@ For each plugin, here are the allowed endpoint types:
 - **`readWriteSplitting`/`gdbReadWriteSplitting`** — Aurora Global, Aurora writer/reader/custom/instance, RDS Multi-AZ writer/reader. Custom and instance require `verifyInitialConnectionRole=true`. Not RDS Proxy / Limitless.
 - **`srw`** — Most endpoints (provide both `srwReadEndpoint` and `srwWriteEndpoint`).
 - **`auroraConnectionTracker`** — Aurora and RDS Multi-AZ endpoints (writer/reader/custom/instance, RDS Proxy). Not Limitless.
+- **`fastestResponseStrategy`** — Aurora Global, Aurora writer/reader/custom/instance, RDS Multi-AZ writer/reader, RDS Proxy, IP, custom domain. Not Limitless.
 - **`initialConnection`** — Aurora cluster writer/reader, RDS Multi-AZ writer/reader, Aurora Global. Not custom/instance/IP/custom domain/RDS Proxy.
 - **`limitless`** — Limitless DB Shard Group endpoint, IP, custom domain.
-- **`bg`** — Aurora and RDS endpoints (writer/reader/custom/instance, RDS Proxy, IP, custom domain). Not Aurora Global / Limitless.
+- **`bg`** — Aurora cluster writer/reader/custom endpoints, Aurora instance endpoints, RDS instance endpoints, RDS Proxy, IP. Not Aurora Global, RDS Multi-AZ DB Cluster, Limitless, or CNAMEs (custom domains).
 
 ### 10.4 Important pairings
 
@@ -1410,6 +1432,18 @@ Use only the `limitless` plugin (plus auth and `efm2` if needed). Almost all oth
 - **No topology.** Don't include `auroraConnectionTracker`, `readWriteSplitting`, `gdbReadWriteSplitting`, `initialConnection`.
 - For RDS Multi-AZ Instance (2-instance) you may use `srw` (with `srwReadEndpoint`/`srwWriteEndpoint`) to split writes/reads.
 - For community DBs, omit Aurora-specific plugins entirely. Set `wrapperPlugins=` empty to disable everything except the default chain. EFM works against any TCP-reachable host.
+
+### 13.5 Blue/Green Deployment scope
+
+The `bg` plugin's supported scope is narrower than the rest of the failover/Aurora plugin family. Per `UsingTheBlueGreenPlugin.md` and the integration test suite (`AURORA` and `RDS_MULTI_AZ_INSTANCE` only):
+
+- **Supported:** Aurora MySQL/PG clusters and RDS MySQL/PG instances (Single-AZ + Multi-AZ Instance, the 2-instance variant).
+- **Not supported:** RDS MySQL/PG **Multi-AZ DB Cluster** (the 3-instance variant), Aurora Global Database, Aurora Limitless, community DBs.
+- **CNAME aliases / custom domains are not supported** even for the supported deployments.
+
+Engine version minimums apply for full metadata-aware support — see §5.16 or the upstream plugin doc for the current cutoffs. RDS PostgreSQL additionally requires the `rds_tools` extension (the same one used for RDS Multi-AZ DB Cluster failover, but the version cutoff differs: `rds_tools v1.7` for Blue/Green).
+
+If a user has an RDS Multi-AZ DB Cluster and needs zero-downtime upgrades, the supported wrapper path is `failover2` with `failoverClusterTopologyRefreshRateMs` tuned low (see §13.1) — not the `bg` plugin.
 
 ---
 
@@ -1829,6 +1863,8 @@ Flag these whenever they appear in user configs:
 | `efm` v1 in new code | Same | Use `efm2` |
 | `enableGreenNodeReplacement=true` (deprecated property) | Replaced by the `bg` plugin | Use the `bg` plugin |
 | `auroraStaleDns` plugin | Deprecated; superseded by `bg` (for Blue/Green) and `initialConnection` (for general stale-DNS handling) | Migrate |
+| `bg` plugin on an RDS Multi-AZ DB Cluster (3-instance) | Per `UsingTheBlueGreenPlugin.md` and the integration test suite (`AURORA` + `RDS_MULTI_AZ_INSTANCE` only), `bg` is not supported for Multi-AZ DB Clusters. The driver may load the plugin but switchover behavior is undefined | Use `failover2` with a tuned `failoverClusterTopologyRefreshRateMs` for Multi-AZ DB Cluster minor-version upgrades. See §13.1 |
+| `bg` plugin connecting via a CNAME alias / custom domain | `UsingTheBlueGreenPlugin.md` explicitly lists CNAMEs as unsupported | Connect via the cluster, instance, RDS Proxy endpoint, or IP — not a custom-domain alias |
 | Aurora Global with auto-detected dialect | Auto-detect picks `aurora-*` instead of `global-aurora-*` for regional reader endpoints | Set `wrapperDialect=global-aurora-*` explicitly |
 | GDB without `globalClusterInstanceHostPatterns` | Wrapper can't enumerate hosts in other regions | Always set this for GDB |
 | GDB `gdbAccessibleRegions` listing every GDB region | No-op. The setting only adds value when restricting to a *subset* of regions (typically just home, when there's no cross-region network reachability) | Either omit it (all regions reachable) or set it to the reachable subset (commonly just `<home-region>`) |
