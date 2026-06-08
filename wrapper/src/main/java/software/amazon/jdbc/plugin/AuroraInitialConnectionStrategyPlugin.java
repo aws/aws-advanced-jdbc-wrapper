@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +38,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -158,16 +158,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       this.selectionStrategyPropValue = READER_HOST_SELECTOR_STRATEGY.getString(properties);
     }
 
-    final String accessibleRegionsStr = PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(properties);
-    if (!StringUtils.isNullOrEmpty(accessibleRegionsStr)) {
-      this.accessibleRegions = Arrays.stream(accessibleRegionsStr.split(","))
-          .map(String::trim)
-          .filter(s -> !s.isEmpty())
-          .map(String::toLowerCase)
-          .collect(Collectors.toSet());
-    } else {
-      this.accessibleRegions = null;
-    }
+    this.accessibleRegions = AccessibleRegions.parse(properties);
   }
 
   @Override

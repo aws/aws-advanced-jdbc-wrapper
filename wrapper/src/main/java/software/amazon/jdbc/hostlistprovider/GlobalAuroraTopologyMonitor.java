@@ -19,7 +19,6 @@ package software.amazon.jdbc.hostlistprovider;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -28,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -68,17 +67,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
     this.instanceTemplatesByRegion = instanceTemplatesByRegion;
     this.topologyUtils = topologyUtils;
 
-    final String accessibleRegionsStr =
-        PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(properties);
-    if (!StringUtils.isNullOrEmpty(accessibleRegionsStr)) {
-      this.accessibleRegions = Arrays.stream(accessibleRegionsStr.split(","))
-          .map(String::trim)
-          .filter(s -> !s.isEmpty())
-          .map(String::toLowerCase)
-          .collect(Collectors.toSet());
-    } else {
-      this.accessibleRegions = null;
-    }
+    this.accessibleRegions = AccessibleRegions.parse(properties);
   }
 
   @Override

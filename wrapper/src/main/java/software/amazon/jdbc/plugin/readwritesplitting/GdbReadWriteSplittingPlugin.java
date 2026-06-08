@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -31,6 +30,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -111,18 +111,12 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
         "GdbReadWriteSplittingPlugin.parameterValue",
         new Object[] {"gdbRwHomeRegion", this.homeRegion}));
 
-    final String accessibleRegionsStr = PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(props);
-    if (!StringUtils.isNullOrEmpty(accessibleRegionsStr)) {
-      this.accessibleRegions = Arrays.stream(accessibleRegionsStr.split(","))
-          .map(String::trim)
-          .filter(s -> !s.isEmpty())
-          .map(String::toLowerCase)
-          .collect(Collectors.toSet());
+    final Set<String> parsedRegions = AccessibleRegions.parse(props);
+    this.accessibleRegions = parsedRegions;
+    if (parsedRegions != null) {
       LOGGER.finest(() -> Messages.get(
           "GdbReadWriteSplittingPlugin.parameterValue",
-          new Object[] {"gdbAccessibleRegions", this.accessibleRegions}));
-    } else {
-      this.accessibleRegions = null;
+          new Object[] {"gdbAccessibleRegions", parsedRegions}));
     }
 
     if (this.accessibleRegions != null

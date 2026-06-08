@@ -17,7 +17,6 @@
 package software.amazon.jdbc.plugin.gdbfailover;
 
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -35,6 +34,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
@@ -119,19 +119,13 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
             "Failover.parameterValue",
             new Object[]{"failoverHomeRegion", this.homeRegion}));
 
-    final String accessibleRegionsStr = PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(this.properties);
-    if (!StringUtils.isNullOrEmpty(accessibleRegionsStr)) {
-      this.accessibleRegions = Arrays.stream(accessibleRegionsStr.split(","))
-          .map(String::trim)
-          .filter(s -> !s.isEmpty())
-          .map(String::toLowerCase)
-          .collect(Collectors.toSet());
+    final Set<String> parsedRegions = AccessibleRegions.parse(this.properties);
+    this.accessibleRegions = parsedRegions;
+    if (parsedRegions != null) {
       LOGGER.finer(
           () -> Messages.get(
               "Failover.parameterValue",
-              new Object[]{"gdbAccessibleRegions", this.accessibleRegions}));
-    } else {
-      this.accessibleRegions = null;
+              new Object[]{"gdbAccessibleRegions", parsedRegions}));
     }
 
     if (this.accessibleRegions != null
