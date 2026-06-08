@@ -160,7 +160,7 @@ Walk through these in order until the cause is clear:
 3. **Plugin list in use?** (`wrapperPlugins` value)
 4. **Endpoint?** + **dialect?** (`wrapperDialect`)
 5. **Logs available?** Enable `wrapperLoggerLevel=FINER` and look for `DialectManager Current dialect:` and the rearranged plugin order line. (See §16 for diagnostic workflow.)
-6. Check §11 for known anti-patterns.
+6. Check §18 for known anti-patterns.
 
 ### 2.9 Track I — Quick parameter / plugin lookup
 
@@ -336,7 +336,7 @@ URL: cluster reader endpoint (`*.cluster-ro-XXX.<region>.rds.amazonaws.com`). Re
 - **`efm2` left out by default** — `tcpKeepAlive=true` covers the analytics datasource, and short OLTP queries time out via `socketTimeout` long before EFM would fire. Add `efm2` to either datasource if you can't tune OS keep-alive (see §6.10 decision matrix).
 - **Same `clusterId`** — both pools see the same physical cluster, so they share topology cache and monitor threads. Different `clusterId` would duplicate that work.
 
-For Spring Boot bean wiring with two `EntityManagerFactory`s, see §15.2.
+For Spring Boot bean wiring with two `EntityManagerFactory`s, see the [`SpringHibernateBalancedReaderTwoDataSourceExample`](../../examples/SpringHibernateBalancedReaderTwoDataSourceExample/) project in the wrapper repo.
 
 ### 3.7 Aurora Global Database — primary region writer
 
@@ -370,7 +370,7 @@ Same as 3.7 except:
 data-source-properties:
   wrapperPlugins: auroraConnectionTracker,failover2,efm2
   wrapperDialect: rds-multi-az-pg-cluster   # or rds-multi-az-mysql-cluster
-  failoverClusterTopologyRefreshRateMs: 100  # speeds up minor-version-upgrade switchover
+  clusterTopologyRefreshRateMs: 100         # speeds up minor-version-upgrade switchover (v2 lever)
 ```
 
 Cluster must have `rds_tools` extension (PG ≥ 13.12/14.9/15.4 R3+) or `mysql.rds_topology` GRANT (MySQL). See §13.
@@ -519,7 +519,14 @@ Detects writer/reader failover events and reconnects the JDBC connection to the 
 | `skipFailoverOnInterruptedThread` | `false` | If the calling thread was interrupted, skip failover. Useful for shutdown paths. |
 | `telemetryFailoverAdditionalTopTrace` | `false` | Adds an extra top-level telemetry span around the failover process. |
 
-> Tip: For tighter failover behavior, also tune `failoverClusterTopologyRefreshRateMs` (`failover` v1 / RDS Multi-AZ) or use `efm2` parameters. See §6.4 for time profiles.
+**Topology refresh tuning** — both `failover2` and `gdbFailover` consume topology from `RdsHostListProvider`. The relevant parameters live there, not on the plugin:
+
+| Name | Default | Description |
+|---|---|---|
+| `clusterTopologyRefreshRateMs` | `30000` | Normal-state topology refresh interval (ms). Drop this to speed up role-change detection during planned operations such as RDS Multi-AZ DB Cluster minor-version-upgrade switchovers — `100` ms is a reasonable floor for that case. |
+| `clusterTopologyHighRefreshRateMs` | `100` | High-frequency refresh interval (ms) used during an in-flight failover event. Default is already aggressive. |
+
+> **Do not use the v1-only `failoverClusterTopologyRefreshRateMs` / `failoverWriterReconnectIntervalMs` / `failoverReaderConnectTimeoutMs` parameters with `failover2`** — they are read only by the legacy `failover` plugin (see §5.2). v2's tuning levers are `failoverTimeoutMs` and the `clusterTopologyRefreshRateMs` / `clusterTopologyHighRefreshRateMs` pair above. See §6.4 for combined time profiles.
 
 ### 5.2 `failover` (v1) — Legacy cluster failover
 
@@ -805,7 +812,7 @@ Resolves a cluster endpoint to a specific instance during the initial connect. M
 | `readerInitialConnectionHostSelectorStrategy` | `random` | Deprecated — use `initialConnectionHostSelectorStrategy`. Kept for back-compat. |
 | `openConnectionRetryTimeoutMs` | `30000` | Retry budget for the initial connect. |
 | `openConnectionRetryIntervalMs` | `1000` | Retry interval. |
-| `endpointSubstitutionRole` | (none) | `writer`, `reader`, `any`, or `none`. Whether to replace the URL host with an instance host from topology. |
+| `endpointSubstitutionRole` | (not set) | `writer`, `reader`, `any`, or `none`. When unset, the effective behavior is **derived from the URL type**: writer cluster endpoint → substitute with the writer instance (or fall back to no-substitution if the writer endpoint is in a different region than the resolved writer, i.e., GDB inactive cluster writer); reader cluster endpoint → substitute with a reader; global writer endpoint → substitute with the writer; everything else → no substitution. |
 | `inactiveClusterWriterEndpointSubstitutionRole` | `writer` | Same idea for inactive cluster writer endpoints (GDB). |
 | `verifyOpenedConnectionType` | (none) | `writer`, `reader`, or `none`. Verify role of the opened connection. |
 | `verifyInactiveClusterWriterEndpointConnectionType` | `writer` | Same for inactive GDB cluster writer. |
@@ -1022,29 +1029,34 @@ These properties live on the wrapper itself (not a specific plugin). Source: `so
 | `resetSessionStateOnClose` | `true` | Reset session state before closing a connection (relevant for pooled connections). |
 | `rollbackOnSwitch` | `true` | Rollback any in-progress transaction before switching. |
 
-### 6.4 Failover time profiles (combined)
+### 6.4 Failover time profiles
 
-The failover plugin honors several timeouts. Two starting profiles:
+The failover plugins are tuned through different parameter sets depending on which version you're using. **Use the v2 column for `failover2` / `gdbFailover` (the recommended path). Use the v1 column only if you've kept the legacy `failover` plugin.**
 
-**Normal (default-like)** — wait for failover up to ~3 min, tolerant of slow networks:
+**v2 (`failover2` / `gdbFailover`) tuning levers:**
 
-| Param | Value |
-|---|---|
-| `failoverTimeoutMs` | `180000` |
-| `failoverWriterReconnectIntervalMs` | `2000` |
-| `failoverReaderConnectTimeoutMs` | `30000` |
-| `failoverClusterTopologyRefreshRateMs` | `2000` |
+| Param | Source | Default | What it controls |
+|---|---|---|---|
+| `failoverTimeoutMs` | `failover2.FailoverConnectionPlugin` / `gdbFailover` | `300000` | Total time budget for the failover process. |
+| `clusterTopologyRefreshRateMs` | `RdsHostListProvider` | `30000` | Normal-state topology refresh interval (ms). Lower = faster topology change detection, more probe traffic. |
+| `clusterTopologyHighRefreshRateMs` | `RdsHostListProvider` | `100` | High-frequency refresh interval (ms) used during a failover event. The default is already aggressive; only raise if probe load is a concern. |
+| `failoverMode` | `failover2.FailoverConnectionPlugin` | (auto, URL-derived) | `strict-writer`, `strict-reader`, `reader-or-writer`. |
+| `failoverReaderHostSelectorStrategy` | `failover2.FailoverConnectionPlugin` | `random` | Strategy for picking a reader during reader failover. |
 
-**Aggressive** — fail fast in 30 s, accepts more false positives:
+For a v2 normal profile, leave `failoverTimeoutMs=300000` (or drop to ~`180000` if you want a 3-min ceiling). For an aggressive v2 profile, `failoverTimeoutMs=30000` is a reasonable floor — but most v2 tuning happens via `clusterTopologyRefreshRateMs`, not the `failover*` parameters.
 
-| Param | Value |
-|---|---|
-| `failoverTimeoutMs` | `30000` |
-| `failoverWriterReconnectIntervalMs` | `2000` |
-| `failoverReaderConnectTimeoutMs` | `10000` |
-| `failoverClusterTopologyRefreshRateMs` | `2000` |
+**v1 (`failover` legacy) tuning levers** — included for users who can't migrate yet:
 
-For RDS Multi-AZ DB Cluster minor-version-upgrade switchovers (≤1 s downtime), set `failoverClusterTopologyRefreshRateMs=100`.
+| Param | Default (v1) | What it controls |
+|---|---|---|
+| `failoverTimeoutMs` | `300000` | Total time budget. |
+| `failoverWriterReconnectIntervalMs` | `2000` | Wait between reconnect attempts to the writer. |
+| `failoverReaderConnectTimeoutMs` | `30000` | Reader connect timeout during reader failover. |
+| `failoverClusterTopologyRefreshRateMs` | `2000` | Topology refresh during failover. |
+
+A v1 normal profile: `failoverTimeoutMs=180000`, the rest at defaults. A v1 aggressive profile: `failoverTimeoutMs=30000`, `failoverReaderConnectTimeoutMs=10000`, the others at defaults.
+
+**Aggressive profiles risk false-positive timeouts.** A short `failoverTimeoutMs` may declare failure for what was actually a slow-but-recoverable network blip. Use only when the application explicitly needs fail-fast behavior.
 
 ### 6.5 Pooling and resources
 
@@ -1391,7 +1403,7 @@ Works similarly to Aurora with the same plugin set, but with caveats:
   CREATE EXTENSION rds_tools;
   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rds_tools TO non-admin-username;
   ```
-- For minor-version-upgrade switchover (≤1 s downtime), set `failoverClusterTopologyRefreshRateMs=100`.
+- For minor-version-upgrade switchover (≤1 s downtime), set `clusterTopologyRefreshRateMs=100` (the v2 lever, on `RdsHostListProvider`). The legacy v1 equivalent is `failoverClusterTopologyRefreshRateMs=100` — only use that if you've kept the `failover` v1 plugin.
 - Tested-and-known-good plugin set: `auroraConnectionTracker`, `failover` / `failover2`, `efm` / `efm2`. Other plugins are not officially tested with RDS Multi-AZ DB Cluster.
 
 ### 13.2 Aurora Global Database
@@ -1443,7 +1455,7 @@ The `bg` plugin's supported scope is narrower than the rest of the failover/Auro
 
 Engine version minimums apply for full metadata-aware support — see §5.16 or the upstream plugin doc for the current cutoffs. RDS PostgreSQL additionally requires the `rds_tools` extension (the same one used for RDS Multi-AZ DB Cluster failover, but the version cutoff differs: `rds_tools v1.7` for Blue/Green).
 
-If a user has an RDS Multi-AZ DB Cluster and needs zero-downtime upgrades, the supported wrapper path is `failover2` with `failoverClusterTopologyRefreshRateMs` tuned low (see §13.1) — not the `bg` plugin.
+If a user has an RDS Multi-AZ DB Cluster and needs zero-downtime upgrades, the supported wrapper path is `failover2` with `clusterTopologyRefreshRateMs` tuned low (see §13.1) — not the `bg` plugin.
 
 ---
 
@@ -1863,7 +1875,7 @@ Flag these whenever they appear in user configs:
 | `efm` v1 in new code | Same | Use `efm2` |
 | `enableGreenNodeReplacement=true` (deprecated property) | Replaced by the `bg` plugin | Use the `bg` plugin |
 | `auroraStaleDns` plugin | Deprecated; superseded by `bg` (for Blue/Green) and `initialConnection` (for general stale-DNS handling) | Migrate |
-| `bg` plugin on an RDS Multi-AZ DB Cluster (3-instance) | Per `UsingTheBlueGreenPlugin.md` and the integration test suite (`AURORA` + `RDS_MULTI_AZ_INSTANCE` only), `bg` is not supported for Multi-AZ DB Clusters. The driver may load the plugin but switchover behavior is undefined | Use `failover2` with a tuned `failoverClusterTopologyRefreshRateMs` for Multi-AZ DB Cluster minor-version upgrades. See §13.1 |
+| `bg` plugin on an RDS Multi-AZ DB Cluster (3-instance) | Per `UsingTheBlueGreenPlugin.md` and the integration test suite (`AURORA` + `RDS_MULTI_AZ_INSTANCE` only), `bg` is not supported for Multi-AZ DB Clusters. The driver may load the plugin but switchover behavior is undefined | Use `failover2` with a tuned `clusterTopologyRefreshRateMs` for Multi-AZ DB Cluster minor-version upgrades. See §13.1 |
 | `bg` plugin connecting via a CNAME alias / custom domain | `UsingTheBlueGreenPlugin.md` explicitly lists CNAMEs as unsupported | Connect via the cluster, instance, RDS Proxy endpoint, or IP — not a custom-domain alias |
 | Aurora Global with auto-detected dialect | Auto-detect picks `aurora-*` instead of `global-aurora-*` for regional reader endpoints | Set `wrapperDialect=global-aurora-*` explicitly |
 | GDB without `globalClusterInstanceHostPatterns` | Wrapper can't enumerate hosts in other regions | Always set this for GDB |

@@ -120,35 +120,9 @@ You can find our driver by searching in The Central Repository with GroupId and 
 
 ## Configuring the Driver with AI Tools
 
-The driver ships with a self-contained configuration assistant skill — [`JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md`](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md) — that you can drop into your AI tool's knowledge base (Cursor, Claude Projects, ChatGPT custom GPTs, Amazon Bedrock agents, GitHub Copilot, etc.). The skill carries enough grounded reference material for the AI to answer wrapper configuration questions, propose working configurations, review existing configs, and diagnose common misconfigurations — all without needing access to this repository or its source.
+The driver ships with a self-contained configuration assistant skill, [`JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md`](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md), that you can drop into your AI tool's knowledge base (Kiro, Cursor, Claude Projects, ChatGPT, Amazon Bedrock, GitHub Copilot, etc.) to help build, review, or troubleshoot wrapper configurations.
 
-### How to use it
-
-1. Download [`docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md`](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md) (or copy its contents).
-2. Add it to your AI tool as a knowledge file or system prompt. Typical drop-in locations:
-   - **Kiro**: place it in `.kiro/skills/` in your project workspace (workspace-scoped) or `~/.kiro/skills/` (user-level, available across every workspace). Kiro detects skills automatically — no further configuration needed.
-   - **Cursor**: `.cursor/rules/` in your project repository.
-   - **Claude Projects**: upload as a project knowledge file.
-   - **ChatGPT custom GPT**: paste into the GPT's instructions or upload as a knowledge file.
-   - **Amazon Bedrock Agent**: attach to the agent's knowledge base.
-   - **Plain ChatGPT / Claude / Gemini chat**: paste the file at the start of a new conversation as a system or user message and treat the rest of the chat as the configuration session.
-3. Ask your configuration question. The skill instructs the AI to interview you when needed.
-
-### Simplest prompt
-
-Once the skill is loaded, anything along these lines works:
-
-> *"Help me configure the AWS Advanced JDBC Wrapper for my application."*
-
-Or be more specific to skip the interview:
-
-> *"Give me a default configuration for Aurora PostgreSQL with HikariCP and failover."*
-
-> *"Review my wrapper configuration: \<paste your `application.yml` or `Properties`\>"*
-
-> *"My app uses Aurora MySQL across us-east-1 and us-west-2 with no VPC peering. Each region's deployment should write only when its region is the GDB primary. Propose a configuration."*
-
-The assistant supports three entry points: greenfield (interview), config review, and skip-the-interview shortcuts. It targets wrapper version 4.0+ and grounds every parameter, default, and behavior in the actual driver source. If you hit a question it can't answer confidently, it will tell you so rather than guess.
+For drop-in locations, example prompts, and usage details, see [Configuring the Driver with AI Tools](./docs/GettingStarted.md#configuring-the-driver-with-ai-tools) in the Getting Started guide.
 
 ## Properties
 
@@ -340,7 +314,7 @@ Please note that Aurora Global Database and RDS Multi-AZ clusters with Blue/Gree
 | Using Vert.x and c3p0 with the AWS Advanced JDBC Wrapper                                                                                                                                                             |                                                                                                                                                 [PostgreSQL](examples/VertxExample/README.md)                                                                                                                                                  |
 | Using the AWS Advanced JDBC Wrapper with Telemetry and using the AWS Distro for OpenTelemetry Collector                                                                                                              |                                                                                                                     [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java)                                                                                                                     |
 | Using the AWS Advanced JDBC Wrapper with Telemetry and using the AWS X-Ray Daemon                                                                                                                                    |                                                                                                                    [PostgreSQL](./examples/AWSDriverExample/src/main/java/software/amazon/TelemetryTracingXRayExample.java)                                                                                                                    |
-| Configuring the AWS Advanced JDBC Wrapper with an AI tool (Cursor, Claude, ChatGPT, Bedrock, etc.) using the [Configuration Assistant skill](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md)                          |                                                                                                                  [JDBC Wrapper Configuration Assistant](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md)                                                                                                                                        |
+| Configuring the AWS Advanced JDBC Wrapper with an AI tool (Cursor, Claude, ChatGPT, Bedrock, etc.) using the Configuration Assistant skill                         |                                                                                                                  [JDBC Wrapper Configuration Assistant](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md)                                                                                                                                        |
 
 ## Other AWS Advanced Wrapper Drivers
 The AWS Advanced JDBC Wrapper is part of a broader family of AWS "wrapper" drivers that bring the same advanced functionality, such as failover support and IAM authentication, to other languages and database connectivity standards. If you are working outside of Java, you may find one of the following drivers useful:
