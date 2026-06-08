@@ -1,3 +1,15 @@
+> [!NOTE]
+> 📊 **We want to hear from you — community survey is open**
+>
+> Help us get to know who's using the AWS Advanced JDBC Wrapper. The survey is a single GitHub Discussion with one question per comment. You answer by reacting with emojis — pick **all that apply**, multi-select is supported.
+>
+> - Takes about 3–5 minutes
+> - Covers usage, deployment topology, plugins, frameworks, and your experience
+> - Every reaction is visible to the community; total participants are counted from a single 👍 on the participation comment
+>
+> 👉 **[Take the survey](https://github.com/aws/aws-advanced-jdbc-wrapper/discussions/1954)**
+>
+
 # Amazon Web Services (AWS) JDBC Driver
 [![build_status](https://github.com/aws/aws-advanced-jdbc-wrapper/actions/workflows/main.yml/badge.svg)](https://github.com/aws/aws-advanced-jdbc-wrapper/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
