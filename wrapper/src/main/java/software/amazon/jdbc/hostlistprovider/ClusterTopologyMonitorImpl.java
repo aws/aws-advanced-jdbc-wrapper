@@ -453,8 +453,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
             this.lastKnownWriterHostSpec = topologyWriter;
           }
 
-          // Attempt to upgrade the monitoring connection if not at highest priority.
-          this.getConnectionHandler().attemptConnectionUpgrade(hosts);
+          // Attempt to upgrade the monitoring connection if not at highest priority. The handler is given the
+          // filtered host list so candidates in inaccessible regions (e.g. when gdbAccessibleRegions is set)
+          // are not considered for upgrade attempts.
+          this.getConnectionHandler().attemptConnectionUpgrade(this.filterHostsForNodeMonitoring(hosts));
 
           if (this.highRefreshRateEndTimeNano > 0 && System.nanoTime() > this.highRefreshRateEndTimeNano) {
             this.highRefreshRateEndTimeNano = 0;
