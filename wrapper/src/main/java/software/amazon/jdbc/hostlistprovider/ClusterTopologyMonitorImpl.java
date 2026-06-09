@@ -123,7 +123,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   protected final HostSpec instanceTemplate;
 
   protected ExecutorService nodeExecutorService = null;
-  protected boolean isVerifiedWriterConnection = false;
   protected long highRefreshRateEndTimeNano = 0;
   protected String clusterId;
   protected boolean logUnclosedConnections = false;
@@ -200,7 +199,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       if (verifyTopology) {
         // Enter panic mode, which will verify the topology for us.
         this.monitoringConnection.set(null);
-        this.isVerifiedWriterConnection = false;
       }
 
       return this.waitForTopologyUpdate(timeoutMs);
@@ -318,7 +316,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
             this.closeNodeMonitors();
             this.createNodeExecutorService();
 
-            if (hosts != null && !this.isVerifiedWriterConnection) {
+            if (hosts != null && this.monitoringConnection.get() == null) {
               final List<HostSpec> monitoredHosts = this.filterHostsForNodeMonitoring(hosts);
               final boolean someRegionsInaccessible = monitoredHosts.size() < hosts.size();
               final HostSpec baselineWriter = this.lastKnownWriterHostSpec;
@@ -359,7 +357,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
 
               this.writerHostSpec.set(writerConnectionHostSpec);
               this.lastKnownWriterHostSpec = writerConnectionHostSpec;
-              this.isVerifiedWriterConnection = true;
               this.highRefreshRateEndTimeNano = System.nanoTime() + highRefreshPeriodAfterPanicNano;
 
               // Stop node threads and let them finish.
@@ -439,7 +436,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
           if (hosts == null) {
             // Attempt to fetch topology failed, so we switch to panic mode.
             this.monitoringConnection.set(null);
-            this.isVerifiedWriterConnection = false;
             // Clear the live writerHostSpec — it can no longer be considered current. The previously known
             // writer remains in lastKnownWriterHostSpec so that panic-mode node threads can use it as a baseline
             // for writer-change detection.
@@ -597,7 +593,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     this.nodeThreadsLatestTopology.set(null);
 
     this.monitoringConnection.set(null);
-    this.isVerifiedWriterConnection = false;
     this.writerHostSpec.set(null);
     this.lastKnownWriterHostSpec = null;
     if (this.connectionHandler != null) {
@@ -749,8 +744,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
         }
 
         if (isWriter) {
-          this.isVerifiedWriterConnection = true;
-
           try {
             if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
               this.writerHostSpec.set(this.initialHostSpec);
@@ -792,7 +785,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     if (hosts == null) {
       // Attempt to fetch topology failed. There might be something wrong with the connection, so we close it here.
       this.monitoringConnection.set(null);
-      this.isVerifiedWriterConnection = false;
       this.writerHostSpec.set(null);
     }
 
@@ -1154,7 +1146,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     state.add(Pair.create("instanceTemplate",
         this.instanceTemplate != null ? this.instanceTemplate.toString() : null));
     state.add(Pair.create("clusterId", this.clusterId));
-    state.add(Pair.create("isVerifiedWriterConnection", this.isVerifiedWriterConnection));
     state.add(Pair.create("isInPanicMode", this.isInPanicMode()));
     if (this.connectionHandler != null) {
       state.add(Pair.create("connectionHandler", this.connectionHandler.getSnapshotState()));
