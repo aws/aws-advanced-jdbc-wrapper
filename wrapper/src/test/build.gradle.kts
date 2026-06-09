@@ -100,7 +100,7 @@ tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
 
 dependencies {
     // Hibernate test dependencies (Java 17+)
-    add(hibernateTest.implementationConfigurationName, "org.hibernate:hibernate-core:7.3.0.Final")
+    add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.1.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
 }
 

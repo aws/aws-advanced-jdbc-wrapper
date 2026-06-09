@@ -220,7 +220,7 @@ dependencies {
     add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.1.3")
     add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     // Hibernate test dependencies (Java 17+)
-    add(hibernateTest.implementationConfigurationName, "org.hibernate:hibernate-core:7.3.5.Final")
+    add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.1.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
 }
 
