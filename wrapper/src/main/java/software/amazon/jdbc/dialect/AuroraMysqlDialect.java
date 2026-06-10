@@ -32,7 +32,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   protected static final String AURORA_VERSION_EXISTS_QUERY = "SHOW VARIABLES LIKE 'aurora_version'";
   protected static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-          + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
+          + "REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
           + "FROM information_schema.replica_host_status "
           // filter out instances that have not been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";

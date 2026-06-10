@@ -110,7 +110,6 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     final float nodeLag = rs.getFloat(3);
     final String awsRegion = rs.getString(4);
 
-    // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L;
 
     final HostSpec instanceTemplate = instanceTemplatesByRegion.get(awsRegion);

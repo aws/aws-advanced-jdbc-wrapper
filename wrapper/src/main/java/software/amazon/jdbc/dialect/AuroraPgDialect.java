@@ -40,7 +40,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   protected static final String TOPOLOGY_EXISTS_QUERY = "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
   protected static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-          + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
+          + "COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
           + "FROM pg_catalog.aurora_replica_status() "
           // filter out instances that haven't been updated in the last 5 minutes
           + "WHERE EXTRACT("
