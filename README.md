@@ -306,6 +306,17 @@ Please note that Aurora Global Database and RDS Multi-AZ clusters with Blue/Gree
 | Using the AWS Advanced JDBC Wrapper with Telemetry and using the AWS Distro for OpenTelemetry Collector                                                                                                              |                                                                                                                     [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java)                                                                                                                     |
 | Using the AWS Advanced JDBC Wrapper with Telemetry and using the AWS X-Ray Daemon                                                                                                                                    |                                                                                                                    [PostgreSQL](./examples/AWSDriverExample/src/main/java/software/amazon/TelemetryTracingXRayExample.java)                                                                                                                    |
 
+## Other AWS Advanced Wrapper Drivers
+The AWS Advanced JDBC Wrapper is part of a broader family of AWS "wrapper" drivers that bring the same advanced functionality, such as failover support and IAM authentication, to other languages and database connectivity standards. If you are working outside of Java, you may find one of the following drivers useful:
+
+| Driver                                  | Repository                                                          |
+|-----------------------------------------|---------------------------------------------------------------------|
+| AWS Advanced Python Wrapper             | https://github.com/aws/aws-advanced-python-wrapper                  |
+| AWS Advanced NodeJS Wrapper             | https://github.com/aws/aws-advanced-nodejs-wrapper                  |
+| AWS Advanced Go Wrapper                 | https://github.com/aws/aws-advanced-go-wrapper                      |
+| AWS Advanced .NET Wrapper               | https://github.com/aws/aws-advanced-dotnet-data-provider-wrapper    |
+| AWS Advanced ODBC Wrapper               | https://github.com/aws/aws-advanced-odbc-wrapper                    |
+
 ## Getting Help and Opening Issues
 If you encounter a bug with the AWS Advanced JDBC Wrapper, we would like to hear about it.
 Please search the [existing issues](https://github.com/aws/aws-advanced-jdbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests.
