@@ -6,7 +6,7 @@ For most workloads the default is correct and you should not change it. The `mon
 
 ## Plugin Availability
 
-The properties are available since version <!-- TODO: fill in -->. They apply to:
+The properties are available since version 4.1.0. They apply to:
 
 - All Aurora topology-monitored deployments (`monitoringConnectionPriority`)
 - Aurora Global Database deployments (`gdbMonitoringConnectionPriority`)

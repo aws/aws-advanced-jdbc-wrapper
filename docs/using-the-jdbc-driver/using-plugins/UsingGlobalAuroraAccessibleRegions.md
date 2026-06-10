@@ -12,7 +12,7 @@ The `gdbAccessibleRegions` connection property restricts the wrapper to a user-s
 
 ## Plugin Availability
 
-The property is available since version <!-- TODO: fill in --> and applies to:
+The property is available since version 4.1.0 and applies to:
 
 - [GDB Failover Plugin](./UsingTheGdbFailoverPlugin.md)
 - [GDB Read/Write Splitting Plugin](./UsingTheGdbReadWriteSplittingPlugin.md)
