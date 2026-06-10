@@ -17,6 +17,8 @@
 package software.amazon.jdbc.util;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,8 +44,8 @@ public final class AccessibleRegions {
    * Parses {@link PropertyDefinition#GDB_ACCESSIBLE_REGIONS} from the given properties.
    *
    * @param properties the connection properties
-   * @return a set of normalized region names, or {@code null} when the property is not set or empty
-   *     (which means "no restriction — all regions are accessible")
+   * @return an unmodifiable set of normalized region names, or {@code null} when the property is not set
+   *     or empty (which means "no restriction — all regions are accessible")
    */
   public static @Nullable Set<String> parse(final Properties properties) {
     final String accessibleRegionsStr = PropertyDefinition.GDB_ACCESSIBLE_REGIONS.getString(properties);
@@ -53,8 +55,8 @@ public final class AccessibleRegions {
     final Set<String> result = Arrays.stream(accessibleRegionsStr.split(","))
         .map(String::trim)
         .filter(s -> !s.isEmpty())
-        .map(String::toLowerCase)
+        .map(s -> s.toLowerCase(Locale.ROOT))
         .collect(Collectors.toSet());
-    return result.isEmpty() ? null : result;
+    return result.isEmpty() ? null : Collections.unmodifiableSet(result);
   }
 }

@@ -115,10 +115,4 @@ public class UnknownDialect implements Dialect {
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return NO_RESTRICTIONS;
   }
-
-  @Override
-  public List<HostSpec> filterAvailableHosts(
-      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
-    return hosts;
-  }
 }

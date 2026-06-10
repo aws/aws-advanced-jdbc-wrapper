@@ -58,6 +58,8 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
   protected int currentPriorityIndex = -1;
   protected volatile Future<?> upgradeFuture = null;
   protected volatile HostSpec upgradeConnectedHost = null;
+  // A single long-lived executor for async upgrade attempts, created lazily on first use and shut down on close.
+  protected ExecutorService upgradeExecutor = null;
 
   protected AbstractMonitoringConnectionHandler(
       final AtomicConnection monitoringConnection,
@@ -276,35 +278,33 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
         return;
       }
 
-      final ExecutorService executor = ExecutorFactory.newSingleThreadExecutor(getUpgradeThreadName());
+      if (this.upgradeExecutor == null) {
+        this.upgradeExecutor = ExecutorFactory.newSingleThreadExecutor(getUpgradeThreadName());
+      }
       final int candidateCount = candidates.size();
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.upgradeTaskSubmitted",
           new Object[]{candidateCount}));
-      this.upgradeFuture = executor.submit(() -> {
-        try {
-          for (HostSpec candidate : candidates) {
-            if (Thread.currentThread().isInterrupted()) {
-              return;
-            }
-            try {
-              final Connection conn = this.pluginService.forceConnect(candidate, this.monitoringProperties);
-              // Remember which host was actually connected to, then store the connection.
-              this.upgradeConnectedHost = candidate;
-              this.upgradeConnection.set(conn);
-              // Wake up the main monitoring loop so it processes the upgrade immediately.
-              if (this.upgradeReadyNotifier != null) {
-                this.upgradeReadyNotifier.run();
-              }
-              return;
-            } catch (SQLException ex) {
-              LOGGER.finest(() -> Messages.get(
-                  "ClusterTopologyMonitorImpl.upgradeAttemptFailed",
-                  new Object[]{candidate.getHost(), ex.getMessage()}));
-            }
+      this.upgradeFuture = this.upgradeExecutor.submit(() -> {
+        for (HostSpec candidate : candidates) {
+          if (Thread.currentThread().isInterrupted()) {
+            return;
           }
-        } finally {
-          executor.shutdown();
+          try {
+            final Connection conn = this.pluginService.forceConnect(candidate, this.monitoringProperties);
+            // Remember which host was actually connected to, then store the connection.
+            this.upgradeConnectedHost = candidate;
+            this.upgradeConnection.set(conn);
+            // Wake up the main monitoring loop so it processes the upgrade immediately.
+            if (this.upgradeReadyNotifier != null) {
+              this.upgradeReadyNotifier.run();
+            }
+            return;
+          } catch (SQLException ex) {
+            LOGGER.finest(() -> Messages.get(
+                "ClusterTopologyMonitorImpl.upgradeAttemptFailed",
+                new Object[]{candidate.getHost(), ex.getMessage()}));
+          }
         }
       });
     }
@@ -317,6 +317,10 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
       future.cancel(true);
     }
     this.upgradeFuture = null;
+    if (this.upgradeExecutor != null) {
+      this.upgradeExecutor.shutdownNow();
+      this.upgradeExecutor = null;
+    }
     this.upgradeConnection.clean();
     this.upgradeConnectedHost = null;
     this.currentPriorityIndex = -1;

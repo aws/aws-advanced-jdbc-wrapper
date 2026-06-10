@@ -18,6 +18,7 @@ package software.amazon.jdbc.hostlistprovider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
@@ -74,7 +75,7 @@ public class GdbMonitoringConnectionPriority {
       return null;
     }
 
-    final String trimmed = value.trim().toLowerCase();
+    final String trimmed = value.trim().toLowerCase(Locale.ROOT);
 
     if (trimmed.startsWith(STRICT_WRITER_PREFIX)) {
       final String suffix = trimmed.substring(STRICT_WRITER_PREFIX.length());
@@ -83,6 +84,11 @@ public class GdbMonitoringConnectionPriority {
       }
       if (PRIMARY.equals(suffix)) {
         return new GdbMonitoringConnectionPriority(HostRole.WRITER, null, true, false, trimmed);
+      }
+      if (SECONDARY.equals(suffix)) {
+        // A writer in a secondary region is conceptually impossible for an Aurora Global Database
+        // (only the primary region has a writer). Reject rather than treat "secondary" as a region literal.
+        return null;
       }
       // strict-writer-<region>
       return new GdbMonitoringConnectionPriority(HostRole.WRITER, suffix, false, false, trimmed);

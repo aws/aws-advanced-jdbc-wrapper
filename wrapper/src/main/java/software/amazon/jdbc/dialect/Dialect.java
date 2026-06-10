@@ -65,6 +65,9 @@ public interface Dialect {
    * @param accessibleRegions the set of accessible AWS regions (lowercase), or null for no restriction
    * @return the filtered list of hosts, or the original list if no filtering is applied
    */
-  List<HostSpec> filterAvailableHosts(
-      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions);
+  default List<HostSpec> filterAvailableHosts(
+      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
+    // Default: no region filtering. Multi-region dialects (e.g., Global Aurora) override this.
+    return hosts;
+  }
 }

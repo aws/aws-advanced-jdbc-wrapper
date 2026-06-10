@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -105,7 +106,7 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements Glob
     return hosts.stream()
         .filter(host -> {
           final String region = this.rdsUtils.getRdsRegion(host.getHost());
-          return region != null && accessibleRegions.contains(region.toLowerCase());
+          return region != null && accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
         })
         .collect(Collectors.toList());
   }

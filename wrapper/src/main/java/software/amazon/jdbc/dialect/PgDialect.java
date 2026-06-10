@@ -121,10 +121,4 @@ public class PgDialect implements Dialect {
   public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
     return this.dialectUtils.getInstanceId(connection, HOST_ID_QUERY);
   }
-
-  @Override
-  public List<HostSpec> filterAvailableHosts(
-      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
-    return hosts;
-  }
 }

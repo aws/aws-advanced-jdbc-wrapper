@@ -42,9 +42,10 @@ public class AuroraMonitoringConnectionHandler extends
               + "The monitor will try to establish a connection matching the highest priority first. "
               + "Possible values: strict-writer, strict-reader, writer-or-reader.",
           false,
-          new String[] {
-              "strict-writer", "strict-reader", "writer-or-reader"
-          });
+          // Note: choices must be null. This property accepts a comma-separated list, so validating the raw
+          // value against a fixed choice set would reject any multi-value input. Token validation is performed
+          // during parsing in MonitoringConnectionPriority.parseList.
+          null);
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraMonitoringConnectionHandler.class);

@@ -733,51 +733,47 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
         return null;
       }
 
-      if (this.monitoringConnection.compareAndSet(null, conn)) {
-        LOGGER.finest(() -> Messages.get(
-            "ClusterTopologyMonitorImpl.openedMonitoringConnection",
-            new Object[] {this.initialHostSpec.getHost()}));
+      LOGGER.finest(() -> Messages.get(
+          "ClusterTopologyMonitorImpl.openedMonitoringConnection",
+          new Object[] {this.initialHostSpec.getHost()}));
 
-        boolean isWriter = false;
+      boolean isWriter = false;
+      try {
+        isWriter = this.topologyUtils.isWriterInstance(conn);
+      } catch (SQLException ex) {
+        // Do nothing - assume not a writer.
+      }
+
+      if (isWriter) {
         try {
-          isWriter = this.topologyUtils.isWriterInstance(this.monitoringConnection.get());
-        } catch (SQLException ex) {
-          // Do nothing - assume not a writer.
-        }
-
-        if (isWriter) {
-          try {
-            if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
-              this.writerHostSpec.set(this.initialHostSpec);
-              this.lastKnownWriterHostSpec = this.initialHostSpec;
+          if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
+            this.writerHostSpec.set(this.initialHostSpec);
+            this.lastKnownWriterHostSpec = this.initialHostSpec;
+            LOGGER.finest(() -> Messages.get(
+                "ClusterTopologyMonitorImpl.writerMonitoringConnection",
+                new Object[] {this.writerHostSpec.get().getHost()}));
+          } else {
+            final Pair<String, String> pair =
+                this.servicesContainer.getPluginService().getDialect().getHostId(conn);
+            if (pair != null) {
+              HostSpec instanceTemplate = this.getInstanceTemplate(pair.getValue2(), conn);
+              HostSpec writerHost = this.topologyUtils.createHost(
+                  pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
+              this.writerHostSpec.set(writerHost);
+              this.lastKnownWriterHostSpec = writerHost;
               LOGGER.finest(() -> Messages.get(
                   "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                   new Object[] {this.writerHostSpec.get().getHost()}));
-            } else {
-              final Pair<String, String> pair = this.servicesContainer.getPluginService().getDialect().getHostId(
-                  this.monitoringConnection.get());
-              if (pair != null) {
-                HostSpec instanceTemplate = this.getInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
-                HostSpec writerHost = this.topologyUtils.createHost(
-                    pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
-                this.writerHostSpec.set(writerHost);
-                this.lastKnownWriterHostSpec = writerHost;
-                LOGGER.finest(() -> Messages.get(
-                    "ClusterTopologyMonitorImpl.writerMonitoringConnection",
-                    new Object[] {this.writerHostSpec.get().getHost()}));
-              }
             }
-          } catch (SQLException ex) {
-            // Do nothing.
           }
+        } catch (SQLException ex) {
+          // Do nothing.
         }
+      }
 
-        // Let the connection handler know about this connection.
-        this.getConnectionHandler().acceptConnection(conn, isWriter, this.initialHostSpec);
-
-      } else {
-        // The monitoring connection has already been detected by another thread. We close the new connection since it
-        // is not needed anymore.
+      // Offer the connection to the handler. The handler sets it as the monitoring connection if accepted;
+      // if rejected we close the connection here.
+      if (!this.getConnectionHandler().acceptConnection(conn, isWriter, this.initialHostSpec)) {
         this.closeConnection(conn);
       }
     }

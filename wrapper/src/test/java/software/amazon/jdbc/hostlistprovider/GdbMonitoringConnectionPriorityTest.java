@@ -117,6 +117,13 @@ class GdbMonitoringConnectionPriorityTest {
   }
 
   @Test
+  void testFromValueStrictWriterSecondaryRejected() {
+    // A writer in a secondary region is impossible for an Aurora Global Database (only the primary region
+    // has a writer). It must be rejected rather than treated as a region literal named "secondary".
+    assertNull(GdbMonitoringConnectionPriority.fromValue("strict-writer-secondary"));
+  }
+
+  @Test
   void testParseListDefault() {
     List<GdbMonitoringConnectionPriority> result = GdbMonitoringConnectionPriority.parseList(null);
     assertEquals(1, result.size());

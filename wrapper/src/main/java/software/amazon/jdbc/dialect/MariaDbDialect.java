@@ -128,10 +128,4 @@ public class MariaDbDialect implements Dialect {
   public String getHostAliasQuery() {
     return HOST_ALIAS_QUERY;
   }
-
-  @Override
-  public List<HostSpec> filterAvailableHosts(
-      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
-    return hosts;
-  }
 }

@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -95,7 +96,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
     if (this.accessibleRegions != null) {
       final String region = this.rdsUtils.getRdsRegion(this.initialHostSpec.getHost());
-      if (region != null && !this.accessibleRegions.contains(region.toLowerCase())) {
+      if (region != null && !this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT))) {
         throw new RuntimeException(
             Messages.get("GlobalAuroraTopologyMonitor.initialHostNotInAccessibleRegion",
                 new Object[]{this.initialHostSpec.getHost(), region, this.accessibleRegions}));
@@ -112,7 +113,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
     return hosts.stream()
         .filter(host -> {
           final String region = this.rdsUtils.getRdsRegion(host.getHost());
-          return region != null && this.accessibleRegions.contains(region.toLowerCase());
+          return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
         })
         .collect(Collectors.toList());
   }

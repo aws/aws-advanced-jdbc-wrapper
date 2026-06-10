@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.gdbfailover;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -129,7 +130,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     }
 
     if (this.accessibleRegions != null
-        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase())) {
+        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase(Locale.ROOT))) {
       throw new SQLException(Messages.get(
           "GlobalDbFailoverConnectionPlugin.homeRegionNotInAccessibleRegions",
           new Object[]{this.homeRegion, this.accessibleRegions}));
@@ -348,7 +349,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       return true;
     }
     final String region = this.rdsHelper.getRdsRegion(host.getHost());
-    return region != null && this.accessibleRegions.contains(region.toLowerCase());
+    return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
   }
 
   protected void failoverToWriter(final HostSpec writerCandidate, final long failoverEndNano)

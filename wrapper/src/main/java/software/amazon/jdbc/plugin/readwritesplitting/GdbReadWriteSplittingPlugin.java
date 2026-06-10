@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -120,7 +121,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
     }
 
     if (this.accessibleRegions != null
-        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase())) {
+        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase(Locale.ROOT))) {
       throw new SQLException(Messages.get(
           "GdbReadWriteSplittingPlugin.homeRegionNotInAccessibleRegions",
           new Object[]{this.homeRegion, this.accessibleRegions}));
@@ -218,7 +219,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
       return true;
     }
     final String region = this.rdsHelper.getRdsRegion(host.getHost());
-    return region != null && this.accessibleRegions.contains(region.toLowerCase());
+    return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
   }
 
   @Override
