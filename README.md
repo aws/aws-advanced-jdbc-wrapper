@@ -315,8 +315,6 @@ The AWS Advanced JDBC Wrapper is part of a broader family of AWS "wrapper" drive
 | AWS Advanced NodeJS Wrapper             | https://github.com/aws/aws-advanced-nodejs-wrapper                  |
 | AWS Advanced Go Wrapper                 | https://github.com/aws/aws-advanced-go-wrapper                      |
 | AWS Advanced .NET Wrapper               | https://github.com/aws/aws-advanced-dotnet-data-provider-wrapper    |
-| AWS ODBC Driver for MySQL               | https://github.com/aws/aws-mysql-odbc                               |
-| AWS ODBC Driver for PostgreSQL          | https://github.com/aws/aws-pgsql-odbc                               |
 | AWS Advanced ODBC Wrapper               | https://github.com/aws/aws-advanced-odbc-wrapper                    |
 
 ## Getting Help and Opening Issues
