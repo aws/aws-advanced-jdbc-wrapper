@@ -129,3 +129,21 @@ jobs:
           name: 'junit-report'
           path: ./wrapper/build/reports/tests/test/
           retention-days: 3
+
+  ci-gate:
+    name: 'CI Gate'
+    needs: [check-changes, markdown-link-check, lint, test]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Verify required jobs did not fail'
+        run: |
+          # Fail only if a needed job actually failed or was cancelled.
+          # Skipped jobs (e.g. tests on doc-only PRs) are treated as passing,
+          # so this gate is the single required status check for branch protection.
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" \
+             || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "A required job failed or was cancelled."
+            exit 1
+          fi
+          echo "All required jobs passed or were legitimately skipped."
