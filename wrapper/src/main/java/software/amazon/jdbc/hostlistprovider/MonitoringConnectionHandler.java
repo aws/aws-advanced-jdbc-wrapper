@@ -52,7 +52,7 @@ public interface MonitoringConnectionHandler extends StateSnapshotProvider {
    * <p>The handler determines each connection's role from the topology (the writer host is known) — readers
    * are everything else. The handler may also use the host's region for region-aware priorities.
    *
-   * @param connections     a map of host -> connection harvested from node threads
+   * @param connections     a map of {@code host -> connection} harvested from node threads
    * @param writerHostSpec  the host spec of the writer (if known)
    * @param topology        the current topology, used for region/role context
    * @return the host of the connection that was selected and set as the monitoring connection,
