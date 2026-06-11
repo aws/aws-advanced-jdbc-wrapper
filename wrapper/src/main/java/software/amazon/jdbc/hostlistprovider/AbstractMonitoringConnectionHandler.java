@@ -134,7 +134,9 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
       LOGGER.fine(() -> Messages.get(
           "ClusterTopologyMonitorImpl.connectionAccepted",
           new Object[]{
-              hostSpec != null ? hostSpec.getHost() : "unknown", isWriter, formatPriorityIndex(effectiveIndex)}));
+              hostSpec != null ? hostSpec.getHost() : "unknown",
+              isWriter ? "WRITER" : "READER",
+              formatPriorityIndex(effectiveIndex)}));
       return true;
     }
 
@@ -146,7 +148,9 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
       LOGGER.fine(() -> Messages.get(
           "ClusterTopologyMonitorImpl.connectionAccepted",
           new Object[]{
-              hostSpec != null ? hostSpec.getHost() : "unknown", isWriter, formatPriorityIndex(effectiveIndex)}));
+              hostSpec != null ? hostSpec.getHost() : "unknown",
+              isWriter ? "WRITER" : "READER",
+              formatPriorityIndex(effectiveIndex)}));
       return true;
     }
 
