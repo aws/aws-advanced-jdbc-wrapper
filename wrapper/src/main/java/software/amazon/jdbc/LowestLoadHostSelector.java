@@ -32,6 +32,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.HostSelectorUtils;
+import software.amazon.jdbc.util.HostSelectorUtils.HostLoadParams;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -40,7 +42,7 @@ import software.amazon.jdbc.util.events.TopologyRefreshedEvent;
 
 /**
  * Host selector that picks the lowest-loaded reader using a calculated load derived from
- * {@link HostSpec#getCpuPercent()} and {@link HostSpec#getLag()}, with cold-start herd protection so a fleet
+ * {@link HostSpec#getCpuPercent()} and {@link HostSpec#getLagMs()}, with cold-start herd protection so a fleet
  * bringing up connection pools does not pile onto the same "least loaded" host.
  *
  * <p>Selection is weighted-random over the lowest-loaded top-K candidates, where K scales with the size of the
@@ -106,8 +108,9 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
       return null;
     }
 
+    final HostLoadParams loadParams = HostSelectorUtils.determineLoadParms(eligible);
     final List<HostSpec> withLoad = eligible.stream()
-        .filter(h -> calculateLoad(h, props) >= 0)
+        .filter(h -> calculateLoad(h, loadParams, props) >= 0)
         .collect(Collectors.toList());
 
     if (withLoad.isEmpty()) {
@@ -126,7 +129,7 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
     final List<HostEffectiveLoad> ranked = new ArrayList<>(withLoad.size());
     for (final HostSpec h : withLoad) {
       final int pending = pendingCount(h.getHostId());
-      final double effective = (double) calculateLoad(h, props) + alpha * pending;
+      final double effective = (double) calculateLoad(h, loadParams, props) + alpha * pending;
       ranked.add(new HostEffectiveLoad(h, effective));
     }
     ranked.sort((a, b) -> Double.compare(a.effectiveLoad, b.effectiveLoad));
@@ -164,12 +167,22 @@ public class LowestLoadHostSelector implements HostSelector, EventSubscriber {
     }
   }
 
-  private long calculateLoad(final HostSpec host, @Nullable final Properties props) {
-    final long cpuPercentWeighted = (host.getCpuPercent() == HostSpec.UNKNOWN_CPU_PERCENT ? 0 : host.getCpuPercent())
-        * LOWEST_LOAD_CPU_WEIGHT.getInteger(props);
-    final long lagWeighted = (host.getCpuPercent() == HostSpec.UNKNOWN_LAG ? 0 : host.getCpuPercent())
-        * LOWEST_LOAD_LAG_WEIGHT.getInteger(props);
-    return cpuPercentWeighted + lagWeighted;
+  private long calculateLoad(final HostSpec host, final HostLoadParams loadParams, @Nullable final Properties props) {
+    switch (loadParams) {
+      case CPU_AND_LAG:
+        if (host.getCpuPercent() <= HostSpec.UNKNOWN_CPU_PERCENT || host.getCpuPercent() <= HostSpec.UNKNOWN_LAG_MS) {
+          return -1;
+        }
+        final long cpuPercentWeighted = host.getCpuPercent() * LOWEST_LOAD_CPU_WEIGHT.getInteger(props);
+        final long lagWeighted = host.getCpuPercent() * LOWEST_LOAD_LAG_WEIGHT.getInteger(props);
+        return cpuPercentWeighted + lagWeighted;
+      case CPU_ONLY:
+        return host.getCpuPercent()* LOWEST_LOAD_CPU_WEIGHT.getInteger(props);
+      case LAG_ONLY:
+        return host.getCpuPercent() * LOWEST_LOAD_LAG_WEIGHT.getInteger(props);
+      default:
+        return -1;
+    }
   }
 
   private int pendingCount(final String hostId) {

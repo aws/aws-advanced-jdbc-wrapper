@@ -29,7 +29,7 @@ public class HostSpecBuilder {
   private HostRole role = HostRole.WRITER;
   private long weight = HostSpec.DEFAULT_WEIGHT; // Greater than or equal to 0. Healthier nodes have lower weights.
   private long cpuPercent = HostSpec.UNKNOWN_CPU_PERCENT;
-  private long lag = HostSpec.UNKNOWN_LAG;
+  private float lag = HostSpec.UNKNOWN_LAG_MS;
   private Timestamp lastUpdateTime;
   private HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -59,7 +59,7 @@ public class HostSpecBuilder {
     this.lastUpdateTime = hostSpec.lastUpdateTime;
     this.weight = hostSpec.weight;
     this.cpuPercent = hostSpec.cpuPercent;
-    this.lag = hostSpec.lag;
+    this.lag = hostSpec.lagMs;
     return this;
   }
 
@@ -98,7 +98,7 @@ public class HostSpecBuilder {
     return this;
   }
 
-  public HostSpecBuilder lag(long lag) {
+  public HostSpecBuilder lag(float lag) {
     this.lag = lag;
     return this;
   }

@@ -32,30 +32,30 @@ import java.util.Properties;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.HighestLoadHostSelector;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.LowestLoadHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.events.TopologyRefreshedEvent;
 
-public class LowestLoadHostSelectorTest {
+public class HighestLoadHostSelectorTest {
 
   private static final Properties EMPTY_PROPS = new Properties();
 
-  private LowestLoadHostSelector selector;
+  private HighestLoadHostSelector selector;
 
   @BeforeEach
   void setUp() {
-    selector = new LowestLoadHostSelector();
+    selector = new HighestLoadHostSelector();
   }
 
-  private HostSpec reader(final String id, final long cpu, final long lag) {
+  private HostSpec reader(final String id, final long cpu, final float lag) {
     return reader(id, cpu, lag, HostAvailability.AVAILABLE);
   }
 
-  private HostSpec reader(final String id, final long cpu, final long lag, final HostAvailability availability) {
+  private HostSpec reader(final String id, final long cpu, final float lag, final HostAvailability availability) {
     return new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host(id)
         .hostId(id)
@@ -81,11 +81,11 @@ public class LowestLoadHostSelectorTest {
 
   @Test
   void oneHostClearlyDominates_winsMost() throws SQLException {
-    // Single low-load reader vs high-load — the low-load one should be picked the vast majority of the time.
+    // Single high-load reader vs low-load — the high-load one should be picked the vast majority of the time.
     final List<HostSpec> hosts = Arrays.asList(
-        reader("low", 10, 10),
-        reader("high1", 9000, 9000),
-        reader("high2", 9001, 9001));
+        reader("high", 9000, 9000),
+        reader("low1", 10, 10),
+        reader("low2", 11, 11));
 
     final Map<String, Integer> counts = new HashMap<>();
     for (int i = 0; i < 200; i++) {
@@ -96,29 +96,29 @@ public class LowestLoadHostSelectorTest {
       counts.merge(h.getHostId(), 1, Integer::sum);
     }
 
-    final int lowCount = counts.getOrDefault("low", 0);
-    assertTrue(lowCount > 150,
-        "expected 'low' to win the strong majority of picks but got " + counts);
+    final int highCount = counts.getOrDefault("high", 0);
+    assertTrue(highCount > 150,
+        "expected 'high' to win the strong majority of picks but got " + counts);
   }
 
   @Test
   void filtersByRoleAndAvailability() throws SQLException {
     final List<HostSpec> hosts = Arrays.asList(
-        reader("avail-low", 10, 10),
-        reader("not-avail-lower", 1, 1, HostAvailability.NOT_AVAILABLE),
+        reader("avail-high", 9000, 9000),
+        reader("not-avail-higher", 9999, 9999, HostAvailability.NOT_AVAILABLE),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("writer").hostId("writer")
-            .role(HostRole.WRITER).cpuPercent(0).lag(0).build());
+            .role(HostRole.WRITER).cpuPercent(10000).lag(10000).build());
 
     for (int i = 0; i < 30; i++) {
       final HostSpec h = selector.getHost(hosts, HostRole.READER, EMPTY_PROPS);
       assertNotNull(h);
-      assertEquals("avail-low", h.getHostId());
+      assertEquals("avail-high", h.getHostId());
     }
   }
 
   @Test
   void noLoadDataAtAll_fallsBackToRandom() throws SQLException {
-    // All hosts have UNKNOWN_LOAD. Strategy must not return null; must distribute over all of them.
+    // All hosts have unknown load. Strategy must not return null; must distribute over all of them.
     final HostSpec a = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("a").hostId("a").role(HostRole.READER).build();
     final HostSpec b = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -137,15 +137,15 @@ public class LowestLoadHostSelectorTest {
   @Test
   void subsetWithLoad_picksOnlyFromThatSubset() throws SQLException {
     // Two readers have load, one is unknown. The unknown one must never be picked.
-    final HostSpec withLoadLow = reader("with-load-low", 10, 10);
     final HostSpec withLoadHigh = reader("with-load-high", 5000, 5000);
+    final HostSpec withLoadLow = reader("with-load-low", 10, 10);
     final HostSpec unknown = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("unknown").hostId("unknown").role(HostRole.READER).build();
 
     for (int i = 0; i < 100; i++) {
       selector.processEvent(new TopologyRefreshedEvent("test"));
       final HostSpec h = selector.getHost(
-          Arrays.asList(withLoadLow, withLoadHigh, unknown), HostRole.READER, EMPTY_PROPS);
+          Arrays.asList(withLoadHigh, withLoadLow, unknown), HostRole.READER, EMPTY_PROPS);
       assertNotNull(h);
       assertTrue(!"unknown".equals(h.getHostId()),
           "unknown-load host must not be chosen when others have load");
@@ -153,12 +153,11 @@ public class LowestLoadHostSelectorTest {
   }
 
   @Test
-  void pendingPicksInflate_spreadAcrossTopK_onTiedLoad() throws SQLException {
-    // Two readers tied at load=10. Without herd protection a sequence might land on the same host
-    // due to weighted-random selection. With pending-picks inflation, after the first pick,
-    // the second pick's effective load on the chosen host is much higher, so the OTHER host is
-    // strongly preferred next.
-    final List<HostSpec> hosts = Arrays.asList(reader("a", 10, 10), reader("b", 10, 10));
+  void pendingPicksDeflate_spreadAcrossTopK_onTiedLoad() throws SQLException {
+    // Two readers tied at load=5000. Without herd protection a sequence might land on the same host.
+    // With pending-picks deflation, after the first pick, the chosen host's effective load is reduced,
+    // so the OTHER host becomes preferred next.
+    final List<HostSpec> hosts = Arrays.asList(reader("a", 5000, 5000), reader("b", 5000, 5000));
     final Map<String, Integer> counts = new HashMap<>();
 
     for (int i = 0; i < 200; i++) {
@@ -171,12 +170,12 @@ public class LowestLoadHostSelectorTest {
     final int b = counts.getOrDefault("b", 0);
     // Both hosts must each get a substantial share — herd protection prevents "all on one".
     assertTrue(a > 60 && b > 60,
-        "expected pending-picks inflation to spread picks across both hosts; counts=" + counts);
+        "expected pending-picks deflation to spread picks across both hosts; counts=" + counts);
   }
 
   @Test
   void topologyRefreshedEvent_clearsPendingPicks() throws SQLException {
-    final List<HostSpec> hosts = Arrays.asList(reader("a", 10, 10), reader("b", 10, 10));
+    final List<HostSpec> hosts = Arrays.asList(reader("a", 5000, 5000), reader("b", 5000, 5000));
 
     // Drive a burst on host 'a' via repeated picks.
     for (int i = 0; i < 50; i++) {
@@ -186,9 +185,7 @@ public class LowestLoadHostSelectorTest {
     // Reset.
     selector.processEvent(new TopologyRefreshedEvent("test"));
 
-    // After reset, a single pick on perfectly tied loads should be ~50/50 on average.
-    // We just assert that the next pick succeeds and the selector isn't permanently biased away
-    // from any host: do many picks and check both hostIds appear.
+    // After reset, picks on perfectly tied loads should spread across both hosts.
     final Set<String> seen = new HashSet<>();
     for (int i = 0; i < 50; i++) {
       seen.add(selector.getHost(hosts, HostRole.READER, EMPTY_PROPS).getHostId());
@@ -200,10 +197,10 @@ public class LowestLoadHostSelectorTest {
   @Test
   void adaptiveK_twoReaders_kEqualsTwo() throws SQLException {
     // With only two readers, K is clamped to 2 — both candidates always considered. With moderately
-    // different loads (ratio ~10:1), the inverse-load weighting still gives the heavier reader a
-    // ~10% share, which is overwhelmingly likely to surface in 1000 trials. If K were 1, the heavier
-    // reader would never be picked.
-    final List<HostSpec> hosts = Arrays.asList(reader("a", 10, 10), reader("b", 100, 100));
+    // different loads (ratio ~10:1), the direct-load weighting still gives the lighter reader a
+    // small share, which should surface in many trials. If K were 1, the lighter reader would never
+    // be picked.
+    final List<HostSpec> hosts = Arrays.asList(reader("a", 100, 100), reader("b", 10, 10));
     final Set<String> seen = new HashSet<>();
     for (int i = 0; i < 1000; i++) {
       selector.processEvent(new TopologyRefreshedEvent("test"));
@@ -213,15 +210,13 @@ public class LowestLoadHostSelectorTest {
       }
     }
     assertTrue(seen.contains("b"),
-        "with K=2 the heavier reader must be picked at least once across many trials; saw " + seen);
+        "with K=2 the lighter reader must be picked at least once across many trials; saw " + seen);
   }
 
   @Test
   void adaptiveK_largeCluster_capsAtMaxK() throws SQLException {
-    // 12 readers, all with same load (so weighted-random is uniform over top-K). Default maxK = 5.
-    // After resetting between picks, only the K with the lowest hostId-rank-tie should appear, but
-    // since loads are identical the top-K is just the first K after sort-stable. We instead assert
-    // the universe of picked hosts is bounded.
+    // 12 readers, all with same load. Default maxK = 5.
+    // The universe of picked hosts should be bounded by maxK.
     final List<HostSpec> hosts = new java.util.ArrayList<>();
     for (int i = 0; i < 12; i++) {
       hosts.add(reader("r" + i, 100, 100));
@@ -235,5 +230,47 @@ public class LowestLoadHostSelectorTest {
     // Top-K cap is 5 (default), so we should NOT see all 12.
     assertTrue(seen.size() <= 5,
         "expected at most maxK=5 distinct hosts when load is uniform; saw " + seen);
+  }
+
+  @Test
+  void prefersHigherLoad_overLowerLoad() throws SQLException {
+    // Verify the strategy actually prefers the higher-loaded host (inverse of lowestLoad).
+    final List<HostSpec> hosts = Arrays.asList(
+        reader("low", 10, 10),
+        reader("medium", 500, 500),
+        reader("high", 9000, 9000));
+
+    final Map<String, Integer> counts = new HashMap<>();
+    for (int i = 0; i < 300; i++) {
+      selector.processEvent(new TopologyRefreshedEvent("test"));
+      final HostSpec h = selector.getHost(hosts, HostRole.READER, EMPTY_PROPS);
+      assertNotNull(h);
+      counts.merge(h.getHostId(), 1, Integer::sum);
+    }
+
+    final int highCount = counts.getOrDefault("high", 0);
+    final int lowCount = counts.getOrDefault("low", 0);
+    assertTrue(highCount > lowCount,
+        "expected 'high' to be picked more often than 'low'; counts=" + counts);
+  }
+
+  @Test
+  void nullRole_considersAllHosts() throws SQLException {
+    // When role is null, both writers and readers should be considered.
+    final HostSpec writer = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("writer").hostId("writer").role(HostRole.WRITER).cpuPercent(9000).lag(9000).build();
+    final HostSpec reader = reader("reader", 10, 10);
+
+    final Map<String, Integer> counts = new HashMap<>();
+    for (int i = 0; i < 100; i++) {
+      selector.processEvent(new TopologyRefreshedEvent("test"));
+      final HostSpec h = selector.getHost(Arrays.asList(writer, reader), null, EMPTY_PROPS);
+      assertNotNull(h);
+      counts.merge(h.getHostId(), 1, Integer::sum);
+    }
+
+    final int writerCount = counts.getOrDefault("writer", 0);
+    assertTrue(writerCount > 70,
+        "expected 'writer' (higher load) to win most picks with null role; counts=" + counts);
   }
 }
