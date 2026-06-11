@@ -525,6 +525,7 @@ Detects writer/reader failover events and reconnects the JDBC connection to the 
 |---|---|---|
 | `clusterTopologyRefreshRateMs` | `30000` | Normal-state topology refresh interval (ms). Drop this to speed up role-change detection during planned operations such as RDS Multi-AZ DB Cluster minor-version-upgrade switchovers — `100` ms is a reasonable floor for that case. |
 | `clusterTopologyHighRefreshRateMs` | `100` | High-frequency refresh interval (ms) used during an in-flight failover event. Default is already aggressive. |
+| `monitoringConnectionPriority` | `strict-writer` | Comma-separated, ordered list controlling where the wrapper opens its persistent topology-**monitoring** connection for a (non-GDB) Aurora cluster. The monitor tries the highest priority first. Values: `strict-writer`, `strict-reader`, `writer-or-reader`. This is the Aurora-cluster counterpart of `gdbMonitoringConnectionPriority` (§5.3); use `monitoringConnectionPriority` for single-region Aurora / RDS Multi-AZ clusters and `gdbMonitoringConnectionPriority` for Aurora Global Database. |
 
 > **Do not use the v1-only `failoverClusterTopologyRefreshRateMs` / `failoverWriterReconnectIntervalMs` / `failoverReaderConnectTimeoutMs` parameters with `failover2`** — they are read only by the legacy `failover` plugin (see §5.2). v2's tuning levers are `failoverTimeoutMs` and the `clusterTopologyRefreshRateMs` / `clusterTopologyHighRefreshRateMs` pair above. See §6.4 for combined time profiles.
 
@@ -560,7 +561,7 @@ Home-region-aware failover. Required for cross-region Aurora Global Database fai
 | `failoverHomeRegion` | (none) | The AWS region where the application is deployed. |
 | `activeHomeFailoverMode` | (none) | Failover target when GDB primary is in home region. Values: `strict-writer`, `strict-home-reader`, `strict-out-of-home-reader`, `strict-any-reader`, `home-reader-or-writer`, `out-of-home-reader-or-writer`, `any-reader-or-writer`. |
 | `inactiveHomeFailoverMode` | (none) | Same values, used when GDB primary is **not** in home region. |
-| `gdbMonitoringConnectionPriority` | `strict-writer-primary` | Comma-separated, ordered list of priorities for where the wrapper opens its **monitoring connection** (used to track GDB topology and primary/secondary state). The wrapper tries each priority in order until one succeeds. See "Monitoring connection priority" below. |
+| `gdbMonitoringConnectionPriority` | `strict-writer-primary` | Comma-separated, ordered list of priorities for where the wrapper opens its **monitoring connection** (used to track GDB topology and primary/secondary state). The wrapper tries each priority in order until one succeeds. See "Monitoring connection priority" below. For a single-region (non-GDB) Aurora cluster, the equivalent parameter is `monitoringConnectionPriority` (§5.1). |
 
 **Monitoring connection priority — what `gdbMonitoringConnectionPriority` controls.**
 
