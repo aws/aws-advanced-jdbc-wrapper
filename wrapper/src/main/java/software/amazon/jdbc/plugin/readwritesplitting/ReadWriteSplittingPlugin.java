@@ -31,6 +31,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.CacheItem;
 import software.amazon.jdbc.util.LogUtils;
@@ -214,14 +215,33 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     final List<HostSpec> hostCandidates = this.getReaderHostCandidates();
     int connAttempts = hostCandidates.size() * 2;
     for (int i = 0; i < connAttempts; i++) {
-      HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
+      final HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
           hostCandidates, HostRole.READER, this.readerSelectorStrategy);
+
+      // No eligible (AVAILABLE) reader is left. Stop retrying and fall back to the writer instead of
+      // continuing to spend the connect timeout on hosts that are already known to be unreachable.
+      if (hostSpec == null) {
+        break;
+      }
+
       try {
         conn = this.pluginService.connect(hostSpec, this.properties, this);
         this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
+        // A login/authentication failure (e.g. wrong credentials, expired IAM token) is a
+        // showstopper: retrying other readers won't help, so rethrow immediately.
+        if (this.pluginService.isLoginException(e, this.pluginService.getTargetDriverDialect())) {
+          throw e;
+        }
+
+        // Otherwise mark the failed reader as unavailable so the host selector skips it for the
+        // remaining attempts in this loop and, thanks to the host availability cache, for
+        // subsequent requests until the cache entry expires. This avoids repeatedly paying the
+        // connect timeout on a reader that cannot be reached (e.g. when its subnet is
+        // network-partitioned).
+        this.pluginService.setAvailability(hostSpec, HostAvailability.NOT_AVAILABLE);
         if (LOGGER.isLoggable(Level.WARNING)) {
           LOGGER.log(Level.WARNING,
               Messages.get(
