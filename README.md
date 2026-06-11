@@ -118,6 +118,12 @@ You can find our driver by searching in The Central Repository with GroupId and 
 
 [mvn-search]: https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper "Search on Maven Central"
 
+## Configuring the Driver with AI Tools
+
+The driver ships with a self-contained configuration assistant skill, [`JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md`](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md), that you can drop into your AI tool's knowledge base (Kiro, Cursor, Claude Projects, ChatGPT, Amazon Bedrock, GitHub Copilot, etc.) to help build, review, or troubleshoot wrapper configurations.
+
+For drop-in locations, example prompts, and usage details, see [Configuring the Driver with AI Tools](./docs/GettingStarted.md#configuring-the-driver-with-ai-tools) in the Getting Started guide.
+
 ## Properties
 
 | Parameter                                           |                                       Reference                                        |                                                                                                                     Documentation Link                                                                                                                     |
@@ -308,6 +314,7 @@ Please note that Aurora Global Database and RDS Multi-AZ clusters with Blue/Gree
 | Using Vert.x and c3p0 with the AWS Advanced JDBC Wrapper                                                                                                                                                             |                                                                                                                                                 [PostgreSQL](examples/VertxExample/README.md)                                                                                                                                                  |
 | Using the AWS Advanced JDBC Wrapper with Telemetry and using the AWS Distro for OpenTelemetry Collector                                                                                                              |                                                                                                                     [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java)                                                                                                                     |
 | Using the AWS Advanced JDBC Wrapper with Telemetry and using the AWS X-Ray Daemon                                                                                                                                    |                                                                                                                    [PostgreSQL](./examples/AWSDriverExample/src/main/java/software/amazon/TelemetryTracingXRayExample.java)                                                                                                                    |
+| Configuring the AWS Advanced JDBC Wrapper with an AI tool (Cursor, Claude, ChatGPT, Bedrock, etc.) using the Configuration Assistant skill                         |                                                                                                                  [JDBC Wrapper Configuration Assistant](./docs/JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md)                                                                                                                                        |
 
 ## Other AWS Advanced Wrapper Drivers
 The AWS Advanced JDBC Wrapper is part of a broader family of AWS "wrapper" drivers that bring the same advanced functionality, such as failover support and IAM authentication, to other languages and database connectivity standards. If you are working outside of Java, you may find one of the following drivers useful:

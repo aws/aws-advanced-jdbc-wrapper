@@ -76,3 +76,52 @@ dependencies {
 ## Using the AWS Advanced JDBC Wrapper
 
 For more detailed information about how to use and configure the AWS Advanced JDBC Wrapper, please visit [this page](using-the-jdbc-driver/UsingTheJdbcDriver.md).
+
+## Configuring the Driver with AI Tools
+
+If you use an AI coding assistant (Cursor, Claude, ChatGPT, Amazon Bedrock, GitHub Copilot, etc.), you can use the driver's configuration assistant skill to help build, review, or troubleshoot your wrapper configuration.
+
+The skill is a single self-contained markdown file: [`JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md`](./JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md). It carries enough reference material — every plugin, parameter, default value, dialect, failover mode, and compatibility constraint — for the AI to answer arbitrary configuration questions without needing access to the wrapper source.
+
+### Quick start
+
+1. Download or copy [`JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md`](./JDBC-WRAPPER-CONFIGURATION-ASSISTANT.md).
+2. Add it to your AI tool as a knowledge file, project rule, or system prompt:
+   - **Kiro**: place it in `.kiro/skills/` in your project workspace, or `~/.kiro/skills/` for user-level scope across every workspace. Kiro detects skills automatically.
+   - **Cursor**: place it in `.cursor/rules/` of your project.
+   - **Claude Projects**: upload it as a project knowledge document.
+   - **ChatGPT custom GPT**: paste into the GPT's instructions or upload as a knowledge file.
+   - **Amazon Bedrock agent**: attach it to the agent's knowledge base.
+   - **Plain chat (ChatGPT, Claude, Gemini)**: paste it at the start of a new conversation, then ask your question.
+3. Ask the AI for help. It will interview you when it needs more details.
+
+### Example prompts
+
+The simplest way to start:
+
+```
+Help me configure the AWS Advanced JDBC Wrapper for my application.
+```
+
+Skip the interview when you already know what you want:
+
+```
+Give me a default configuration for Aurora MySQL with Spring Boot, HikariCP, and failover support.
+```
+
+Review an existing configuration:
+
+```
+Review this wrapper configuration and tell me what to change:
+
+<paste your application.yml or Properties block here>
+```
+
+Diagnose an error:
+
+```
+My pool drains to zero connections right after Aurora failover. I'm using HikariCP
+and the failover2 plugin. What's wrong?
+```
+
+The skill targets wrapper version 4.0+ and explicitly avoids guessing — if it doesn't know something, it will say so and point you at the official docs.
