@@ -32,7 +32,7 @@ public class HostSpec {
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
   public static final long UNKNOWN_CPU_PERCENT = -1L;
-  public static final long UNKNOWN_LAG = -1L;
+  public static final float UNKNOWN_LAG_MS = -1.0f;
 
   protected final String host; // full domain name
   protected final int port;
@@ -41,7 +41,7 @@ public class HostSpec {
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
   protected volatile long cpuPercent = UNKNOWN_CPU_PERCENT; // -1 = unknown; percentage of CPU utilization
-  protected volatile long lag = UNKNOWN_LAG; // -1 = unknown; replication lag in milliseconds
+  protected volatile float lagMs = UNKNOWN_LAG_MS; // -1 = unknown; replication lag in milliseconds
   protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -72,7 +72,7 @@ public class HostSpec {
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
     this(host, port, hostId, role, availability, weight, UNKNOWN_CPU_PERCENT,
-        UNKNOWN_LAG, lastUpdateTime, hostAvailabilityStrategy);
+        UNKNOWN_LAG_MS, lastUpdateTime, hostAvailabilityStrategy);
   }
 
   HostSpec(
@@ -83,7 +83,7 @@ public class HostSpec {
       final HostAvailability availability,
       final long weight,
       final long cpuPercent,
-      final long lag,
+      final float lagMs,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
@@ -94,7 +94,7 @@ public class HostSpec {
     this.role = role;
     this.weight = weight;
     this.cpuPercent = cpuPercent;
-    this.lag = lag;
+    this.lagMs = lagMs;
     this.lastUpdateTime = lastUpdateTime;
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
   }
@@ -181,14 +181,14 @@ public class HostSpec {
     }
   }
 
-  public long getLag() {
-    return this.lag;
+  public float getLagMs() {
+    return this.lagMs;
   }
 
-  public void setLag(long lag) {
+  public void setLagMs(float lagMs) {
     try (ResourceLock ignored = this.resourceLock.obtain()) {
       this.toString = null;
-      this.lag = lag;
+      this.lagMs = lagMs;
     }
   }
 
@@ -226,7 +226,7 @@ public class HostSpec {
               "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%d, lag=%d, %s]",
               Integer.toHexString(System.identityHashCode(this)),
               this.hostId, this.host, this.port, this.role, this.availability,
-              this.weight, this.cpuPercent, this.lag, this.lastUpdateTime);
+              this.weight, this.cpuPercent, this.lagMs, this.lastUpdateTime);
         }
       }
     }
@@ -254,6 +254,6 @@ public class HostSpec {
         && this.role == spec.role
         && this.weight == spec.weight
         && this.cpuPercent == spec.cpuPercent
-        && this.lag == spec.lag;
+        && this.lagMs == spec.lagMs;
   }
 }
