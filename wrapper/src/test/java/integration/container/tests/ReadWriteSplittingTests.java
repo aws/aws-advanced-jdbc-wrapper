@@ -74,8 +74,10 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
@@ -384,6 +386,67 @@ public class ReadWriteSplittingTests {
       assertDoesNotThrow(() -> conn.setReadOnly(true));
       currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertNotEquals(writerConnectionId, currentConnectionId);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2, max = 2)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_setReadOnlyTrue_oneReaderDown_marksReaderUnavailableAndFallsBackToWriter()
+      throws SQLException {
+    // Reproduces https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324
+    // In a 2-node Aurora cluster (1 writer, 1 reader), when the single reader becomes unreachable
+    // (e.g. its subnet is network-partitioned), setReadOnly(true) should fall back to the writer.
+    // The unreachable reader should be marked NOT_AVAILABLE so that subsequent setReadOnly(true)
+    // calls skip it and fall back to the writer immediately instead of repeatedly paying the
+    // connect timeout.
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+
+      // Confirm the reader is reachable while connectivity is up.
+      conn.setReadOnly(true);
+      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+
+      // Disable connectivity to the single reader instance.
+      ProxyHelper.disableConnectivity(readerConnectionId);
+
+      // setReadOnly(true) must not get stuck and must fall back to the writer.
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
+
+      // The unreachable reader should have been marked NOT_AVAILABLE.
+      final PluginService pluginService = conn.unwrap(PluginService.class);
+      final HostSpec unavailableReader = pluginService.getAllHosts().stream()
+          .filter(h -> readerConnectionId.equals(h.getHostId())
+              || h.getHost().startsWith(readerConnectionId + "."))
+          .findFirst()
+          .orElse(null);
+      assertNotNull(unavailableReader,
+          "Reader host '" + readerConnectionId + "' was not found in the topology.");
+      assertEquals(HostAvailability.NOT_AVAILABLE, unavailableReader.getAvailability());
+
+      // A subsequent setReadOnly(true) should still fall back to the writer without throwing.
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
+
+      // Restore connectivity. After the reader becomes available again the plugin can use it.
+      ProxyHelper.enableAllConnectivity();
+      TestPluginServiceImpl.clearHostAvailabilityCache();
+      pluginService.forceRefreshHostList();
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+      conn.setReadOnly(true);
+      assertEquals(readerConnectionId, auroraUtil.queryInstanceId(conn));
     }
   }
 
