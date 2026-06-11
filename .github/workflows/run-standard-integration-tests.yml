@@ -165,3 +165,21 @@ jobs:
           name: html-summary-report-caching-${{ matrix.engine }}-${{ matrix.jvm }}
           path: ./wrapper/build/report
           retention-days: 5
+
+  integration-gate:
+    name: 'Standard Integration Tests Gate'
+    needs: [check-changes, docker-tests, caching-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Verify required jobs did not fail'
+        run: |
+          # Fail only if a needed job actually failed or was cancelled.
+          # Skipped jobs (e.g. tests on doc-only PRs) are treated as passing,
+          # so this gate is the single required status check for branch protection.
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" \
+             || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "A required job failed or was cancelled."
+            exit 1
+          fi
+          echo "All required jobs passed or were legitimately skipped."
