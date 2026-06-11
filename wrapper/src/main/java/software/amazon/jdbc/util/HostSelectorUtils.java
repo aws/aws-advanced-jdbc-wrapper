@@ -23,6 +23,37 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 
 public class HostSelectorUtils {
+  public  enum HostLoadParams {
+    CPU_AND_LAG,
+    CPU_ONLY,
+    LAG_ONLY,
+    NONE
+  }
+
+  public static HostLoadParams determineLoadParms(final List<HostSpec> hosts) {
+    boolean containsCpu = false;
+    boolean containsLag = false;
+
+    for (final HostSpec host : hosts) {
+      if (host.getCpuPercent() > HostSpec.UNKNOWN_CPU_PERCENT) {
+        containsCpu = true;
+      }
+      if (host.getLagMs() > HostSpec.UNKNOWN_LAG_MS) {
+        containsLag = true;
+      }
+      if (containsCpu && containsLag) {
+        return HostLoadParams.CPU_AND_LAG;
+      }
+    }
+    if (containsCpu) {
+      return HostLoadParams.CPU_ONLY;
+    } else if (containsLag) {
+      return HostLoadParams.LAG_ONLY;
+    } else {
+      return HostLoadParams.NONE;
+    }
+  }
+
   public static void setHostWeightPairsProperty(
       final @NonNull AwsWrapperProperty property,
       final @NonNull Properties properties,

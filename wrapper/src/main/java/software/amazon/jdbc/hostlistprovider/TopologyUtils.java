@@ -164,7 +164,7 @@ public abstract class TopologyUtils {
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
     return createHost(instanceId, instanceName, isWriter, weight, HostSpec.UNKNOWN_CPU_PERCENT,
-        HostSpec.UNKNOWN_LAG, lastUpdateTime, initialHostSpec, instanceTemplate);
+        HostSpec.UNKNOWN_LAG_MS, lastUpdateTime, initialHostSpec, instanceTemplate);
   }
 
   /**
@@ -185,7 +185,7 @@ public abstract class TopologyUtils {
       final boolean isWriter,
       final long weight,
       final long cpuPercent,
-      final long lag,
+      final float lag,
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
