@@ -83,6 +83,7 @@ public class DialectManager implements DialectProvider {
   private boolean canUpdate = false;
   private Dialect dialect = null;
   private String dialectCode;
+  private boolean confirmed = false;
 
   private final PluginService pluginService;
 
@@ -99,6 +100,11 @@ public class DialectManager implements DialectProvider {
   }
 
   @Override
+  public boolean isConfirmedDialect() {
+    return this.confirmed;
+  }
+
+  @Override
   public Dialect getDialect(
       final @NonNull String driverProtocol,
       final @NonNull String url,
@@ -106,6 +112,7 @@ public class DialectManager implements DialectProvider {
       throws SQLException {
 
     this.canUpdate = false;
+    this.confirmed = false;
     this.dialect = null;
 
     final Dialect customDialect = Driver.getCustomDialect();
@@ -126,6 +133,7 @@ public class DialectManager implements DialectProvider {
       if (userDialect != null) {
         this.dialectCode = dialectCode;
         this.dialect = userDialect;
+        this.confirmed = true;
         this.logCurrentDialect();
         return userDialect;
       } else {
@@ -150,6 +158,7 @@ public class DialectManager implements DialectProvider {
         this.canUpdate = false;
         this.dialectCode = DialectCodes.GLOBAL_AURORA_MYSQL;
         this.dialect = knownDialectsByCode.get(DialectCodes.GLOBAL_AURORA_MYSQL);
+        this.confirmed = true;
         return this.dialect;
       }
       if (type.isRdsCluster()) {
@@ -178,12 +187,14 @@ public class DialectManager implements DialectProvider {
         this.canUpdate = false;
         this.dialectCode = DialectCodes.AURORA_PG;
         this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_PG);
+        this.confirmed = true;
         return this.dialect;
       }
       if (RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER.equals(type)) {
         this.canUpdate = false;
         this.dialectCode = DialectCodes.GLOBAL_AURORA_PG;
         this.dialect = knownDialectsByCode.get(DialectCodes.GLOBAL_AURORA_PG);
+        this.confirmed = true;
         return this.dialect;
       }
       if (type.isRdsCluster()) {
@@ -228,6 +239,7 @@ public class DialectManager implements DialectProvider {
       final @NonNull Connection connection) throws SQLException {
 
     if (!this.canUpdate) {
+      this.confirmed = true;
       this.logCurrentDialect();
       return this.dialect;
     }
@@ -272,6 +284,11 @@ public class DialectManager implements DialectProvider {
   private void logCurrentDialect() {
     LOGGER.finest(() -> Messages.get(
         "DialectManager.currentDialect",
-        new Object[] {this.dialectCode, this.dialect == null ? "<null>" : this.dialect, this.canUpdate}));
+        new Object[] {
+            this.dialectCode,
+            this.dialect == null ? "<null>" : this.dialect,
+            this.canUpdate,
+            this.confirmed
+        }));
   }
 }

@@ -20,18 +20,31 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
 
 public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
+  private static final Logger LOGGER = Logger.getLogger(GlobalAuroraTopologyMonitor.class.getName());
+
+  private static final long STABLE_TOPOLOGIES_DURATION_NANO = TimeUnit.SECONDS.toNanos(30);
+
   protected final Map<String, HostSpec> instanceTemplatesByRegion;
   protected final GlobalAuroraTopologyUtils topologyUtils;
+  protected final Set<String> accessibleRegions;
+  protected final RdsUtils rdsUtils = new RdsUtils();
 
   public GlobalAuroraTopologyMonitor(
       final FullServicesContainer servicesContainer,
@@ -54,6 +67,8 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
 
     this.instanceTemplatesByRegion = instanceTemplatesByRegion;
     this.topologyUtils = topologyUtils;
+
+    this.accessibleRegions = AccessibleRegions.parse(properties);
   }
 
   @Override
@@ -78,10 +93,56 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   }
 
   @Override
+  protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
+    if (this.accessibleRegions != null) {
+      final String region = this.rdsUtils.getRdsRegion(this.initialHostSpec.getHost());
+      if (region != null && !this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT))) {
+        throw new RuntimeException(
+            Messages.get("GlobalAuroraTopologyMonitor.initialHostNotInAccessibleRegion",
+                new Object[]{this.initialHostSpec.getHost(), region, this.accessibleRegions}));
+      }
+    }
+    return super.openAnyConnectionAndUpdateTopology();
+  }
+
+  @Override
+  protected List<HostSpec> filterHostsForNodeMonitoring(final List<HostSpec> hosts) {
+    if (this.accessibleRegions == null) {
+      return hosts;
+    }
+    return hosts.stream()
+        .filter(host -> {
+          final String region = this.rdsUtils.getRdsRegion(host.getHost());
+          return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
+        })
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  protected MonitoringConnectionHandler createConnectionHandler() {
+    return new GdbMonitoringConnectionHandler(
+        this.monitoringConnection,
+        this.servicesContainer.getPluginService(),
+        this.topologyUtils,
+        this.properties,
+        this.monitoringProperties,
+        this.writerHostSpec,
+        this::wakeUpMonitoringLoop);
+  }
+
+  @Override
+  protected long getStableTopologiesDurationNano() {
+    return STABLE_TOPOLOGIES_DURATION_NANO;
+  }
+
+  @Override
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = super.getSnapshotState();
     if (state == null) {
       state = new ArrayList<>();
+    }
+    if (this.accessibleRegions != null) {
+      state.add(Pair.create("accessibleRegions", this.accessibleRegions.toString()));
     }
     if (this.instanceTemplatesByRegion != null) {
       List<Pair<String, Object>> propsMap = new ArrayList<>();

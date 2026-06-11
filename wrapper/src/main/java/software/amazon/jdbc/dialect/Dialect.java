@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
@@ -53,4 +54,20 @@ public interface Dialect {
   HostRole getHostRole(Connection connection) throws SQLException;
 
   @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException;
+
+  /**
+   * Filters the provided list of hosts by the set of accessible AWS regions.
+   * Implementations that do not support multi-region clusters should return the original list unchanged.
+   * Dialects supporting multi-region clusters (e.g., Global Aurora) should restrict the host list
+   * to nodes in accessible regions.
+   *
+   * @param hosts             the list of hosts to filter
+   * @param accessibleRegions the set of accessible AWS regions (lowercase), or null for no restriction
+   * @return the filtered list of hosts, or the original list if no filtering is applied
+   */
+  default List<HostSpec> filterAvailableHosts(
+      @NonNull List<HostSpec> hosts, @Nullable Set<String> accessibleRegions) {
+    // Default: no region filtering. Multi-region dialects (e.g., Global Aurora) override this.
+    return hosts;
+  }
 }

@@ -21,6 +21,8 @@ import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.exceptions.UnclosedConnectionException;
 import software.amazon.jdbc.util.LazyCleaner;
 import software.amazon.jdbc.util.LazyCleanerImpl;
@@ -35,11 +37,11 @@ public class AtomicConnection {
   protected LazyCleaner.Cleanable cleanable;
   protected ConnectionCleanupAction cleanupAction;
 
-  public AtomicConnection(final Object referent) {
+  public AtomicConnection(final @NonNull Object referent) {
     this(referent, false);
   }
 
-  public AtomicConnection(final Object referent, boolean logUnclosedConnections) {
+  public AtomicConnection(final @NonNull Object referent, boolean logUnclosedConnections) {
     this.logUnclosedConnections = logUnclosedConnections;
     this.cleanable = LazyCleanerImpl.getInstance().register(
         referent,
@@ -59,17 +61,17 @@ public class AtomicConnection {
     return this.atomicReference.get();
   }
 
-  public void set(final Connection connection, final boolean closePreviousConnection) {
+  public void set(final @Nullable Connection connection, final boolean closePreviousConnection) {
     this.set(connection, null, closePreviousConnection);
   }
 
-  public void set(final Connection connection) {
+  public void set(final @Nullable Connection connection) {
     this.set(connection, null, true);
   }
 
   public void set(
-      final Connection connection,
-      final Throwable openConnectionStacktrace,
+      final @Nullable Connection connection,
+      final @Nullable Throwable openConnectionStacktrace,
       final boolean closePreviousConnection) {
 
     if (this.cleanupAction == null) {

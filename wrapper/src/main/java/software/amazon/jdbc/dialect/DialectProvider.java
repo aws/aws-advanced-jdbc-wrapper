@@ -32,4 +32,6 @@ public interface DialectProvider {
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
       final @NonNull Connection connection) throws SQLException;
+
+  boolean isConfirmedDialect();
 }

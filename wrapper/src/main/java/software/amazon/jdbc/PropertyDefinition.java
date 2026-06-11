@@ -193,6 +193,13 @@ public class PropertyDefinition {
               "hikari", "c3p0"
           });
 
+  public static final AwsWrapperProperty GDB_ACCESSIBLE_REGIONS =
+      new AwsWrapperProperty(
+          "gdbAccessibleRegions", null,
+          "Comma-separated list of AWS regions accessible by the application. "
+              + "When set, failover, topology monitoring, and read/write splitting will only consider nodes "
+              + "in these regions. Default is null (no restriction, all regions are accessible).");
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =

@@ -113,7 +113,8 @@ public class AuroraStaleDnsHelper {
       this.pluginService.refreshHostList();
     }
 
-    LOGGER.finest(() -> LogUtils.logTopology(this.pluginService.getAllHosts()));
+    // Uncomment this line when debugging
+    //LOGGER.finest(() -> LogUtils.logTopology(this.pluginService.getAllHosts()));
 
     if (this.writerHostSpec == null) {
       final HostSpec writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());

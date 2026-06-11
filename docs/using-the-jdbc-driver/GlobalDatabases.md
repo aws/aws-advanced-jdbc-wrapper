@@ -123,6 +123,12 @@ instance endpoints. It should contain:
 - **Cross-region failover**: Planned failover to a different region
 - **DNS handling**: The `initialConnection` plugin helps mitigate stale DNS issues
 
+### Restricting Access to Specific Regions
+If your application can only reach a subset of the regions a Global Database spans (due to network reachability, compliance, or latency constraints), use the `gdbAccessibleRegions` property to restrict the wrapper to those regions. See [Restricting Aurora Global Database Access by Region](./using-plugins/UsingGlobalAuroraAccessibleRegions.md) for details.
+
+### Monitoring Connection Priority
+The topology monitor's background connection can be directed to a preferred node type or region using `gdbMonitoringConnectionPriority`. See [Monitoring Connection Priority](./using-plugins/UsingMonitoringConnectionPriority.md) for details.
+
 ## Compatibility
 
 For detailed compatibility information, see:
@@ -134,5 +140,7 @@ For detailed compatibility information, see:
 
 - [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md)
 - [Aurora Initial Connection Strategy Plugin](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
+- [Restricting Aurora Global Database Access by Region](./using-plugins/UsingGlobalAuroraAccessibleRegions.md)
+- [Monitoring Connection Priority](./using-plugins/UsingMonitoringConnectionPriority.md)
 - [IAM Authentication Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md)
 - [Database Dialects](./DatabaseDialects.md)

@@ -38,6 +38,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -133,6 +134,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   private final long openConnectionRetryTimeoutNano;
   private final @Nullable String selectionStrategyPropValue;
   private final @Nullable String verifyRolePropValue;
+  private final @Nullable Set<String> accessibleRegions;
   private HostListProviderService hostListProviderService;
 
   static {
@@ -155,6 +157,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     } else {
       this.selectionStrategyPropValue = READER_HOST_SELECTOR_STRATEGY.getString(properties);
     }
+
+    this.accessibleRegions = AccessibleRegions.parse(properties);
   }
 
   @Override
@@ -476,7 +480,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     if (substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER) {
-      return Utils.getWriter(this.pluginService.getAllHosts());
+      final List<HostSpec> availableHosts = this.pluginService.getDialect()
+          .filterAvailableHosts(this.pluginService.getAllHosts(), this.accessibleRegions);
+      return Utils.getWriter(availableHosts);
     }
 
     HostRole targetRole = InstanceSubstitutionStrategy.toTargetRole(substitutionStrategy);
@@ -491,13 +497,18 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final String awsRegion = urlType.hasRegion()
           ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost())
           : null;
+
+      // Apply dialect-specific accessible region filtering. For non-global Aurora dialects this is a no-op.
+      List<HostSpec> availableHosts = this.pluginService.getDialect()
+          .filterAvailableHosts(this.pluginService.getHosts(), this.accessibleRegions);
+
       if (!StringUtils.isNullOrEmpty(awsRegion)) {
-        final List<HostSpec> hostsInRegion = this.pluginService.getHosts().stream()
+        final List<HostSpec> hostsInRegion = availableHosts.stream()
             .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
             .collect(Collectors.toList());
         return this.pluginService.getHostSpecByStrategy(hostsInRegion, targetRole, this.selectionStrategyPropValue);
       } else {
-        return this.pluginService.getHostSpecByStrategy(targetRole, this.selectionStrategyPropValue);
+        return this.pluginService.getHostSpecByStrategy(availableHosts, targetRole, this.selectionStrategyPropValue);
       }
     } catch (SQLException ex) {
       // Unable to find candidate host.
