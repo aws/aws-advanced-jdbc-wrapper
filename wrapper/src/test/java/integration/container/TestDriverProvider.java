@@ -31,6 +31,7 @@ import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
+import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.EnableBasedOnEnvironmentFeatureExtension;
 import integration.container.condition.EnableBasedOnTestDriverExtension;
 import integration.container.condition.MakeSureFirstInstanceWriter;
@@ -217,6 +218,9 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     Driver.resetCustomTargetDriverDialect();
     Driver.resetCustomConnectionProvider();
     Driver.resetConnectionInitFunc();
+    // Reset the static host availability cache so a host marked NOT_AVAILABLE in one test
+    // (e.g. by failover or read/write splitting) does not leak into subsequent tests.
+    TestPluginServiceImpl.clearHostAvailabilityCache();
   }
 
   public static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)

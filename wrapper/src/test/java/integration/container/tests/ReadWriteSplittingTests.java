@@ -74,10 +74,8 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
@@ -393,14 +391,14 @@ public class ReadWriteSplittingTests {
   @EnableOnNumOfInstances(min = 2, max = 2)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_setReadOnlyTrue_oneReaderDown_marksReaderUnavailableAndFallsBackToWriter()
+  public void test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter()
       throws SQLException {
     // Reproduces https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324
     // In a 2-node Aurora cluster (1 writer, 1 reader), when the single reader becomes unreachable
-    // (e.g. its subnet is network-partitioned), setReadOnly(true) should fall back to the writer.
-    // The unreachable reader should be marked NOT_AVAILABLE so that subsequent setReadOnly(true)
-    // calls skip it and fall back to the writer immediately instead of repeatedly paying the
-    // connect timeout.
+    // (e.g. its subnet is network-partitioned), setReadOnly(true) should fall back to the writer
+    // instead of getting stuck retrying the unreachable reader. Once the reader becomes reachable
+    // again, setReadOnly(true) should use it without requiring any availability cache reset (the
+    // plugin tracks failed readers only locally per call and has no global side effects).
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
 
@@ -421,27 +419,16 @@ public class ReadWriteSplittingTests {
       assertDoesNotThrow(() -> conn.setReadOnly(true));
       assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
 
-      // The unreachable reader should have been marked NOT_AVAILABLE.
-      final PluginService pluginService = conn.unwrap(PluginService.class);
-      final HostSpec unavailableReader = pluginService.getAllHosts().stream()
-          .filter(h -> readerConnectionId.equals(h.getHostId())
-              || h.getHost().startsWith(readerConnectionId + "."))
-          .findFirst()
-          .orElse(null);
-      assertNotNull(unavailableReader,
-          "Reader host '" + readerConnectionId + "' was not found in the topology.");
-      assertEquals(HostAvailability.NOT_AVAILABLE, unavailableReader.getAvailability());
-
       // A subsequent setReadOnly(true) should still fall back to the writer without throwing.
       conn.setReadOnly(false);
       assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
       assertDoesNotThrow(() -> conn.setReadOnly(true));
       assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
 
-      // Restore connectivity. After the reader becomes available again the plugin can use it.
+      // Restore connectivity. The reader should be usable again on the next request without any
+      // availability cache reset, since the plugin does not mark hosts NOT_AVAILABLE globally.
       ProxyHelper.enableAllConnectivity();
-      TestPluginServiceImpl.clearHostAvailabilityCache();
-      pluginService.forceRefreshHostList();
+      conn.unwrap(PluginService.class).forceRefreshHostList();
 
       conn.setReadOnly(false);
       assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
