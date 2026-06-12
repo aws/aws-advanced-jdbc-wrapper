@@ -343,6 +343,9 @@ public class SimpleReadWriteSplittingPluginTest {
 
   @Test
   public void testWrongRoleConnection_writerEndpointToReader() throws SQLException {
+    // Use a short connect-retry timeout: role verification never succeeds in this test, so the
+    // retry loop would otherwise spin for the full default 60s timeout.
+    SimpleReadWriteSplittingPlugin.SRW_CONNECT_RETRY_TIMEOUT_MS.set(defaultProps, "5");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -363,6 +366,9 @@ public class SimpleReadWriteSplittingPluginTest {
 
   @Test
   public void testWrongRoleConnection_readerEndpointToWriter() throws SQLException {
+    // Use a short connect-retry timeout: role verification never succeeds in this test, so the
+    // retry loop would otherwise spin for the full default 60s timeout.
+    SimpleReadWriteSplittingPlugin.SRW_CONNECT_RETRY_TIMEOUT_MS.set(defaultProps, "5");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
     when(mockPluginService.isInTransaction()).thenReturn(false);

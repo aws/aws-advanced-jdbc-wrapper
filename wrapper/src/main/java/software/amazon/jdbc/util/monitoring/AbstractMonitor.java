@@ -80,6 +80,12 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     LOGGER.fine(Messages.get("AbstractMonitor.stoppingMonitor", new Object[] {this}));
     this.stop.set(true);
 
+    // Initiate an orderly shutdown so that awaitTermination can return as soon as the monitor task
+    // finishes (or immediately if no task was ever submitted). Without this, awaitTermination always
+    // blocks for the full termination timeout. shutdown() is idempotent, so calling it here is safe
+    // even when start() already shut the executor down.
+    this.monitorExecutor.shutdown();
+
     try {
       if (!this.monitorExecutor.awaitTermination(this.terminationTimeoutSec.get(), TimeUnit.SECONDS)) {
         LOGGER.info(Messages.get(
