@@ -388,6 +388,56 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2, max = 2)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter()
+      throws SQLException {
+    // Reproduces https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324
+    // In a 2-node Aurora cluster (1 writer, 1 reader), when the single reader becomes unreachable
+    // (e.g. its subnet is network-partitioned), setReadOnly(true) should fall back to the writer
+    // instead of getting stuck retrying the unreachable reader. Once the reader becomes reachable
+    // again, setReadOnly(true) should use it without requiring any availability cache reset (the
+    // plugin tracks failed readers only locally per call and has no global side effects).
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+
+      // Confirm the reader is reachable while connectivity is up.
+      conn.setReadOnly(true);
+      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+
+      // Disable connectivity to the single reader instance.
+      ProxyHelper.disableConnectivity(readerConnectionId);
+
+      // setReadOnly(true) must not get stuck and must fall back to the writer.
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
+
+      // A subsequent setReadOnly(true) should still fall back to the writer without throwing.
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
+
+      // Restore connectivity. The reader should be usable again on the next request without any
+      // availability cache reset, since the plugin does not mark hosts NOT_AVAILABLE globally.
+      ProxyHelper.enableAllConnectivity();
+      conn.unwrap(PluginService.class).forceRefreshHostList();
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+      conn.setReadOnly(true);
+      assertEquals(readerConnectionId, auroraUtil.queryInstanceId(conn));
+    }
+  }
+
+  @TestTemplate
   public void test_setReadOnly_closedConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {

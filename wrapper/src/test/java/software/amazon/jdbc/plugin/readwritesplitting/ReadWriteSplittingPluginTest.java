@@ -54,6 +54,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -330,6 +331,91 @@ public class ReadWriteSplittingPluginTest {
         null);
     plugin.switchConnectionIfRequired(true);
 
+    verify(mockPluginService, times(0))
+        .setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    assertNull(plugin.getReaderConnection());
+  }
+
+  @Test
+  public void testSetReadOnly_true_readerConnectionFailed_triesEachReaderOnceThenFallsBack() throws SQLException {
+    when(this.mockPluginService.getAllHosts()).thenReturn(singleReaderTopology);
+    when(this.mockPluginService.getHosts()).thenReturn(singleReaderTopology);
+    when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
+        .thenThrow(SQLException.class);
+    // The selector returns the reader from the local candidate list until it is removed after the
+    // failed attempt, after which there is no eligible reader left.
+    when(this.mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), eq("random")))
+        .thenAnswer(invocation -> {
+          final List<HostSpec> candidates = invocation.getArgument(0);
+          return candidates.contains(readerHostSpec1) ? readerHostSpec1 : null;
+        });
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        mockWriterConn,
+        null);
+    plugin.switchConnectionIfRequired(true);
+
+    // The failed reader should be tried exactly once (it is removed from the local candidate list
+    // after the failure), and no global availability state should be changed.
+    verify(mockPluginService, times(1)).connect(eq(readerHostSpec1), any(Properties.class), any());
+    verify(mockPluginService, never())
+        .setAvailability(any(HostSpec.class), any(HostAvailability.class));
+    // The current writer connection is kept as a fallback.
+    verify(mockPluginService, times(0))
+        .setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    assertNull(plugin.getReaderConnection());
+  }
+
+  @Test
+  public void testSetReadOnly_true_readerLoginFailed_rethrowsAndDoesNotChangeAvailability() throws SQLException {
+    when(this.mockPluginService.getAllHosts()).thenReturn(singleReaderTopology);
+    when(this.mockPluginService.getHosts()).thenReturn(singleReaderTopology);
+    when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
+        .thenThrow(SQLException.class);
+    // The failure is a login/authentication failure, which does not indicate the host is unreachable.
+    when(this.mockPluginService.isLoginException(any(Throwable.class), any())).thenReturn(true);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        mockWriterConn,
+        null);
+    plugin.switchConnectionIfRequired(true);
+
+    // A login failure is a showstopper: the exception is rethrown immediately instead of retrying
+    // other readers, so only a single connection attempt is made.
+    verify(mockPluginService, times(1)).connect(eq(readerHostSpec1), any(Properties.class), any());
+    // No global availability state should be changed.
+    verify(mockPluginService, never())
+        .setAvailability(any(HostSpec.class), any(HostAvailability.class));
+    // The current writer connection is kept as a fallback.
+    verify(mockPluginService, times(0))
+        .setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    assertNull(plugin.getReaderConnection());
+  }
+
+  @Test
+  public void testSetReadOnly_true_noEligibleReader_fallsBackToWriter() throws SQLException {
+    when(this.mockPluginService.getAllHosts()).thenReturn(singleReaderTopology);
+    when(this.mockPluginService.getHosts()).thenReturn(singleReaderTopology);
+    // No eligible reader is returned by the selector.
+    when(this.mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), eq("random")))
+        .thenReturn(null);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        mockWriterConn,
+        null);
+    plugin.switchConnectionIfRequired(true);
+
+    // No connection attempt should be made when there is no eligible reader.
+    verify(mockPluginService, never()).connect(eq(readerHostSpec1), any(Properties.class), any());
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertNull(plugin.getReaderConnection());
