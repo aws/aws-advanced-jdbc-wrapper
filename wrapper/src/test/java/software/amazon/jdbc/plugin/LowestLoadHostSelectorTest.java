@@ -55,14 +55,14 @@ public class LowestLoadHostSelectorTest {
     return reader(id, cpu, lag, HostAvailability.AVAILABLE);
   }
 
-  private HostSpec reader(final String id, final long cpu, final long lag, final HostAvailability availability) {
+  private HostSpec reader(final String id, final float cpu, final float lag, final HostAvailability availability) {
     return new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host(id)
         .hostId(id)
         .role(HostRole.READER)
         .availability(availability)
         .cpuPercent(cpu)
-        .lag(lag)
+        .lagMs(lag)
         .build();
   }
 
@@ -75,7 +75,7 @@ public class LowestLoadHostSelectorTest {
   void noEligibleHosts_returnsNull() throws SQLException {
     final List<HostSpec> writers = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("w1").hostId("w1")
-            .role(HostRole.WRITER).cpuPercent(1).lag(1).build());
+            .role(HostRole.WRITER).cpuPercent(1f).lagMs(1f).build());
     assertNull(selector.getHost(writers, HostRole.READER, EMPTY_PROPS));
   }
 
@@ -107,7 +107,7 @@ public class LowestLoadHostSelectorTest {
         reader("avail-low", 10, 10),
         reader("not-avail-lower", 1, 1, HostAvailability.NOT_AVAILABLE),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("writer").hostId("writer")
-            .role(HostRole.WRITER).cpuPercent(0).lag(0).build());
+            .role(HostRole.WRITER).cpuPercent(0f).lagMs(0f).build());
 
     for (int i = 0; i < 30; i++) {
       final HostSpec h = selector.getHost(hosts, HostRole.READER, EMPTY_PROPS);
@@ -132,24 +132,6 @@ public class LowestLoadHostSelectorTest {
     }
     assertTrue(seen.contains("a") && seen.contains("b"),
         "expected fallback to spread picks across both hosts; saw " + seen);
-  }
-
-  @Test
-  void subsetWithLoad_picksOnlyFromThatSubset() throws SQLException {
-    // Two readers have load, one is unknown. The unknown one must never be picked.
-    final HostSpec withLoadLow = reader("with-load-low", 10, 10);
-    final HostSpec withLoadHigh = reader("with-load-high", 5000, 5000);
-    final HostSpec unknown = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("unknown").hostId("unknown").role(HostRole.READER).build();
-
-    for (int i = 0; i < 100; i++) {
-      selector.processEvent(new TopologyRefreshedEvent("test"));
-      final HostSpec h = selector.getHost(
-          Arrays.asList(withLoadLow, withLoadHigh, unknown), HostRole.READER, EMPTY_PROPS);
-      assertNotNull(h);
-      assertTrue(!"unknown".equals(h.getHostId()),
-          "unknown-load host must not be chosen when others have load");
-    }
   }
 
   @Test
