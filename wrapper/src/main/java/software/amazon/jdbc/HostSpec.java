@@ -31,7 +31,7 @@ public class HostSpec {
 
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
-  public static final long UNKNOWN_CPU_PERCENT = -1L;
+  public static final float UNKNOWN_CPU_PERCENT = -1.0f;
   public static final float UNKNOWN_LAG_MS = -1.0f;
 
   protected final String host; // full domain name
@@ -40,8 +40,8 @@ public class HostSpec {
   protected final Timestamp lastUpdateTime;
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
-  protected volatile long cpuPercent = UNKNOWN_CPU_PERCENT; // -1 = unknown; percentage of CPU utilization
-  protected volatile float lagMs = UNKNOWN_LAG_MS; // -1 = unknown; replication lag in milliseconds
+  protected volatile Float cpuPercent = UNKNOWN_CPU_PERCENT; // -1 = unknown; percentage of CPU utilization
+  protected volatile Float lagMs = UNKNOWN_LAG_MS; // -1 = unknown; replication lag in milliseconds
   protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -71,8 +71,8 @@ public class HostSpec {
       final long weight,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
-    this(host, port, hostId, role, availability, weight, UNKNOWN_CPU_PERCENT,
-        UNKNOWN_LAG_MS, lastUpdateTime, hostAvailabilityStrategy);
+    this(host, port, hostId, role, availability, weight, null,
+        null, lastUpdateTime, hostAvailabilityStrategy);
   }
 
   HostSpec(
@@ -82,8 +82,8 @@ public class HostSpec {
       final HostRole role,
       final HostAvailability availability,
       final long weight,
-      final long cpuPercent,
-      final float lagMs,
+      final Float cpuPercent,
+      final Float lagMs,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
@@ -170,18 +170,18 @@ public class HostSpec {
     }
   }
 
-  public long getCpuPercent() {
+  public Float getCpuPercent() {
     return this.cpuPercent;
   }
 
-  public void setCpuPercent(long cpuPercent) {
+  public void setCpuPercent(Float cpuPercent) {
     try (ResourceLock ignored = this.resourceLock.obtain()) {
       this.toString = null;
       this.cpuPercent = cpuPercent;
     }
   }
 
-  public float getLagMs() {
+  public Float getLagMs() {
     return this.lagMs;
   }
 
