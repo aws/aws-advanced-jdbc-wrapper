@@ -10,6 +10,12 @@ To balance connections to instances more evenly, different selection strategies 
 |                         | `roundRobinDefaultWeight`                             | This parameter value must be an integer value in the form of a `string`. This parameter represents the default weight for any hosts that have not been configured with the `roundRobinHostWeightPairs` parameter. For example, if a connection were already established and host weights were set with `roundRobinHostWeightPairs` but a new instance was added to the database, the new instance would use the default weight. <br><br> **Note:** This value must be an integer greater than or equal to 1.                                                      | `1`           |                         |
 | `fastestResponse`       | See the following rows for configuration parameters.  | The fastest response strategy identifies the fastest response host, then stores this host in a cache for future use. <br><br> **Note:** The Fastest Response Strategy plugin must also be loaded into the plugins list by setting the `plugins` connection configuration parameter to include the `fastestResponseStrategy` plugin code.                                                                                                                                                                                                                          | N/A           | 2.3.2                   |
 |                         | `responseMeasurementIntervalMs`                       | Interval in millis between measuring response time to a database node.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `30000`       |                         |
+| `highestWeight`         | This strategy does not have configuration parameters. | Selects the available host with the largest value of `HostSpec.weight`. The meaning of `weight` depends on which component populated it. For Aurora Limitless routers it is a fitness score (higher = healthier router with lower CPU), so this strategy picks the healthiest router. For standard Aurora topology, `weight` is `lag*100` (higher = more lag), so this strategy would pick the **most** lagging reader and is therefore inappropriate. Used internally by the Limitless plugin; for Aurora reader load balancing prefer `lowestLoad`.    | N/A           | 2.5.0                   |
+| `weightedRandom`        | See the following rows for configuration parameters.  | Selects a host using cumulative weighted-random selection. Hosts with higher weights are chosen proportionally more often. By default the per-host weight is read from `HostSpec.weight`; if `weightedRandomHostWeightPairs` is set, those values override the per-host weight.                                                                                                                                                                                                                                                                                   | N/A           | 2.4.0                   |
+|                         | `weightedRandomHostWeightPairs`                       | Comma-separated list of database host-weight pairs in the format `<host>:<weight>`. Weight values must be integers >= 1. **Note:** must be unset (`null`) when the Limitless plugin is used, because Limitless populates per-host weights dynamically.                                                                                                                                                                                                                                                                                                            | `null`        |                         |
+| `lowestLoad`            | See the following rows for configuration parameters.  | Selects the least-loaded reader using server-side replica-lag data. **Aurora-only** — falls back to the `random` strategy on dialects that do not populate load. See the [Lowest Load Strategy](#lowest-load-strategy) section below for details on the load formula and cold-start herd protection.                                                                                                                                                                                                                                                            | N/A           | 2.6.0                   |
+|                         | `lowestLoadMaxK`                                      | Hard cap on the number of candidate hosts the strategy randomizes over. The actual K used per call is `clamp(ceil(numEligibleWithLoad / 2), 2, lowestLoadMaxK)`. Larger values spread picks across more hosts; smaller values concentrate picks on the lightest few.                                                                                                                                                                                                                                                                                              | `5`           |                         |
+|                         | `lowestLoadPendingPickAlpha`                          | Per-pending-pick load inflation. Each pick made by the strategy inflates the chosen host's effective load by this amount until the next topology refresh resets the counter. Larger values spread connection-pool fills more aggressively across the top-K; smaller values track the raw server-side load more tightly.                                                                                                                                                                                                                                          | `50.0`        |                         |
 
 
 These strategies are applicable when using the following plugins:
@@ -18,3 +24,47 @@ These strategies are applicable when using the following plugins:
 - [GDB Read/Write Splitting Connection Plugin](./using-plugins/UsingTheGdbReadWriteSplittingPlugin.md)
 - [GDB Failover Connection Plugin](./using-plugins/UsingTheGdbFailoverPlugin.md)
 - [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md)
+
+## Lowest Load Strategy
+
+The `lowestLoad` strategy picks the least-loaded reader using load data the topology monitor already collects from Aurora's cluster-wide replica status view (`information_schema.replica_host_status` on Aurora MySQL, `pg_catalog.aurora_replica_status()` on Aurora PostgreSQL). No additional background thread or per-reader probe connection is introduced — the existing `ClusterTopologyMonitor` query is the source of truth.
+
+### Load formula
+
+For each reader, the load value is computed as:
+
+```
+loadValue = lag_ms * 100
+```
+
+where `lag_ms` is `REPLICA_LAG_IN_MILLISECONDS` (Aurora MySQL) or `REPLICA_LAG_IN_MSEC` (Aurora PostgreSQL) from the topology query. The constant multiplier exists so that future tiebreaker terms can be added without colliding with the lag dimension; it is otherwise a no-op when only lag is in play.
+
+| Reader scenario               | lag_ms | loadValue |
+|-------------------------------|--------|-----------|
+| Idle reader, fully caught up  | 0      | 0         |
+| Idle reader, 1 ms lag         | 1      | 100       |
+| Lightly lagging reader        | 5      | 500       |
+| Significantly lagging reader  | 50     | 5000      |
+
+When several readers are caught up (`loadValue == 0`), the strategy degenerates to weighted-random over the top-K — see [Cold-start herd protection](#cold-start-herd-protection) — which is exactly the desired behavior on a healthy cluster: spread reads evenly. Lag-only ranking only meaningfully reorders readers when one or more is genuinely behind, in which case it is steered away from. This avoids read-after-write inconsistency on lagging replicas.
+
+The same formula is used on standard Aurora and Aurora Global; the latter sources lag from `aurora_global_db_instance_status()`'s `VISIBILITY_LAG_IN_MSEC`.
+
+### Aurora-only with safe fallback
+
+The strategy is only meaningful on dialects whose topology monitor populates `HostSpec.loadValue` — currently Aurora MySQL, Aurora PostgreSQL, and Aurora Global. On any other dialect (RDS Multi-AZ, plain MySQL/PostgreSQL, generic JDBC), no host has load data and the strategy transparently falls back to `random`. There is no error and no need to special-case configuration.
+
+The strategy also falls back to `random` before the first topology refresh has completed (i.e., immediately after process start) so that early connection requests are not blocked.
+
+### Cold-start herd protection
+
+Naively picking `min(loadValue)` on every call would cause every JVM in a fleet to choose the same "lightest" reader at the same time, overloading it before the next topology refresh reveals the new state. `lowestLoad` mitigates this with two combined mechanisms:
+
+1. **Adaptive top-K weighted random.** Instead of always picking the absolute minimum, the strategy ranks readers by effective load and randomizes over the top-K with weights inversely proportional to load. K scales with the size of the eligible pool: `clamp(ceil(numEligibleWithLoad / 2), 2, lowestLoadMaxK)`. So with 2 readers K=2; with 5 readers K=3; with 10 or more readers K is capped at the configured `lowestLoadMaxK` (default 5). The lightest reader still wins most often, but identical snapshots across multiple JVMs do not produce identical picks.
+
+2. **Pending-picks inflation.** Each selection on a host increments a per-host counter, and the counter is added (multiplied by `lowestLoadPendingPickAlpha`, default 50.0) to that host's effective load on subsequent picks. Within a single connection-pool fill — say, Hikari opening 50 connections in milliseconds — the second pick already sees the first pick's host as inflated, so the second pick lands on a different reader. The counter is reset whenever a fresh topology refresh arrives (the strategy subscribes to `TopologyRefreshedEvent` published by `ClusterTopologyMonitorImpl`), so the strategy re-anchors to real load data as soon as it is available.
+
+### Relation to other strategies
+
+- `lowestLoad` and `leastConnections` (Hikari only) optimize different things. `leastConnections` reads the in-flight connection count from this JVM's local Hikari pools; it is process-local and immediate. `lowestLoad` reads server-side load and is fleet-wide. If your fleet is small or single-instance, `leastConnections` may be sufficient and reacts faster. If your application is one of many sharing the cluster, `lowestLoad` will steer you away from genuinely overloaded hosts.
+- `lowestLoad` is the inverse of `highestWeight` for Aurora topology data, but `highestWeight` was not designed for this purpose — its only sensible use is the Limitless router-fitness convention, where higher weight means healthier. Do not use `highestWeight` for Aurora reader load balancing.

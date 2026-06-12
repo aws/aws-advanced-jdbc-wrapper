@@ -77,21 +77,20 @@ public class AuroraTopologyUtils extends TopologyUtils {
 
   protected HostSpec createHost(ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate) throws SQLException {
     // According to the topology query the result set should contain 4 columns:
-    // instance ID, 1/0 (writer/reader), CPU utilization, instance lag in time.
+    // instance ID, 1/0 (writer/reader), instance lag in time, last update timestamp.
     String hostName = rs.getString(1);
     final boolean isWriter = rs.getBoolean(2);
-    final double cpuUtilization = rs.getDouble(3);
-    final double instanceLag = rs.getDouble(4);
+    final double instanceLag = rs.getDouble(3);
     Timestamp lastUpdateTime;
     try {
-      lastUpdateTime = rs.getTimestamp(5);
+      lastUpdateTime = rs.getTimestamp(4);
     } catch (Exception e) {
       lastUpdateTime = Timestamp.from(Instant.now());
     }
 
-    // Calculate weight based on instance lag in time and CPU utilization.
-    final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
+    final long weight = Math.round(instanceLag) * 100L;
 
-    return createHost(hostName, hostName, isWriter, weight, lastUpdateTime, initialHostSpec, instanceTemplate);
+    return createHost(hostName, hostName, isWriter, weight, weight, lastUpdateTime, initialHostSpec,
+        instanceTemplate);
   }
 }
