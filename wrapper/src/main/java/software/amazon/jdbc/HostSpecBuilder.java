@@ -28,6 +28,8 @@ public class HostSpecBuilder {
   private HostAvailability availability = HostAvailability.AVAILABLE;
   private HostRole role = HostRole.WRITER;
   private long weight = HostSpec.DEFAULT_WEIGHT; // Greater than or equal to 0. Healthier nodes have lower weights.
+  private Float cpuPercent;
+  private Float lagMs;
   private Timestamp lastUpdateTime;
   private HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -42,6 +44,8 @@ public class HostSpecBuilder {
     this.availability = hostSpecBuilder.availability;
     this.role = hostSpecBuilder.role;
     this.weight = hostSpecBuilder.weight;
+    this.cpuPercent = hostSpecBuilder.cpuPercent;
+    this.lagMs = hostSpecBuilder.lagMs;
     this.lastUpdateTime = hostSpecBuilder.lastUpdateTime;
     this.hostAvailabilityStrategy = hostSpecBuilder.hostAvailabilityStrategy;
   }
@@ -54,6 +58,8 @@ public class HostSpecBuilder {
     this.availability = hostSpec.availability;
     this.lastUpdateTime = hostSpec.lastUpdateTime;
     this.weight = hostSpec.weight;
+    this.cpuPercent = hostSpec.cpuPercent;
+    this.lagMs = hostSpec.lagMs;
     return this;
   }
 
@@ -87,6 +93,16 @@ public class HostSpecBuilder {
     return this;
   }
 
+  public HostSpecBuilder cpuPercent(Float cpuPercent) {
+    this.cpuPercent = cpuPercent;
+    return this;
+  }
+
+  public HostSpecBuilder lagMs(Float lag) {
+    this.lagMs = lag;
+    return this;
+  }
+
   public HostSpecBuilder hostAvailabilityStrategy(HostAvailabilityStrategy hostAvailabilityStrategy) {
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
     return this;
@@ -100,7 +116,8 @@ public class HostSpecBuilder {
   public HostSpec build() {
     checkHostIsSet();
     return new HostSpec(this.host, this.port, this.hostId, this.role, this.availability,
-        this.weight, this.lastUpdateTime, this.hostAvailabilityStrategy);
+        this.weight, this.cpuPercent, this.lagMs, this.lastUpdateTime,
+        this.hostAvailabilityStrategy);
   }
 
   private void checkHostIsSet() {

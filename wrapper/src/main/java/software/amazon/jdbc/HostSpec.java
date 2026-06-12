@@ -18,15 +18,10 @@ package software.amazon.jdbc;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.util.ResourceLock;
-import software.amazon.jdbc.util.StringUtils;
 
 /**
  * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
@@ -36,6 +31,8 @@ public class HostSpec {
 
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
+  public static final float UNKNOWN_CPU_PERCENT = -1.0f;
+  public static final float UNKNOWN_LAG_MS = -1.0f;
 
   protected final String host; // full domain name
   protected final int port;
@@ -43,6 +40,8 @@ public class HostSpec {
   protected final Timestamp lastUpdateTime;
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
+  protected volatile Float cpuPercent;
+  protected volatile Float lagMs;
   protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -72,6 +71,21 @@ public class HostSpec {
       final long weight,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
+    this(host, port, hostId, role, availability, weight, null,
+        null, lastUpdateTime, hostAvailabilityStrategy);
+  }
+
+  HostSpec(
+      final String host,
+      final int port,
+      final String hostId,
+      final HostRole role,
+      final HostAvailability availability,
+      final long weight,
+      final Float cpuPercent,
+      final Float lagMs,
+      final Timestamp lastUpdateTime,
+      final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
     this.host = host;
     this.port = port;
@@ -79,6 +93,8 @@ public class HostSpec {
     this.availability = availability;
     this.role = role;
     this.weight = weight;
+    this.cpuPercent = cpuPercent;
+    this.lagMs = lagMs;
     this.lastUpdateTime = lastUpdateTime;
     this.hostAvailabilityStrategy = hostAvailabilityStrategy;
   }
@@ -154,6 +170,28 @@ public class HostSpec {
     }
   }
 
+  public Float getCpuPercent() {
+    return this.cpuPercent;
+  }
+
+  public void setCpuPercent(Float cpuPercent) {
+    try (ResourceLock ignored = this.resourceLock.obtain()) {
+      this.toString = null;
+      this.cpuPercent = cpuPercent;
+    }
+  }
+
+  public Float getLagMs() {
+    return this.lagMs;
+  }
+
+  public void setLagMs(float lagMs) {
+    try (ResourceLock ignored = this.resourceLock.obtain()) {
+      this.toString = null;
+      this.lagMs = lagMs;
+    }
+  }
+
   public String getUrl() {
     if (this.url == null) {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
@@ -184,9 +222,11 @@ public class HostSpec {
     if (this.toString == null) {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
         if (this.toString == null) {
-          this.toString = String.format("HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
+          this.toString = String.format(
+              "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%d, lagMs=%d, %s]",
               Integer.toHexString(System.identityHashCode(this)),
-              this.hostId, this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
+              this.hostId, this.host, this.port, this.role, this.availability,
+              this.weight, this.cpuPercent, this.lagMs, this.lastUpdateTime);
         }
       }
     }
@@ -212,6 +252,8 @@ public class HostSpec {
         && this.port == spec.port
         && this.availability == spec.availability
         && this.role == spec.role
-        && this.weight == spec.weight;
+        && this.weight == spec.weight
+        && this.cpuPercent == spec.cpuPercent
+        && this.lagMs == spec.lagMs;
   }
 }
