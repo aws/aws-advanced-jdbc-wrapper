@@ -1683,8 +1683,12 @@ public class AuroraTestUtility {
       String clusterId, String initialWriterId, String targetWriterId)
       throws InterruptedException {
 
+    // Aurora occasionally accepts the failoverDBCluster API request (returning success) but does not
+    // actually perform the failover, particularly when several failovers are triggered in rapid
+    // succession. Retry by default so a silently-dropped request is re-issued instead of failing the
+    // whole test after a single long wait.
     failoverClusterToATargetAndWaitUntilWriterChanged(
-        clusterId, initialWriterId, targetWriterId, 1);
+        clusterId, initialWriterId, targetWriterId, 3);
   }
 
   /**
@@ -1718,8 +1722,11 @@ public class AuroraTestUtility {
     final String clusterEndpoint = dbInfo.getClusterEndpoint();
     String clusterIp = hostToIP(clusterEndpoint);
 
-    // Increased timeout from 10 to 15 minutes to accommodate slower failover scenarios.
-    final long writerChangeTimeoutMinutes = 15;
+    // Per-attempt timeout for the writer to change after a failover request. A real Aurora failover
+    // completes within a couple of minutes, so 5 minutes is a generous wait. Combined with retries,
+    // this re-issues a silently-dropped failoverDBCluster request rather than waiting out a single
+    // long timeout (which previously caused intermittent CI failures on Aurora clusters).
+    final long writerChangeTimeoutMinutes = 5;
 
     int attempt = 0;
     String newWriterId = getDBClusterWriterInstanceId(clusterId);
