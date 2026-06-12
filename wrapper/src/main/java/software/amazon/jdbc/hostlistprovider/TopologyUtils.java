@@ -163,8 +163,8 @@ public abstract class TopologyUtils {
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
-    return createHost(instanceId, instanceName, isWriter, weight, HostSpec.UNKNOWN_CPU_PERCENT,
-        HostSpec.UNKNOWN_LAG_MS, lastUpdateTime, initialHostSpec, instanceTemplate);
+    return createHost(instanceId, instanceName, isWriter, weight, null,
+        null, lastUpdateTime, initialHostSpec, instanceTemplate);
   }
 
   /**
@@ -184,8 +184,8 @@ public abstract class TopologyUtils {
       String instanceName,
       final boolean isWriter,
       final long weight,
-      final long cpuPercent,
-      final float lag,
+      final Float cpuPercent,
+      final Float lag,
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
@@ -203,7 +203,7 @@ public abstract class TopologyUtils {
         .availability(HostAvailability.AVAILABLE)
         .weight(weight)
         .cpuPercent(cpuPercent)
-        .lag(lag)
+        .lagMs(lag)
         .lastUpdateTime(lastUpdateTime)
         .build();
     return hostSpec;
