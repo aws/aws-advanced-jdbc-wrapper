@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
@@ -55,7 +56,7 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(
         () -> Messages.get(
             "ExecutionTimeConnectionPlugin.executionTime",
-            new Object[] {methodName, elapsedTimeNanos}));
+            new Object[] {methodName, elapsedTimeNanos, TimeUnit.NANOSECONDS.toMillis(elapsedTimeNanos)}));
     executionTime += elapsedTimeNanos;
 
     return result;
