@@ -211,17 +211,40 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     Connection conn = null;
     HostSpec readerHost = null;
 
-    final List<HostSpec> hostCandidates = this.getReaderHostCandidates();
-    int connAttempts = hostCandidates.size() * 2;
-    for (int i = 0; i < connAttempts; i++) {
-      HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
+    // Work on a local, mutable copy of the candidate hosts. When a connection attempt to a reader
+    // fails (for a non-login reason), the host is removed from this local list so it is not retried
+    // within this call. This is a local, per-call view of host availability and intentionally has
+    // no global side effects (it does not mark the host NOT_AVAILABLE in the shared availability
+    // cache), so a host that recovers is immediately eligible again on the next request.
+    final List<HostSpec> hostCandidates = new ArrayList<>(this.getReaderHostCandidates());
+    // Bound the number of attempts by the initial candidate count so a host selector that keeps
+    // returning the same host can never cause an infinite loop.
+    final int maxAttempts = hostCandidates.size();
+    for (int i = 0; i < maxAttempts && !hostCandidates.isEmpty(); i++) {
+      final HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
           hostCandidates, HostRole.READER, this.readerSelectorStrategy);
+
+      // No eligible reader is left. Stop retrying and fall back to the writer instead of
+      // continuing to spend the connect timeout on hosts that are already known to be unreachable.
+      if (hostSpec == null) {
+        break;
+      }
+
       try {
         conn = this.pluginService.connect(hostSpec, this.properties, this);
         this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
+        // A login/authentication failure (e.g. wrong credentials, expired IAM token) is a
+        // showstopper: retrying other readers won't help, so rethrow immediately.
+        if (this.pluginService.isLoginException(e, this.pluginService.getTargetDriverDialect())) {
+          throw e;
+        }
+
+        // Remove the failed reader from the local candidate list so it is not retried again during
+        // this call, then continue trying the remaining readers.
+        hostCandidates.remove(hostSpec);
         if (LOGGER.isLoggable(Level.WARNING)) {
           LOGGER.log(Level.WARNING,
               Messages.get(
