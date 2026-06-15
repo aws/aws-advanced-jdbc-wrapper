@@ -174,7 +174,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   }
 
   @Override
-  protected boolean isStrictWriter() {
+  protected boolean isStrictWriterFailoverMode() {
     final String currentRegion = this.rdsHelper.getRdsRegion(this.pluginService.getCurrentHostSpec().getHost());
     final boolean isHomeRegion = this.homeRegion.equalsIgnoreCase(currentRegion);
     return isHomeRegion ? this.activeHomeFailoverMode == GlobalDbFailoverMode.STRICT_WRITER :
