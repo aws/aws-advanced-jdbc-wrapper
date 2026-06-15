@@ -174,6 +174,14 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   }
 
   @Override
+  protected boolean isStrictWriter() {
+    final String currentRegion = this.rdsHelper.getRdsRegion(this.pluginService.getCurrentHostSpec().getHost());
+    final boolean isHomeRegion = this.homeRegion.equalsIgnoreCase(currentRegion);
+    return isHomeRegion ? this.activeHomeFailoverMode == GlobalDbFailoverMode.STRICT_WRITER :
+        this.inactiveHomeFailoverMode == GlobalDbFailoverMode.STRICT_WRITER;
+  }
+
+  @Override
   protected void failover() throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(

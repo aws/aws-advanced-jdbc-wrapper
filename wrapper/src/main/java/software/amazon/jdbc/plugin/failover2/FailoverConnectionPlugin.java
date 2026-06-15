@@ -791,8 +791,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
 
     // For STRICT_WRITER failover mode when connection exception indicate that the connection's in read-only mode,
     // initiate a failover by returning true.
-    return this.failoverMode == FailoverMode.STRICT_WRITER
-      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
+    return this.isStrictWriter() && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
+  }
+
+  protected boolean isStrictWriter() {
+    return this.failoverMode == FailoverMode.STRICT_WRITER;
   }
 
   /**
