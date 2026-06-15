@@ -83,6 +83,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           "1000",
           "Time between each retry of opening a connection.");
 
+  public static final AwsWrapperProperty WAIT_FOR_INITIAL_TOPOLOGY_MS =
+      new AwsWrapperProperty(
+          "waitForInitialTopologyMs",
+          "0",
+          "Maximum allowed time, in milliseconds, to wait for the cluster topology to be fetched before opening a new"
+              + " connection. When set to a value greater than 0 and the topology is not yet available, the plugin"
+              + " will block until the topology has been discovered (or this timeout is reached) instead of falling"
+              + " back to connecting via the initial endpoint in connection string."
+              + " This ensures host selection strategies such as"
+              + " 'roundRobin' distribute concurrent and connection-pool prefill connections across instances rather"
+              + " than routing them all to a single instance resolved through DNS. The wait is scoped to the cluster"
+              + " the connection belongs to; connections to other clusters are not affected. When set to 0 (the"
+              + " default) the previous behavior is preserved.");
+
   public static final AwsWrapperProperty ENDPOINT_SUBSTITUTION_ROLE =
       new AwsWrapperProperty(
           "endpointSubstitutionRole",
@@ -132,6 +146,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   private final PluginService pluginService;
   private final int retryDelayMs;
   private final long openConnectionRetryTimeoutNano;
+  private final long waitForInitialTopologyMs;
   private final @Nullable String selectionStrategyPropValue;
   private final @Nullable String verifyRolePropValue;
   private final @Nullable Set<String> accessibleRegions;
@@ -148,6 +163,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     this.retryDelayMs = OPEN_CONNECTION_RETRY_INTERVAL_MS.getInteger(properties);
     this.openConnectionRetryTimeoutNano =
         TimeUnit.MILLISECONDS.toNanos(OPEN_CONNECTION_RETRY_TIMEOUT_MS.getInteger(properties));
+    this.waitForInitialTopologyMs = WAIT_FOR_INITIAL_TOPOLOGY_MS.getLong(properties);
     String verifyRolePropValue = VERIFY_OPENED_CONNECTION_ROLE.getString(properties);
     this.verifyRolePropValue = verifyRolePropValue == null ? null : verifyRolePropValue.toUpperCase();
 
@@ -205,6 +221,16 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
           if (candidateHost == null || !this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
             // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
+            // If configured, block until the topology for this cluster has been fetched before falling back to the
+            // initial endpoint. This serializes concurrent/prefill connections (all waiting on the same per-cluster
+            // topology monitor) so that the configured host selection strategy can distribute them across instances
+            // instead of resolving the initial endpoint via DNS and routing them all to a single instance.
+            candidateHost = this.waitForTopologyAndGetCandidateHost(
+                originalConnectHost, urlType, substitutionStrategy);
+          }
+
+          if (candidateHost == null || !this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
+            // Still unable to find an instance URL host. Fall back to connecting via the original endpoint.
             candidateConn = connectFunc.call();
             candidateHost = originalConnectHost;
             this.pluginService.forceRefreshHostList();
@@ -468,6 +494,35 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     } catch (InterruptedException ex) {
       // ignore
     }
+  }
+
+  protected HostSpec waitForTopologyAndGetCandidateHost(
+      final @NonNull HostSpec originalConnectHost,
+      final @NonNull RdsUrlType urlType,
+      final @NonNull InstanceSubstitutionStrategy substitutionStrategy)
+      throws SQLException {
+
+    if (this.waitForInitialTopologyMs <= 0) {
+      // Feature disabled. Preserve the previous behavior.
+      return null;
+    }
+
+    // forceRefreshHostList delegates to the per-cluster topology monitor, which serializes all callers waiting on
+    // the same cluster's topology. Connections belonging to other clusters use a different monitor and are not
+    // blocked by this wait. On timeout it returns false and we fall back to the original endpoint connection.
+    LOGGER.finest(() -> Messages.get(
+        "AuroraInitialConnectionStrategyPlugin.waitingForTopology",
+        new Object[] {this.waitForInitialTopologyMs, originalConnectHost.getHost()}));
+
+    final boolean refreshed = this.pluginService.forceRefreshHostList(true, this.waitForInitialTopologyMs);
+    if (!refreshed) {
+      LOGGER.finest(() -> Messages.get(
+          "AuroraInitialConnectionStrategyPlugin.waitForTopologyTimeout",
+          new Object[] {this.waitForInitialTopologyMs, originalConnectHost.getHost()}));
+      return null;
+    }
+
+    return this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
   }
 
   protected HostSpec getCandidateHost(
