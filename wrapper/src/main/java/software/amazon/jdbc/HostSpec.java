@@ -253,7 +253,7 @@ public class HostSpec {
         && this.availability == spec.availability
         && this.role == spec.role
         && this.weight == spec.weight
-        && this.cpuPercent.equals(spec.cpuPercent)
-        && this.lagMs.equals(spec.lagMs);
+        && Objects.equals(this.cpuPercent, spec.cpuPercent)
+        && Objects.equals(this.lagMs, spec.lagMs);
   }
 }
