@@ -223,7 +223,7 @@ public class HostSpec {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
         if (this.toString == null) {
           this.toString = String.format(
-              "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%d, lagMs=%d, %s]",
+              "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%f, lagMs=%f, %s]",
               Integer.toHexString(System.identityHashCode(this)),
               this.hostId, this.host, this.port, this.role, this.availability,
               this.weight, this.cpuPercent, this.lagMs, this.lastUpdateTime);
@@ -253,7 +253,7 @@ public class HostSpec {
         && this.availability == spec.availability
         && this.role == spec.role
         && this.weight == spec.weight
-        && this.cpuPercent == spec.cpuPercent
-        && this.lagMs == spec.lagMs;
+        && this.cpuPercent.equals(spec.cpuPercent)
+        && this.lagMs.equals(spec.lagMs);
   }
 }
