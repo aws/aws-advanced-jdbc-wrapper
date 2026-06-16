@@ -185,7 +185,7 @@ public class HostSpec {
     return this.lagMs;
   }
 
-  public void setLagMs(float lagMs) {
+  public void setLagMs(Float lagMs) {
     try (ResourceLock ignored = this.resourceLock.obtain()) {
       this.toString = null;
       this.lagMs = lagMs;
