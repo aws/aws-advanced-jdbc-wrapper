@@ -221,58 +221,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         HostSpec candidateHost = null;
 
         try {
-          if (substitutionStrategy.equals(InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE)) {
-            candidateHost = originalConnectHost;
-            candidateConnHolder.set(connectFunc.call());
-          } else {
-            candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
-            if (candidateHost != null && this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
-              // Topology is already available; connect to the selected instance.
-              candidateConnHolder.set(this.pluginService.connect(candidateHost, props, this));
-            } else {
-              // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
-              // Connect via the initial endpoint. This connection also confirms the dialect (done by
-              // DefaultConnectionPlugin on the initial connection), which is a prerequisite for fetching the
-              // topology, and it serves as a fallback connection if instance selection or connection fails.
-              candidateHost = originalConnectHost;
-              candidateConnHolder.set(connectFunc.call());
-
-              if (this.waitForInitialTopologyMs > 0) {
-                // Block until the topology for this cluster has been fetched, then re-attempt instance selection.
-                // This serializes concurrent/prefill connections (all waiting on the same per-cluster topology
-                // monitor) so that the configured host selection strategy can distribute them across instances
-                // instead of all relying on the initial endpoint resolved via DNS.
-                final HostSpec originalConnectHostFinal = originalConnectHost;
-                LOGGER.finest(() -> Messages.get(
-                    "AuroraInitialConnectionStrategyPlugin.waitingForTopology",
-                    new Object[] {this.waitForInitialTopologyMs, originalConnectHostFinal.getHost()}));
-
-                if (this.pluginService.forceRefreshHostList(true, this.waitForInitialTopologyMs)) {
-                  final HostSpec instanceHost =
-                      this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
-                  if (instanceHost != null && this.rdsUtils.isRdsInstance(instanceHost.getHost())) {
-                    try {
-                      // set() closes the previous (fallback) connection once the instance connection is held.
-                      candidateConnHolder.set(this.pluginService.connect(instanceHost, props, this));
-                      candidateHost = instanceHost;
-                    } catch (final SQLException ex) {
-                      // Failed to connect to the selected instance; keep the initial-endpoint connection.
-                      LOGGER.finest(() -> Messages.get(
-                          "AuroraInitialConnectionStrategyPlugin.failedToConnectToSelectedInstance",
-                          new Object[] {instanceHost.getHost()}));
-                    }
-                  }
-                } else {
-                  LOGGER.finest(() -> Messages.get(
-                      "AuroraInitialConnectionStrategyPlugin.waitForTopologyTimeout",
-                      new Object[] {this.waitForInitialTopologyMs, originalConnectHostFinal.getHost()}));
-                }
-              } else {
-                // Feature disabled. Preserve the previous behavior.
-                this.pluginService.forceRefreshHostList();
-              }
-            }
-          }
+          candidateHost = this.openCandidateConnection(
+              originalConnectHost, urlType, substitutionStrategy, props, connectFunc, candidateConnHolder);
 
           final Connection candidateConn = candidateConnHolder.get();
 
@@ -360,6 +310,100 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         new Object[] {
             TimeUnit.NANOSECONDS.toMillis(this.openConnectionRetryTimeoutNano),
             VERIFY_OPENED_CONNECTION_ROLE.name}));
+  }
+
+  /**
+   * Opens a candidate connection and stores it in {@code candidateConnHolder}, returning the {@link HostSpec} that
+   * was connected to.
+   *
+   * <p>If no substitution is needed, the original endpoint is used. Otherwise, an instance host is selected from the
+   * topology when available; if the topology isn't available yet, a connection is opened via the initial endpoint
+   * (which also confirms the dialect and acts as a fallback) and, when {@code waitForInitialTopologyMs > 0}, the
+   * topology fetch is awaited before re-attempting instance selection.
+   */
+  protected HostSpec openCandidateConnection(
+      final @NonNull HostSpec originalConnectHost,
+      final @NonNull RdsUrlType urlType,
+      final @NonNull InstanceSubstitutionStrategy substitutionStrategy,
+      final @NonNull Properties props,
+      final @NonNull JdbcCallable<Connection, SQLException> connectFunc,
+      final @NonNull AtomicConnection candidateConnHolder)
+      throws SQLException {
+
+    if (substitutionStrategy.equals(InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE)) {
+      candidateConnHolder.set(connectFunc.call());
+      return originalConnectHost;
+    }
+
+    final HostSpec candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
+    if (candidateHost != null && this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
+      // Topology is already available; connect to the selected instance.
+      candidateConnHolder.set(this.pluginService.connect(candidateHost, props, this));
+      return candidateHost;
+    }
+
+    // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
+    // Connect via the initial endpoint. This connection also confirms the dialect (done by
+    // DefaultConnectionPlugin on the initial connection), which is a prerequisite for fetching the
+    // topology, and it serves as a fallback connection if instance selection or connection fails.
+    candidateConnHolder.set(connectFunc.call());
+
+    if (this.waitForInitialTopologyMs <= 0) {
+      // Feature disabled. Preserve the previous behavior.
+      this.pluginService.forceRefreshHostList();
+      return originalConnectHost;
+    }
+
+    return this.waitForTopologyAndConnectToInstance(
+        originalConnectHost, urlType, substitutionStrategy, props, candidateConnHolder);
+  }
+
+  /**
+   * Blocks until the topology for this cluster has been fetched, then re-attempts instance selection and connection.
+   * This serializes concurrent/prefill connections (all waiting on the same per-cluster topology monitor) so that the
+   * configured host selection strategy can distribute them across instances instead of all relying on the initial
+   * endpoint resolved via DNS.
+   *
+   * <p>Returns the selected instance host if the topology was fetched and the instance connection succeeded; the
+   * connection is then held in {@code candidateConnHolder}. Otherwise returns {@code originalConnectHost} and the
+   * already-opened initial-endpoint connection (still held in {@code candidateConnHolder}) is kept as a fallback.
+   */
+  protected HostSpec waitForTopologyAndConnectToInstance(
+      final @NonNull HostSpec originalConnectHost,
+      final @NonNull RdsUrlType urlType,
+      final @NonNull InstanceSubstitutionStrategy substitutionStrategy,
+      final @NonNull Properties props,
+      final @NonNull AtomicConnection candidateConnHolder)
+      throws SQLException {
+
+    final String originalConnectHostName = originalConnectHost.getHost();
+    LOGGER.finest(() -> Messages.get(
+        "AuroraInitialConnectionStrategyPlugin.waitingForTopology",
+        new Object[] {this.waitForInitialTopologyMs, originalConnectHostName}));
+
+    if (!this.pluginService.forceRefreshHostList(true, this.waitForInitialTopologyMs)) {
+      LOGGER.finest(() -> Messages.get(
+          "AuroraInitialConnectionStrategyPlugin.waitForTopologyTimeout",
+          new Object[] {this.waitForInitialTopologyMs, originalConnectHostName}));
+      return originalConnectHost;
+    }
+
+    final HostSpec instanceHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
+    if (instanceHost == null || !this.rdsUtils.isRdsInstance(instanceHost.getHost())) {
+      return originalConnectHost;
+    }
+
+    try {
+      // set() closes the previous (fallback) connection once the instance connection is held.
+      candidateConnHolder.set(this.pluginService.connect(instanceHost, props, this));
+      return instanceHost;
+    } catch (final SQLException ex) {
+      // Failed to connect to the selected instance; keep the initial-endpoint connection.
+      LOGGER.finest(() -> Messages.get(
+          "AuroraInitialConnectionStrategyPlugin.failedToConnectToSelectedInstance",
+          new Object[] {instanceHost.getHost()}));
+      return originalConnectHost;
+    }
   }
 
   protected @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
