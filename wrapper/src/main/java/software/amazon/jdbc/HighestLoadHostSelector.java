@@ -46,9 +46,9 @@ public class HighestLoadHostSelector implements HostSelector {
       "highestLoadLagWeight", "100",
       "The weight of lag in the calculation of a host's load.");
 
-  protected static final long CPU_DEFAULT = 40; // TODO: find good value
+  protected static final long CPU_DEFAULT = 40;
 
-  protected static final long LAG_MS_DEFAULT = 1000; // TODO: find good value
+  protected static final long LAG_MS_DEFAULT = 1000;
 
   static {
     PropertyDefinition.registerPluginProperties(HighestLoadHostSelector.class);
