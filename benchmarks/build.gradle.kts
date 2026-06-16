@@ -36,6 +36,13 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
+jmh {
+    // Keep the JMH core version aligned with the jmh-generator-annprocess version above.
+    // A mismatch (e.g. core 1.36 vs processor 1.37) produces generated stubs that reference
+    // fields like InfraControl.shouldYield that don't exist in the core, failing compilation.
+    jmhVersion.set("1.37")
+}
+
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
