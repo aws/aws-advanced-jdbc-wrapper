@@ -19,7 +19,6 @@ package software.amazon.jdbc;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -29,12 +28,9 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
  * Host selector that picks the highest-loaded reader using a calculated load derived from
  * {@link HostSpec#getCpuPercent()} and {@link HostSpec#getLagMs()}
  *
- * <p>Falls back to {@link RandomHostSelector} when no eligible host has a known load value (or non-Aurora dialects
- * that do not populate {@code cpuPercent} or {@code lagMs} values).
+ * <p>Note: Non-Aurora dialects may not be compatible as they do not populate host {@code cpuPercent} or {@code lagMs}.
  */
 public class HighestLoadHostSelector implements HostSelector {
-
-  private static final Logger LOGGER = Logger.getLogger(HighestLoadHostSelector.class.getName());
 
   public static final String STRATEGY_HIGHEST_LOAD = "highestLoad";
 
@@ -48,7 +44,7 @@ public class HighestLoadHostSelector implements HostSelector {
 
   protected static final long CPU_DEFAULT = 40;
 
-  protected static final long LAG_MS_DEFAULT = 1000;
+  protected static final long LAG_MS_DEFAULT = 50;
 
   static {
     PropertyDefinition.registerPluginProperties(HighestLoadHostSelector.class);
@@ -62,7 +58,6 @@ public class HighestLoadHostSelector implements HostSelector {
 
     final List<HostSpec> eligible = hosts.stream()
         .filter(h -> (role == null || role.equals(h.getRole()))
-            && !(h.getCpuPercent() == null && h.getLagMs() == null)
             && h.getAvailability().equals(HostAvailability.AVAILABLE))
         .collect(Collectors.toList());
 

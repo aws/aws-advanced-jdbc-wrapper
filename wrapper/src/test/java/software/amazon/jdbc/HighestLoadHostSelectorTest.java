@@ -75,7 +75,7 @@ public class HighestLoadHostSelectorTest {
         reader("low1", 10f, 10f),
         reader("low2", 11f, 12f),
         reader("medium1", 50f, 50f),
-        reader("medium1", 51f, 51f),
+        reader("medium2", 51f, 51f),
         reader("high1", 9000f, 9000f),
         reader("high2", 9001f, 9001f));
 
@@ -98,14 +98,14 @@ public class HighestLoadHostSelectorTest {
   }
 
   @Test
-  void test_noLoadDataAtAll_returnsNull() throws SQLException {
+  void test_noLoadDataAtAll_returnsNotNull() throws SQLException {
     final HostSpec a = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("a").hostId("a").role(HostRole.READER).build();
     final HostSpec b = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("b").hostId("b").role(HostRole.READER).build();
 
     final HostSpec h = selector.getHost(Arrays.asList(a, b), HostRole.READER, EMPTY_PROPS);
-    assertNull(h, "should return null when no load data is available");
+    assertNotNull(h, "should return null when no load data is available");
   }
 
   @Test

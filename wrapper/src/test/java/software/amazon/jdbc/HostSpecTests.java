@@ -64,8 +64,6 @@ public class HostSpecTests {
     verify(mockHostAvailabilityStrategy, times(1)).getHostAvailability(hostSpec.availability);
   }
 
-  // --- equals() tests for cpuPercent and lagMs ---
-
   @Test
   public void testEquals_allFieldsMatch_returnsTrue() {
     final HostSpec a = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -97,8 +95,6 @@ public class HostSpecTests {
     assertNotEquals(a, b);
   }
 
-  // --- toString() tests for cpuPercent and lagMs ---
-
   @Test
   public void testToString_containsCpuPercent() {
     final HostSpec spec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -113,25 +109,5 @@ public class HostSpecTests {
         .host("my-host").port(5432).role(HostRole.READER).cpuPercent(42f).lagMs(123f).build();
     final String result = spec.toString();
     assertTrue(result.contains("lagMs="), "toString should contain lagMs; got: " + result);
-  }
-
-  @Test
-  public void testToString_invalidatedAfterSetCpuPercent() {
-    final HostSpec spec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("my-host").port(5432).role(HostRole.READER).cpuPercent(42f).lagMs(123f).build();
-    final String before = spec.toString();
-    spec.setCpuPercent(99f);
-    final String after = spec.toString();
-    assertNotEquals(before, after, "toString should be invalidated after setCpuPercent");
-  }
-
-  @Test
-  public void testToString_invalidatedAfterSetLagMs() {
-    final HostSpec spec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("my-host").port(5432).role(HostRole.READER).cpuPercent(42f).lagMs(123f).build();
-    final String before = spec.toString();
-    spec.setLagMs(999f);
-    final String after = spec.toString();
-    assertNotEquals(before, after, "toString should be invalidated after setLagMs");
   }
 }

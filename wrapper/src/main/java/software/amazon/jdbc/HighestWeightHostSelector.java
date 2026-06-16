@@ -25,7 +25,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 
-@Deprecated
 public class HighestWeightHostSelector implements HostSelector {
 
   public static final String STRATEGY_HIGHEST_WEIGHT = "highestWeight";

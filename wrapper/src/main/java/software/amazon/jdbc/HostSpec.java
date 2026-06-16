@@ -31,8 +31,6 @@ public class HostSpec {
 
   public static final int NO_PORT = -1;
   public static final long DEFAULT_WEIGHT = 100;
-  public static final float UNKNOWN_CPU_PERCENT = -1.0f;
-  public static final float UNKNOWN_LAG_MS = -1.0f;
 
   protected final String host; // full domain name
   protected final int port;
@@ -40,8 +38,8 @@ public class HostSpec {
   protected final Timestamp lastUpdateTime;
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
-  protected volatile Float cpuPercent;
-  protected volatile Float lagMs;
+  protected Float cpuPercent;
+  protected Float lagMs;
   protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -174,22 +172,8 @@ public class HostSpec {
     return this.cpuPercent;
   }
 
-  public void setCpuPercent(Float cpuPercent) {
-    try (ResourceLock ignored = this.resourceLock.obtain()) {
-      this.toString = null;
-      this.cpuPercent = cpuPercent;
-    }
-  }
-
   public Float getLagMs() {
     return this.lagMs;
-  }
-
-  public void setLagMs(Float lagMs) {
-    try (ResourceLock ignored = this.resourceLock.obtain()) {
-      this.toString = null;
-      this.lagMs = lagMs;
-    }
   }
 
   public String getUrl() {
@@ -223,10 +207,12 @@ public class HostSpec {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
         if (this.toString == null) {
           this.toString = String.format(
-              "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%f, lagMs=%f, %s]",
+              "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%s, lagMs=%s, %s]",
               Integer.toHexString(System.identityHashCode(this)),
-              this.hostId, this.host, this.port, this.role, this.availability,
-              this.weight, this.cpuPercent, this.lagMs, this.lastUpdateTime);
+              this.hostId, this.host, this.port, this.role, this.availability, this.weight,
+              this.cpuPercent != null ? String.format("%.2f", this.cpuPercent) : "N/A",
+              this.lagMs != null ? String.format("%.2f", this.lagMs) : "N/A",
+              this.lastUpdateTime);
         }
       }
     }
