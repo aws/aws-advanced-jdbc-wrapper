@@ -54,8 +54,6 @@ public class LowestLoadHostSelector implements HostSelector {
     PropertyDefinition.registerPluginProperties(LowestLoadHostSelector.class);
   }
 
-  private final RandomHostSelector randomFallback = new RandomHostSelector();
-
   @Override
   public HostSpec getHost(
       @NonNull final List<HostSpec> hosts,
@@ -64,16 +62,12 @@ public class LowestLoadHostSelector implements HostSelector {
 
     final List<HostSpec> eligible = hosts.stream()
         .filter(h -> (role == null || role.equals(h.getRole()))
+            && !(h.getCpuPercent() == null && h.getLagMs() == null)
             && h.getAvailability().equals(HostAvailability.AVAILABLE))
         .collect(Collectors.toList());
 
     if (eligible.isEmpty()) {
       return null;
-    }
-
-    // Fallback to random host selector if no hosts have load metrics
-    if (hosts.stream().noneMatch(h -> h.getCpuPercent() != null || h.getLagMs() != null)) {
-      return this.randomFallback.getHost(eligible, role, props);
     }
 
     HostSpec lowestLoadHost = null;
@@ -86,8 +80,8 @@ public class LowestLoadHostSelector implements HostSelector {
       }
     }
 
-    if (lowestLoad < 0 || lowestLoadHost == null) {
-      return this.randomFallback.getHost(eligible, role, props);
+    if (lowestLoad < 0) {
+      return null;
     }
     return lowestLoadHost;
   }

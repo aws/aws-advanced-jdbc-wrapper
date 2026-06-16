@@ -98,15 +98,14 @@ public class LowestLoadHostSelectorTest {
   }
 
   @Test
-  void test_noLoadDataAtAll_noException() throws SQLException {
-    // All hosts have null cpuPercent and lagMs. Strategy should not throw, and fallbacks to random host selector.
+  void test_noLoadDataAtAll_returnsNull() throws SQLException {
     final HostSpec a = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("a").hostId("a").role(HostRole.READER).build();
     final HostSpec b = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("b").hostId("b").role(HostRole.READER).build();
 
     final HostSpec h = selector.getHost(Arrays.asList(a, b), HostRole.READER, EMPTY_PROPS);
-    assertNotNull(h, "should return a host even when no load data is available");
+    assertNull(h, "should return null when no load data is available");
   }
 
   @Test
