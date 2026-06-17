@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.Nullable;
+import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -83,6 +84,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           "1000",
           "Time between each retry of opening a connection.");
 
+  public static final AwsWrapperProperty WAIT_FOR_INITIAL_TOPOLOGY_MS =
+      new AwsWrapperProperty(
+          "waitForInitialTopologyMs",
+          "0",
+          "Maximum allowed time, in milliseconds, to wait for the cluster topology to be fetched before opening a new"
+              + " connection. When set to a value greater than 0 and the topology is not yet available, the plugin"
+              + " will block until the topology has been discovered (or this timeout is reached) instead of falling"
+              + " back to connecting via the initial endpoint in connection string."
+              + " This ensures host selection strategies such as"
+              + " 'roundRobin' distribute concurrent and connection-pool prefill connections across instances rather"
+              + " than routing them all to a single instance resolved through DNS. The wait is scoped to the cluster"
+              + " the connection belongs to; connections to other clusters are not affected. When set to 0 (the"
+              + " default) the previous behavior is preserved.");
+
   public static final AwsWrapperProperty ENDPOINT_SUBSTITUTION_ROLE =
       new AwsWrapperProperty(
           "endpointSubstitutionRole",
@@ -132,6 +147,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   private final PluginService pluginService;
   private final int retryDelayMs;
   private final long openConnectionRetryTimeoutNano;
+  private final long waitForInitialTopologyMs;
   private final @Nullable String selectionStrategyPropValue;
   private final @Nullable String verifyRolePropValue;
   private final @Nullable Set<String> accessibleRegions;
@@ -148,6 +164,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     this.retryDelayMs = OPEN_CONNECTION_RETRY_INTERVAL_MS.getInteger(properties);
     this.openConnectionRetryTimeoutNano =
         TimeUnit.MILLISECONDS.toNanos(OPEN_CONNECTION_RETRY_TIMEOUT_MS.getInteger(properties));
+    this.waitForInitialTopologyMs = WAIT_FOR_INITIAL_TOPOLOGY_MS.getLong(properties);
     String verifyRolePropValue = VERIFY_OPENED_CONNECTION_ROLE.getString(properties);
     this.verifyRolePropValue = verifyRolePropValue == null ? null : verifyRolePropValue.toUpperCase();
 
@@ -193,95 +210,99 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         urlType, isInitialConnection, props, originalConnectHost.getHost());
     final long endTimeNano = System.nanoTime() + this.openConnectionRetryTimeoutNano;
 
-    while (System.nanoTime() < endTimeNano) {
-      Connection candidateConn = null;
-      HostSpec candidateHost = null;
+    // Hold the candidate connection in an AtomicConnection so that it can never leak: its LazyCleaner safety net
+    // closes the connection if this holder becomes unreachable, and the outer finally block always closes any
+    // connection still held. The connection is detached from the holder only when it is returned to the caller.
+    final AtomicConnection candidateConnHolder =
+        new AtomicConnection(this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
 
-      try {
-        if (substitutionStrategy.equals(InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE)) {
-          candidateHost = originalConnectHost;
-          candidateConn = connectFunc.call();
-        } else {
-          candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
-          if (candidateHost == null || !this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
-            // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
-            candidateConn = connectFunc.call();
-            candidateHost = originalConnectHost;
-            this.pluginService.forceRefreshHostList();
-          } else {
-            candidateConn = this.pluginService.connect(candidateHost, props, this);
-          }
-        }
+    try {
+      while (System.nanoTime() < endTimeNano) {
+        HostSpec candidateHost = null;
 
-        if (roleToVerify == null) {
-          // No verification required.
+        try {
+          candidateHost = this.openCandidateConnection(
+              originalConnectHost, urlType, substitutionStrategy, props, connectFunc, candidateConnHolder);
 
-          this.pluginService.setRoutedHostSpec(candidateHost);
-          return candidateConn;
-        }
+          final Connection candidateConn = candidateConnHolder.get();
 
-        HostRole connRole = this.pluginService.getHostRole(candidateConn);
-        if (connRole == roleToVerify) {
-          // Verification succeeded.
+          if (roleToVerify == null) {
+            // No verification required.
 
-          this.pluginService.setRoutedHostSpec(candidateHost);
-          return candidateConn;
-        }
-
-        // Verification failed.
-        // We will try again, unless a reader was requested but the cluster has no readers, which is a special case.
-        this.pluginService.forceRefreshHostList();
-        List<HostSpec> allHosts = this.pluginService.getAllHosts();
-        if (roleToVerify == HostRole.READER && !Utils.isNullOrEmpty(allHosts) && !this.hasReaders(allHosts)) {
-          // A reader was requested but the cluster has no readers.
-          // Simulate the reader cluster endpoint logic and return the current (writer) connection.
-          if (RoleVerificationSetting.READER.name().equals(this.verifyRolePropValue)) {
-            LOGGER.finest(() -> Messages.get(
-                "AuroraInitialConnectionStrategyPlugin.verifyReaderConfiguredButNoReadersExist",
-                new Object[] {VERIFY_OPENED_CONNECTION_ROLE.name}));
+            this.pluginService.setRoutedHostSpec(candidateHost);
+            // Detach the connection so the holder's LazyCleaner does not close what we return to the caller.
+            candidateConnHolder.set(null, false);
+            return candidateConn;
           }
 
-          this.pluginService.setRoutedHostSpec(candidateHost);
-          return candidateConn;
-        }
+          HostRole connRole = this.pluginService.getHostRole(candidateConn);
+          if (connRole == roleToVerify) {
+            // Verification succeeded.
 
-        // Failed to verify the connection. We will try to get a verified connection again on the next iteration.
-        final HostSpec finalCandidateHost = candidateHost;
-        LOGGER.finest(() -> Messages.get(
-            "AuroraInitialConnectionStrategyPlugin.incorrectRole",
-            new Object[]{finalCandidateHost.getHost(), roleToVerify}));
-        this.servicesContainer.getImportantEventService().registerEvent(() -> Messages.get(
-            "AuroraInitialConnectionStrategyPlugin.incorrectRole",
-            new Object[]{finalCandidateHost.getHost(), roleToVerify}));
-        this.closeConnection(candidateConn);
-        this.delay(this.retryDelayMs);
-      } catch (SQLException ex) {
-        this.closeConnection(candidateConn);
-        if (this.pluginService.isLoginException(ex, this.pluginService.getTargetDriverDialect())) {
-          throw WrapperUtils.wrapExceptionIfNeeded(SQLException.class, ex);
-        }
+            this.pluginService.setRoutedHostSpec(candidateHost);
+            candidateConnHolder.set(null, false);
+            return candidateConn;
+          }
 
-        if (candidateHost != null) {
-          this.pluginService.setAvailability(candidateHost, HostAvailability.NOT_AVAILABLE);
-        }
+          // Verification failed.
+          // We will try again, unless a reader was requested but the cluster has no readers, which is a special case.
+          this.pluginService.forceRefreshHostList();
+          List<HostSpec> allHosts = this.pluginService.getAllHosts();
+          if (roleToVerify == HostRole.READER && !Utils.isNullOrEmpty(allHosts) && !this.hasReaders(allHosts)) {
+            // A reader was requested but the cluster has no readers.
+            // Simulate the reader cluster endpoint logic and return the current (writer) connection.
+            if (RoleVerificationSetting.READER.name().equals(this.verifyRolePropValue)) {
+              LOGGER.finest(() -> Messages.get(
+                  "AuroraInitialConnectionStrategyPlugin.verifyReaderConfiguredButNoReadersExist",
+                  new Object[] {VERIFY_OPENED_CONNECTION_ROLE.name}));
+            }
 
-        if (this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect())) {
-          // Retry connection.
-          continue;
-        }
+            this.pluginService.setRoutedHostSpec(candidateHost);
+            candidateConnHolder.set(null, false);
+            return candidateConn;
+          }
 
-        if (this.pluginService.isReadOnlyConnectionException(ex, this.pluginService.getTargetDriverDialect())
-            && (roleToVerify == HostRole.WRITER
-            || substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER)) {
-          // Retry connection.
-          continue;
-        }
+          // Failed to verify the connection. We will try to get a verified connection again on the next iteration.
+          final HostSpec finalCandidateHost = candidateHost;
+          LOGGER.finest(() -> Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.incorrectRole",
+              new Object[]{finalCandidateHost.getHost(), roleToVerify}));
+          this.servicesContainer.getImportantEventService().registerEvent(() -> Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.incorrectRole",
+              new Object[]{finalCandidateHost.getHost(), roleToVerify}));
+          // Close the unverified candidate connection before retrying.
+          candidateConnHolder.set(null);
+          this.delay(this.retryDelayMs);
+        } catch (SQLException ex) {
+          // Close the failed candidate connection before retrying or rethrowing.
+          candidateConnHolder.set(null);
+          if (this.pluginService.isLoginException(ex, this.pluginService.getTargetDriverDialect())) {
+            throw WrapperUtils.wrapExceptionIfNeeded(SQLException.class, ex);
+          }
 
-        throw ex;
-      } catch (Throwable ex) {
-        this.closeConnection(candidateConn);
-        throw ex;
+          if (candidateHost != null) {
+            this.pluginService.setAvailability(candidateHost, HostAvailability.NOT_AVAILABLE);
+          }
+
+          if (this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect())) {
+            // Retry connection.
+            continue;
+          }
+
+          if (this.pluginService.isReadOnlyConnectionException(ex, this.pluginService.getTargetDriverDialect())
+              && (roleToVerify == HostRole.WRITER
+              || substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER)) {
+            // Retry connection.
+            continue;
+          }
+
+          throw ex;
+        }
       }
+    } finally {
+      // Closes any connection still held (e.g. a connection left after an unexpected exception) and deregisters
+      // the cleanable. Connections returned to the caller have already been detached via set(null, false).
+      candidateConnHolder.clean();
     }
 
     throw new SQLException(Messages.get(
@@ -289,6 +310,100 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         new Object[] {
             TimeUnit.NANOSECONDS.toMillis(this.openConnectionRetryTimeoutNano),
             VERIFY_OPENED_CONNECTION_ROLE.name}));
+  }
+
+  /**
+   * Opens a candidate connection and stores it in {@code candidateConnHolder}, returning the {@link HostSpec} that
+   * was connected to.
+   *
+   * <p>If no substitution is needed, the original endpoint is used. Otherwise, an instance host is selected from the
+   * topology when available; if the topology isn't available yet, a connection is opened via the initial endpoint
+   * (which also confirms the dialect and acts as a fallback) and, when {@code waitForInitialTopologyMs > 0}, the
+   * topology fetch is awaited before re-attempting instance selection.
+   */
+  protected HostSpec openCandidateConnection(
+      final @NonNull HostSpec originalConnectHost,
+      final @NonNull RdsUrlType urlType,
+      final @NonNull InstanceSubstitutionStrategy substitutionStrategy,
+      final @NonNull Properties props,
+      final @NonNull JdbcCallable<Connection, SQLException> connectFunc,
+      final @NonNull AtomicConnection candidateConnHolder)
+      throws SQLException {
+
+    if (substitutionStrategy.equals(InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE)) {
+      candidateConnHolder.set(connectFunc.call());
+      return originalConnectHost;
+    }
+
+    final HostSpec candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
+    if (candidateHost != null && this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
+      // Topology is already available; connect to the selected instance.
+      candidateConnHolder.set(this.pluginService.connect(candidateHost, props, this));
+      return candidateHost;
+    }
+
+    // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
+    // Connect via the initial endpoint. This connection also confirms the dialect (done by
+    // DefaultConnectionPlugin on the initial connection), which is a prerequisite for fetching the
+    // topology, and it serves as a fallback connection if instance selection or connection fails.
+    candidateConnHolder.set(connectFunc.call());
+
+    if (this.waitForInitialTopologyMs <= 0) {
+      // Feature disabled. Preserve the previous behavior.
+      this.pluginService.forceRefreshHostList();
+      return originalConnectHost;
+    }
+
+    return this.waitForTopologyAndConnectToInstance(
+        originalConnectHost, urlType, substitutionStrategy, props, candidateConnHolder);
+  }
+
+  /**
+   * Blocks until the topology for this cluster has been fetched, then re-attempts instance selection and connection.
+   * This serializes concurrent/prefill connections (all waiting on the same per-cluster topology monitor) so that the
+   * configured host selection strategy can distribute them across instances instead of all relying on the initial
+   * endpoint resolved via DNS.
+   *
+   * <p>Returns the selected instance host if the topology was fetched and the instance connection succeeded; the
+   * connection is then held in {@code candidateConnHolder}. Otherwise returns {@code originalConnectHost} and the
+   * already-opened initial-endpoint connection (still held in {@code candidateConnHolder}) is kept as a fallback.
+   */
+  protected HostSpec waitForTopologyAndConnectToInstance(
+      final @NonNull HostSpec originalConnectHost,
+      final @NonNull RdsUrlType urlType,
+      final @NonNull InstanceSubstitutionStrategy substitutionStrategy,
+      final @NonNull Properties props,
+      final @NonNull AtomicConnection candidateConnHolder)
+      throws SQLException {
+
+    final String originalConnectHostName = originalConnectHost.getHost();
+    LOGGER.finest(() -> Messages.get(
+        "AuroraInitialConnectionStrategyPlugin.waitingForTopology",
+        new Object[] {this.waitForInitialTopologyMs, originalConnectHostName}));
+
+    if (!this.pluginService.forceRefreshHostList(true, this.waitForInitialTopologyMs)) {
+      LOGGER.finest(() -> Messages.get(
+          "AuroraInitialConnectionStrategyPlugin.waitForTopologyTimeout",
+          new Object[] {this.waitForInitialTopologyMs, originalConnectHostName}));
+      return originalConnectHost;
+    }
+
+    final HostSpec instanceHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
+    if (instanceHost == null || !this.rdsUtils.isRdsInstance(instanceHost.getHost())) {
+      return originalConnectHost;
+    }
+
+    try {
+      // set() closes the previous (fallback) connection once the instance connection is held.
+      candidateConnHolder.set(this.pluginService.connect(instanceHost, props, this));
+      return instanceHost;
+    } catch (final SQLException ex) {
+      // Failed to connect to the selected instance; keep the initial-endpoint connection.
+      LOGGER.finest(() -> Messages.get(
+          "AuroraInitialConnectionStrategyPlugin.failedToConnectToSelectedInstance",
+          new Object[] {instanceHost.getHost()}));
+      return originalConnectHost;
+    }
   }
 
   protected @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
@@ -449,16 +564,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
           new Object[]{VERIFY_OPENED_CONNECTION_ROLE.name, "writer", "reader cluster or custom cluster"}));
-    }
-  }
-
-  private void closeConnection(final @Nullable Connection connection) {
-    if (connection != null) {
-      try {
-        connection.close();
-      } catch (final SQLException ex) {
-        // ignore
-      }
     }
   }
 
