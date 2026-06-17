@@ -3,6 +3,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [4.1.0] - 2026-06-17
+
+### :magic_wand: Added
+- Added accessible AWS regions support (`gdbAccessibleRegions`) and configurable monitoring connection priority (`monitoringConnectionPriority` / `gdbMonitoringConnectionPriority`) for Global Aurora Databases, allowing deployments with restricted cross-region network reachability to constrain failover, read/write splitting, and topology monitoring to reachable regions ([PR #1940](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1940)).
+- Added `LowestLoadHostSelector` and `HighestLoadHostSelector` host selection strategies that choose hosts based on CPU and replica lag metrics with configurable weights ([PR #1969](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1969)).
+- Added `waitForInitialTopologyMs` property to the Aurora Initial Connection Strategy Plugin to distribute concurrent initial reader connections (e.g. connection-pool prefill) across readers instead of routing them all to a single reader ([Issue #1968](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1968), [PR #1977](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1977)).
+- Added a self-contained AI configuration assistant skill to help users configure the wrapper with their own AI tools ([PR #1941](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1941)).
+
+### :bug: Fixed
+- Fixed `ConfigurationProfile` not being propagated to `PartialPluginService`, which caused internal monitoring workers to lose access to profile-configured plugins (e.g. IAM) and fail permanently after the IAM token TTL expired ([Issue #1800](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1800), [PR #1919](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1919)).
+- Fixed target-driver-specific session state (e.g. PostgreSQL `currentSchema` and `readOnly`) being lost across connection switches triggered by plugins such as `initialConnection`, `failover2`, and read/write splitting ([Issue #1787](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1787), [PR #1921](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1921)).
+- Fixed the Blue/Green plugin remaining stuck in `IN_PROGRESS` after RDS completed switchover, which could exhaust connection pools and require an application restart ([Issue #1920](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1920), [PR #1923](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1923)).
+- Fixed the Read/Write Splitting Plugin getting stuck retrying an unreachable reader instead of falling back to the writer ([Issue #1324](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324), [PR #1966](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1966)).
+- Lowered the log level emitted on a successful failover (`FailoverSuccessSQLException`) from `SEVERE` to `INFO` to avoid spurious error alerts in monitoring systems ([Issue #1951](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1951), [PR #1952](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1952)).
+- Fixed `AbstractMonitor.stop()` not shutting down its executor, causing monitor shutdown to block for the full termination timeout ([PR #1967](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1967)).
+
+### :crab: Changed
+- Deprecated `HighestWeightHostSelector` in favor of the new load-based host selectors ([PR #1969](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1969)).
+- The failover plugin now checks whether the current connection requires strict-writer failover mode ([PR #1976](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1976)).
+- Upgraded `jsqlparser` to 4.9 ([PR #1949](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1949)).
+- Dependency updates, including PostgreSQL JDBC driver 42.7.11 (addresses [CVE-2026-42198](https://nvd.nist.gov/vuln/detail/CVE-2026-42198)), MySQL Connector/J 9.7.0, MariaDB Connector/J 3.5.9, OpenTelemetry, Jackson, and various AWS SDK modules ([PR #1912](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1912), [PR #1960](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1960), [PR #1974](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1974), [PR #1908](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1908), [PR #1910](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1910)).
+- Cleaned up compiler warnings and fixed a failing javadoc check ([PR #1934](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1934), [PR #1964](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1964)).
+- CI and test improvements: parallelized standard integration tests, added Gradle caching, sped up the unit test and coverage job, fixed required-check gating for docs-only PRs, improved test resource cleanup, and fixed several flaky integration tests ([PR #1915](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1915), [PR #1916](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1916), [PR #1918](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1918), [PR #1931](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1931), [PR #1933](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1933), [PR #1935](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1935), [PR #1963](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1963), [PR #1967](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1967), [PR #1970](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1970)).
+- Documentation: added a list of other AWS Advanced Wrapper drivers and fixed a README typo and a broken Failover Plugin link ([PR #1962](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1962), [PR #1953](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1953)).
+
 ## [4.0.1] - 2026-05-13
 
 ### :bug: Fixed
