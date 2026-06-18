@@ -79,9 +79,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
   protected Connection currentConnection;
-  protected HostSpec currentHostSpec;
+  protected @Nullable HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
-  protected HostSpec routedHostSpec;
+  protected @Nullable HostSpec routedHostSpec;
   private boolean isInTransaction;
   private boolean isDialectConfirmed;
   private final ExceptionManager exceptionManager;
@@ -98,7 +98,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected TrackedConnectionList.@Nullable Node trackedConnectionNode = null;
 
   // JDBC call context members
-  protected Boolean pooledConnection = null;
+  protected @Nullable Boolean pooledConnection = null;
 
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
@@ -139,6 +139,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         null);
   }
 
+  // Checker Framework: passes a partially-initialized 'this' to DialectManager and
+  // SessionStateServiceImpl, which only store the reference for later use and do not
+  // dereference PluginService fields during construction. Safe to suppress here.
+  @SuppressWarnings({"argument", "assignment"})
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
@@ -170,8 +174,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
-    if (this.configurationProfile != null && this.configurationProfile.getDialect() != null) {
-      this.dialect = this.configurationProfile.getDialect();
+    final Dialect profileDialect =
+        this.configurationProfile != null ? this.configurationProfile.getDialect() : null;
+    if (profileDialect != null) {
+      this.dialect = profileDialect;
       this.isDialectConfirmed = true;
     } else {
       this.dialect = this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
@@ -190,31 +196,35 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       this.currentHostSpec = this.initialConnectionHostSpec;
 
       if (this.currentHostSpec == null) {
-        if (this.getAllHosts().isEmpty()) {
+        final List<HostSpec> allHosts = this.getAllHosts();
+        if (allHosts.isEmpty()) {
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
 
-        this.currentHostSpec = Utils.getWriter(this.getAllHosts());
+        final HostSpec writerHostSpec = Utils.getWriter(allHosts);
         final List<HostSpec> allowedHosts = this.getHosts();
-        if (!Utils.containsHostAndPort(allowedHosts, this.currentHostSpec.getHostAndPort())) {
+        if (writerHostSpec == null
+            || !Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
           throw new RuntimeException(
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
-                      currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
+                      writerHostSpec == null ? "<null>" : writerHostSpec.getHostAndPort(),
                       LogUtils.logTopology(allowedHosts, "")})
           );
         }
 
-        if (this.currentHostSpec == null) {
-          this.currentHostSpec = this.getHosts().get(0);
-        }
+        this.currentHostSpec = writerHostSpec;
       }
       if (this.currentHostSpec == null) {
         throw new RuntimeException("Current host is undefined.");
       }
-      LOGGER.finest(() -> "Set current host to " + this.currentHostSpec);
     }
-    return this.currentHostSpec;
+    final HostSpec resolved = this.currentHostSpec;
+    if (resolved == null) {
+      throw new RuntimeException("Current host is undefined.");
+    }
+    LOGGER.finest(() -> "Set current host to " + resolved);
+    return resolved;
   }
 
   public void setInitialConnectionHostSpec(final @NonNull HostSpec initialConnectionHostSpec) {
@@ -303,7 +313,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       } else {
         // update an existing connection
 
-        final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
+        // currentHostSpec is always set together with currentConnection (see the
+        // initial-connection branch above), so it is non-null here.
+        final HostSpec currentHostSpec = this.currentHostSpec;
+        if (currentHostSpec == null) {
+          throw new IllegalStateException(Messages.get("PluginServiceImpl.hostListEmpty"));
+        }
+        final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, currentHostSpec,
             connection, hostSpec);
 
         if (!changes.isEmpty()) {
@@ -796,7 +812,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.sessionStateService;
   }
 
-  public <T> T getPlugin(final Class<T> pluginClazz) {
+  public <T> @Nullable T getPlugin(final Class<T> pluginClazz) {
     for (ConnectionPlugin p : this.pluginManager.plugins) {
       if (pluginClazz.isAssignableFrom(p.getClass())) {
         return pluginClazz.cast(p);
@@ -818,12 +834,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public Boolean isPooledConnection() {
+  public @Nullable Boolean isPooledConnection() {
     return this.pooledConnection;
   }
 
   @Override
-  public void setIsPooledConnection(Boolean isPooledConnection) {
+  public void setIsPooledConnection(@Nullable Boolean isPooledConnection) {
     this.pooledConnection = isPooledConnection;
   }
 
@@ -842,8 +858,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.pooledConnection = null;
   }
 
+  // Checker Framework: overrides java.sql.Wrapper.unwrap (non-null JDK signature) but may
+  // return null (delegated from ConnectionPluginManager.unwrap). An override cannot widen
+  // the inherited non-null return to @Nullable, so suppress here.
   @Override
-  public <T> T unwrap(Class<T> iface) throws SQLException {
+  @SuppressWarnings("return")
+  public <T> @Nullable T unwrap(Class<T> iface) throws SQLException {
     if (iface == PluginService.class) {
       return iface.cast(this);
     }
@@ -860,7 +880,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.pluginManager.isWrapperFor(iface);
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the
+  // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
+  // Fixing this properly means widening that interface to Pair<String, @Nullable Object>
+  // across all ~25 implementers - out of scope for this change. Suppress locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     PropertyUtils.addSnapshotState(state, "properties", this.props);

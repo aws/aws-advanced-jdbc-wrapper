@@ -255,7 +255,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
 
   @NonNull SessionStateService getSessionStateService();
 
-  <T> T getPlugin(final Class<T> pluginClazz);
+  <T> @Nullable T getPlugin(final Class<T> pluginClazz);
 
   boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
 

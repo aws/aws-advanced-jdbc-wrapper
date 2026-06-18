@@ -652,7 +652,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
-  public <T> T getPlugin(final Class<T> pluginClazz) {
+  public <T> @Nullable T getPlugin(final Class<T> pluginClazz) {
     for (ConnectionPlugin p : this.pluginManager.plugins) {
       if (pluginClazz.isAssignableFrom(p.getClass())) {
         return pluginClazz.cast(p);
@@ -677,7 +677,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void setIsPooledConnection(Boolean pooledConnection) {
+  public void setIsPooledConnection(@Nullable Boolean pooledConnection) {
     // This service implementation doesn't support call context.
     // Do nothing.
   }

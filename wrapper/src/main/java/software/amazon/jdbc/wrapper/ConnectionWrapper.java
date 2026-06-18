@@ -70,6 +70,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected FullServicesContainer servicesContainer;
   private LazyCleaner.Cleanable cleanable;
 
+  // Checker Framework: the constructor wires up collaborators (LazyCleaner, init())
+  // using a partially-initialized 'this'. This is safe here because those collaborators
+  // only store the reference for later use and do not dereference fields during
+  // construction. Suppressing avoids threading @UnderInitialization through many types.
+  @SuppressWarnings({"method.invocation", "argument"})
   public ConnectionWrapper(
       @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
@@ -102,6 +107,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   // For testing purposes only
+  // Checker Framework: calls init() on a partially-initialized 'this' (safe — see note
+  // on the primary constructor above).
+  @SuppressWarnings("method.invocation")
   protected ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
@@ -139,8 +147,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }
 
-      final HostSpec connectedHostSpec = this.pluginService.getRoutedHostSpec() != null
-          ? this.pluginService.getRoutedHostSpec()
+      final HostSpec routedHostSpec = this.pluginService.getRoutedHostSpec();
+      final HostSpec connectedHostSpec = routedHostSpec != null
+          ? routedHostSpec
           : this.pluginService.getInitialConnectionHostSpec();
       this.pluginService.setCurrentConnection(conn, connectedHostSpec);
       this.pluginService.setRoutedHostSpec(null);
@@ -182,7 +191,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
+  // Checker Framework: type-argument inference crashes on this generic varargs
+  // runWithPlugins(...) call (an upstream CF limitation, not a code defect). Suppress the
+  // crash so the rest of the method is still analyzed.
   @Override
+  @SuppressWarnings("type.argument.inference.crashed")
   public void clearWarnings() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_CLEARWARNINGS)) {
       WrapperUtils.runWithPlugins(
@@ -197,7 +210,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
+  // Checker Framework: type-argument inference crashes on this generic varargs
+  // runWithPlugins(...) call (an upstream CF limitation, not a code defect).
   @Override
+  @SuppressWarnings("type.argument.inference.crashed")
   public void close() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_CLOSE)) {
       WrapperUtils.runWithPlugins(
@@ -1172,7 +1188,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   private static class CleanupAction implements LazyCleaner.CleaningAction {
-    private final Throwable openConnectionStacktrace;
+    private final @Nullable Throwable openConnectionStacktrace;
     private final PluginService pluginService;
     private final ConnectionPluginManager pluginManager;
     private final String threadName;

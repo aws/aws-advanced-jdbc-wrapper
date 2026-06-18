@@ -18,12 +18,14 @@ package software.amazon.jdbc.util;
 
 import java.util.Collection;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 public class Utils {
-  public static boolean isNullOrEmpty(final Collection<?> c) {
+  @EnsuresNonNullIf(expression = "#1", result = false)
+  public static boolean isNullOrEmpty(final @Nullable Collection<?> c) {
     return c == null || c.isEmpty();
   }
 

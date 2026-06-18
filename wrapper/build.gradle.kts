@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import org.checkerframework.gradle.plugin.CheckerFrameworkExtension
+
 plugins {
     checkstyle
     java
@@ -25,6 +27,9 @@ plugins {
     id("com.kncept.junit.reporter")
     id("com.gradleup.shadow") version "8.3.10" // 8.3.10 is the last version that is compatible with Java 8
     id("com.google.osdetector") version "1.7.3" // Plugin used to detect OS and use for GLIDE
+    // Checker Framework: applied only when -PenableCheckerFramework is set (see guarded block below).
+    // Declared here (apply false) so the plugin is on the build classpath without affecting normal builds.
+    id("org.checkerframework") apply false
 }
 
 var useJacoco = (!project.hasProperty("jacocoEnabled") || project.property("jacocoEnabled").toString().toBoolean())
@@ -285,6 +290,71 @@ spotless {
 
 spotbugs {
     ignoreFailures.set(true)
+}
+
+// ---------------------------------------------------------------------------
+// Checker Framework pilot (NullnessChecker only, warning mode, scoped).
+//
+// Disabled by default so normal Java 8 builds are unaffected. Enable with:
+//   ./gradlew :aws-advanced-jdbc-wrapper:compileJava -PenableCheckerFramework
+//
+// Requirements:
+//   - Must run on JDK 11+ (the checker itself cannot run on JDK 8). On a
+//     JDK 8 host, run this inside a JDK 17 container (see scripts/run-checker-framework.sh).
+//
+// Scope/behaviour for the pilot:
+//   - Only the NullnessChecker is enabled (Optional/Regex add noise for little gain here).
+//   - Warnings only: the build does NOT fail, so we can measure the real signal.
+//   - Limited to the core connection/plugin path via -AonlyDefs.
+// ---------------------------------------------------------------------------
+if (project.hasProperty("enableCheckerFramework")) {
+    apply(plugin = "org.checkerframework")
+
+    configure<CheckerFrameworkExtension> {
+        checkers = listOf(
+            "org.checkerframework.checker.nullness.NullnessChecker"
+        )
+        // Scope the pilot to the core connection/plugin path. Expand package-by-package later.
+        extraJavacArgs = listOf(
+            "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl|wrapper\\.ConnectionWrapper)",
+            // Warning mode: report issues but do not fail the build.
+            "-Awarns",
+            // Keep the output focused and avoid drowning in framework boilerplate.
+            "-AsuppressWarnings=uninitialized"
+        )
+    }
+
+    // The checker must run on JDK 11+. Force this source set's compiler to JDK 17.
+    tasks.named<JavaCompile>("compileJava") {
+        javaCompiler.set(javaToolchains.compilerFor {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        })
+        // Compile against release 11 (main source is Java-8 compatible). Measurement-only build.
+        options.release.set(11)
+
+        // The Checker Framework plugin adds the error-prone `javac` jar via
+        // -Xbootclasspath/p as a JDK-8 compatibility shim. That option is unsupported
+        // on JDK 17 and crashes the compiler worker. Strip that entry and instead grant
+        // the module access the checker needs to read jdk.compiler internals on JDK 17
+        // (the standard --add-exports/--add-opens set from the Checker Framework manual).
+        doFirst {
+            val moduleArgs = listOf(
+                "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+                "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+            )
+            val existing = (options.forkOptions.jvmArgs ?: emptyList())
+                .filterNot { it.startsWith("-Xbootclasspath/p") }
+            options.forkOptions.jvmArgs = (existing + moduleArgs).distinct()
+        }
+    }
 }
 
 tasks.spotbugsMain {
