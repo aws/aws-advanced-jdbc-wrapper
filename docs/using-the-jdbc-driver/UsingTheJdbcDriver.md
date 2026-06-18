@@ -79,6 +79,58 @@ For `application.properties`:
 logging.level.software.amazon.jdbc=trace
 ```
 
+## Specifying Parameter Values
+There are multiple ways to configure parameters for the AWS Advanced JDBC Wrapper, depending on how the driver is instantiated.
+
+### DriverManager
+When connecting with `DriverManager`, parameters may be specified in the query section of the JDBC URL:
+
+```
+jdbc:aws-wrapper:postgresql://<host_name>[:<port>]/[<database>][?paramOne=valueOne[&paramTwo=valueTwo...]]
+```
+
+For example:
+```
+jdbc:aws-wrapper:postgresql://db.example.com/example?wrapperPlugins=failover,efm2&tcpKeepAlive=true
+```
+
+Parameters can also be supplied through a `Properties` object. Note that when a property is set in both the connection string and the `Properties` object, the connection string value takes precedence.
+```java
+final Properties properties = new Properties();
+properties.setProperty("wrapperPlugins", "failover,efm2");
+properties.setProperty("wrapperDialect", "aurora-pg");
+Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:postgresql://db.example.com/example", properties);
+```
+
+### Spring + HikariCP
+When using Spring Boot with HikariCP, parameters intended for the underlying driver must be passed through the `spring.datasource.hikari.data-source-properties` configuration key.
+
+**Examples**:
+
+`application.yaml`:
+```yaml
+spring:
+  datasource:
+    hikari:
+      data-source-properties:
+        wrapperPlugins: failover,efm2
+        wrapperDialect: aurora-pg
+```
+
+`application.properties`:
+```properties
+spring.datasource.hikari.data-source-properties.wrapperPlugins=failover,efm2
+spring.datasource.hikari.data-source-properties.wrapperDialect=aurora-pg
+```
+
+Environment variable (`SPRING_APPLICATION_JSON`):
+```bash
+SPRING_APPLICATION_JSON='{
+  "spring.datasource.hikari.data-source-properties.wrapperPlugins": "failover,efm2",
+  "spring.datasource.hikari.data-source-properties.wrapperDialect": "aurora-pg"
+}'
+```
+
 ## AWS Advanced JDBC Wrapper Parameters
 These parameters are applicable to any instance of the AWS Advanced JDBC Wrapper.
 
