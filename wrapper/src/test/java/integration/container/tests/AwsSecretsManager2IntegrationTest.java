@@ -88,7 +88,7 @@ public class AwsSecretsManager2IntegrationTest {
   @BeforeAll
   public static void setUpSecret() {
     final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
-    region = info.getRegion();
+    region = !StringUtils.isNullOrEmpty(info.getRegion()) ? info.getRegion() : "us-east-2";
     secretsManagerClient = SecretsManagerClient.builder()
         .region(Region.of(region))
         .credentialsProvider(getCredentialsProvider(info))
