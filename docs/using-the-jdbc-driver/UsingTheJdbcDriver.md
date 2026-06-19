@@ -91,13 +91,13 @@ jdbc:aws-wrapper:postgresql://<host_name>[:<port>]/[<database>][?paramOne=valueO
 
 For example:
 ```
-jdbc:aws-wrapper:postgresql://db.example.com/example?wrapperPlugins=failover,efm2&tcpKeepAlive=true
+jdbc:aws-wrapper:postgresql://db.example.com/example?wrapperPlugins=failover2,efm2&tcpKeepAlive=true
 ```
 
 Parameters can also be supplied through a `Properties` object. Note that when a property is set in both the connection string and the `Properties` object, the connection string value takes precedence.
 ```java
 final Properties properties = new Properties();
-properties.setProperty("wrapperPlugins", "failover,efm2");
+properties.setProperty("wrapperPlugins", "failover2,efm2");
 properties.setProperty("wrapperDialect", "aurora-pg");
 Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:postgresql://db.example.com/example", properties);
 ```
@@ -113,22 +113,41 @@ spring:
   datasource:
     hikari:
       data-source-properties:
-        wrapperPlugins: failover,efm2
+        wrapperPlugins: failover2,efm2
         wrapperDialect: aurora-pg
 ```
 
 `application.properties`:
 ```properties
-spring.datasource.hikari.data-source-properties.wrapperPlugins=failover,efm2
+spring.datasource.hikari.data-source-properties.wrapperPlugins=failover2,efm2
 spring.datasource.hikari.data-source-properties.wrapperDialect=aurora-pg
 ```
 
 Environment variable (`SPRING_APPLICATION_JSON`):
 ```bash
 SPRING_APPLICATION_JSON='{
-  "spring.datasource.hikari.data-source-properties.wrapperPlugins": "failover,efm2",
+  "spring.datasource.hikari.data-source-properties.wrapperPlugins": "failover2,efm2",
   "spring.datasource.hikari.data-source-properties.wrapperDialect": "aurora-pg"
 }'
+```
+
+### Hibernate
+When using Hibernate directly (without Spring Boot), driver parameters are passed by prefixing them with `hibernate.connection.`.
+
+`hibernate.cfg.xml`:
+```xml
+<property name="hibernate.connection.driver_class">software.amazon.jdbc.Driver</property>
+<property name="hibernate.connection.url">jdbc:aws-wrapper:postgresql://db.example.com/example</property>
+<property name="hibernate.connection.wrapperPlugins">failover2,efm2</property>
+<property name="hibernate.connection.wrapperDialect">aurora-pg</property>
+```
+
+The same prefix applies when configuring Hibernate programmatically:
+```java
+configuration.setProperty("hibernate.connection.driver_class", "software.amazon.jdbc.Driver");
+configuration.setProperty("hibernate.connection.url", "jdbc:aws-wrapper:postgresql://db.example.com/example");
+configuration.setProperty("hibernate.connection.wrapperPlugins", "failover2,efm2");
+configuration.setProperty("hibernate.connection.wrapperDialect", "aurora-pg");
 ```
 
 ## AWS Advanced JDBC Wrapper Parameters
