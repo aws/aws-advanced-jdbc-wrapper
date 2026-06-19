@@ -215,16 +215,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
         this.currentHostSpec = writerHostSpec;
       }
-      if (this.currentHostSpec == null) {
+      final HostSpec resolved = this.currentHostSpec;
+      if (resolved == null) {
         throw new RuntimeException("Current host is undefined.");
       }
+      LOGGER.finest(() -> "Set current host to " + resolved);
+      return resolved;
     }
-    final HostSpec resolved = this.currentHostSpec;
-    if (resolved == null) {
-      throw new RuntimeException("Current host is undefined.");
-    }
-    LOGGER.finest(() -> "Set current host to " + resolved);
-    return resolved;
+    return this.currentHostSpec;
   }
 
   public void setInitialConnectionHostSpec(final @NonNull HostSpec initialConnectionHostSpec) {
