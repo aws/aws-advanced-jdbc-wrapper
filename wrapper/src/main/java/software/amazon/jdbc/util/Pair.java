@@ -16,7 +16,9 @@
 
 package software.amazon.jdbc.util;
 
-public final class Pair<T1, T2> {
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public final class Pair<T1 extends @Nullable Object, T2 extends @Nullable Object> {
 
   private final T1 value1;
   private final T2 value2;
@@ -35,12 +37,12 @@ public final class Pair<T1, T2> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof Pair)) {
       return false;
     }
 
-    Pair other = (Pair) obj;
+    Pair<?, ?> other = (Pair<?, ?>) obj;
 
     return (this.value1 == null && other.value1 == null || other.value1 != null && other.value1.equals(this.value1))
         && (this.value2 == null && other.value2 == null || other.value2 != null && other.value2.equals(value2));
@@ -58,7 +60,8 @@ public final class Pair<T1, T2> {
     return String.format("Pair(value1=%s, value2=%s)", this.value1, this.value2);
   }
 
-  public static <T1, T2> Pair<T1, T2> create(T1 value1, T2 value2) {
+  public static <T1 extends @Nullable Object, T2 extends @Nullable Object> Pair<T1, T2> create(
+      T1 value1, T2 value2) {
     return new Pair<>(value1, value2);
   }
 }

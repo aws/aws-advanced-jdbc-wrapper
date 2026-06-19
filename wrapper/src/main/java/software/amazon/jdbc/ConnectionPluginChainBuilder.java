@@ -161,7 +161,7 @@ public class ConnectionPluginChainBuilder {
   public List<ConnectionPlugin> getPlugins(
       final FullServicesContainer servicesContainer,
       final ConnectionProvider defaultConnProvider,
-      final ConnectionProvider effectiveConnProvider,
+      final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
 

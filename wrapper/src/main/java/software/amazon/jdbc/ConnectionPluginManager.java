@@ -206,6 +206,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
     if (jdbcMethod.alwaysUsePipeline || pluginChainJdbcCallableInfo.isSubscribed) {
       // noinspection unchecked
       PluginChainJdbcCallable<T, E> pluginChainFunc = pluginChainJdbcCallableInfo.func;
+      if (pluginChainFunc == null) {
+        throw new RuntimeException("Error processing this JDBC call.");
+      }
       return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc, pluginToSkip);
     } else {
       return jdbcMethodFunc.call();
@@ -271,8 +274,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
 
   protected <E extends Exception> void notifySubscribedPlugins(
       final String methodName,
-      final PluginPipeline<Void, E> pluginPipeline,
-      final ConnectionPlugin skipNotificationForThisPlugin)
+      final NotifyPluginPipeline<E> pluginPipeline,
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws E {
 
     if (pluginPipeline == null) {
@@ -289,7 +292,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
               || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
-        pluginPipeline.call(plugin, null);
+        pluginPipeline.call(plugin);
       }
     }
   }
@@ -479,7 +482,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
     return getHostSpecByStrategy(null, role, strategy);
   }
 
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy)
+  public HostSpec getHostSpecByStrategy(@Nullable List<HostSpec> hosts, @Nullable HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException {
     try {
       for (ConnectionPlugin plugin : this.plugins) {
@@ -548,7 +551,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
 
     notifySubscribedPlugins(
         JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName,
-        (plugin, func) -> {
+        (plugin) -> {
           final OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
           result.add(pluginOpinion);
           return null;
@@ -562,7 +565,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
 
     notifySubscribedPlugins(
         JdbcMethod.NOTIFYNODELISTCHANGED.methodName,
-        (plugin, func) -> {
+        (plugin) -> {
           plugin.notifyNodeListChanged(changes);
           return null;
         },
@@ -588,8 +591,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
         });
   }
 
+  // Checker Framework: this overrides java.sql.Wrapper.unwrap, whose JDK signature is
+  // non-null, but this implementation returns null when no matching wrapper is found.
+  // An override cannot widen the inherited non-null return to @Nullable, so suppress here.
   @Override
-  public <T> T unwrap(Class<T> iface) throws SQLException {
+  @SuppressWarnings("return")
+  public <T> @Nullable T unwrap(Class<T> iface) throws SQLException {
     if (iface == ConnectionPluginManager.class) {
       return iface.cast(this);
     }
@@ -655,7 +662,16 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
 
   protected interface PluginPipeline<T, E extends Exception> {
 
-    T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
+    T call(final @NonNull ConnectionPlugin plugin, final @NonNull JdbcCallable<T, E> jdbcMethodFunc) throws E;
+  }
+
+  /**
+   * Pipeline used by the notify* methods. Unlike {@link PluginPipeline}, notifications do not
+   * continue a JDBC call down a chain, so there is no continuation function to pass along.
+   */
+  protected interface NotifyPluginPipeline<E extends Exception> {
+
+    @Nullable Void call(final @NonNull ConnectionPlugin plugin) throws E;
   }
 
   protected interface PluginChainJdbcCallable<T, E extends Exception> {
@@ -668,10 +684,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
 
   protected static class PluginChainJdbcCallableInfo<T, E extends Exception> {
 
-    private final PluginChainJdbcCallable<T, E> func;
+    private final @Nullable PluginChainJdbcCallable<T, E> func;
     public final boolean isSubscribed;
 
-    public PluginChainJdbcCallableInfo(PluginChainJdbcCallable<T, E> func, boolean isSubscribed) {
+    public PluginChainJdbcCallableInfo(@Nullable PluginChainJdbcCallable<T, E> func, boolean isSubscribed) {
       this.func = func;
       this.isSubscribed = isSubscribed;
     }

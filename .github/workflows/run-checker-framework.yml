@@ -1,0 +1,91 @@
+name: Run Checker Framework (Nullness)
+
+# On-demand static nullness analysis of the wrapper's core path.
+#
+# The main source set targets Java 8, but the Checker Framework needs JDK 11+ to run,
+# so the guarded build block in wrapper/build.gradle.kts (activated by
+# -PenableCheckerFramework) forces the compileJava task onto a JDK 17 toolchain. We make
+# both JDK 8 (the project's primary toolchain) and JDK 17 (for the checker) available and
+# let Gradle's toolchain detection pick them up.
+#
+# This is part of the incremental Checker Framework adoption (see
+# docs/checker-framework-pilot/README.md). It runs in WARNING mode and does not gate CI;
+# it is meant to be triggered manually to measure nullness findings.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checker-framework:
+    name: 'NullnessChecker (scoped, warn-only)'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        with:
+          fetch-depth: 50
+
+      - name: 'Set up JDK 8 and 17'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
+        with:
+          distribution: 'corretto'
+          java-version: |
+            8
+            17
+
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 'Run NullnessChecker'
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain \
+            :aws-advanced-jdbc-wrapper:compileJava \
+            -PenableCheckerFramework \
+            2>&1 | tee checker-framework-report.txt
+
+      - name: 'Summarize findings'
+        if: ${{ !cancelled() }}
+        run: |
+          report=checker-framework-report.txt
+          total=$(grep -cE 'warning: \[' "$report" || true)
+          style=$(grep -cE 'type\.anno\.before\.modifier' "$report" || true)
+          crashes=$(grep -cE 'The Checker Framework crashed' "$report" || true)
+          real=$((total - style))
+          {
+            echo "## Checker Framework — Nullness summary"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|---|---:|"
+            echo "| Total warnings | ${total} |"
+            echo "| Style-only (type.anno.before.modifier) | ${style} |"
+            echo "| Real (non-style) findings | ${real} |"
+            echo "| Checker crashes | ${crashes} |"
+            echo ""
+            echo "<details><summary>Real findings by category</summary>"
+            echo ""
+            echo '```'
+            grep -oE 'warning: \[[a-zA-Z.]+\]' "$report" \
+              | grep -v 'type.anno.before.modifier' \
+              | sort | uniq -c | sort -rn || true
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 'Archive checker report'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: checker-framework-report
+          path: checker-framework-report.txt
+          retention-days: 5
