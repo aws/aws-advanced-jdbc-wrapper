@@ -82,6 +82,7 @@ public class AwsSecretsManager2IntegrationTest {
 
   private static SecretsManagerClient secretsManagerClient;
   private static String secretId;
+  private static String secretArn;
   private static String region;
 
   @BeforeAll
@@ -100,10 +101,10 @@ public class AwsSecretsManager2IntegrationTest {
         info.getDatabaseInfo().getUsername(),
         info.getDatabaseInfo().getPassword());
 
-    secretsManagerClient.createSecret(CreateSecretRequest.builder()
+    secretArn = secretsManagerClient.createSecret(CreateSecretRequest.builder()
         .name(secretId)
         .secretString(secretString)
-        .build());
+        .build()).arn();
     LOGGER.finest("Created test secret: " + secretId);
   }
 
@@ -163,13 +164,11 @@ public class AwsSecretsManager2IntegrationTest {
   /** The secret ARN can be used directly; the region is parsed from the ARN. */
   @TestTemplate
   public void test_awsSecretsManager2_connectsUsingSecretArn() throws SQLException {
-    final String arn = secretsManagerClient.describeSecret(
-            b -> b.secretId(secretId)).arn();
-    assertNotNull(arn);
+    assertNotNull(secretArn);
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "awsSecretsManager2");
-    props.setProperty(AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY.name, arn);
+    props.setProperty(AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY.name, secretArn);
     props.remove(PropertyDefinition.USER.name);
     props.remove(PropertyDefinition.PASSWORD.name);
 
