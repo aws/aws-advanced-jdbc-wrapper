@@ -66,7 +66,12 @@ import software.amazon.jdbc.util.StringUtils;
  */
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@EnableOnTestFeature(TestEnvironmentFeatures.SECRETS_MANAGER)
+@EnableOnTestFeature({
+    TestEnvironmentFeatures.SECRETS_MANAGER,
+    // IAM is only enabled for real RDS/Aurora environments (never Docker), which guarantees
+    // valid AWS credentials are available for provisioning a secret in AWS Secrets Manager.
+    TestEnvironmentFeatures.IAM
+})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
