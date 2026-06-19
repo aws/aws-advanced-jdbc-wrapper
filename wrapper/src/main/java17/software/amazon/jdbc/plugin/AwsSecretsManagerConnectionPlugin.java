@@ -65,7 +65,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
-  private static final String TELEMETRY_UPDATE_SECRETS = "fetch credentials";
+  protected static final String TELEMETRY_UPDATE_SECRETS = "fetch credentials";
   private static final String TELEMETRY_FETCH_CREDENTIALS_COUNTER = "secretsManager.fetchCredentials.count";
   private static final long CACHE_DISPOSAL_TIME_NANO = TimeUnit.MINUTES.toNanos(30);
 
@@ -113,14 +113,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final BiFunction<HostSpec, Region, SecretsManagerClient>
       secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
-  private Secret secret;
+  protected Secret secret;
   private final String secretUsername;
   private final String secretPassword;
-  private final long secretExpirationTime;
+  protected final long secretExpirationTime;
   protected final PluginService pluginService;
   protected final FullServicesContainer servicesContainer;
 
-  private final TelemetryCounter fetchCredentialsCounter;
+  protected final TelemetryCounter fetchCredentialsCounter;
 
   static {
     PropertyDefinition.registerPluginProperties(AwsSecretsManagerConnectionPlugin.class);
@@ -211,8 +211,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
     this.secretUsername = AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_USERNAME_PROPERTY.getString(props);
     this.secretPassword = AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_PASSWORD_PROPERTY.getString(props);
-    this.secretExpirationTime =
-        AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_EXPIRATION_SEC_PROPERTY.getInteger(props);
+    this.secretExpirationTime = resolveSecretExpirationTime(
+        AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_EXPIRATION_SEC_PROPERTY.getInteger(props));
     this.secretKey = Pair.create(secretId, region.id());
 
     this.secretsManagerClientFunc = secretsManagerClientFunc;
@@ -285,7 +285,11 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     return connectInternal(hostSpec, props, forceConnectFunc);
   }
 
-  private boolean updateSecret(final HostSpec hostSpec, final boolean forceReFetch) throws SQLException {
+  protected long resolveSecretExpirationTime(final long configuredExpirationTime) {
+    return configuredExpirationTime;
+  }
+
+  protected boolean updateSecret(final HostSpec hostSpec, final boolean forceReFetch) throws SQLException {
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
@@ -299,49 +303,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     try {
       boolean fetched = false;
       if (secret == null || forceReFetch || secret.isExpired()) {
-        try {
-          this.secret = fetchLatestCredentials(hostSpec);
-          if (this.secret != null) {
-            fetched = true;
-            this.servicesContainer.getStorageService().set(this.secretKey, this.secret);
-          }
-        } catch (final SecretsManagerException | JacksonException exception) {
-          LOGGER.log(
-              Level.WARNING,
-              exception,
-              () -> Messages.get(
-                  "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-          throw new SQLException(
-              Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"), exception);
-        } catch (SdkClientException exception) {
-          LOGGER.log(
-              Level.WARNING,
-              exception,
-              () -> Messages.get(
-                  "AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
-                  new Object[] {exception.getMessage()}));
-          throw new SQLException(
-              Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
-                  new Object[] {exception.getMessage()}), exception);
-        } catch (Exception exception) {
-          if (exception.getCause() != null && exception.getCause() instanceof URISyntaxException) {
-            LOGGER.log(
-                Level.WARNING,
-                exception,
-                () -> Messages.get(
-                    "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
-                    new Object[] {exception.getCause().getMessage()}));
-            throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
-                new Object[] {exception.getCause().getMessage()}));
-          }
-          LOGGER.log(
-              Level.WARNING,
-              exception,
-              () -> Messages.get(
-                  "AwsSecretsManagerConnectionPlugin.unhandledException",
-                  new Object[] {exception.getMessage()}));
-          throw new SQLException(exception);
-        }
+        this.secret = fetchAndStoreSecret(hostSpec);
+        fetched = this.secret != null;
       }
       return fetched;
     } catch (Exception ex) {
@@ -354,6 +317,52 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
+    }
+  }
+
+  protected Secret fetchAndStoreSecret(final HostSpec hostSpec) throws SQLException {
+    try {
+      final Secret fetched = fetchLatestCredentials(hostSpec);
+      if (fetched != null) {
+        this.servicesContainer.getStorageService().set(this.secretKey, fetched);
+      }
+      return fetched;
+    } catch (final SecretsManagerException | JacksonException exception) {
+      LOGGER.log(
+          Level.WARNING,
+          exception,
+          () -> Messages.get(
+              "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
+      throw new SQLException(
+          Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"), exception);
+    } catch (SdkClientException exception) {
+      LOGGER.log(
+          Level.WARNING,
+          exception,
+          () -> Messages.get(
+              "AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
+              new Object[] {exception.getMessage()}));
+      throw new SQLException(
+          Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
+              new Object[] {exception.getMessage()}), exception);
+    } catch (Exception exception) {
+      if (exception.getCause() != null && exception.getCause() instanceof URISyntaxException) {
+        LOGGER.log(
+            Level.WARNING,
+            exception,
+            () -> Messages.get(
+                "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
+                new Object[] {exception.getCause().getMessage()}));
+        throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
+            new Object[] {exception.getCause().getMessage()}));
+      }
+      LOGGER.log(
+          Level.WARNING,
+          exception,
+          () -> Messages.get(
+              "AwsSecretsManagerConnectionPlugin.unhandledException",
+              new Object[] {exception.getMessage()}));
+      throw new SQLException(exception);
     }
   }
 

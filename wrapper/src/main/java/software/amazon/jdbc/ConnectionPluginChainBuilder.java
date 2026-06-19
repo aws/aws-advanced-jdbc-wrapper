@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
+import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin2Factory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
@@ -84,6 +85,7 @@ public class ConnectionPluginChainBuilder {
           put("gdbFailover", new GlobalDbFailoverConnectionPluginFactory());
           put("iam", new IamAuthConnectionPluginFactory());
           put("awsSecretsManager", new AwsSecretsManagerConnectionPluginFactory());
+          put("awsSecretsManager2", new AwsSecretsManagerConnectionPlugin2Factory());
           put("federatedAuth", new FederatedAuthPluginFactory());
           put("okta", new OktaAuthPluginFactory());
           put("auroraStaleDns", new AuroraStaleDnsPluginFactory());
@@ -130,6 +132,7 @@ public class ConnectionPluginChainBuilder {
           put(LimitlessConnectionPluginFactory.class, 1700);
           put(IamAuthConnectionPluginFactory.class, 1800);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1900);
+          put(AwsSecretsManagerConnectionPlugin2Factory.class, 1910);
           put(FederatedAuthPluginFactory.class, 2000);
           put(KmsEncryptionConnectionPluginFactory.class, 2050);
           put(LogQueryConnectionPluginFactory.class, 2100);
