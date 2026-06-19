@@ -68,6 +68,7 @@ To use the AWS Advanced JDBC Wrapper with a connection pool, you must:
    // Alternatively, the AwsWrapperDataSource can be configured with a JDBC URL instead of individual properties as seen above.
    ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");
    ```
+   See the [DatasourceUrlExample](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceUrlExample.java) for a complete example of configuring the data source with a JDBC URL.
 
 4. Set the driver-specific datasource:
    ```java
@@ -80,6 +81,11 @@ To use the AWS Advanced JDBC Wrapper with a connection pool, you must:
    targetDataSourceProps.setProperty("socketTimeout", "10");
    targetDataSourceProps.setProperty("wrapperLoggerLevel", "ALL");
    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
+   ```
+
+   Alternatively, the driver-specific datasource and any AWS Advanced JDBC Wrapper properties can be supplied as query parameters of the JDBC URL instead of being set in code:
+   ```java
+   ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres?socketTimeout=10&wrapperLoggerLevel=ALL");
    ```
 
 > [!WARNING]\

@@ -85,6 +85,18 @@ spring:
 ```
 Note that in Spring Boot 2 and 3, Hikari is the default DataSource implementation. So, a bean explicitly specifying Hikari as a Datasource is not needed.
 
+The `data-source-properties` can alternatively be supplied as query parameters of the JDBC URL:
+```yaml
+spring:
+  datasource:
+    url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/database-name?wrapperPlugins=failover,efm2&wrapperDialect=aurora-pg
+    username: some_username
+    password: some_password
+    driver-class-name: software.amazon.jdbc.Driver
+    hikari:
+      exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
+```
+
 Optionally, you may like to add in Hikari specific configurations like the following.
 ```yaml
 spring:
