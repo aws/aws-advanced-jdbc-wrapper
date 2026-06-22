@@ -37,16 +37,17 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
+import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.EncryptionAnnotationParser;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
-import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * ConnectionPlugin that provides transparent column-level encryption/decryption
@@ -132,7 +133,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   @Override
   public <T, E extends Exception> T execute(
       Class<T> methodClass,
-      Class<E> methodReturnType,
+      Class<E> exceptionClass,
       Object methodInvokeOn,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,
@@ -156,12 +157,12 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       // Handle PreparedStatement creation — track SQL for later encryption
       if (methodName.startsWith("Connection.prepareStatement")
           || methodName.startsWith("Connection.prepareCall")) {
-        return handlePrepareStatement(methodClass, jdbcCallable, args);
+        return handlePrepareStatement(methodClass, exceptionClass, jdbcCallable, args);
       }
 
       // Handle PreparedStatement.setXxx — encrypt if needed
       if (methodName.startsWith("PreparedStatement.set") && methodInvokeOn instanceof PreparedStatement) {
-        return handleSetParameter(methodClass, methodReturnType, (PreparedStatement) methodInvokeOn,
+        return handleSetParameter(methodClass, exceptionClass, (PreparedStatement) methodInvokeOn,
             methodName, jdbcCallable, args);
       }
 
@@ -170,12 +171,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         return handleGetValue(methodClass, (ResultSet) methodInvokeOn, methodName, jdbcCallable, args);
       }
     } catch (SQLException e) {
-      if (methodReturnType.isAssignableFrom(SQLException.class)) {
-        @SuppressWarnings("unchecked")
-        E exception = (E) e;
-        throw exception;
-      }
-      throw new RuntimeException(e);
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 
     return jdbcCallable.call();
@@ -183,13 +179,13 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   @SuppressWarnings("unchecked")
   private <T, E extends Exception> T handlePrepareStatement(
-      Class<T> methodClass, JdbcCallable<T, E> jdbcCallable, Object... args) throws E {
+      Class<T> methodClass, Class<E> exceptionClass,
+      JdbcCallable<T, E> jdbcCallable, Object... args) throws E {
 
     T result = jdbcCallable.call();
 
     if (result instanceof PreparedStatement && args.length > 0 && args[0] instanceof String) {
       PreparedStatement ps = (PreparedStatement) result;
-      String sql = (String) args[0];
 
       try {
         ensureInitialized(ps.getConnection());
@@ -199,7 +195,11 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
             new Object[]{e.getMessage()}));
       }
 
-      statementContexts.put(ps, new StatementContext(sql, encryptionUtility.getSqlAnalysisService()));
+      try {
+        statementContexts.put(ps, new StatementContext(pluginService.getCallContext()));
+      } catch (SQLException e) {
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+      }
     }
 
     return result;
@@ -208,7 +208,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   @SuppressWarnings("unchecked")
   private <T, E extends Exception> T handleSetParameter(
       Class<T> methodClass,
-      Class<E> methodReturnType,
+      Class<E> exceptionClass,
       PreparedStatement ps,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,
@@ -453,18 +453,25 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     final String tableName;
     final Map<Integer, String> parameterColumnMapping;
 
-    StatementContext(String sql, SqlAnalysisService sqlAnalysisService) {
-      String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
-
-      SqlAnalysisService.SqlAnalysisResult analysis = SqlAnalysisService.analyzeSql(cleanSql);
-      this.tableName = analysis.getAffectedTables().isEmpty()
-          ? null : analysis.getAffectedTables().iterator().next();
+    // Raw type casts from context — generic parameters (Set<String>, Map<Integer,String>)
+    // cannot be checked at runtime due to type erasure. Types are documented in SqlContextKeys
+    // and enforced by SqlParserConnectionPlugin which populates the context.
+    @SuppressWarnings("unchecked")
+    StatementContext(PluginCallContext ctx) throws SQLException {
+      if (ctx == null) {
+        throw new SQLException(Messages.get("KmsEncryptionConnectionPlugin.missingParseContext"));
+      }
+      Set<String> tables = ctx.getAttribute(SqlContextKeys.TABLES, Set.class);
+      if (tables == null) {
+        throw new SQLException(Messages.get("KmsEncryptionConnectionPlugin.missingParseContext"));
+      }
+      this.tableName = tables.isEmpty() ? null : (String) tables.iterator().next();
 
       this.parameterColumnMapping = new ConcurrentHashMap<>();
-      if (sqlAnalysisService != null) {
-        this.parameterColumnMapping.putAll(sqlAnalysisService.getColumnParameterMapping(cleanSql));
+      Map<Integer, String> paramMapping = ctx.getAttribute(SqlContextKeys.PARAM_MAPPING, Map.class);
+      if (paramMapping != null) {
+        this.parameterColumnMapping.putAll(paramMapping);
       }
-      this.parameterColumnMapping.putAll(EncryptionAnnotationParser.parseAnnotations(sql));
     }
 
     String getColumnNameForParameter(int paramIndex) {
