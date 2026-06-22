@@ -80,8 +80,12 @@ public class ImportantEventService {
       return;
     }
 
-    Instant current = Instant.now();
-    while (!events.isEmpty() && Duration.between(events.peek().timestamp, current).toMillis() > this.eventQueueMs) {
+    final Instant current = Instant.now();
+    while (true) {
+      final ImportantEvent head = events.peek();
+      if (head == null || Duration.between(head.timestamp, current).toMillis() <= this.eventQueueMs) {
+        break;
+      }
       events.poll();
     }
   }
