@@ -72,7 +72,7 @@ dependencies {
     compileOnly("org.postgresql:postgresql:42.7.11")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.9")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
-    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
+    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.4.0")
 
     // The following dependency will be included in federated-auth bundle jar.
     federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
