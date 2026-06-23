@@ -255,14 +255,6 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
 
   @NonNull SessionStateService getSessionStateService();
 
-  /**
-   * Returns the per-call context that flows through the plugin pipeline for the current JDBC call.
-   * Plugins can use it to share SQL analysis results and other per-call attributes.
-   *
-   * @return the current {@link PluginCallContext}.
-   */
-  PluginCallContext getCallContext();
-
   <T> @Nullable T getPlugin(final Class<T> pluginClazz);
 
   boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);

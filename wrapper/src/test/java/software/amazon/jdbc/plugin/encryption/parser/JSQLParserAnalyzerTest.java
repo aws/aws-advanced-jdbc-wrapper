@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.parser;
+package software.amazon.jdbc.plugin.encryption.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,7 +31,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.SELECT, result.queryType);
+    assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users"));
     // Note: JSQLParser may not preserve ? in toString()
     // assertTrue(result.hasParameters);
@@ -44,7 +43,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.SELECT, result.queryType);
+    assertEquals("SELECT", result.queryType);
     // JSQLParser may preserve backticks in table names
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
@@ -55,7 +54,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.INSERT, result.queryType);
+    assertEquals("INSERT", result.queryType);
     assertTrue(result.tables.contains("users"));
     assertEquals(2, result.columns.size());
     assertEquals("name", result.columns.get(0).columnName);
@@ -68,7 +67,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.UPDATE, result.queryType);
+    assertEquals("UPDATE", result.queryType);
     assertTrue(result.tables.contains("users"));
     assertEquals(2, result.columns.size());
   }
@@ -79,7 +78,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.DELETE, result.queryType);
+    assertEquals("DELETE", result.queryType);
     assertTrue(result.tables.contains("users"));
   }
 
@@ -89,7 +88,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.INSERT, result.queryType);
+    assertEquals("INSERT", result.queryType);
     // JSQLParser may preserve backticks in table names
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
     assertEquals(2, result.columns.size());
@@ -102,7 +101,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals(QueryType.SELECT, result.queryType);
+    assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users"));
     assertTrue(result.tables.contains("orders"));
   }
@@ -114,7 +113,7 @@ class JSQLParserAnalyzerTest {
         JSQLParserAnalyzer.analyze(sql);
 
     assertNotNull(result);
-    assertEquals(QueryType.UNKNOWN, result.queryType);
+    assertEquals("UNKNOWN", result.queryType);
   }
 
   @Test
@@ -122,7 +121,7 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze("");
 
-    assertEquals(QueryType.UNKNOWN, result.queryType);
+    assertEquals("UNKNOWN", result.queryType);
   }
 
   @Test
@@ -130,25 +129,6 @@ class JSQLParserAnalyzerTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(null);
 
-    assertEquals(QueryType.UNKNOWN, result.queryType);
-  }
-
-  @Test
-  void testSelectForUpdate() {
-    JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze("SELECT * FROM users WHERE id = 1 FOR UPDATE");
-
-    assertEquals(QueryType.SELECT, result.queryType);
-    assertTrue(result.forUpdate);
-    assertTrue(result.tables.contains("users"));
-  }
-
-  @Test
-  void testSelectWithoutForUpdate() {
-    JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze("SELECT * FROM users WHERE id = 1");
-
-    assertEquals(QueryType.SELECT, result.queryType);
-    assertFalse(result.forUpdate);
+    assertEquals("UNKNOWN", result.queryType);
   }
 }

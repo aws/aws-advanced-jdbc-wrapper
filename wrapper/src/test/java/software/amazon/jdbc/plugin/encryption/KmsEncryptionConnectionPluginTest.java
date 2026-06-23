@@ -38,27 +38,26 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
+import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
 
 public class KmsEncryptionConnectionPluginTest {
 
   private AutoCloseable closeable;
   private KmsEncryptionConnectionPlugin plugin;
-  private PluginCallContext callContext;
 
   @Mock PluginService mockPluginService;
   @Mock KmsEncryptionUtility mockUtility;
   @Mock MetadataManager mockMetadataManager;
   @Mock KeyManager mockKeyManager;
   @Mock EncryptionService mockEncryptionService;
+  @Mock SqlAnalysisService mockSqlAnalysisService;
   @Mock PreparedStatement mockPreparedStatement;
   @Mock ResultSet mockResultSet;
   @Mock ResultSetMetaData mockResultSetMetaData;
@@ -71,36 +70,20 @@ public class KmsEncryptionConnectionPluginTest {
   @BeforeEach
   void setUp() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
-    callContext = new PluginCallContext();
 
     when(mockUtility.getMetadataManager()).thenReturn(mockMetadataManager);
     when(mockUtility.getKeyManager()).thenReturn(mockKeyManager);
     when(mockUtility.getEncryptionService()).thenReturn(mockEncryptionService);
+    when(mockUtility.getSqlAnalysisService()).thenReturn(mockSqlAnalysisService);
     when(mockPluginService.getTargetDriverDialect())
         .thenReturn(new GenericTargetDriverDialect());
-    when(mockPluginService.getCallContext())
-        .thenReturn(callContext);
 
     plugin = new KmsEncryptionConnectionPlugin(mockPluginService, mockUtility);
   }
 
   @AfterEach
   void cleanUp() throws Exception {
-    callContext.reset();
     closeable.close();
-  }
-
-  private void populateContext(String tableName, java.util.Map<Integer, String> paramMapping) {
-    java.util.Set<String> tables = new java.util.HashSet<>();
-    if (tableName != null) {
-      tables.add(tableName);
-    }
-    callContext.setAttribute(SqlContextKeys.TABLES, tables);
-    callContext.setAttribute(SqlContextKeys.PARAM_MAPPING,
-        paramMapping != null ? paramMapping : java.util.Collections.emptyMap());
-    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, software.amazon.jdbc.parser.QueryType.INSERT);
-    callContext.setAttribute(SqlContextKeys.CLEAN_SQL, "");
-    callContext.setAttribute(SqlContextKeys.ANNOTATIONS, java.util.Collections.emptyMap());
   }
 
   @Test
@@ -109,7 +92,6 @@ public class KmsEncryptionConnectionPluginTest {
 
     JdbcCallable<PreparedStatement, SQLException> callable = () -> mockPreparedStatement;
 
-    populateContext("users", java.util.Collections.emptyMap());
     PreparedStatement result = plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", callable,
@@ -134,8 +116,9 @@ public class KmsEncryptionConnectionPluginTest {
   void test_setString_encryptsForEncryptedColumn() throws Exception {
     // Set up statement context by calling prepareStatement first
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+    when(mockSqlAnalysisService.getColumnParameterMapping(anyString()))
+        .thenReturn(java.util.Collections.singletonMap(2, "ssn"));
 
-    populateContext("users", java.util.Collections.singletonMap(2, "ssn"));
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
@@ -164,8 +147,9 @@ public class KmsEncryptionConnectionPluginTest {
   @Test
   void test_setString_passesThrough_forNonEncryptedColumn() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+    when(mockSqlAnalysisService.getColumnParameterMapping(anyString()))
+        .thenReturn(java.util.Collections.singletonMap(1, "name"));
 
-    populateContext("users", java.util.Collections.singletonMap(1, "name"));
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
@@ -355,7 +339,6 @@ public class KmsEncryptionConnectionPluginTest {
   void test_connectionClose_clearsContexts() throws Exception {
     // Track a statement
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
-    populateContext("users", java.util.Collections.emptyMap());
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
@@ -390,7 +373,6 @@ public class KmsEncryptionConnectionPluginTest {
   @Test
   void test_preparedStatementClose_removesContext() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
-    populateContext("users", java.util.Collections.emptyMap());
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
