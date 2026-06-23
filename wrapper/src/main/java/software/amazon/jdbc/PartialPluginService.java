@@ -684,6 +684,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public PluginCallContext getCallContext() {
+    // This service implementation is used by monitoring services and doesn't support call context.
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCallContext"}));
+  }
+
+  @Override
   public TrackedConnectionList.@Nullable Node getTrackedConnectionNode() {
     // This service implementation doesn't support connection tracking.
     return null;

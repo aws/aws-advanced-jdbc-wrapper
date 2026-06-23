@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.sql;
+package software.amazon.jdbc.parser;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,55 +22,37 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
-import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.JSQLParserAnalyzer;
 import software.amazon.jdbc.util.Messages;
 
 /**
- * Service that analyzes SQL statements to identify columns that need encryption/decryption. Uses
- * jOOQ parser via SQLAnalyzer class.
+ * Stateless utility for analyzing SQL statements using JSQLParser.
+ * Extracts query type, table names, and parameter-to-column mappings.
  */
-public class SqlAnalysisService {
+public final class SqlAnalysisService {
 
   private static final Logger LOGGER = Logger.getLogger(SqlAnalysisService.class.getName());
 
-  private final MetadataManager metadataManager;
-
-  public SqlAnalysisService(PluginService pluginService, MetadataManager metadataManager) {
-    this.metadataManager = metadataManager;
-  }
-
-  /**
-   * Analyzes a SQL statement to determine which columns need encryption/decryption.
-   *
-   * @param sql The SQL statement to analyze
-   * @return Analysis result containing affected columns and their encryption configs
-   */
-  public static SqlAnalysisResult analyzeSql(String sql) {
-    return analyzeSql(sql, null);
+  private SqlAnalysisService() {
   }
 
   /**
    * Analyzes a SQL statement.
    *
    * @param sql The SQL statement to analyze
-   * @param jdbcUrl JDBC URL (unused, kept for compatibility)
-   * @return Analysis result containing affected columns and their encryption configs
+   * @return Analysis result containing affected tables and query type
    */
-  public static SqlAnalysisResult analyzeSql(String sql, String jdbcUrl) {
+  public static SqlAnalysisResult analyzeSql(String sql) {
     if (sql == null || sql.trim().isEmpty()) {
-      return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
+      return new SqlAnalysisResult(Collections.emptySet(), QueryType.UNKNOWN);
     }
 
     try {
       // Use JSQLParser for analysis
       JSQLParserAnalyzer.QueryAnalysis queryAnalysis = JSQLParserAnalyzer.analyze(sql);
-      
+
       if (queryAnalysis != null) {
         Set<String> tables = extractTablesFromJSQLAnalysis(queryAnalysis);
-        String queryType = extractQueryTypeFromJSQLAnalysis(queryAnalysis);
+        QueryType queryType = extractQueryTypeFromJSQLAnalysis(queryAnalysis);
         return analyzeFromTables(tables, queryType);
       }
     } catch (Exception e) {
@@ -78,7 +60,7 @@ public class SqlAnalysisService {
       throw new RuntimeException(Messages.get("SqlAnalysisService.analysisFailed"), e);
     }
 
-    return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
+    return new SqlAnalysisResult(Collections.emptySet(), QueryType.UNKNOWN);
   }
 
   /** Extracts table names from JSQLParserAnalyzer QueryAnalysis result. */
@@ -95,35 +77,27 @@ public class SqlAnalysisService {
   }
 
   /** Extracts query type from JSQLParserAnalyzer QueryAnalysis result. */
-  private static String extractQueryTypeFromJSQLAnalysis(
+  private static QueryType extractQueryTypeFromJSQLAnalysis(
       JSQLParserAnalyzer.QueryAnalysis queryAnalysis) {
-    if (queryAnalysis != null) {
-      return queryAnalysis.queryType != null ? queryAnalysis.queryType : "UNKNOWN";
+    if (queryAnalysis != null && queryAnalysis.queryType != null) {
+      return queryAnalysis.queryType;
     }
-    return "UNKNOWN";
+    return QueryType.UNKNOWN;
   }
 
   /** Analyzes SQL using the extracted table names from parser. */
-  private static SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
-    Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
-
+  private static SqlAnalysisResult analyzeFromTables(Set<String> tables, QueryType queryType) {
     LOGGER.finest(() -> Messages.get("SqlAnalysisService.parserFoundTables", new Object[]{tables.size()}));
-
-    return new SqlAnalysisResult(tables, encryptedColumns, queryType);
+    return new SqlAnalysisResult(tables, queryType);
   }
 
-  /** Result of SQL analysis containing affected tables and encrypted columns. */
+  /** Result of SQL analysis containing affected tables and query type. */
   public static class SqlAnalysisResult {
     private final Set<String> affectedTables;
-    private final Map<String, ColumnEncryptionConfig> encryptedColumns;
-    private final String queryType;
+    private final QueryType queryType;
 
-    public SqlAnalysisResult(
-        Set<String> affectedTables,
-        Map<String, ColumnEncryptionConfig> encryptedColumns,
-        String queryType) {
+    public SqlAnalysisResult(Set<String> affectedTables, QueryType queryType) {
       this.affectedTables = Collections.unmodifiableSet(new HashSet<>(affectedTables));
-      this.encryptedColumns = Collections.unmodifiableMap(new HashMap<>(encryptedColumns));
       this.queryType = queryType;
     }
 
@@ -131,31 +105,15 @@ public class SqlAnalysisService {
       return affectedTables;
     }
 
-    public Map<String, ColumnEncryptionConfig> getEncryptedColumns() {
-      return encryptedColumns;
-    }
-
-    public String getQueryType() {
+    public QueryType getQueryType() {
       return queryType;
-    }
-
-    public boolean hasEncryptedColumns() {
-      return !encryptedColumns.isEmpty();
-    }
-
-    public int getTableCount() {
-      return affectedTables.size();
-    }
-
-    public int getEncryptedColumnCount() {
-      return encryptedColumns.size();
     }
 
     @Override
     public String toString() {
       return String.format(
-          "SqlAnalysisResult{tables=%d, encryptedColumns=%d}",
-          getTableCount(), getEncryptedColumnCount());
+          "SqlAnalysisResult{tables=%s, queryType=%s}",
+          affectedTables, queryType);
     }
   }
 
@@ -165,27 +123,16 @@ public class SqlAnalysisService {
    * @param sql the SQL statement to analyze
    * @return a map of parameter index to column name
    */
-  public Map<Integer, String> getColumnParameterMapping(String sql) {
-    return getColumnParameterMapping(sql, null);
-  }
-
-  /**
-   * Gets column-to-parameter mapping.
-   *
-   * @param sql the SQL statement to analyze
-   * @param jdbcUrl the JDBC URL for context, or null
-   * @return a map of parameter index to column name
-   */
-  public Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
+  public static Map<Integer, String> getColumnParameterMapping(String sql) {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {
       // Use JSQLParser for analysis
       JSQLParserAnalyzer.QueryAnalysis queryAnalysis = JSQLParserAnalyzer.analyze(sql);
-      
+
       if (queryAnalysis != null) {
         // For SELECT statements, map parameters to WHERE clause columns
-        if ("SELECT".equals(queryAnalysis.queryType)) {
+        if (queryAnalysis.queryType == QueryType.SELECT) {
           for (int i = 0; i < queryAnalysis.whereColumns.size(); i++) {
             JSQLParserAnalyzer.ColumnInfo column = queryAnalysis.whereColumns.get(i);
             mapping.put(i + 1, column.columnName.replace("`", ""));
@@ -204,16 +151,5 @@ public class SqlAnalysisService {
     }
 
     return mapping;
-  }
-
-  /** Count the number of parameter placeholders (?) in SQL. */
-  private int countParameters(String sql) {
-    int count = 0;
-    for (int i = 0; i < sql.length(); i++) {
-      if (sql.charAt(i) == '?') {
-        count++;
-      }
-    }
-    return count;
   }
 }

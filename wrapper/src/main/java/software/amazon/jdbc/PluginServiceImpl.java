@@ -99,6 +99,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   // JDBC call context members
   protected @Nullable Boolean pooledConnection = null;
+  protected final PluginCallContext callContext = new PluginCallContext();
 
   public PluginServiceImpl(
       final @NonNull FullServicesContainer servicesContainer,
@@ -811,6 +812,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.sessionStateService;
   }
 
+  @Override
+  public PluginCallContext getCallContext() {
+    return this.callContext;
+  }
+
   public <T> @Nullable T getPlugin(final Class<T> pluginClazz) {
     for (ConnectionPlugin p : this.pluginManager.plugins) {
       if (pluginClazz.isAssignableFrom(p.getClass())) {
@@ -855,6 +861,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void resetCallContext() {
     this.pooledConnection = null;
+    this.callContext.reset();
   }
 
   // Checker Framework: overrides java.sql.Wrapper.unwrap (non-null JDK signature) but may
