@@ -26,7 +26,7 @@ dependencies {
     implementation("com.mysql:mysql-connector-j:9.7.0")
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.9")
     implementation("com.zaxxer:HikariCP:4.0.3")
-    implementation("org.checkerframework:checker-qual:3.55.1")
+    implementation("org.checkerframework:checker-qual:4.2.0")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
     implementation("org.apache.commons:commons-pool2:2.13.1")
     jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
