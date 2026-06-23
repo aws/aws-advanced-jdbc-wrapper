@@ -54,7 +54,7 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
     optionalImplementation("software.amazon.awssdk:kms:$awsSdkVersion")
     optionalImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
-    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.14.1")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
@@ -114,7 +114,7 @@ dependencies {
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.11")
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.18")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
     testImplementation("tools.jackson.core:jackson-databind:3.2.0") // Required for java17 multi-release classes under Java 17+
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.0")
     testImplementation("io.opentelemetry:opentelemetry-api:$openTelemetryVersion")
