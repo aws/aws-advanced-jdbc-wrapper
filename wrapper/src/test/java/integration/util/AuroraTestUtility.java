@@ -2100,7 +2100,12 @@ public class AuroraTestUtility {
   protected String executeInstanceIdQuery(
       DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment, Statement stmt)
       throws SQLException {
-    try (final ResultSet rs = stmt.executeQuery(getInstanceIdSql(databaseEngine, deployment))) {
+    // Prepend the /*@keep*/ routing hint so that, when the autoReadWriteSplitting plugin is
+    // active, this diagnostic query reports the instance of the CURRENT connection instead of
+    // triggering a reader/writer switch. The hint is an inert SQL comment for any plugin chain
+    // that does not include the sqlParser plugin, so it is safe for all other configurations.
+    final String sql = "/*@keep*/ " + getInstanceIdSql(databaseEngine, deployment);
+    try (final ResultSet rs = stmt.executeQuery(sql)) {
       if (rs.next()) {
         return rs.getString(1);
       }

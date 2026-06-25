@@ -19,18 +19,20 @@ package software.amazon.jdbc.parser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Explicit routing hint parsed from a SQL comment (e.g. {@code /*@reader* /} or
- * {@code /*@writer* /}). Used to force a query to a specific connection role,
- * overriding the query-type-based routing decision.
+ * Explicit routing hint parsed from a SQL comment (e.g. {@code /*@reader* /},
+ * {@code /*@writer* /}, or {@code /*@keep* /}). Used to override the query-type-based
+ * routing decision: {@link #READER} and {@link #WRITER} force a specific connection role,
+ * while {@link #KEEP} suppresses re-routing and runs the statement on the current connection.
  */
 public enum RoutingHint {
   READER,
-  WRITER;
+  WRITER,
+  KEEP;
 
   /**
    * Parses a routing hint keyword into the corresponding enum value.
    *
-   * @param value the hint keyword (case-insensitive), e.g. "reader" or "writer"
+   * @param value the hint keyword (case-insensitive), e.g. "reader", "writer", or "keep"
    * @return the matching {@link RoutingHint}, or null if the value is null or unrecognized
    */
   public static @Nullable RoutingHint fromString(final @Nullable String value) {
@@ -42,6 +44,8 @@ public enum RoutingHint {
         return READER;
       case "writer":
         return WRITER;
+      case "keep":
+        return KEEP;
       default:
         return null;
     }

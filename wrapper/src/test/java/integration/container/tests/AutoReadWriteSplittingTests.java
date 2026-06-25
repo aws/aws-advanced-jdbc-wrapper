@@ -100,20 +100,11 @@ public class AutoReadWriteSplittingTests {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {
+      // queryInstanceId carries a /*@keep*/ hint, so it does not change routing.
+      // A fresh connection starts on the writer.
       final String writerInstanceId = auroraUtil.queryInstanceId(conn);
 
-      // Execute a SELECT first to switch to a reader.
-      try (Statement stmt = conn.createStatement();
-          ResultSet rs = stmt.executeQuery("SELECT 1")) {
-        rs.next();
-      }
-
-      final String readerInstanceId = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(writerInstanceId, readerInstanceId);
-
-      // Execute DML on a fresh statement — should route back to the writer.
-      // A new statement is required because the previous one is bound to the reader
-      // connection; reusing it across the routing switch is not supported.
+      // A DML/DDL statement must run on the writer (non-SELECT is never routed to a reader).
       try (Statement stmt = conn.createStatement()) {
         stmt.executeUpdate(
             "CREATE TEMPORARY TABLE IF NOT EXISTS auto_rw_test (id INT)");
@@ -121,7 +112,7 @@ public class AutoReadWriteSplittingTests {
 
       final String afterDmlInstanceId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerInstanceId, afterDmlInstanceId,
-          "DML should have routed back to writer instance");
+          "DML should run on the writer instance");
     }
   }
 

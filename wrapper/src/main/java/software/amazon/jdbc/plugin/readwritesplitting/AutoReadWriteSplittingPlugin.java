@@ -42,6 +42,7 @@ import software.amazon.jdbc.util.WrapperUtils;
  * <ul>
  *   <li>{@code /*@reader* /} — force query to reader</li>
  *   <li>{@code /*@writer* /} — force query to writer</li>
+ *   <li>{@code /*@keep* /} — run on the current connection without re-routing</li>
  * </ul>
  *
  * <p>Requires the {@code sqlParser} plugin to be loaded before this plugin.
@@ -122,7 +123,12 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
    * Returns true when re-routing must be suppressed for the current statement, pinning it to
    * the connection currently in use (whether writer or reader).
    *
-   * <p>This is the case when a transaction is already open, or when autocommit is disabled.
+   * <p>This is the case when:
+   * <ul>
+   *   <li>an explicit {@code /*@keep* /} routing hint is present, or</li>
+   *   <li>a transaction is already open, or</li>
+   *   <li>autocommit is disabled (the next statement will implicitly start a transaction).</li>
+   * </ul>
    * A connection cannot be switched in the middle of a transaction without breaking it, so the
    * statement stays on the current connection regardless of its role. In the common flow the
    * current connection is the writer (autocommit is typically disabled before the first query,
@@ -136,6 +142,11 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
    */
   // Visible for testing
   boolean shouldKeepCurrentConnection() {
+    final PluginCallContext ctx = pluginService.getCallContext();
+    if (ctx != null
+        && ctx.getAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.class) == RoutingHint.KEEP) {
+      return true;
+    }
     if (pluginService.isInTransaction()) {
       return true;
     }

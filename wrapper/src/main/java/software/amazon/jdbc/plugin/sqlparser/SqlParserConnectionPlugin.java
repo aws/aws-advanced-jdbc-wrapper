@@ -49,7 +49,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Pattern ROUTING_HINT_PATTERN =
-      Pattern.compile("/\\*\\s*@\\s*(reader|writer)\\s*\\*/", Pattern.CASE_INSENSITIVE);
+      Pattern.compile("/\\*\\s*@\\s*(reader|writer|keep)\\s*\\*/", Pattern.CASE_INSENSITIVE);
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {

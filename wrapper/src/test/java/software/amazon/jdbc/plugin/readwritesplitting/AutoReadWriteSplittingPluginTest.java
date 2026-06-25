@@ -173,4 +173,13 @@ public class AutoReadWriteSplittingPluginTest {
 
     assertTrue(plugin.shouldKeepCurrentConnection());
   }
+
+  @Test
+  void test_shouldKeepCurrentConnection_trueWhenKeepHint() throws Exception {
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockSessionStateService.getAutoCommit()).thenReturn(Optional.of(true));
+    callContext.setAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.KEEP);
+
+    assertTrue(plugin.shouldKeepCurrentConnection());
+  }
 }
