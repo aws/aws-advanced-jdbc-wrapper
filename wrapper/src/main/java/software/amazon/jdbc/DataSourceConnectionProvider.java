@@ -53,8 +53,12 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
           put(HighestLoadHostSelector.STRATEGY_HIGHEST_LOAD, new HighestLoadHostSelector());
+          put(HighestLoadHostSelector.STRATEGY_HIGHEST_LOAD_BY_CPU, HighestLoadHostSelector.byCpu());
+          put(HighestLoadHostSelector.STRATEGY_HIGHEST_LOAD_BY_LAG, HighestLoadHostSelector.byLag());
           put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
           put(LowestLoadHostSelector.STRATEGY_LOWEST_LOAD, new LowestLoadHostSelector());
+          put(LowestLoadHostSelector.STRATEGY_LOWEST_LOAD_BY_CPU, LowestLoadHostSelector.byCpu());
+          put(LowestLoadHostSelector.STRATEGY_LOWEST_LOAD_BY_LAG, LowestLoadHostSelector.byLag());
           put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
           put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
           put(WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM, new WeightedRandomHostSelector());

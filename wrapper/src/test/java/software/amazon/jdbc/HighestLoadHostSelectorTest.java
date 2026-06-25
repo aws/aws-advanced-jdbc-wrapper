@@ -135,4 +135,50 @@ public class HighestLoadHostSelectorTest {
     assertNotNull(h);
     assertEquals("null-lag", h.getHostId());
   }
+
+  @Test
+  void test_byCpu_selectsHighestCpuHost() throws SQLException {
+    final HighestLoadHostSelector cpuSelector = HighestLoadHostSelector.byCpu();
+
+    // high-cpu has higher CPU but lower lag
+    final List<HostSpec> hosts = Arrays.asList(
+        reader("high-cpu", 95f, 1f),
+        reader("high-lag", 5f, 500f));
+
+    final HostSpec h = cpuSelector.getHost(hosts, HostRole.READER, EMPTY_PROPS);
+    assertNotNull(h);
+    assertEquals("high-cpu", h.getHostId());
+  }
+
+  @Test
+  void test_byLag_selectsHighestLagHost() throws SQLException {
+    final HighestLoadHostSelector lagSelector = HighestLoadHostSelector.byLag();
+
+    // high-lag has higher lag but lower CPU
+    final List<HostSpec> hosts = Arrays.asList(
+        reader("high-cpu", 95f, 1f),
+        reader("high-lag", 5f, 500f));
+
+    final HostSpec h = lagSelector.getHost(hosts, HostRole.READER, EMPTY_PROPS);
+    assertNotNull(h);
+    assertEquals("high-lag", h.getHostId());
+  }
+
+  @Test
+  void test_byCpu_explicitPropertyOverridesDefault() throws SQLException {
+    final HighestLoadHostSelector cpuSelector = HighestLoadHostSelector.byCpu();
+
+    final List<HostSpec> hosts = Arrays.asList(
+        reader("high-cpu", 95f, 1f),
+        reader("high-lag", 5f, 500f));
+
+    // Override with lag-dominant weights via properties
+    final Properties props = new Properties();
+    props.setProperty("highestLoadCpuWeight", "1");
+    props.setProperty("highestLoadLagWeight", "100");
+
+    final HostSpec h = cpuSelector.getHost(hosts, HostRole.READER, props);
+    assertNotNull(h);
+    assertEquals("high-lag", h.getHostId());
+  }
 }
