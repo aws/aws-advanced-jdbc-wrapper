@@ -102,6 +102,40 @@ public class ConnectionPluginChainBuilder {
         }
       };
 
+  // Shortened names of plugins
+  protected static final Map<String /* clazz */, String> pluginCodeByPlugin =
+      new HashMap<String, String>() {
+        {
+          put("software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin", "et");
+          put("software.amazon.jdbc.plugin.LogQueryConnectionPlugin", "lq");
+          put("software.amazon.jdbc.plugin.cache.DataLocalCacheConnectionPlugin", "dlc");
+          put("software.amazon.jdbc.plugin.cache.RemoteQueryCachePlugin", "rqc");
+          put("software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin", "ce");
+          put("software.amazon.jdbc.plugin.efm.v1.HostMonitoringConnectionPluginV1", "e");
+          put("software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2", "e2");
+          put("software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin", "f");
+          put("software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin", "f2");
+          put("software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin", "gf");
+          put("software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin", "i");
+          put("software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin", "sm");
+          put("software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin", "fa");
+          put("software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin", "o");
+          put("software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin", "asd");
+          put("software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin", "rw");
+          put("software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin", "srw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPlugin", "grw");
+          put("software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin", "act");
+          put("software.amazon.jdbc.plugin.DriverMetaDataConnectionPlugin", "dm");
+          put("software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin", "ct");
+          put("software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin", "d");
+          put("software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin", "frs");
+          put("software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin", "ic");
+          put("software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin", "l");
+          put("software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin", "bg");
+          put("software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin", "kms");
+        }
+      };
+
   /**
    * The final list of plugins will be sorted by weight, starting from the lowest values up to
    * the highest values. The first plugin of the list will have the lowest weight, and the
@@ -203,7 +237,7 @@ public class ConnectionPluginChainBuilder {
       }
     } else {
 
-      final List<String> pluginCodeList = getPluginCodes(props);
+      final List<String> pluginCodeList = this.getPluginCodes(props);
       pluginFactories = new ArrayList<>(pluginCodeList.size());
 
       for (final String pluginCode : pluginCodeList) {
@@ -251,12 +285,21 @@ public class ConnectionPluginChainBuilder {
     return plugins;
   }
 
-  public static List<String> getPluginCodes(final Properties props) {
+  public List<String> getPluginCodes(final Properties props) {
     String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
     if (pluginCodes == null) {
       pluginCodes = DEFAULT_PLUGINS;
     }
     return StringUtils.split(pluginCodes, ",", true);
+  }
+
+  public String getPluginCodes(final List<ConnectionPlugin> plugins) {
+    return plugins.stream()
+        .filter(x -> !(x instanceof DefaultConnectionPlugin))
+        .map(x -> pluginCodeByPlugin.getOrDefault(x.getClass().getName(), "unknown"))
+        .distinct()
+        .sorted()
+        .collect(Collectors.joining("+"));
   }
 
   protected List<ConnectionPluginFactory> sortPluginFactories(
