@@ -118,6 +118,14 @@ public class SqlParserConnectionPluginTest {
   }
 
   @Test
+  void test_keepHint_parsed() throws Exception {
+    executeWithSql("/*@keep*/ SELECT * FROM users");
+
+    assertEquals(RoutingHint.KEEP,
+        callContext.getAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.class));
+  }
+
+  @Test
   void test_noHint_routingHintIsNull() throws Exception {
     executeWithSql("SELECT * FROM users");
 

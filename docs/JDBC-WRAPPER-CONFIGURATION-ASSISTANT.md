@@ -448,7 +448,9 @@ The auto-sort weights (lower = earlier in the chain):
 | 800 | `failover` (v1) |
 | 900 | `failover2` |
 | 1000 | `gdbFailover` |
+| 1050 | `sqlParser` |
 | 1100 | `readWriteSplitting` |
+| 1150 | `autoReadWriteSplitting` |
 | 1200 | `srw` (Simple R/W splitting) |
 | 1300 | `gdbReadWriteSplitting` |
 | 1400 | `efm` (v1) |
@@ -472,7 +474,7 @@ Never use these together:
 - `failover2` + `gdbFailover`
 - `efm` + `efm2`
 - `iam` + `awsSecretsManager` + `federatedAuth` + `okta` (pick one auth plugin)
-- `readWriteSplitting` + `srw` + `gdbReadWriteSplitting` (pick one)
+- `readWriteSplitting` + `autoReadWriteSplitting` + `srw` + `gdbReadWriteSplitting` (pick one)
 - `initialConnection` + `srw`
 - `initialConnection` + `connectTime`
 - `initialConnection` + `auroraStaleDns`
@@ -730,7 +732,7 @@ If you want **per-connection** flipping inside one datasource, use this plugin (
 
 - **Compatible with:** Aurora clusters (MySQL, PG), Aurora Global, RDS Multi-AZ DB Clusters. Custom endpoint and instance endpoint require `verifyInitialConnectionRole=true` (default).
 - **Not compatible with:** RDS Single-AZ, RDS Proxy, Limitless.
-- **Mutually exclusive with:** `srw`, `gdbReadWriteSplitting`.
+- **Mutually exclusive with:** `autoReadWriteSplitting`, `srw`, `gdbReadWriteSplitting`.
 - **Strongly recommended:** enable the wrapper's internal connection pool via `connectionPoolType=hikari` (or `c3p0`). Without an internal pool, each `setReadOnly()` toggle can open a brand-new physical connection to the target host — a chatty transactional app will churn connections and can saturate per-instance connection limits. The internal pool keeps per-instance pools keyed by `clusterId`, so role flips are cheap reuses. See §14.2.
 
 **Parameters:**
@@ -742,13 +744,27 @@ If you want **per-connection** flipping inside one datasource, use this plugin (
 
 > **Spring/Hibernate:** if `@Transactional(readOnly = true)` doesn't reach the wrapper, ensure `setReadOnly` propagation is enabled on the framework side (e.g., Hibernate's connection-acquisition mode).
 
+### 5.10b `autoReadWriteSplitting` — Automatic read/write splitting
+
+Like `readWriteSplitting`, but routes each statement automatically based on SQL analysis instead of `setReadOnly()` calls: `SELECT` goes to a reader, DML/DDL (and `SELECT ... FOR UPDATE`) goes to the writer. Useful when the application does not (or cannot) call `setReadOnly()` itself. Extends `readWriteSplitting`, so it inherits reader selection, session-state transfer, and internal connection pooling.
+
+Routing can be overridden per statement with SQL comment hints: `/*@reader*/`, `/*@writer*/`, and `/*@keep*/` (run on the current connection without re-routing). While a transaction is open or autocommit is disabled, the connection is pinned (no re-routing) to preserve the transaction.
+
+- **Requires:** the `sqlParser` plugin loaded **before** it in the chain, and the `com.github.jsqlparser:jsqlparser` dependency on the classpath (optional dependency, not bundled).
+- **Compatible with:** Aurora clusters (MySQL, PG), Aurora Global, RDS Multi-AZ DB Clusters.
+- **Not compatible with:** RDS Single-AZ, RDS Proxy, Limitless.
+- **Mutually exclusive with:** `readWriteSplitting`, `srw`, `gdbReadWriteSplitting`. Use exactly one read/write splitting plugin per connection.
+- **Strongly recommended:** enable the wrapper's internal connection pool (`connectionPoolType=hikari` or `c3p0`), same reasoning as `readWriteSplitting`.
+
+See [UsingTheAutoReadWriteSplittingPlugin.md](./using-the-jdbc-driver/using-plugins/UsingTheAutoReadWriteSplittingPlugin.md) for full details.
+
 ### 5.11 `srw` — Simple read/write splitting
 
 Two-endpoint splitter: connects to one endpoint for reads, another for writes. Useful when there is no Aurora topology (community DBs, RDS Proxy, custom routing).
 
 - **Compatible with:** Aurora, RDS Multi-AZ, RDS Proxy, Limitless. Community DBs (with `verifyNewSrwConnections=false`).
 - **Not compatible with:** RDS Single-AZ.
-- **Mutually exclusive with:** `readWriteSplitting`, `gdbReadWriteSplitting`, `initialConnection`, `auroraStaleDns`.
+- **Mutually exclusive with:** `readWriteSplitting`, `autoReadWriteSplitting`, `gdbReadWriteSplitting`, `initialConnection`, `auroraStaleDns`.
 - **Strongly recommended:** enable the internal connection pool (`connectionPoolType=hikari`). Same reason as `readWriteSplitting` — `setReadOnly()` flips otherwise risk opening fresh physical connections to the read or write endpoint.
 
 **Parameters:**
@@ -766,7 +782,7 @@ Two-endpoint splitter: connects to one endpoint for reads, another for writes. U
 
 Like `readWriteSplitting` but home-region aware. Use only with Aurora Global Database when you need region-aware routing.
 
-- **Mutually exclusive with:** `readWriteSplitting`, `srw`, `auroraStaleDns`.
+- **Mutually exclusive with:** `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `auroraStaleDns`.
 - **Strongly recommended:** enable the internal connection pool (`connectionPoolType=hikari`). Same reason as `readWriteSplitting`.
 
 **Parameters:**
@@ -1250,6 +1266,9 @@ These combinations are **forbidden**:
 | `awsSecretsManager` + `okta` | Same. |
 | `federatedAuth` + `okta` | Same. |
 | `readWriteSplitting` + `srw` | Two RW splitters. |
+| `readWriteSplitting` + `autoReadWriteSplitting` | Two RW splitters. |
+| `autoReadWriteSplitting` + `srw` | Two RW splitters. |
+| `autoReadWriteSplitting` + `gdbReadWriteSplitting` | Two RW splitters. |
 | `readWriteSplitting` + `gdbReadWriteSplitting` | Same. |
 | `srw` + `gdbReadWriteSplitting` | Same. |
 | `auroraStaleDns` + `initialConnection` | `initialConnection` supersedes. |
