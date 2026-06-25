@@ -33,6 +33,8 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 public class HighestLoadHostSelector implements HostSelector {
 
   public static final String STRATEGY_HIGHEST_LOAD = "highestLoad";
+  public static final String STRATEGY_HIGHEST_LOAD_BY_CPU = "highestLoadByCpu";
+  public static final String STRATEGY_HIGHEST_LOAD_BY_LAG = "highestLoadByLag";
 
   public static final AwsWrapperProperty HIGHEST_LOAD_CPU_WEIGHT = new AwsWrapperProperty(
       "highestLoadCpuWeight", "1",
@@ -46,8 +48,31 @@ public class HighestLoadHostSelector implements HostSelector {
 
   protected static final long LAG_MS_DEFAULT = 50;
 
+  private static final long DEFAULT_CPU_WEIGHT = 1;
+  private static final long DEFAULT_LAG_WEIGHT = 100;
+
+  private final long defaultCpuWeight;
+  private final long defaultLagWeight;
+
   static {
     PropertyDefinition.registerPluginProperties(HighestLoadHostSelector.class);
+  }
+
+  public HighestLoadHostSelector() {
+    this(DEFAULT_CPU_WEIGHT, DEFAULT_LAG_WEIGHT);
+  }
+
+  public HighestLoadHostSelector(final long defaultCpuWeight, final long defaultLagWeight) {
+    this.defaultCpuWeight = defaultCpuWeight;
+    this.defaultLagWeight = defaultLagWeight;
+  }
+
+  public static HighestLoadHostSelector byCpu() {
+    return new HighestLoadHostSelector(100, 1);
+  }
+
+  public static HighestLoadHostSelector byLag() {
+    return new HighestLoadHostSelector(1, 100);
   }
 
   @Override
@@ -82,10 +107,26 @@ public class HighestLoadHostSelector implements HostSelector {
   }
 
   private long calculateLoad(final HostSpec host, @Nullable final Properties props) {
+    final long cpuWeight = getCpuWeight(props);
+    final long lagWeight = getLagWeight(props);
     final long cpuPercentWeighted = (host.getCpuPercent() == null ? CPU_DEFAULT : Math.round(host.getCpuPercent()))
-        * HIGHEST_LOAD_CPU_WEIGHT.getLong(props);
+        * cpuWeight;
     final long lagWeighted = (host.getLagMs() == null ? LAG_MS_DEFAULT : Math.round(host.getLagMs()))
-        * HIGHEST_LOAD_LAG_WEIGHT.getLong(props);
+        * lagWeight;
     return cpuPercentWeighted + lagWeighted;
+  }
+
+  private long getCpuWeight(@Nullable final Properties props) {
+    if (props != null && props.containsKey(HIGHEST_LOAD_CPU_WEIGHT.name)) {
+      return HIGHEST_LOAD_CPU_WEIGHT.getLong(props);
+    }
+    return this.defaultCpuWeight;
+  }
+
+  private long getLagWeight(@Nullable final Properties props) {
+    if (props != null && props.containsKey(HIGHEST_LOAD_LAG_WEIGHT.name)) {
+      return HIGHEST_LOAD_LAG_WEIGHT.getLong(props);
+    }
+    return this.defaultLagWeight;
   }
 }
