@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.parser;
+package software.amazon.jdbc.parser;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,16 +23,13 @@ import java.util.Set;
 import java.util.logging.Logger;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.JdbcParameter;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 import net.sf.jsqlparser.util.TablesNamesFinder;
@@ -69,17 +66,19 @@ public final class JSQLParserAnalyzer {
 
   /** Query analysis result. */
   public static class QueryAnalysis {
-    public String queryType;
+    public QueryType queryType = QueryType.UNKNOWN;
     public List<ColumnInfo> columns = new ArrayList<>();
     public List<ColumnInfo> whereColumns = new ArrayList<>();
     public Set<String> tables = new HashSet<>();
     public boolean hasParameters = false;
+    public boolean forUpdate = false;
 
     @Override
     public String toString() {
       return String.format(
-          "QueryAnalysis{queryType='%s', tables=%s, columns=%s, whereColumns=%s, hasParameters=%s}",
-          queryType, tables, columns, whereColumns, hasParameters);
+          "QueryAnalysis{queryType='%s', tables=%s, columns=%s, whereColumns=%s, "
+              + "hasParameters=%s, forUpdate=%s}",
+          queryType, tables, columns, whereColumns, hasParameters, forUpdate);
     }
   }
 
@@ -93,7 +92,7 @@ public final class JSQLParserAnalyzer {
     QueryAnalysis analysis = new QueryAnalysis();
 
     if (sql == null || sql.trim().isEmpty()) {
-      analysis.queryType = "UNKNOWN";
+      analysis.queryType = QueryType.UNKNOWN;
       return analysis;
     }
 
@@ -102,26 +101,26 @@ public final class JSQLParserAnalyzer {
       analysis.hasParameters = containsParameters(statement);
 
       if (statement instanceof Select) {
-        analysis.queryType = "SELECT";
+        analysis.queryType = QueryType.SELECT;
         extractFromSelect((Select) statement, analysis);
       } else if (statement instanceof Insert) {
-        analysis.queryType = "INSERT";
+        analysis.queryType = QueryType.INSERT;
         extractFromInsert((Insert) statement, analysis);
       } else if (statement instanceof Update) {
-        analysis.queryType = "UPDATE";
+        analysis.queryType = QueryType.UPDATE;
         extractFromUpdate((Update) statement, analysis);
       } else if (statement instanceof Delete) {
-        analysis.queryType = "DELETE";
+        analysis.queryType = QueryType.DELETE;
         extractFromDelete((Delete) statement, analysis);
       } else if (statement instanceof net.sf.jsqlparser.statement.create.table.CreateTable) {
-        analysis.queryType = "CREATE";
+        analysis.queryType = QueryType.CREATE;
         extractFromCreateTable(
             (net.sf.jsqlparser.statement.create.table.CreateTable) statement, analysis);
       } else if (statement instanceof net.sf.jsqlparser.statement.drop.Drop) {
-        analysis.queryType = "DROP";
+        analysis.queryType = QueryType.DROP;
         extractFromDrop((net.sf.jsqlparser.statement.drop.Drop) statement, analysis);
       } else {
-        analysis.queryType = "UNKNOWN";
+        analysis.queryType = QueryType.UNKNOWN;
       }
 
     } catch (JSQLParserException e) {
@@ -150,6 +149,11 @@ public final class JSQLParserAnalyzer {
     // body, so PlainSelect can be obtained via a direct instanceof check.
     if (select instanceof PlainSelect) {
       PlainSelect plainSelect = (PlainSelect) select;
+
+      // Detect row-locking clauses (FOR UPDATE, FOR SHARE, FOR NO KEY UPDATE, etc.)
+      if (plainSelect.getForMode() != null) {
+        analysis.forUpdate = true;
+      }
 
       // Extract WHERE clause columns only if there are parameters
       if (plainSelect.getWhere() != null) {
@@ -288,21 +292,21 @@ public final class JSQLParserAnalyzer {
     // Note: JSQLParser provides visitor pattern for more complex traversal
   }
 
-  private static String detectQueryType(String sql) {
+  private static QueryType detectQueryType(String sql) {
     String trimmed = sql.trim().toUpperCase();
     if (trimmed.startsWith("SELECT")) {
-      return "SELECT";
+      return QueryType.SELECT;
     } else if (trimmed.startsWith("INSERT")) {
-      return "INSERT";
+      return QueryType.INSERT;
     } else if (trimmed.startsWith("UPDATE")) {
-      return "UPDATE";
+      return QueryType.UPDATE;
     } else if (trimmed.startsWith("DELETE")) {
-      return "DELETE";
+      return QueryType.DELETE;
     } else if (trimmed.startsWith("CREATE")) {
-      return "CREATE";
+      return QueryType.CREATE;
     } else if (trimmed.startsWith("DROP")) {
-      return "DROP";
+      return QueryType.DROP;
     }
-    return "UNKNOWN";
+    return QueryType.UNKNOWN;
   }
 }

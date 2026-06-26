@@ -61,6 +61,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
+    testImplementation("com.github.jsqlparser:jsqlparser:4.9")
     val arch = System.getProperty("os.arch").let {
         when (it) {
             "aarch64", "arm64" -> "aarch_64"
