@@ -232,8 +232,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
     }
   }
 
-  @Nullable
-  protected <T, E extends Exception> PluginChainJdbcCallableInfo<T, E> makePluginChainFunc(
+  protected <T, E extends Exception> @Nullable PluginChainJdbcCallableInfo<T, E> makePluginChainFunc(
       final @NonNull String methodName) {
 
     PluginChainJdbcCallable<T, E> pluginChainFunc = null;
@@ -543,8 +542,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
   }
 
   public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
-      @NonNull final EnumSet<NodeChangeOptions> changes,
-      @Nullable final ConnectionPlugin skipNotificationForThisPlugin) {
+      final @NonNull EnumSet<NodeChangeOptions> changes,
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
 
     final EnumSet<OldConnectionSuggestedAction> result =
         EnumSet.noneOf(OldConnectionSuggestedAction.class);
@@ -561,7 +560,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
     return result;
   }
 
-  public void notifyNodeListChanged(@NonNull final Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(final @NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
 
     notifySubscribedPlugins(
         JdbcMethod.NOTIFYNODELISTCHANGED.methodName,

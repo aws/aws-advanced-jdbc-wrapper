@@ -76,11 +76,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   // construction. Suppressing avoids threading @UnderInitialization through many types.
   @SuppressWarnings({"method.invocation", "argument"})
   public ConnectionWrapper(
-      @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final Properties props,
-      @NonNull final String url,
-      @NonNull final String targetDriverProtocol,
-      @Nullable final ConfigurationProfile configurationProfile)
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull Properties props,
+      final @NonNull String url,
+      final @NonNull String targetDriverProtocol,
+      final @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     this.servicesContainer = servicesContainer;
@@ -111,13 +111,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   // on the primary constructor above).
   @SuppressWarnings("method.invocation")
   protected ConnectionWrapper(
-      @NonNull final Properties props,
-      @NonNull final String url,
-      @NonNull final String protocol,
-      @NonNull final ConnectionPluginManager connectionPluginManager,
-      @NonNull final PluginService pluginService,
-      @NonNull final HostListProviderService hostListProviderService,
-      @NonNull final PluginManagerService pluginManagerService)
+      final @NonNull Properties props,
+      final @NonNull String url,
+      final @NonNull String protocol,
+      final @NonNull ConnectionPluginManager connectionPluginManager,
+      final @NonNull PluginService pluginService,
+      final @NonNull HostListProviderService hostListProviderService,
+      final @NonNull PluginManagerService pluginManagerService)
       throws SQLException {
     this.originalUrl = url;
     this.targetDriverProtocol = protocol;

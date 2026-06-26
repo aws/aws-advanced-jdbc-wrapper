@@ -60,7 +60,8 @@ public class ConnectionUrlParser {
       return hostsList;
     }
 
-    final String hosts = matcher.group("hosts") == null ? null : matcher.group("hosts").trim();
+    final String hostsGroup = matcher.group("hosts");
+    final String hosts = hostsGroup == null ? null : hostsGroup.trim();
     if (hosts != null) {
       final String[] hostArray = hosts.split(HOSTS_SEPARATOR);
       for (int i = 0; i < hostArray.length; i++) {
@@ -183,7 +184,7 @@ public class ConnectionUrlParser {
 
   // Get the database name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseDatabaseFromUrl(final String url) {
+  public static @Nullable String parseDatabaseFromUrl(final String url) {
     final String[] dbName = url.split("//")[1].split("\\?")[0].split("/");
 
     if (dbName.length == 1) {
@@ -195,7 +196,7 @@ public class ConnectionUrlParser {
 
   // Get the user name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseUserFromUrl(final String url) {
+  public static @Nullable String parseUserFromUrl(final String url) {
     final Pattern userPattern = Pattern.compile("user=(?<username>[^&]*)");
     final Matcher matcher = userPattern.matcher(url);
     if (matcher.find()) {
@@ -207,7 +208,7 @@ public class ConnectionUrlParser {
 
   // Get the password from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parsePasswordFromUrl(final String url) {
+  public static @Nullable String parsePasswordFromUrl(final String url) {
     final Pattern passwordPattern = Pattern.compile("password=(?<pass>[^&]*)");
     final Matcher matcher = passwordPattern.matcher(url);
     if (matcher.find()) {
