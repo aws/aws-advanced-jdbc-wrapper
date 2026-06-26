@@ -314,9 +314,16 @@ if (project.hasProperty("enableCheckerFramework")) {
         checkers = listOf(
             "org.checkerframework.checker.nullness.NullnessChecker"
         )
-        // Scope the pilot to the core connection/plugin path. Expand package-by-package later.
+        // Scope: core connection/plugin path (parts 1-2) plus the self-contained util
+        // classes (part 3). Util classes that require widening central contracts
+        // (WrapperUtils -> all wrappers, RetryUtil/ConnectionUrlParser -> HostSpec/PluginService,
+        // LazyCleanerImpl -> Reference internals) are deferred to a later part.
+        // No end-anchor: matching an outer class also covers its nested classes.
         extraJavacArgs = listOf(
-            "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl|wrapper\\.ConnectionWrapper)",
+            "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl"
+                + "|wrapper\\.ConnectionWrapper"
+                + "|util\\.(RdsUtils|RegionUtils|GDBRegionUtils|SqlMethodAnalyzer|CacheItem"
+                + "|Messages|Pair|PropertyUtils|ConnectionUrlBuilder|StringUtils))",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",
             // Keep the output focused and avoid drowning in framework boilerplate.

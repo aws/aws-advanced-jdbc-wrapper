@@ -86,7 +86,8 @@ public class ConnectionUrlBuilder {
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();
     while (propertyNames.hasMoreElements()) {
-      final String propertyName = propertyNames.nextElement().toString();
+      final Object propertyNameObj = propertyNames.nextElement();
+      final String propertyName = propertyNameObj == null ? null : propertyNameObj.toString();
       if (propertyName != null && !propertyName.trim().equals("")) {
         if (queryBuilder.length() != 0) {
           queryBuilder.append("&");

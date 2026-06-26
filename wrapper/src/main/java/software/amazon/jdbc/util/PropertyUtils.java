@@ -48,6 +48,9 @@ public class PropertyUtils {
     final Enumeration<?> propertyNames = properties.propertyNames();
     while (propertyNames.hasMoreElements()) {
       final Object key = propertyNames.nextElement();
+      if (key == null) {
+        continue;
+      }
       final String propName = key.toString();
       Object propValue = properties.getProperty(propName);
       if (propValue == null) {
@@ -61,8 +64,11 @@ public class PropertyUtils {
   public static void setPropertyOnTarget(
       final Object target,
       final String propName,
-      final Object propValue,
+      final @Nullable Object propValue,
       final List<Method> methods) {
+    if (propValue == null) {
+      return;
+    }
     Method writeMethod = null;
     String methodName = "set" + propName.substring(0, 1).toUpperCase() + propName.substring(1);
 
@@ -109,12 +115,13 @@ public class PropertyUtils {
       LOGGER.finest(() -> String.format("Set property '%s' with value: %s", propName, cleanPropValue));
 
     } catch (final InvocationTargetException ex) {
+      final Throwable cause = ex.getCause();
       LOGGER.warning(
           () ->
               Messages.get(
                   "PropertyUtils.failedToSetPropertyWithReason",
-                  new Object[] {propName, target.getClass(), ex.getCause().getMessage()}));
-      throw new RuntimeException(ex.getCause());
+                  new Object[] {propName, target.getClass(), cause == null ? "" : cause.getMessage()}));
+      throw new RuntimeException(cause);
     } catch (final Exception e) {
       LOGGER.warning(
           () ->
@@ -178,7 +185,7 @@ public class PropertyUtils {
     return sb.toString();
   }
 
-  public static Integer getIntegerPropertyValue(
+  public static @Nullable Integer getIntegerPropertyValue(
       final @NonNull Properties props,
       final @NonNull AwsWrapperProperty wrapperProperty) {
 
@@ -189,7 +196,7 @@ public class PropertyUtils {
     return result;
   }
 
-  public static Boolean getBooleanPropertyValue(
+  public static @Nullable Boolean getBooleanPropertyValue(
       final @NonNull Properties props,
       final @NonNull AwsWrapperProperty wrapperProperty) {
 

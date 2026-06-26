@@ -230,7 +230,8 @@ public class RdsUtils {
   private static final String DNS_GROUP = "dns";
   private static final String DOMAIN_GROUP = "domain";
   private static final String REGION_GROUP = "region";
-  private static final AtomicReference<Function<String, String>> prepareHostFunc = new AtomicReference<>(null);
+  private static final AtomicReference<@Nullable Function<String, String>> prepareHostFunc =
+      new AtomicReference<>(null);
 
   public boolean isRdsClusterDns(final String host) {
     final String dnsGroup = getDnsGroup(getPreparedHost(host));
@@ -321,7 +322,7 @@ public class RdsUtils {
     return group == null ? "?" : "?." + group;
   }
 
-  public String getRdsRegion(final String host) {
+  public @Nullable String getRdsRegion(final String host) {
     final String preparedHost = getPreparedHost(host);
     if (StringUtils.isNullOrEmpty(preparedHost)) {
       return null;
@@ -365,7 +366,7 @@ public class RdsUtils {
     return dnsGroup != null && dnsGroup.equalsIgnoreCase("shardgrp-");
   }
 
-  public String getRdsClusterHostUrl(final String host) {
+  public @Nullable String getRdsClusterHostUrl(final String host) {
     final String preparedHost = getPreparedHost(host);
     if (StringUtils.isNullOrEmpty(preparedHost)) {
       return null;
@@ -489,7 +490,8 @@ public class RdsUtils {
       if (!hostIdMatcher.matches()) {
         return host;
       }
-      return hostIdMatcher.group(1);
+      final String strippedHostId = hostIdMatcher.group(1);
+      return strippedHostId == null ? host : strippedHostId;
     }
     final String prefix = matcher.group("prefix");
     if (StringUtils.isNullOrEmpty(prefix)) {
@@ -498,7 +500,7 @@ public class RdsUtils {
     return host.replace(prefix + ".", ".");
   }
 
-  private Matcher cacheMatcher(final String host, Pattern... patterns) {
+  private @Nullable Matcher cacheMatcher(final String host, Pattern... patterns) {
     Matcher matcher;
     for (Pattern pattern : patterns) {
       matcher = cachedPatterns.get(host);
@@ -514,7 +516,7 @@ public class RdsUtils {
     return null;
   }
 
-  private String getRegexGroup(Matcher matcher, String groupName) {
+  private @Nullable String getRegexGroup(@Nullable Matcher matcher, String groupName) {
     if (matcher == null) {
       return null;
     }
@@ -526,16 +528,22 @@ public class RdsUtils {
     }
   }
 
-  private String getDnsGroup(final String host) {
+  private @Nullable String getDnsGroup(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }
-    return cachedDnsPatterns.computeIfAbsent(host, (k) -> {
-      final Matcher matcher = cacheMatcher(k,
-          AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN,
-          AURORA_GOV_DNS_PATTERN, AURORA_GLOBAL_WRITER_DNS_PATTERN);
-      return getRegexGroup(matcher, DNS_GROUP);
-    });
+    final String cached = cachedDnsPatterns.get(host);
+    if (cached != null) {
+      return cached;
+    }
+    final Matcher matcher = cacheMatcher(host,
+        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN,
+        AURORA_GOV_DNS_PATTERN, AURORA_GLOBAL_WRITER_DNS_PATTERN);
+    final String group = getRegexGroup(matcher, DNS_GROUP);
+    if (group != null) {
+      cachedDnsPatterns.put(host, group);
+    }
+    return group;
   }
 
   public static void clearCache() {
