@@ -105,9 +105,11 @@ public class AutoReadWriteSplittingTests {
       final String writerInstanceId = auroraUtil.queryInstanceId(conn);
 
       // A DML/DDL statement must run on the writer (non-SELECT is never routed to a reader).
+      // The table declares a primary key because RDS Multi-AZ clusters enforce
+      // sql_require_primary_key, which rejects tables without one.
       try (Statement stmt = conn.createStatement()) {
         stmt.executeUpdate(
-            "CREATE TEMPORARY TABLE IF NOT EXISTS auto_rw_test (id INT)");
+            "CREATE TEMPORARY TABLE IF NOT EXISTS auto_rw_test (id INT PRIMARY KEY)");
       }
 
       final String afterDmlInstanceId = auroraUtil.queryInstanceId(conn);
