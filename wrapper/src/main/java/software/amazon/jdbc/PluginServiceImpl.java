@@ -89,7 +89,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final DialectProvider dialectProvider;
   protected Dialect dialect;
   protected TargetDriverDialect targetDriverDialect;
-  protected @Nullable final ConfigurationProfile configurationProfile;
+  protected final @Nullable ConfigurationProfile configurationProfile;
   protected final ConnectionProviderManager connectionProviderManager;
 
   protected final SessionStateService sessionStateService;
@@ -101,11 +101,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected @Nullable Boolean pooledConnection = null;
 
   public PluginServiceImpl(
-      @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect)
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull Properties props,
+      final @NonNull String originalUrl,
+      final @NonNull String targetDriverProtocol,
+      final @NonNull TargetDriverDialect targetDriverDialect)
       throws SQLException {
 
     this(
@@ -121,12 +121,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull Properties props,
+      final @NonNull String originalUrl,
+      final @NonNull String targetDriverProtocol,
+      final @NonNull TargetDriverDialect targetDriverDialect,
+      final @Nullable ConfigurationProfile configurationProfile) throws SQLException {
     this(
         servicesContainer,
         new ExceptionManager(),
@@ -144,15 +144,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   // dereference PluginService fields during construction. Safe to suppress here.
   @SuppressWarnings({"argument", "assignment"})
   public PluginServiceImpl(
-      @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final ExceptionManager exceptionManager,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @Nullable final DialectProvider dialectProvider,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @Nullable final ConfigurationProfile configurationProfile,
-      @Nullable final SessionStateService sessionStateService) throws SQLException {
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ExceptionManager exceptionManager,
+      final @NonNull Properties props,
+      final @NonNull String originalUrl,
+      final @NonNull String targetDriverProtocol,
+      final @Nullable DialectProvider dialectProvider,
+      final @NonNull TargetDriverDialect targetDriverDialect,
+      final @Nullable ConfigurationProfile configurationProfile,
+      final @Nullable SessionStateService sessionStateService) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
@@ -288,7 +288,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
-      @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
     try (ResourceLock ignored = connectionSwitchLock.obtain()) {
@@ -558,8 +558,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return false;
   }
 
-  void setNodeList(@Nullable final List<HostSpec> oldHosts,
-      @Nullable final List<HostSpec> newHosts) {
+  void setNodeList(final @Nullable List<HostSpec> oldHosts,
+      final @Nullable List<HostSpec> newHosts) {
 
     final Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()

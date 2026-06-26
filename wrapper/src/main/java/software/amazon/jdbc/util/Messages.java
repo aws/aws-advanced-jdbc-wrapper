@@ -18,6 +18,7 @@ package software.amazon.jdbc.util;
 
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Messages {
 
@@ -34,7 +35,7 @@ public class Messages {
     return get(key, emptyArgs);
   }
 
-  public static String get(final String key, final Object[] args) {
+  public static String get(final String key, final @Nullable Object[] args) {
     final String message = MESSAGES.getString(key);
     return MessageFormat.format(message, args);
   }

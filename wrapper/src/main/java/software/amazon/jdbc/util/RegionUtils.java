@@ -34,8 +34,7 @@ public class RegionUtils {
    * @return The AWS region defined by the properties or extracted from the host, or null if the region was not
    *     defined in the properties and could not be determined from the {@code host}.
    */
-  @Nullable
-  public Region getRegion(String host, Properties props, String propKey) {
+  public @Nullable Region getRegion(String host, Properties props, String propKey) {
     Region region = getRegion(props, propKey);
     return region != null ? region : getRegionFromHost(host);
   }
@@ -50,8 +49,7 @@ public class RegionUtils {
    * @return The AWS region defined by the properties or extracted from the host, or null if the region was not
    *     defined in the properties and could not be determined from the {@code host}.
    */
-  @Nullable
-  public Region getRegion(HostSpec hostSpec, Properties props, String propKey) {
+  public @Nullable Region getRegion(HostSpec hostSpec, Properties props, String propKey) {
     return getRegion(hostSpec.getHost(), props, propKey);
   }
 
@@ -62,8 +60,7 @@ public class RegionUtils {
    * @param propKey The key name of the region property.
    * @return The AWS region defined by the properties, or null if the region was not defined in the properties.
    */
-  @Nullable
-  public Region getRegion(Properties props, String propKey) {
+  public @Nullable Region getRegion(Properties props, String propKey) {
     String regionString = props.getProperty(propKey);
     if (StringUtils.isNullOrEmpty(regionString)) {
       return null;
@@ -78,7 +75,7 @@ public class RegionUtils {
    * @param regionString The connection properties for the connection being established.
    * @return The AWS region of the given region string, or null if the given string was null or empty.
    */
-  public Region getRegionFromRegionString(String regionString) {
+  public @Nullable Region getRegionFromRegionString(String regionString) {
     if (StringUtils.isNullOrEmpty(regionString)) {
       return null;
     }
@@ -100,7 +97,7 @@ public class RegionUtils {
    * @param host The host from which to extract the region.
    * @return The AWS region used in the host string.
    */
-  public Region getRegionFromHost(String host) {
+  public @Nullable Region getRegionFromHost(String host) {
     String regionString = rdsUtils.getRdsRegion(host);
     if (StringUtils.isNullOrEmpty(regionString)) {
       return null;
