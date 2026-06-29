@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import java.sql.Timestamp;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 
@@ -73,7 +74,7 @@ public class HostSpecBuilder {
     return this;
   }
 
-  public HostSpecBuilder hostId(String hostId) {
+  public HostSpecBuilder hostId(@Nullable String hostId) {
     this.hostId = hostId;
     return this;
   }

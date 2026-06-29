@@ -245,12 +245,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy) throws SQLException {
     return this.pluginManager.getHostSpecByStrategy(role, strategy);
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy)
+      throws SQLException {
     return this.pluginManager.getHostSpecByStrategy(hosts, role, strategy);
   }
 
@@ -760,7 +761,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
     try {
-      Pair<String, String> instanceIds = this.dialect.getHostId(connection);
+      Pair<@Nullable String, @Nullable String> instanceIds = this.dialect.getHostId(connection);
       if (instanceIds == null) {
         return null;
       }
@@ -774,8 +775,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         return null;
       }
 
-      String instanceId = instanceIds.getValue1();
-      String instanceName = instanceIds.getValue2();
+      final @Nullable String instanceId = instanceIds.getValue1();
+      final @Nullable String instanceName = instanceIds.getValue2();
       return topology.stream()
           .filter(host -> Objects.equals(instanceId, host.getHostId())
               || Objects.equals(instanceName, host.getHost()))

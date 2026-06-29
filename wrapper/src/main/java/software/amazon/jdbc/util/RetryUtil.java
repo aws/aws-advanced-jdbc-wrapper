@@ -84,7 +84,7 @@ public class RetryUtil {
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
       final @Nullable ConnectionPlugin plugin,
-      final @NonNull Supplier<Set<HostSpec>> allowedHosts,
+      final @NonNull Supplier<@Nullable Set<HostSpec>> allowedHosts,
       @Nullable String strategy,
       @Nullable HostRole verifyRole,
       final long retryEndNano)

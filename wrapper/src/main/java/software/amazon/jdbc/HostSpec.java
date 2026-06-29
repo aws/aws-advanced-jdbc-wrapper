@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.util.ResourceLock;
@@ -103,7 +104,7 @@ public class HostSpec {
    * @param copyHost the host whose details to copy.
    * @param role     the role of this host (writer or reader).
    */
-  public HostSpec(final HostSpec copyHost, final HostRole role) {
+  public HostSpec(final HostSpec copyHost, final @Nullable HostRole role) {
     this(copyHost.getHost(), copyHost.getPort(), copyHost.getHostId(), role, copyHost.getAvailability(),
         copyHost.getHostAvailabilityStrategy());
   }

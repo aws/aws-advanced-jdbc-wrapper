@@ -53,7 +53,7 @@ public interface Dialect {
 
   HostRole getHostRole(Connection connection) throws SQLException;
 
-  @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException;
+  @Nullable Pair<@Nullable String, @Nullable String> getHostId(Connection connection) throws SQLException;
 
   /**
    * Filters the provided list of hosts by the set of accessible AWS regions.
