@@ -1894,7 +1894,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(int columnIndex, @Nullable InputStream x) throws SQLException {
+  public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2352,7 +2352,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(int columnIndex, @Nullable Reader x) throws SQLException {
+  public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
