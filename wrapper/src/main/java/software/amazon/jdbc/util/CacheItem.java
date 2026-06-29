@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util;
 
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CacheItem<V> {
 
@@ -36,11 +37,11 @@ public class CacheItem<V> {
     return System.nanoTime() > expirationTime;
   }
 
-  public V get() {
+  public @Nullable V get() {
     return get(false);
   }
 
-  public V get(final boolean returnExpired) {
+  public @Nullable V get(final boolean returnExpired) {
     return (this.isExpired() && !returnExpired) ? null : item;
   }
 
@@ -50,7 +51,7 @@ public class CacheItem<V> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

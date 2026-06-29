@@ -68,8 +68,12 @@ public class GDBRegionUtils extends RegionUtils {
     return getRegionFromClusterArn(writerClusterArn);
   }
 
-  private String findWriterClusterArn(final HostSpec hostSpec, final Properties props,
-      final String globalClusterIdentifier) {
+  private @Nullable String findWriterClusterArn(final HostSpec hostSpec, final Properties props,
+      final @Nullable String globalClusterIdentifier) {
+
+    if (globalClusterIdentifier == null) {
+      return null;
+    }
 
     if (this.credentialsProvider == null) {
       this.credentialsProvider = AwsCredentialsManager.getProvider(hostSpec, props);
@@ -93,8 +97,12 @@ public class GDBRegionUtils extends RegionUtils {
     }
   }
 
-  private Region getRegionFromClusterArn(String clusterArn) {
+  private @Nullable Region getRegionFromClusterArn(String clusterArn) {
     Matcher matcher = GDB_CLUSTER_ARN_PATTERN.matcher(clusterArn);
-    return matcher.matches() ? Region.of(matcher.group(REGION_GROUP)) : null;
+    if (!matcher.matches()) {
+      return null;
+    }
+    final String region = matcher.group(REGION_GROUP);
+    return region == null ? null : Region.of(region);
   }
 }

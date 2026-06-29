@@ -57,7 +57,7 @@ public class StringUtils {
    * @return true if the supplied string is null or empty
    */
   @EnsuresNonNullIf(expression = "#1", result = false)
-  public static boolean isNullOrEmpty(@Nullable final String s) {
+  public static boolean isNullOrEmpty(final @Nullable String s) {
     return s == null || s.equals("");
   }
 

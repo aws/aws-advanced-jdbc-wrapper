@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.JdbcMethod;
 
 public class SqlMethodAnalyzer {
@@ -182,7 +183,7 @@ public class SqlMethodAnalyzer {
     return !oldAutoCommitVal && Boolean.TRUE.equals(newAutoCommitVal);
   }
 
-  public Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
+  public @Nullable Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
     if (args == null || args.length < 1) {
       return null;
     }
