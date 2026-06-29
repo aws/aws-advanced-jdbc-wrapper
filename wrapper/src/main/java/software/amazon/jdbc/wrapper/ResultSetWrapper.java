@@ -39,6 +39,7 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -199,7 +200,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Array getArray(int columnIndex) throws SQLException {
+  public @Nullable Array getArray(int columnIndex) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
@@ -212,7 +213,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Array getArray(String columnLabel) throws SQLException {
+  public @Nullable Array getArray(String columnLabel) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
@@ -225,7 +226,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public InputStream getAsciiStream(int columnIndex) throws SQLException {
+  public @Nullable InputStream getAsciiStream(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETASCIISTREAM)) {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
@@ -242,7 +243,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public InputStream getAsciiStream(String columnLabel) throws SQLException {
+  public @Nullable InputStream getAsciiStream(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETASCIISTREAM)) {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
@@ -261,7 +262,7 @@ public class ResultSetWrapper implements ResultSet {
   @Override
   @Deprecated
   @SuppressWarnings("deprecation")
-  public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
+  public @Nullable BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBIGDECIMAL)) {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
@@ -299,7 +300,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
+  public @Nullable BigDecimal getBigDecimal(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBIGDECIMAL)) {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
@@ -316,7 +317,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
+  public @Nullable BigDecimal getBigDecimal(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBIGDECIMAL)) {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
@@ -333,7 +334,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public InputStream getBinaryStream(int columnIndex) throws SQLException {
+  public @Nullable InputStream getBinaryStream(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBINARYSTREAM)) {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
@@ -380,7 +381,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Blob getBlob(String columnLabel) throws SQLException {
+  public @Nullable Blob getBlob(String columnLabel) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
@@ -461,7 +462,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public byte[] getBytes(int columnIndex) throws SQLException {
+  public byte @Nullable [] getBytes(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBYTES)) {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
@@ -478,7 +479,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public byte[] getBytes(String columnLabel) throws SQLException {
+  public byte @Nullable [] getBytes(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETBYTES)) {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
@@ -495,7 +496,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Reader getCharacterStream(int columnIndex) throws SQLException {
+  public @Nullable Reader getCharacterStream(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETCHARACTERSTREAM)) {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
@@ -512,7 +513,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Reader getCharacterStream(String columnLabel) throws SQLException {
+  public @Nullable Reader getCharacterStream(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETCHARACTERSTREAM)) {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
@@ -529,7 +530,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Clob getClob(int columnIndex) throws SQLException {
+  public @Nullable Clob getClob(int columnIndex) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
@@ -542,7 +543,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Clob getClob(String columnLabel) throws SQLException {
+  public @Nullable Clob getClob(String columnLabel) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
@@ -588,7 +589,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Date getDate(int columnIndex) throws SQLException {
+  public @Nullable Date getDate(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETDATE)) {
       return WrapperUtils.executeWithPlugins(
           Date.class,
@@ -605,7 +606,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Date getDate(String columnLabel) throws SQLException {
+  public @Nullable Date getDate(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETDATE)) {
       return WrapperUtils.executeWithPlugins(
           Date.class,
@@ -622,7 +623,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Date getDate(int columnIndex, Calendar cal) throws SQLException {
+  public @Nullable Date getDate(int columnIndex, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETDATE)) {
       return WrapperUtils.executeWithPlugins(
           Date.class,
@@ -640,7 +641,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Date getDate(String columnLabel, Calendar cal) throws SQLException {
+  public @Nullable Date getDate(String columnLabel, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETDATE)) {
       return WrapperUtils.executeWithPlugins(
           Date.class,
@@ -856,7 +857,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Reader getNCharacterStream(int columnIndex) throws SQLException {
+  public @Nullable Reader getNCharacterStream(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETNCHARACTERSTREAM)) {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
@@ -873,7 +874,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Reader getNCharacterStream(String columnLabel) throws SQLException {
+  public @Nullable Reader getNCharacterStream(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETNCHARACTERSTREAM)) {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
@@ -890,7 +891,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public NClob getNClob(int columnIndex) throws SQLException {
+  public @Nullable NClob getNClob(int columnIndex) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
@@ -903,7 +904,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public NClob getNClob(String columnLabel) throws SQLException {
+  public @Nullable NClob getNClob(String columnLabel) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
@@ -916,7 +917,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public String getNString(int columnIndex) throws SQLException {
+  public @Nullable String getNString(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETNSTRING)) {
       return WrapperUtils.executeWithPlugins(
           String.class,
@@ -933,7 +934,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public String getNString(String columnLabel) throws SQLException {
+  public @Nullable String getNString(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETNSTRING)) {
       return WrapperUtils.executeWithPlugins(
           String.class,
@@ -950,7 +951,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Object getObject(int columnIndex) throws SQLException {
+  public @Nullable Object getObject(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETOBJECT)) {
       return WrapperUtils.executeWithPlugins(
           Object.class,
@@ -967,7 +968,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Object getObject(String columnLabel) throws SQLException {
+  public @Nullable Object getObject(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETOBJECT)) {
       return WrapperUtils.executeWithPlugins(
           Object.class,
@@ -984,7 +985,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
+  public @Nullable Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETOBJECT)) {
       return WrapperUtils.executeWithPlugins(
           Object.class,
@@ -1002,7 +1003,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
+  public @Nullable Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETOBJECT)) {
       return WrapperUtils.executeWithPlugins(
           Object.class,
@@ -1020,9 +1021,9 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
+  public <T> @Nullable T getObject(int columnIndex, Class<T> type) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETOBJECT)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.<@Nullable T, SQLException>executeWithPlugins(
           type,
           SQLException.class,
           this.connectionWrapper,
@@ -1038,9 +1039,9 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public <T> T getObject(String columnLabel, Class<T> type) throws SQLException {
+  public <T> @Nullable T getObject(String columnLabel, Class<T> type) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETOBJECT)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.<@Nullable T, SQLException>executeWithPlugins(
           type,
           SQLException.class,
           this.connectionWrapper,
@@ -1056,7 +1057,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Ref getRef(int columnIndex) throws SQLException {
+  public @Nullable Ref getRef(int columnIndex) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
@@ -1069,7 +1070,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Ref getRef(String columnLabel) throws SQLException {
+  public @Nullable Ref getRef(String columnLabel) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
@@ -1098,7 +1099,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public RowId getRowId(int columnIndex) throws SQLException {
+  public @Nullable RowId getRowId(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETROWID)) {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
@@ -1115,7 +1116,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public RowId getRowId(String columnLabel) throws SQLException {
+  public @Nullable RowId getRowId(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETROWID)) {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
@@ -1132,7 +1133,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public SQLXML getSQLXML(int columnIndex) throws SQLException {
+  public @Nullable SQLXML getSQLXML(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETSQLXML)) {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
@@ -1149,7 +1150,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public SQLXML getSQLXML(String columnLabel) throws SQLException {
+  public @Nullable SQLXML getSQLXML(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETSQLXML)) {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
@@ -1200,7 +1201,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Statement getStatement() throws SQLException {
+  public @Nullable Statement getStatement() throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
         SQLException.class,
@@ -1212,7 +1213,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public String getString(int columnIndex) throws SQLException {
+  public @Nullable String getString(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETSTRING)) {
       return WrapperUtils.executeWithPlugins(
           String.class,
@@ -1229,7 +1230,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public String getString(String columnLabel) throws SQLException {
+  public @Nullable String getString(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETSTRING)) {
       return WrapperUtils.executeWithPlugins(
           String.class,
@@ -1246,7 +1247,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Time getTime(int columnIndex) throws SQLException {
+  public @Nullable Time getTime(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIME)) {
       return WrapperUtils.executeWithPlugins(
           Time.class,
@@ -1263,7 +1264,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Time getTime(String columnLabel) throws SQLException {
+  public @Nullable Time getTime(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIME)) {
       return WrapperUtils.executeWithPlugins(
           Time.class,
@@ -1280,7 +1281,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Time getTime(int columnIndex, Calendar cal) throws SQLException {
+  public @Nullable Time getTime(int columnIndex, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIME)) {
       return WrapperUtils.executeWithPlugins(
           Time.class,
@@ -1298,7 +1299,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Time getTime(String columnLabel, Calendar cal) throws SQLException {
+  public @Nullable Time getTime(String columnLabel, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIME)) {
       return WrapperUtils.executeWithPlugins(
           Time.class,
@@ -1316,7 +1317,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Timestamp getTimestamp(int columnIndex) throws SQLException {
+  public @Nullable Timestamp getTimestamp(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIMESTAMP)) {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
@@ -1333,7 +1334,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Timestamp getTimestamp(String columnLabel) throws SQLException {
+  public @Nullable Timestamp getTimestamp(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIMESTAMP)) {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
@@ -1350,7 +1351,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException {
+  public @Nullable Timestamp getTimestamp(int columnIndex, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIMESTAMP)) {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
@@ -1368,7 +1369,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public Timestamp getTimestamp(String columnLabel, Calendar cal) throws SQLException {
+  public @Nullable Timestamp getTimestamp(String columnLabel, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETTIMESTAMP)) {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
@@ -1403,7 +1404,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public URL getURL(int columnIndex) throws SQLException {
+  public @Nullable URL getURL(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETURL)) {
       return WrapperUtils.executeWithPlugins(
           URL.class,
@@ -1420,7 +1421,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public URL getURL(String columnLabel) throws SQLException {
+  public @Nullable URL getURL(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETURL)) {
       return WrapperUtils.executeWithPlugins(
           URL.class,
@@ -1439,7 +1440,7 @@ public class ResultSetWrapper implements ResultSet {
   @Override
   @Deprecated
   @SuppressWarnings("deprecation")
-  public InputStream getUnicodeStream(int columnIndex) throws SQLException {
+  public @Nullable InputStream getUnicodeStream(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETUNICODESTREAM)) {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
@@ -1458,7 +1459,7 @@ public class ResultSetWrapper implements ResultSet {
   @Override
   @Deprecated
   @SuppressWarnings("deprecation")
-  public InputStream getUnicodeStream(String columnLabel) throws SQLException {
+  public @Nullable InputStream getUnicodeStream(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETUNICODESTREAM)) {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
@@ -1475,7 +1476,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public SQLWarning getWarnings() throws SQLException {
+  public @Nullable SQLWarning getWarnings() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETWARNINGS)) {
       return WrapperUtils.executeWithPlugins(
           SQLWarning.class,
@@ -1786,7 +1787,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateArray(int columnIndex, Array x) throws SQLException {
+  public void updateArray(int columnIndex, @Nullable Array x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1803,7 +1804,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateArray(String columnLabel, Array x) throws SQLException {
+  public void updateArray(String columnLabel, @Nullable Array x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1820,7 +1821,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(int columnIndex, InputStream x, int length) throws SQLException {
+  public void updateAsciiStream(int columnIndex, @Nullable InputStream x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1838,7 +1839,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
+  public void updateAsciiStream(String columnLabel, @Nullable InputStream x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1856,7 +1857,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(int columnIndex, InputStream x, long length) throws SQLException {
+  public void updateAsciiStream(int columnIndex, @Nullable InputStream x, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1874,7 +1875,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(String columnLabel, InputStream x, long length)
+  public void updateAsciiStream(String columnLabel, @Nullable InputStream x, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -1893,7 +1894,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
+  public void updateAsciiStream(int columnIndex, @Nullable InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1910,7 +1911,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(String columnLabel, InputStream x) throws SQLException {
+  public void updateAsciiStream(String columnLabel, @Nullable InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1927,7 +1928,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBigDecimal(int columnIndex, BigDecimal x) throws SQLException {
+  public void updateBigDecimal(int columnIndex, @Nullable BigDecimal x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1944,7 +1945,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBigDecimal(String columnLabel, BigDecimal x) throws SQLException {
+  public void updateBigDecimal(String columnLabel, @Nullable BigDecimal x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1961,7 +1962,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(int columnIndex, InputStream x, int length) throws SQLException {
+  public void updateBinaryStream(int columnIndex, @Nullable InputStream x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1979,7 +1980,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(String columnLabel, InputStream x, int length)
+  public void updateBinaryStream(String columnLabel, @Nullable InputStream x, int length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -1998,7 +1999,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
+  public void updateBinaryStream(int columnIndex, @Nullable InputStream x, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2016,7 +2017,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(String columnLabel, InputStream x, long length)
+  public void updateBinaryStream(String columnLabel, @Nullable InputStream x, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -2035,7 +2036,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(int columnIndex, InputStream x) throws SQLException {
+  public void updateBinaryStream(int columnIndex, @Nullable InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2052,7 +2053,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(String columnLabel, InputStream x) throws SQLException {
+  public void updateBinaryStream(String columnLabel, @Nullable InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2069,7 +2070,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBlob(int columnIndex, Blob x) throws SQLException {
+  public void updateBlob(int columnIndex, @Nullable Blob x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2086,7 +2087,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBlob(String columnLabel, Blob x) throws SQLException {
+  public void updateBlob(String columnLabel, @Nullable Blob x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2103,7 +2104,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBlob(int columnIndex, InputStream inputStream, long length)
+  public void updateBlob(int columnIndex, @Nullable InputStream inputStream, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
@@ -2122,7 +2123,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBlob(String columnLabel, InputStream inputStream, long length)
+  public void updateBlob(String columnLabel, @Nullable InputStream inputStream, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
@@ -2141,7 +2142,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBlob(int columnIndex, InputStream inputStream) throws SQLException {
+  public void updateBlob(int columnIndex, @Nullable InputStream inputStream) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2158,7 +2159,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBlob(String columnLabel, InputStream inputStream) throws SQLException {
+  public void updateBlob(String columnLabel, @Nullable InputStream inputStream) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2243,7 +2244,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBytes(int columnIndex, byte[] x) throws SQLException {
+  public void updateBytes(int columnIndex, byte @Nullable [] x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2260,7 +2261,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateBytes(String columnLabel, byte[] x) throws SQLException {
+  public void updateBytes(String columnLabel, byte @Nullable [] x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2277,7 +2278,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
+  public void updateCharacterStream(int columnIndex, @Nullable Reader x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2295,7 +2296,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(String columnLabel, Reader reader, int length)
+  public void updateCharacterStream(String columnLabel, @Nullable Reader reader, int length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -2314,7 +2315,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
+  public void updateCharacterStream(int columnIndex, @Nullable Reader x, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2332,7 +2333,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(String columnLabel, Reader reader, long length)
+  public void updateCharacterStream(String columnLabel, @Nullable Reader reader, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -2351,7 +2352,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
+  public void updateCharacterStream(int columnIndex, @Nullable Reader x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2368,7 +2369,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(String columnLabel, Reader reader) throws SQLException {
+  public void updateCharacterStream(String columnLabel, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2385,7 +2386,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateClob(int columnIndex, Clob x) throws SQLException {
+  public void updateClob(int columnIndex, @Nullable Clob x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2402,7 +2403,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateClob(String columnLabel, Clob x) throws SQLException {
+  public void updateClob(String columnLabel, @Nullable Clob x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2419,7 +2420,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateClob(int columnIndex, Reader reader, long length) throws SQLException {
+  public void updateClob(int columnIndex, @Nullable Reader reader, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2437,7 +2438,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateClob(String columnLabel, Reader reader, long length) throws SQLException {
+  public void updateClob(String columnLabel, @Nullable Reader reader, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2455,7 +2456,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateClob(int columnIndex, Reader reader) throws SQLException {
+  public void updateClob(int columnIndex, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2472,7 +2473,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateClob(String columnLabel, Reader reader) throws SQLException {
+  public void updateClob(String columnLabel, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2489,7 +2490,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateDate(int columnIndex, Date x) throws SQLException {
+  public void updateDate(int columnIndex, @Nullable Date x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2506,7 +2507,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateDate(String columnLabel, Date x) throws SQLException {
+  public void updateDate(String columnLabel, @Nullable Date x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2659,7 +2660,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
+  public void updateNCharacterStream(int columnIndex, @Nullable Reader x, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2677,7 +2678,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNCharacterStream(String columnLabel, Reader reader, long length)
+  public void updateNCharacterStream(String columnLabel, @Nullable Reader reader, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -2696,7 +2697,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNCharacterStream(int columnIndex, Reader x) throws SQLException {
+  public void updateNCharacterStream(int columnIndex, @Nullable Reader x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2713,7 +2714,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNCharacterStream(String columnLabel, Reader reader) throws SQLException {
+  public void updateNCharacterStream(String columnLabel, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2731,7 +2732,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @SuppressWarnings("checkstyle:ParameterName")
   @Override
-  public void updateNClob(int columnIndex, NClob nClob) throws SQLException {
+  public void updateNClob(int columnIndex, @Nullable NClob nClob) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2749,7 +2750,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @SuppressWarnings("checkstyle:ParameterName")
   @Override
-  public void updateNClob(String columnLabel, NClob nClob) throws SQLException {
+  public void updateNClob(String columnLabel, @Nullable NClob nClob) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2766,7 +2767,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNClob(int columnIndex, Reader reader, long length) throws SQLException {
+  public void updateNClob(int columnIndex, @Nullable Reader reader, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2784,7 +2785,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNClob(String columnLabel, Reader reader, long length) throws SQLException {
+  public void updateNClob(String columnLabel, @Nullable Reader reader, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2802,7 +2803,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNClob(int columnIndex, Reader reader) throws SQLException {
+  public void updateNClob(int columnIndex, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2819,7 +2820,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateNClob(String columnLabel, Reader reader) throws SQLException {
+  public void updateNClob(String columnLabel, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2837,7 +2838,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @SuppressWarnings("checkstyle:ParameterName")
   @Override
-  public void updateNString(int columnIndex, String nString) throws SQLException {
+  public void updateNString(int columnIndex, @Nullable String nString) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2855,7 +2856,7 @@ public class ResultSetWrapper implements ResultSet {
 
   @SuppressWarnings("checkstyle:ParameterName")
   @Override
-  public void updateNString(String columnLabel, String nString) throws SQLException {
+  public void updateNString(String columnLabel, @Nullable String nString) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2904,7 +2905,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(int columnIndex, Object x, int scaleOrLength) throws SQLException {
+  public void updateObject(int columnIndex, @Nullable Object x, int scaleOrLength) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2922,7 +2923,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(int columnIndex, Object x) throws SQLException {
+  public void updateObject(int columnIndex, @Nullable Object x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2939,7 +2940,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
+  public void updateObject(String columnLabel, @Nullable Object x, int scaleOrLength) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2957,7 +2958,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(String columnLabel, Object x) throws SQLException {
+  public void updateObject(String columnLabel, @Nullable Object x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -2974,7 +2975,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(int columnIndex, Object x, SQLType targetSqlType, int scaleOrLength)
+  public void updateObject(int columnIndex, @Nullable Object x, SQLType targetSqlType, int scaleOrLength)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
@@ -2994,7 +2995,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(String columnLabel, Object x, SQLType targetSqlType, int scaleOrLength)
+  public void updateObject(String columnLabel, @Nullable Object x, SQLType targetSqlType, int scaleOrLength)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
@@ -3014,7 +3015,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(int columnIndex, Object x, SQLType targetSqlType) throws SQLException {
+  public void updateObject(int columnIndex, @Nullable Object x, SQLType targetSqlType) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3032,7 +3033,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateObject(String columnLabel, Object x, SQLType targetSqlType)
+  public void updateObject(String columnLabel, @Nullable Object x, SQLType targetSqlType)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
@@ -3051,7 +3052,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateRef(int columnIndex, Ref x) throws SQLException {
+  public void updateRef(int columnIndex, @Nullable Ref x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3068,7 +3069,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateRef(String columnLabel, Ref x) throws SQLException {
+  public void updateRef(String columnLabel, @Nullable Ref x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3100,7 +3101,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateRowId(int columnIndex, RowId x) throws SQLException {
+  public void updateRowId(int columnIndex, @Nullable RowId x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3117,7 +3118,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateRowId(String columnLabel, RowId x) throws SQLException {
+  public void updateRowId(String columnLabel, @Nullable RowId x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3134,7 +3135,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateSQLXML(int columnIndex, SQLXML xmlObject) throws SQLException {
+  public void updateSQLXML(int columnIndex, @Nullable SQLXML xmlObject) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3151,7 +3152,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateSQLXML(String columnLabel, SQLXML xmlObject) throws SQLException {
+  public void updateSQLXML(String columnLabel, @Nullable SQLXML xmlObject) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3202,7 +3203,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateString(int columnIndex, String x) throws SQLException {
+  public void updateString(int columnIndex, @Nullable String x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3219,7 +3220,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateString(String columnLabel, String x) throws SQLException {
+  public void updateString(String columnLabel, @Nullable String x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3236,7 +3237,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateTime(int columnIndex, Time x) throws SQLException {
+  public void updateTime(int columnIndex, @Nullable Time x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3253,7 +3254,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateTime(String columnLabel, Time x) throws SQLException {
+  public void updateTime(String columnLabel, @Nullable Time x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3270,7 +3271,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateTimestamp(int columnIndex, Timestamp x) throws SQLException {
+  public void updateTimestamp(int columnIndex, @Nullable Timestamp x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3287,7 +3288,7 @@ public class ResultSetWrapper implements ResultSet {
   }
 
   @Override
-  public void updateTimestamp(String columnLabel, Timestamp x) throws SQLException {
+  public void updateTimestamp(String columnLabel, @Nullable Timestamp x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,

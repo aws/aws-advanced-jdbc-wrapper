@@ -40,6 +40,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -501,8 +502,8 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public ResultSetMetaData getMetaData() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+  public @Nullable ResultSetMetaData getMetaData() throws SQLException {
+    return WrapperUtils.<@Nullable ResultSetMetaData, SQLException>executeWithPlugins(
         ResultSetMetaData.class,
         SQLException.class,
         this.connectionWrapper,
@@ -738,7 +739,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
+  public void setAsciiStream(int parameterIndex, @Nullable InputStream x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -756,7 +757,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
+  public void setAsciiStream(int parameterIndex, @Nullable InputStream x, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -774,7 +775,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
+  public void setAsciiStream(int parameterIndex, @Nullable InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -791,7 +792,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
+  public void setBigDecimal(int parameterIndex, @Nullable BigDecimal x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -808,7 +809,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
+  public void setBinaryStream(int parameterIndex, @Nullable InputStream x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -826,7 +827,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
+  public void setBinaryStream(int parameterIndex, @Nullable InputStream x, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -844,7 +845,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
+  public void setBinaryStream(int parameterIndex, @Nullable InputStream x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -861,7 +862,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBlob(int parameterIndex, Blob x) throws SQLException {
+  public void setBlob(int parameterIndex, @Nullable Blob x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -878,7 +879,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBlob(int parameterIndex, InputStream inputStream, long length)
+  public void setBlob(int parameterIndex, @Nullable InputStream inputStream, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
@@ -897,7 +898,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
+  public void setBlob(int parameterIndex, @Nullable InputStream inputStream) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -948,7 +949,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setBytes(int parameterIndex, byte[] x) throws SQLException {
+  public void setBytes(int parameterIndex, byte @Nullable [] x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -965,7 +966,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setCharacterStream(int parameterIndex, Reader reader, int length)
+  public void setCharacterStream(int parameterIndex, @Nullable Reader reader, int length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -984,7 +985,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setCharacterStream(int parameterIndex, Reader reader, long length)
+  public void setCharacterStream(int parameterIndex, @Nullable Reader reader, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -1003,7 +1004,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
+  public void setCharacterStream(int parameterIndex, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1020,7 +1021,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setClob(int parameterIndex, Clob x) throws SQLException {
+  public void setClob(int parameterIndex, @Nullable Clob x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1037,7 +1038,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
+  public void setClob(int parameterIndex, @Nullable Reader reader, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1055,7 +1056,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setClob(int parameterIndex, Reader reader) throws SQLException {
+  public void setClob(int parameterIndex, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1088,7 +1089,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setDate(int parameterIndex, Date x) throws SQLException {
+  public void setDate(int parameterIndex, @Nullable Date x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1105,7 +1106,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
+  public void setDate(int parameterIndex, @Nullable Date x, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1271,7 +1272,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setNCharacterStream(int parameterIndex, Reader value, long length)
+  public void setNCharacterStream(int parameterIndex, @Nullable Reader value, long length)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
@@ -1290,7 +1291,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
+  public void setNCharacterStream(int parameterIndex, @Nullable Reader value) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1307,7 +1308,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setNClob(int parameterIndex, NClob value) throws SQLException {
+  public void setNClob(int parameterIndex, @Nullable NClob value) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1324,7 +1325,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
+  public void setNClob(int parameterIndex, @Nullable Reader reader, long length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1342,7 +1343,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setNClob(int parameterIndex, Reader reader) throws SQLException {
+  public void setNClob(int parameterIndex, @Nullable Reader reader) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1359,7 +1360,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setNString(int parameterIndex, String value) throws SQLException {
+  public void setNString(int parameterIndex, @Nullable String value) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1411,7 +1412,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
+  public void setObject(int parameterIndex, @Nullable Object x, int targetSqlType) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1429,7 +1430,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setObject(int parameterIndex, Object x) throws SQLException {
+  public void setObject(int parameterIndex, @Nullable Object x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1446,7 +1447,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength)
+  public void setObject(int parameterIndex, @Nullable Object x, int targetSqlType, int scaleOrLength)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
@@ -1466,7 +1467,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength)
+  public void setObject(int parameterIndex, @Nullable Object x, SQLType targetSqlType, int scaleOrLength)
       throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
@@ -1486,7 +1487,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException {
+  public void setObject(int parameterIndex, @Nullable Object x, SQLType targetSqlType) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1605,7 +1606,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setString(int parameterIndex, String x) throws SQLException {
+  public void setString(int parameterIndex, @Nullable String x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1622,7 +1623,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setTime(int parameterIndex, Time x) throws SQLException {
+  public void setTime(int parameterIndex, @Nullable Time x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1639,7 +1640,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
+  public void setTime(int parameterIndex, @Nullable Time x, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1657,7 +1658,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
+  public void setTimestamp(int parameterIndex, @Nullable Timestamp x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1674,7 +1675,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
+  public void setTimestamp(int parameterIndex, @Nullable Timestamp x, @Nullable Calendar cal) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1692,7 +1693,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
   }
 
   @Override
-  public void setURL(int parameterIndex, URL x) throws SQLException {
+  public void setURL(int parameterIndex, @Nullable URL x) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETURL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1710,7 +1711,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
   @Override
   @SuppressWarnings("deprecation")
-  public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
+  public void setUnicodeStream(int parameterIndex, @Nullable InputStream x, int length) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETUNICODESTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,

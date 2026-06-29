@@ -319,17 +319,12 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (part 4: RetryUtil, ConnectionUrlParser, HostIdCacheServiceImpl - enabled together
         // with the HostSpec / HostRole / PluginService / HostSpecBuilder / Dialect alignment),
         // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers), and
-        // (part 6) LazyCleanerImpl plus the per-object JDBC wrapper classes that are already
-        // null-clean (factories, StatementWrapper, and the small/medium wrappers).
-        // The four large wrapper classes - ResultSetWrapper, CallableStatementWrapper,
-        // DatabaseMetaDataWrapper, PreparedStatementWrapper - are excluded via negative
-        // lookahead: they expose hundreds of genuinely-@Nullable JDBC get/set methods and
-        // each warrants its own dedicated pass.
+        // (part 6) all of the per-object JDBC wrapper classes plus LazyCleanerImpl. The whole
+        // software.amazon.jdbc.wrapper package is now in scope.
         // No end-anchor: matching an outer class also covers its nested classes.
         extraJavacArgs = listOf(
             "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl"
-                + "|wrapper\\.(?!ResultSetWrapper|CallableStatementWrapper"
-                + "|DatabaseMetaDataWrapper|PreparedStatementWrapper)\\w+"
+                + "|wrapper\\.\\w+"
                 + "|util\\.(RdsUtils|RegionUtils|GDBRegionUtils|SqlMethodAnalyzer|CacheItem"
                 + "|Messages|Pair|PropertyUtils|ConnectionUrlBuilder|StringUtils"
                 + "|ConnectionUrlParser|RetryUtil|HostIdCacheServiceImpl|WrapperUtils"

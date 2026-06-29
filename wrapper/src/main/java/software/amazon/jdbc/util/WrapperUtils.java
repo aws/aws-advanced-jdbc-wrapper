@@ -207,7 +207,7 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
       final JdbcRunnable<E> jdbcMethodFunc,
-      final Object... jdbcMethodArgs)
+      final @Nullable Object... jdbcMethodArgs)
       throws E {
 
     executeWithPlugins(
@@ -231,7 +231,7 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
-      final Object... jdbcMethodArgs) {
+      final @Nullable Object... jdbcMethodArgs) {
 
     if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
@@ -305,7 +305,7 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object... jdbcMethodArgs)
+      final @Nullable Object... jdbcMethodArgs)
       throws E {
 
     if (jdbcMethod.shouldLockConnection) {

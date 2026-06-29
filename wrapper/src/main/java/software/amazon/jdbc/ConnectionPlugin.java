@@ -41,7 +41,7 @@ public interface ConnectionPlugin extends StateSnapshotProvider {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E;
 
   /**

@@ -23,6 +23,7 @@ import java.sql.RowIdLifetime;
 import java.sql.SQLException;
 import java.util.StringJoiner;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.DriverInfo;
@@ -76,9 +77,9 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public String getURL() throws SQLException {
+  public @Nullable String getURL() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_GETURL)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.<@Nullable String, SQLException>executeWithPlugins(
           String.class,
           SQLException.class,
           this.connectionWrapper,
@@ -1908,7 +1909,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern)
+  public ResultSet getProcedures(@Nullable String catalog, @Nullable String schemaPattern,
+      @Nullable String procedureNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -1925,7 +1927,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getProcedureColumns(
-      String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String procedureNamePattern,
+      @Nullable String columnNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -1945,7 +1948,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getTables(
-      String catalog, String schemaPattern, String tableNamePattern, String[] types)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String tableNamePattern,
+      String @Nullable [] types)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -1974,7 +1978,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException {
+  public ResultSet getSchemas(@Nullable String catalog, String schemaPattern) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
@@ -2013,7 +2017,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getColumns(
-      String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String tableNamePattern,
+      @Nullable String columnNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2033,7 +2038,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getColumnPrivileges(
-      String catalog, String schema, String table, String columnNamePattern) throws SQLException {
+      @Nullable String catalog, @Nullable String schema, String table, @Nullable String columnNamePattern)
+      throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
@@ -2049,7 +2055,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern)
+  public ResultSet getTablePrivileges(@Nullable String catalog, @Nullable String schemaPattern,
+      @Nullable String tableNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2066,7 +2073,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getBestRowIdentifier(
-      String catalog, String schema, String table, int scope, boolean nullable)
+      @Nullable String catalog, @Nullable String schema, String table, int scope, boolean nullable)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2084,7 +2091,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getVersionColumns(String catalog, String schema, String table)
+  public ResultSet getVersionColumns(@Nullable String catalog, @Nullable String schema, String table)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2100,7 +2107,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException {
+  public ResultSet getPrimaryKeys(@Nullable String catalog, @Nullable String schema, String table) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
@@ -2115,7 +2122,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getImportedKeys(String catalog, String schema, String table)
+  public ResultSet getImportedKeys(@Nullable String catalog, @Nullable String schema, String table)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2131,7 +2138,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getExportedKeys(String catalog, String schema, String table)
+  public ResultSet getExportedKeys(@Nullable String catalog, @Nullable String schema, String table)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2148,11 +2155,11 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getCrossReference(
-      String parentCatalog,
-      String parentSchema,
+      @Nullable String parentCatalog,
+      @Nullable String parentSchema,
       String parentTable,
-      String foreignCatalog,
-      String foreignSchema,
+      @Nullable String foreignCatalog,
+      @Nullable String foreignSchema,
       String foreignTable)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
@@ -2192,7 +2199,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getIndexInfo(
-      String catalog, String schema, String table, boolean unique, boolean approximate)
+      @Nullable String catalog, @Nullable String schema, String table, boolean unique, boolean approximate)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2415,7 +2422,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getUDTs(
-      String catalog, String schemaPattern, String typeNamePattern, int[] types)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String typeNamePattern,
+      int @Nullable [] types)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2508,7 +2516,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern)
+  public ResultSet getSuperTypes(@Nullable String catalog, @Nullable String schemaPattern,
+      @Nullable String typeNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2524,7 +2533,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern)
+  public ResultSet getSuperTables(@Nullable String catalog, @Nullable String schemaPattern,
+      @Nullable String tableNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2541,7 +2551,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getAttributes(
-      String catalog, String schemaPattern, String typeNamePattern, String attributeNamePattern)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String typeNamePattern,
+      @Nullable String attributeNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2766,7 +2777,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern)
+  public ResultSet getFunctions(@Nullable String catalog, @Nullable String schemaPattern,
+      @Nullable String functionNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2783,7 +2795,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getFunctionColumns(
-      String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String functionNamePattern,
+      @Nullable String columnNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
@@ -2803,7 +2816,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public ResultSet getPseudoColumns(
-      String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
+      @Nullable String catalog, @Nullable String schemaPattern, @Nullable String tableNamePattern,
+      @Nullable String columnNamePattern)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
