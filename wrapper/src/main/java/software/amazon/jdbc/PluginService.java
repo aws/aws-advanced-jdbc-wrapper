@@ -124,7 +124,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    *                                       {@link ConnectionPlugin} instances do not support the
    *                                       requested strategy
    */
-  HostSpec getHostSpecByStrategy(HostRole role, String strategy)
+  HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException;
 
   /**
@@ -146,7 +146,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    *                                       {@link ConnectionPlugin} instances do not support the
    *                                       requested strategy
    */
-  HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+  HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException;
 
   /**

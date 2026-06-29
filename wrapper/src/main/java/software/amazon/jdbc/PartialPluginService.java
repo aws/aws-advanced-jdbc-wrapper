@@ -183,13 +183,14 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy)
+      throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }

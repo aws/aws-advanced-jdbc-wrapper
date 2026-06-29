@@ -34,7 +34,8 @@ public class HostIdCacheServiceImpl implements HostIdCacheService {
   public static final String PROP_ENABLED = "aws.jdbc.config.host.cache.enabled";
   public static final String PROP_REGEXP  = "aws.jdbc.config.hast.cache.regexp";
 
-  private static final ConcurrentHashMap<String, Pair<String, String>> cache = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, Pair<@Nullable String, @Nullable String>> cache =
+      new ConcurrentHashMap<>();
   private static final boolean isEnabled = Boolean.parseBoolean(System.getProperty(PROP_ENABLED, "true"));
   private static final String hostRegexp = System.getProperty(PROP_REGEXP, ".*");
   private static final RdsUtils rdsHelper = new RdsUtils();
@@ -66,7 +67,7 @@ public class HostIdCacheServiceImpl implements HostIdCacheService {
       final @NonNull HostSpec connectionHostSpec,
       final @NonNull PluginService pluginService) throws SQLException {
 
-    Pair<String, String> pairIdAndName = cache.get(connectionHostSpec.getHost());
+    Pair<@Nullable String, @Nullable String> pairIdAndName = cache.get(connectionHostSpec.getHost());
     if (pairIdAndName == null) {
       try {
         pairIdAndName = pluginService.getDialect().getHostId(connection);
@@ -80,8 +81,8 @@ public class HostIdCacheServiceImpl implements HostIdCacheService {
       return null;
     }
 
-    final String instanceId = pairIdAndName.getValue1();
-    final String instanceName = pairIdAndName.getValue2();
+    final @Nullable String instanceId = pairIdAndName.getValue1();
+    final @Nullable String instanceName = pairIdAndName.getValue2();
     if (instanceId == null && instanceName == null) {
       // We've already tried to identify connection, but we got nothing.
       return null;

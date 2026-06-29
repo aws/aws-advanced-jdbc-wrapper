@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Timer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -270,7 +271,7 @@ public class WrapperUtils {
 
       try {
         if (jdbcMethod.wrapResults) {
-          return wrapWithProxyIfNeeded(resultClass, result, connectionWrapper, pluginManager);
+          return wrapNonNullResult(resultClass, result, connectionWrapper, pluginManager);
         } else {
           return result;
         }
@@ -344,7 +345,7 @@ public class WrapperUtils {
 
       if (jdbcMethod.wrapResults) {
         try {
-          return wrapWithProxyIfNeeded(resultClass, result, connectionWrapper, pluginManager);
+          return wrapNonNullResult(resultClass, result, connectionWrapper, pluginManager);
         } catch (final InstantiationException e) {
           if (context != null) {
             context.setSuccess(false);
@@ -371,9 +372,27 @@ public class WrapperUtils {
     }
   }
 
+  /**
+   * Wraps a non-null result via {@link #wrapWithProxyIfNeeded}. Callers invoke this only when the
+   * result is known to be non-null (the value comes from {@link ConnectionPluginManager#execute},
+   * which returns a non-null value). {@code wrapWithProxyIfNeeded} preserves non-nullness for a
+   * non-null input - its only {@code null} return is the {@code toProxy == null} guard - so the
+   * declared {@code @Nullable} return type cannot actually be {@code null} here. The nullness
+   * checker cannot express "preserves non-nullness" for a type variable whose bound is
+   * {@code @Nullable Object}, hence the localized suppression.
+   */
+  @SuppressWarnings("nullness")
+  private static <T> T wrapNonNullResult(
+      final Class<T> resultClass,
+      final T toProxy,
+      final ConnectionWrapper connectionWrapper,
+      final ConnectionPluginManager pluginManager) throws InstantiationException {
+    return wrapWithProxyIfNeeded(resultClass, toProxy, connectionWrapper, pluginManager);
+  }
+
   public static @Nullable <T> T wrapWithProxyIfNeeded(
       final Class<T> resultClass,
-      @Nullable final T toProxy,
+      final @Nullable T toProxy,
       final ConnectionWrapper connectionWrapper,
       final ConnectionPluginManager pluginManager) throws InstantiationException {
     if (toProxy == null) {
@@ -424,10 +443,10 @@ public class WrapperUtils {
       }
     }
 
-    if (skipWrappingForPackages.contains(toProxyClass.getPackage().getName())) {
+    final Package toProxyPackage = toProxyClass.getPackage();
+    if (toProxyPackage != null && skipWrappingForPackages.contains(toProxyPackage.getName())) {
       return toProxy;
     }
-
     if (isJdbcInterface(toProxy.getClass())) {
       throw new RuntimeException(
           Messages.get(
@@ -444,7 +463,7 @@ public class WrapperUtils {
    * @param packageName the name of the package to analyze
    * @return true if the given package is a JDBC package
    */
-  public static boolean isJdbcPackage(@Nullable final String packageName) {
+  public static boolean isJdbcPackage(final @Nullable String packageName) {
     return packageName != null
         && (packageName.startsWith("java.sql")
         || packageName.startsWith("javax.sql")
@@ -495,7 +514,7 @@ public class WrapperUtils {
   public static <T> T createInstance(
       final Class<?> classToInstantiate,
       final Class<T> resultClass,
-      final Class<?>[] constructorArgClasses,
+      final Class<?> @Nullable [] constructorArgClasses,
       final Object... constructorArgs)
       throws InstantiationException {
 
@@ -512,11 +531,13 @@ public class WrapperUtils {
           || constructorArgClasses.length == 0
           || constructorArgs == null
           || constructorArgs.length == 0) {
-        return resultClass.cast(classToInstantiate.newInstance());
+        // Class.newInstance() returns a genuinely non-null instance (or throws); the
+        // @Nullable result of Class.cast comes from its null-in/null-out contract only.
+        return Objects.requireNonNull(resultClass.cast(classToInstantiate.newInstance()));
       }
 
       final Constructor<?> constructor = classToInstantiate.getConstructor(constructorArgClasses);
-      return resultClass.cast(constructor.newInstance(constructorArgs));
+      return Objects.requireNonNull(resultClass.cast(constructor.newInstance(constructorArgs)));
     } catch (final Exception e) {
       throw new InstantiationException(
           Messages.get(
@@ -550,7 +571,7 @@ public class WrapperUtils {
     return createInstance(loaded, resultClass, null, constructorArgs);
   }
 
-  public static Object getFieldValue(Object target, final String accessor) {
+  public static @Nullable Object getFieldValue(@Nullable Object target, final String accessor) {
     if (target == null) {
       return null;
     }
@@ -595,7 +616,7 @@ public class WrapperUtils {
     return target;
   }
 
-  public static Connection getConnectionFromSqlObject(final Object obj) {
+  public static @Nullable Connection getConnectionFromSqlObject(final @Nullable Object obj) {
     if (obj == null) {
       return null;
     }
@@ -698,7 +719,7 @@ public class WrapperUtils {
 
       String updatedMessage = throwable.getMessage();
       contextUpdated = (updatedMessage != null
-          && updatedMessage.contains(message)
+          && (message == null || updatedMessage.contains(message))
           && updatedMessage.contains(context));
     } catch (IllegalAccessException | NoSuchFieldException e) {
       // do nothing
