@@ -24,11 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -37,6 +35,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -72,14 +71,8 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
   private static final int SYNC_FETCH_CREDENTIALS_TIMEOUT_SECONDS = 60;
   protected static final long MIN_EXPIRATION_TIME_SECONDS = 300;
 
-  private static final AtomicInteger threadCounter = new AtomicInteger(0);
-
   /** Daemon thread pool shared by all instances for background credential refreshes. */
-  static final ExecutorService refreshExecutor = Executors.newCachedThreadPool(r -> {
-    final Thread t = new Thread(r, "aws-sm-swr-refresh-" + threadCounter.getAndIncrement());
-    t.setDaemon(true);
-    return t;
-  });
+  static final ExecutorService refreshExecutor = ExecutorFactory.newCachedThreadPool("aws-sm2-refresh");
 
   /** At most one in-flight refresh per {@code (secretId, region)} key. */
   static final ConcurrentMap<Pair<String, String>, CompletableFuture<Secret>> pendingRefreshes =
