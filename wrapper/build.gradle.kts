@@ -318,19 +318,29 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (part 3), the util classes that depend on central-type nullness contracts
         // (part 4: RetryUtil, ConnectionUrlParser, HostIdCacheServiceImpl - enabled together
         // with the HostSpec / HostRole / PluginService / HostSpecBuilder / Dialect alignment),
-        // and WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers).
-        // LazyCleanerImpl and the per-object JDBC wrapper classes remain deferred.
+        // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers), and
+        // (part 6) LazyCleanerImpl plus the per-object JDBC wrapper classes that are already
+        // null-clean (factories, StatementWrapper, and the small/medium wrappers).
+        // The four large wrapper classes - ResultSetWrapper, CallableStatementWrapper,
+        // DatabaseMetaDataWrapper, PreparedStatementWrapper - are excluded via negative
+        // lookahead: they expose hundreds of genuinely-@Nullable JDBC get/set methods and
+        // each warrants its own dedicated pass.
         // No end-anchor: matching an outer class also covers its nested classes.
         extraJavacArgs = listOf(
             "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl"
-                + "|wrapper\\.ConnectionWrapper"
+                + "|wrapper\\.(?!ResultSetWrapper|CallableStatementWrapper"
+                + "|DatabaseMetaDataWrapper|PreparedStatementWrapper)\\w+"
                 + "|util\\.(RdsUtils|RegionUtils|GDBRegionUtils|SqlMethodAnalyzer|CacheItem"
                 + "|Messages|Pair|PropertyUtils|ConnectionUrlBuilder|StringUtils"
-                + "|ConnectionUrlParser|RetryUtil|HostIdCacheServiceImpl|WrapperUtils))",
+                + "|ConnectionUrlParser|RetryUtil|HostIdCacheServiceImpl|WrapperUtils"
+                + "|LazyCleanerImpl))",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",
             // Keep the output focused and avoid drowning in framework boilerplate.
-            "-AsuppressWarnings=uninitialized"
+            "-AsuppressWarnings=uninitialized",
+            // Raise javac's default 100-warning cap so the full finding count is visible
+            // while measuring scope (the checker runs warn-only).
+            "-Xmaxwarns", "100000"
         )
     }
 
