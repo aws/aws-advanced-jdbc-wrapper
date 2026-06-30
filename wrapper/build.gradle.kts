@@ -318,19 +318,24 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (part 3), the util classes that depend on central-type nullness contracts
         // (part 4: RetryUtil, ConnectionUrlParser, HostIdCacheServiceImpl - enabled together
         // with the HostSpec / HostRole / PluginService / HostSpecBuilder / Dialect alignment),
-        // and WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers).
-        // LazyCleanerImpl and the per-object JDBC wrapper classes remain deferred.
+        // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers), and
+        // (part 6) all of the per-object JDBC wrapper classes plus LazyCleanerImpl. The whole
+        // software.amazon.jdbc.wrapper package is now in scope.
         // No end-anchor: matching an outer class also covers its nested classes.
         extraJavacArgs = listOf(
             "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl"
-                + "|wrapper\\.ConnectionWrapper"
+                + "|wrapper\\.\\w+"
                 + "|util\\.(RdsUtils|RegionUtils|GDBRegionUtils|SqlMethodAnalyzer|CacheItem"
                 + "|Messages|Pair|PropertyUtils|ConnectionUrlBuilder|StringUtils"
-                + "|ConnectionUrlParser|RetryUtil|HostIdCacheServiceImpl|WrapperUtils))",
+                + "|ConnectionUrlParser|RetryUtil|HostIdCacheServiceImpl|WrapperUtils"
+                + "|LazyCleanerImpl))",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",
             // Keep the output focused and avoid drowning in framework boilerplate.
-            "-AsuppressWarnings=uninitialized"
+            "-AsuppressWarnings=uninitialized",
+            // Raise javac's default 100-warning cap so the full finding count is visible
+            // while measuring scope (the checker runs warn-only).
+            "-Xmaxwarns", "100000"
         )
     }
 

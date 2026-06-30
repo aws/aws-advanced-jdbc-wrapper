@@ -41,6 +41,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class LazyCleanerImpl implements LazyCleaner {
   private static final Logger LOGGER = Logger.getLogger(LazyCleanerImpl.class.getName());
@@ -50,7 +51,7 @@ public class LazyCleanerImpl implements LazyCleaner {
       Duration.ofMillis(Long.getLong("aws.jdbc.config.cleanup.thread.ttl", 30000))
   );
 
-  private final ReferenceQueue<Object> queue = new ReferenceQueue<>();
+  private final ReferenceQueue<@Nullable Object> queue = new ReferenceQueue<>();
   private final String threadName;
   private final Duration threadTtl;
   private boolean threadRunning;
@@ -97,12 +98,13 @@ public class LazyCleanerImpl implements LazyCleaner {
   private boolean startThread() {
     ForkJoinPool.commonPool().execute(() -> {
       Thread.currentThread().setContextClassLoader(null);
-      RefQueueBlocker<Object> blocker = new RefQueueBlocker<>(queue, threadName, threadTtl, this::checkEmpty);
+      RefQueueBlocker<@Nullable Object> blocker =
+          new RefQueueBlocker<>(queue, threadName, threadTtl, this::checkEmpty);
       while (!checkEmpty()) {
         try {
           ForkJoinPool.managedBlock(blocker);
           @SuppressWarnings("unchecked")
-          Node<Object> ref = (Node<Object>) blocker.drainOne();
+          final @Nullable Node<Object> ref = (Node<Object>) blocker.drainOne();
           if (ref != null) {
             ref.onClean(true);
           }
@@ -171,7 +173,7 @@ public class LazyCleanerImpl implements LazyCleaner {
   private static class RefQueueBlocker<T> implements ForkJoinPool.ManagedBlocker {
     private final ReferenceQueue<T> queue;
     private final String threadName;
-    private Reference<? extends T> ref;
+    private @Nullable Reference<? extends T> ref;
     private final long blockTimeoutMillis;
     private final BooleanSupplier shouldTerminate;
 
@@ -211,8 +213,8 @@ public class LazyCleanerImpl implements LazyCleaner {
       return false;
     }
 
-    public Reference<? extends T> drainOne() {
-      Reference<? extends T> ref = this.ref;
+    public @Nullable Reference<? extends T> drainOne() {
+      @Nullable Reference<? extends T> ref = this.ref;
       this.ref = null;
       return ref;
     }

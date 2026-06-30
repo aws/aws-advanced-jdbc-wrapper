@@ -317,7 +317,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
     return executeWithSubscribedPlugins(
         jdbcMethod,
