@@ -11,6 +11,9 @@ The routing rules are:
 
 This plugin extends the Read/Write Splitting Plugin, so it inherits the same connection-switching, reader-selection, session-state-transfer, and internal-connection-pooling behavior described in the [Read/Write Splitting Plugin guide](./UsingTheReadWriteSplittingPlugin.md). This document focuses on the behavior that is specific to automatic routing.
 
+> [!WARNING]
+> Do not use the `autoReadWriteSplitting`, `readWriteSplitting`, `srw`, and/or `gdbReadWriteSplitting` plugins (or any combination of them) at the same time for the same connection. They are all read/write splitting plugins and will conflict.
+
 ## Loading the Automatic Read/Write Splitting Plugin
 
 The plugin is not loaded by default. To load it, include `autoReadWriteSplitting` in the `wrapperPlugins` connection parameter. The plugin depends on SQL parse results produced by the `sqlParser` plugin, which **must be listed before** `autoReadWriteSplitting` in the plugin chain.
@@ -28,9 +31,6 @@ properties.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,autoReadWrite
 ```
 
 The driver performs plugin sorting by default (see the [`autoSortWrapperPluginOrder` configuration parameter](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters)), which keeps `sqlParser` ahead of `autoReadWriteSplitting`.
-
-> [!WARNING]
-> Do not use the `autoReadWriteSplitting`, `readWriteSplitting`, `srw`, and/or `gdbReadWriteSplitting` plugins (or any combination of them) at the same time for the same connection. They are all read/write splitting plugins and will conflict.
 
 ## Required dependency: JSQLParser
 
@@ -104,9 +104,9 @@ If you need a specific role for a transaction, establish it before the transacti
 
 As with the Read/Write Splitting Plugin, a `Statement` or `ResultSet` is internally bound to the database connection that was active when it was created. If automatic routing switches the connection, statements created before the switch continue to use the previous connection. Create new `Statement`/`ResultSet` objects after a routing change. See [General plugin limitations](./UsingTheReadWriteSplittingPlugin.md#general-plugin-limitations) for more detail.
 
-### Batch and unparseable statements
+### Callable and unparseable statements
 
-If a statement cannot be parsed (or carries no SQL text, such as `Statement#executeBatch`), no parse result is available and the plugin falls back to keeping the query on the writer to be safe.
+If a statement's SQL cannot be parsed, no parse result is available and the plugin falls back to keeping the query on the writer to be safe. A common example is a `CallableStatement` that invokes a stored procedure: the driver sees only the call escape sequence (for example `{call get_order_summary(?)}`), not the statements executed inside the procedure, so it cannot determine whether the call only reads data. Such calls therefore run on the writer, even if the procedure is read-only. The same fallback applies to any statement that carries no parseable SQL text.
 
 ### Inherited limitations
 
