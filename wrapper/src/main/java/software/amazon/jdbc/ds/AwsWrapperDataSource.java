@@ -117,7 +117,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   }
 
   @Override
-  public Connection getConnection(final String username, final String password) throws SQLException {
+  public Connection getConnection(final @Nullable String username, final @Nullable String password)
+      throws SQLException {
     this.user = username;
     this.password = password;
 
@@ -185,7 +186,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         if (StringUtils.isNullOrEmpty(serverName)) {
           throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
         }
-        if (StringUtils.isNullOrEmpty(this.jdbcProtocol)) {
+        final String jdbcProtocol = this.jdbcProtocol;
+        if (StringUtils.isNullOrEmpty(jdbcProtocol)) {
           throw new SQLException(Messages.get("AwsWrapperDataSource.missingJdbcProtocol"));
         }
 
@@ -194,7 +196,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
           port = Integer.parseInt(serverPort);
         }
 
-        finalUrl = buildUrl(this.jdbcProtocol, serverName, port, databaseName);
+        finalUrl = buildUrl(jdbcProtocol, serverName, port, databaseName);
 
         // Override credentials with the ones provided through the data source property.
         setCredentialProperties(props);
@@ -216,22 +218,25 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
       // Identify what connection provider to use.
       if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
+        final String targetDataSourceClassName = this.targetDataSourceClassName;
 
         final DataSource targetDataSource = createTargetDataSource();
 
         try {
           targetDataSource.setLoginTimeout(loginTimeout);
         } catch (Exception ex) {
+          final Throwable cause = ex.getCause();
           LOGGER.finest(
               () ->
                   Messages.get(
                       "DataSource.failedToSetProperty",
-                      new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
+                      new Object[] {"loginTimeout", targetDataSource.getClass(),
+                          cause == null ? ex.getMessage() : cause.getMessage()}));
         }
 
         if (targetDriverDialect == null) {
           final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-          targetDriverDialect = targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
+          targetDriverDialect = targetDriverDialectManager.getDialect(targetDataSourceClassName, props);
         }
 
         ConnectionProvider defaultConnectionProvider = new DataSourceConnectionProvider(targetDataSource);
@@ -308,7 +313,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         configurationProfile);
   }
 
-  public void setTargetDataSourceClassName(@Nullable final String dataSourceClassName) {
+  public void setTargetDataSourceClassName(final @Nullable String dataSourceClassName) {
     this.targetDataSourceClassName = dataSourceClassName;
   }
 
@@ -316,7 +321,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return this.targetDataSourceClassName;
   }
 
-  public void setServerName(@NonNull final String serverName) {
+  public void setServerName(final @NonNull String serverName) {
     this.serverName = serverName;
   }
 
@@ -324,7 +329,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return this.serverName;
   }
 
-  public void setServerPort(@NonNull final String serverPort) {
+  public void setServerPort(final @NonNull String serverPort) {
     this.serverPort = serverPort;
   }
 
@@ -332,7 +337,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return this.serverPort;
   }
 
-  public void setDatabase(@NonNull final String database) {
+  public void setDatabase(final @NonNull String database) {
     this.database = database;
   }
 
@@ -340,7 +345,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return this.database;
   }
 
-  public void setJdbcUrl(@Nullable final String url) {
+  public void setJdbcUrl(final @Nullable String url) {
     this.jdbcUrl = url;
   }
 
@@ -348,7 +353,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return this.jdbcUrl;
   }
 
-  public void setJdbcProtocol(@NonNull final String jdbcProtocol) {
+  public void setJdbcProtocol(final @NonNull String jdbcProtocol) {
     this.jdbcProtocol = jdbcProtocol;
   }
 
@@ -364,23 +369,25 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return this.targetDataSourceProperties;
   }
 
-  public void setUser(final String user) {
+  public void setUser(final @Nullable String user) {
     this.user = user;
   }
 
-  public String getUser() {
+  public @Nullable String getUser() {
     return this.user;
   }
 
-  public void setPassword(final String password) {
+  public void setPassword(final @Nullable String password) {
     this.password = password;
   }
 
-  public String getPassword() {
+  public @Nullable String getPassword() {
     return this.password;
   }
 
   @Override
+  // AwsWrapperDataSource does not support unwrapping; returning null is existing behavior.
+  @SuppressWarnings("return")
   public <T> T unwrap(final Class<T> iface) throws SQLException {
     return null;
   }
@@ -391,7 +398,9 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   }
 
   @Override
-  public PrintWriter getLogWriter() throws SQLException {
+  // The JDK stub declares a @NonNull return, but the log writer is unset (null) by default.
+  @SuppressWarnings("override.return")
+  public @Nullable PrintWriter getLogWriter() throws SQLException {
     return this.logWriter;
   }
 
@@ -414,11 +423,16 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   }
 
   @Override
+  // Returning null is existing behavior for this data source.
+  @SuppressWarnings("return")
   public Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return null;
   }
 
   @Override
+  // JNDI Reference and StringRefAddr accept null factory location and null address values; the
+  // checker's JDK stubs mark these parameters as non-null.
+  @SuppressWarnings("argument")
   public Reference getReference() throws NamingException {
     final Reference reference =
         new Reference(getClass().getName(), AwsWrapperDataSourceFactory.class.getName(), null);
@@ -460,13 +474,17 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   }
 
   private void setDatabasePropertyFromUrl(final Properties props) {
-    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(this.jdbcUrl);
+    final String url = this.jdbcUrl;
+    if (StringUtils.isNullOrEmpty(url)) {
+      return;
+    }
+    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(props, databaseName);
     }
   }
 
-  private void setCredentialPropertiesFromUrl(final String jdbcUrl) {
+  private void setCredentialPropertiesFromUrl(final @Nullable String jdbcUrl) {
     if (StringUtils.isNullOrEmpty(jdbcUrl)) {
       return;
     }

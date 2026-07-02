@@ -29,7 +29,7 @@ public class ExceptionManager {
     return handler.isLoginException(throwable, targetDriverDialect);
   }
 
-  public boolean isLoginException(final Dialect dialect, final String sqlState) {
+  public boolean isLoginException(final Dialect dialect, final @Nullable String sqlState) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isLoginException(sqlState);
   }
@@ -40,7 +40,7 @@ public class ExceptionManager {
     return handler.isNetworkException(throwable, targetDriverDialect);
   }
 
-  public boolean isNetworkException(final Dialect dialect, final String sqlState) {
+  public boolean isNetworkException(final Dialect dialect, final @Nullable String sqlState) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isNetworkException(sqlState);
   }

@@ -36,7 +36,7 @@ public interface StorageService extends StateSnapshotProvider {
    *                              passed, the item will be removed without performing any additional operations.
    * @param <V>                   the type of item that will be stored under the item class.
    */
-  <V> void registerItemClassIfAbsent(
+  <V extends @NonNull Object> void registerItemClassIfAbsent(
       Class<V> itemClass,
       boolean isRenewableExpiration,
       long timeToLiveNanos,
@@ -50,7 +50,7 @@ public interface StorageService extends StateSnapshotProvider {
    * @param item the item to store.
    * @param <V>  the type of the item being retrieved.
    */
-  <V> void set(Object key, V item);
+  <V extends @NonNull Object> void set(Object key, @NonNull V item);
 
   /**
    * Gets an item stored in the storage service.

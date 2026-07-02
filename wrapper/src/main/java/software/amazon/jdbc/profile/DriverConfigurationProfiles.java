@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
@@ -54,20 +55,20 @@ public class DriverConfigurationProfiles {
   }
 
   public static void addOrReplaceProfile(
-      @NonNull final String profileName,
-      @NonNull final ConfigurationProfile configurationProfile) {
+      final @NonNull String profileName,
+      final @NonNull ConfigurationProfile configurationProfile) {
     activeProfiles.put(profileName, configurationProfile);
   }
 
-  public static void remove(@NonNull final String profileName) {
+  public static void remove(final @NonNull String profileName) {
     activeProfiles.remove(profileName);
   }
 
-  public static boolean contains(@NonNull final String profileName) {
+  public static boolean contains(final @NonNull String profileName) {
     return activeProfiles.containsKey(profileName);
   }
 
-  public static ConfigurationProfile getProfileConfiguration(@NonNull final String profileName) {
+  public static @Nullable ConfigurationProfile getProfileConfiguration(final @NonNull String profileName) {
     ConfigurationProfile profile = activeProfiles.get(profileName);
 
     if (profile != null) {
@@ -693,6 +694,8 @@ public class DriverConfigurationProfiles {
     return presets;
   }
 
+  // The null branch is defensive; all internal callers pass a non-null varargs array.
+  @SuppressWarnings("return")
   private static Properties getProperties(String... args) {
     if (args == null) {
       return null;

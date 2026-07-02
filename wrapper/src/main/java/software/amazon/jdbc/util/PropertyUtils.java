@@ -131,7 +131,7 @@ public class PropertyUtils {
     }
   }
 
-  public static @NonNull Properties copyProperties(final Properties props) {
+  public static @NonNull Properties copyProperties(final @Nullable Properties props) {
     final Properties copy = new Properties();
 
     if (props == null) {
@@ -142,7 +142,7 @@ public class PropertyUtils {
   }
 
   public static @NonNull Properties addProperties(
-      final Properties dest, final Properties propsToAdd) {
+      final Properties dest, final @Nullable Properties propsToAdd) {
 
     if (propsToAdd == null) {
       return dest;

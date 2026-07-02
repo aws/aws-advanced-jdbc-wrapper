@@ -62,6 +62,9 @@ public class StorageServiceImpl implements StorageService, CanReleaseResources {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
   }
 
+  // initCleanupThread only schedules a task on the already-initialized cleanupExecutor; the task
+  // runs after construction completes. The checker cannot see this, hence the localized suppression.
+  @SuppressWarnings("method.invocation")
   public StorageServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
     initCleanupThread(cleanupIntervalNanos);
@@ -80,7 +83,7 @@ public class StorageServiceImpl implements StorageService, CanReleaseResources {
   }
 
   @Override
-  public <V> void registerItemClassIfAbsent(
+  public <V extends @NonNull Object> void registerItemClassIfAbsent(
       Class<V> itemClass,
       boolean isRenewableExpiration,
       long timeToLiveNanos,
@@ -97,7 +100,7 @@ public class StorageServiceImpl implements StorageService, CanReleaseResources {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <V> void set(Object key, V value) {
+  public <V extends @NonNull Object> void set(Object key, @NonNull V value) {
     ExpirationCache<Object, ?> cache = caches.get(value.getClass());
     if (cache == null) {
       Supplier<ExpirationCache<Object, ?>> supplier = defaultCacheSuppliers.get(value.getClass());

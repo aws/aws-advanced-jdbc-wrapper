@@ -51,7 +51,7 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isNetworkException(final String sqlState) {
+  public boolean isNetworkException(final @Nullable String sqlState) {
     if (sqlState == null) {
       return false;
     }
@@ -92,7 +92,7 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(final String sqlState) {
+  public boolean isLoginException(final @Nullable String sqlState) {
     if (sqlState == null) {
       return false;
     }

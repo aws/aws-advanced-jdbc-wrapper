@@ -38,7 +38,7 @@ import software.amazon.jdbc.util.Messages;
  * @param <K> the type of the keys in the cache.
  * @param <V> the type of the values in the cache.
  */
-public class ExternallyManagedCache<K, V> {
+public class ExternallyManagedCache<K extends @NonNull Object, V extends @NonNull Object> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final long timeToLiveNanos;
@@ -98,7 +98,7 @@ public class ExternallyManagedCache<K, V> {
    *     is null.
    */
   public @NonNull V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
-    final CacheItem<V> cacheItem = cache.compute(
+    final @Nullable CacheItem<V> cacheItem = cache.compute(
         key,
         (k, valueItem) -> {
           if (valueItem == null) {
@@ -112,7 +112,10 @@ public class ExternallyManagedCache<K, V> {
           return valueItem;
         });
 
-    return cacheItem.item;
+    // The remapping function never returns null, so compute() never returns null here.
+    @SuppressWarnings("dereference.of.nullable")
+    final V item = cacheItem.item;
+    return item;
   }
 
   /**

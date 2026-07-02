@@ -21,9 +21,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class CacheMap<K, V> {
+public class CacheMap<K extends @NonNull Object, V extends @NonNull Object> {
 
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
@@ -38,11 +39,14 @@ public class CacheMap<K, V> {
   }
 
   public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
-    final CacheItem<V> cacheItem = cache.compute(key,
+    final @Nullable CacheItem<V> cacheItem = cache.compute(key,
         (kk, vv) -> (vv == null || vv.isExpired())
             ? new CacheItem<>(defaultItemValue, System.nanoTime() + itemExpirationNano)
             : vv);
-    return cacheItem.item;
+    // The remapping function never returns null, so compute() never returns null here.
+    @SuppressWarnings("dereference.of.nullable")
+    final V item = cacheItem.item;
+    return item;
   }
 
   public void put(final K key, final V item, final long itemExpirationNano) {

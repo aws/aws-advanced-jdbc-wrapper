@@ -48,7 +48,7 @@ public class ServiceUtility {
       MonitorService monitorService,
       EventPublisher eventPublisher,
       ConnectionProvider defaultConnectionProvider,
-      ConnectionProvider effectiveConnectionProvider,
+      @Nullable ConnectionProvider effectiveConnectionProvider,
       TelemetryFactory telemetryFactory,
       String originalUrl,
       String targetDriverProtocol,

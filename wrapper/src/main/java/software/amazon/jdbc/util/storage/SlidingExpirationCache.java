@@ -25,14 +25,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class SlidingExpirationCache<K, V> {
+public class SlidingExpirationCache<K extends @NonNull Object, V extends @NonNull Object> {
 
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
-  protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
-  protected final ItemDisposalFunc<V> itemDisposalFunc;
+  protected final AtomicReference<@Nullable ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
+  protected final @Nullable ItemDisposalFunc<V> itemDisposalFunc;
 
   /**
    * A cache that periodically cleans up expired entries. Fetching an expired entry marks that entry
@@ -102,7 +104,7 @@ public class SlidingExpirationCache<K, V> {
     return cacheItem.item;
   }
 
-  public V put(
+  public @Nullable V put(
       final K key,
       final V value,
       final long itemExpirationNano) {
@@ -117,7 +119,7 @@ public class SlidingExpirationCache<K, V> {
     return cacheItem.item;
   }
 
-  public V get(final K key, final long itemExpirationNano) {
+  public @Nullable V get(final K key, final long itemExpirationNano) {
     cleanUp();
     final CacheItem<V> cacheItem = cache.get(key);
     if (cacheItem == null) {

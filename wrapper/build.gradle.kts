@@ -319,17 +319,19 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (part 3), the util classes that depend on central-type nullness contracts
         // (part 4: RetryUtil, ConnectionUrlParser, HostIdCacheServiceImpl - enabled together
         // with the HostSpec / HostRole / PluginService / HostSpecBuilder / Dialect alignment),
-        // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers), and
-        // (part 6) all of the per-object JDBC wrapper classes plus LazyCleanerImpl. The whole
-        // software.amazon.jdbc.wrapper package is now in scope.
-        // No end-anchor: matching an outer class also covers its nested classes.
+        // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers),
+        // (part 6) all of the per-object JDBC wrapper classes plus LazyCleanerImpl, and
+        // (parts 8-10) the whole util package plus the exceptions, cleanup, authentication,
+        // hostavailability, osgi, profile, states and ds packages.
+        // No end-anchor: matching an outer class also covers its nested classes (and, for
+        // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*).
         extraJavacArgs = listOf(
             "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl"
                 + "|wrapper\\.\\w+"
-                + "|util\\.(RdsUtils|RegionUtils|GDBRegionUtils|SqlMethodAnalyzer|CacheItem"
-                + "|Messages|Pair|PropertyUtils|ConnectionUrlBuilder|StringUtils"
-                + "|ConnectionUrlParser|RetryUtil|HostIdCacheServiceImpl|WrapperUtils"
-                + "|LazyCleanerImpl))",
+                + "|util\\.\\w+"
+                + "|exceptions\\.\\w+|cleanup\\.\\w+|authentication\\.\\w+"
+                + "|hostavailability\\.\\w+|osgi\\.\\w+|profile\\.\\w+"
+                + "|states\\.\\w+|ds\\.\\w+)",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",
             // Keep the output focused and avoid drowning in framework boilerplate.

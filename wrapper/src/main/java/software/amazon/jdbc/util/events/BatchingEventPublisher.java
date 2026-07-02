@@ -52,6 +52,9 @@ public class BatchingEventPublisher implements EventPublisher {
    *
    * @param messageIntervalNanos the rate at which messages batches should be sent, in nanoseconds.
    */
+  // initPublishingThread only schedules a task on the shared publishingExecutor; the task runs
+  // after construction completes. The checker cannot see this, hence the localized suppression.
+  @SuppressWarnings("method.invocation")
   public BatchingEventPublisher(long messageIntervalNanos) {
     this.messageIntervalNanos = messageIntervalNanos;
     initPublishingThread(messageIntervalNanos);

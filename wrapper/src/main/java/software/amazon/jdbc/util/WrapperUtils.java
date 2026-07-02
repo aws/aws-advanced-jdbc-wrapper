@@ -547,7 +547,7 @@ public class WrapperUtils {
   }
 
   public static <T> T createInstance(
-      final String className, final Class<T> resultClass, final Object... constructorArgs)
+      final @Nullable String className, final Class<T> resultClass, final Object... constructorArgs)
       throws InstantiationException {
 
     if (StringUtils.isNullOrEmpty(className)) {

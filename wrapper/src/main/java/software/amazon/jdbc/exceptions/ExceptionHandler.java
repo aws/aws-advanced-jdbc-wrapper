@@ -23,9 +23,9 @@ public interface ExceptionHandler {
 
   boolean isNetworkException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 
-  boolean isNetworkException(String sqlState);
+  boolean isNetworkException(@Nullable String sqlState);
 
-  boolean isLoginException(String sqlState);
+  boolean isLoginException(@Nullable String sqlState);
 
   boolean isLoginException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 

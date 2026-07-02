@@ -37,6 +37,9 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   protected final AtomicLong lastActivityTimestampNanos = new AtomicLong();
   protected final AtomicReference<MonitorState> state = new AtomicReference<>();
 
+  // getMonitorNameSuffix() only reads this.getClass(), which is always available; calling it during
+  // construction is safe. The checker cannot see this, hence the localized suppression.
+  @SuppressWarnings("method.invocation")
   protected AbstractMonitor(long terminationTimeoutSec) {
     this.terminationTimeoutSec.set(terminationTimeoutSec);
     this.monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());
