@@ -16,21 +16,29 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.WrapperUtils;
 
 /**
@@ -51,6 +59,32 @@ import software.amazon.jdbc.util.WrapperUtils;
  * on a reader stays on the reader, and a write transaction stays on the writer).
  */
 public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
+
+  private static final Logger LOGGER =
+      Logger.getLogger(AutoReadWriteSplittingPlugin.class.getName());
+
+  public static final AwsWrapperProperty QUERY_LEVEL_LOAD_BALANCING =
+      new AwsWrapperProperty(
+          "queryLevelLoadBalancing",
+          "false",
+          "When true, a read query that is routed to a reader triggers a per-query selection of a "
+              + "reader connection (query-level load balancing) using the configured "
+              + "readerHostSelectorStrategy. Connection switching is still suppressed inside a "
+              + "transaction or while autocommit is disabled.");
+
+  public static final AwsWrapperProperty LOAD_BALANCING_INCLUDE_WRITER =
+      new AwsWrapperProperty(
+          "loadBalancingIncludeWriter",
+          "false",
+          "When query-level load balancing is enabled, includes the writer instance in the pool of "
+              + "load-balancing candidates. Only consulted when queryLevelLoadBalancing is true.");
+
+  static {
+    PropertyDefinition.registerPluginProperties(AutoReadWriteSplittingPlugin.class);
+  }
+
+  private final boolean queryLevelLoadBalancing;
+  private final boolean loadBalancingIncludeWriter;
 
   private static final Set<String> executeMethodNames;
 
@@ -78,6 +112,8 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
   public AutoReadWriteSplittingPlugin(
       final PluginService pluginService, final @NonNull Properties properties) {
     super(pluginService, properties);
+    this.queryLevelLoadBalancing = QUERY_LEVEL_LOAD_BALANCING.getBoolean(properties);
+    this.loadBalancingIncludeWriter = LOAD_BALANCING_INCLUDE_WRITER.getBoolean(properties);
     Set<String> combined = new HashSet<>(super.getSubscribedMethods());
     combined.addAll(executeMethodNames);
     this.allSubscribedMethods = Collections.unmodifiableSet(combined);
@@ -108,8 +144,14 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     // it does not route on execute methods, so there is no double-switch risk.
     if (executeMethodNames.contains(methodName) && !shouldKeepCurrentConnection()) {
       try {
-        boolean readOnly = shouldRouteToReader();
-        switchConnectionIfRequired(readOnly);
+        final boolean readOnly = shouldRouteToReader();
+        if (readOnly && this.queryLevelLoadBalancing) {
+          // Per-query load balancing: pick a (possibly different) balancing target for this
+          // read query instead of staying on the single cached reader.
+          switchToBalancedReader();
+        } else {
+          switchConnectionIfRequired(readOnly);
+        }
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }
@@ -117,6 +159,99 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
 
     return super.execute(resultClass, exceptionClass, methodInvokeOn,
         methodName, jdbcMethodFunc, args);
+  }
+
+  /**
+   * Selects a balancing target for a read query and switches the current connection to it.
+   *
+   * <p>The target is chosen with the configured {@code readerHostSelectorStrategy}. When
+   * {@code loadBalancingIncludeWriter} is enabled, the writer instance is also eligible.
+   * If no eligible target is available, or the selected target is already the current host,
+   * the current connection is left in place. On connection failure the current connection is
+   * kept as a fallback when it is still usable.
+   *
+   * <p>This method is confined to the Automatic Read/Write Splitting Plugin and does not change
+   * the behavior of the other read/write splitting plugins.
+   */
+  protected void switchToBalancedReader() throws SQLException {
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
+
+    if (currentConnection == null || currentConnection.isClosed()) {
+      // No usable current connection; let the standard reader-routing path establish one.
+      switchConnectionIfRequired(true);
+      return;
+    }
+
+    final HostRole role = this.loadBalancingIncludeWriter ? null : HostRole.READER;
+    final HostSpec target = this.pluginService.getHostSpecByStrategy(
+        this.getReaderHostCandidates(), role, this.readerSelectorStrategy);
+
+    if (target == null) {
+      // No balancing candidate available (e.g. single-host cluster). Fall back to the standard
+      // reader-routing path, which handles single-host clusters and reader fallback. Only needed
+      // when we are not already in read-write-split (reader) mode.
+      if (!this.inReadWriteSplit) {
+        switchConnectionIfRequired(true);
+      }
+      return;
+    }
+
+    if (currentHost != null && target.getHostAndPort().equals(currentHost.getHostAndPort())) {
+      // Already connected to the selected host; nothing to switch.
+      this.inReadWriteSplit = true;
+      return;
+    }
+
+    // Preserve the writer connection so it can be reused for later write routing instead of
+    // being orphaned when we balance away from it.
+    if (currentHost != null && isWriter(currentHost) && !isConnectionUsable(this.writerConnection)) {
+      setWriterConnection(currentConnection, currentHost);
+    }
+
+    final Connection newConnection;
+    try {
+      newConnection = this.pluginService.connect(target, this.properties, this);
+    } catch (final SQLException e) {
+      // Could not connect to the selected target; keep the current connection when it is usable.
+      if (!isConnectionUsable(currentConnection)) {
+        throw e;
+      }
+      LOGGER.fine(() -> Messages.get(
+          "ReadWriteSplittingPlugin.fallbackToCurrentConnection",
+          new Object[] {currentHost == null ? "" : currentHost.getHostAndPort(), e.getMessage()}));
+      return;
+    }
+
+    this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
+    this.inReadWriteSplit = true;
+    setReaderConnection(newConnection, target);
+    switchCurrentConnectionTo(newConnection, target);
+    LOGGER.finest(() -> Messages.get(
+        "AutoReadWriteSplittingPlugin.switchedToBalancedReader",
+        new Object[] {target.getHostAndPort()}));
+
+    // Return the previous connection to the pool (or close it) when we balanced away from a
+    // reader. The writer connection is never closed here so it can be reused for writes.
+    if (currentConnection != newConnection && currentHost != null && isReader(currentHost)) {
+      try {
+        if (!currentConnection.isClosed()) {
+          currentConnection.close();
+        }
+      } catch (final SQLException e) {
+        // best-effort cleanup / pool return; ignore
+      }
+    }
+  }
+
+  // Visible for testing
+  boolean isQueryLevelLoadBalancingEnabled() {
+    return this.queryLevelLoadBalancing;
+  }
+
+  // Visible for testing
+  @Nullable HostRole getLoadBalancingCandidateRole() {
+    return this.loadBalancingIncludeWriter ? null : HostRole.READER;
   }
 
   /**

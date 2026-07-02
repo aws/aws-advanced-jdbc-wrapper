@@ -16,10 +16,22 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -28,8 +40,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
 import software.amazon.jdbc.parser.SqlContextKeys;
@@ -43,6 +59,25 @@ public class AutoReadWriteSplittingPluginTest {
 
   @Mock PluginService mockPluginService;
   @Mock SessionStateService mockSessionStateService;
+  @Mock Connection mockWriterConn;
+  @Mock Connection mockReaderConn1;
+  @Mock Connection mockReaderConn2;
+
+  private final HostSpec writerHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("writer").port(5432).role(HostRole.WRITER).build();
+  private final HostSpec readerHost1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("reader1").port(5432).role(HostRole.READER).build();
+  private final HostSpec readerHost2 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("reader2").port(5432).role(HostRole.READER).build();
+
+  private AutoReadWriteSplittingPlugin balancingPlugin(final boolean includeWriter) {
+    final Properties props = new Properties();
+    props.setProperty(AutoReadWriteSplittingPlugin.QUERY_LEVEL_LOAD_BALANCING.name, "true");
+    if (includeWriter) {
+      props.setProperty(AutoReadWriteSplittingPlugin.LOAD_BALANCING_INCLUDE_WRITER.name, "true");
+    }
+    return new AutoReadWriteSplittingPlugin(mockPluginService, props);
+  }
 
   @BeforeEach
   void setUp() throws Exception {
@@ -181,5 +216,100 @@ public class AutoReadWriteSplittingPluginTest {
     callContext.setAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.KEEP);
 
     assertTrue(plugin.shouldKeepCurrentConnection());
+  }
+
+  @Test
+  void test_queryLevelLoadBalancing_disabledByDefault() {
+    assertFalse(plugin.isQueryLevelLoadBalancingEnabled());
+  }
+
+  @Test
+  void test_queryLevelLoadBalancing_enabledByProperty() {
+    assertTrue(balancingPlugin(false).isQueryLevelLoadBalancingEnabled());
+  }
+
+  @Test
+  void test_loadBalancingCandidateRole_readerByDefault() {
+    assertEquals(HostRole.READER, balancingPlugin(false).getLoadBalancingCandidateRole());
+  }
+
+  @Test
+  void test_loadBalancingCandidateRole_nullWhenIncludeWriter() {
+    assertNull(balancingPlugin(true).getLoadBalancingCandidateRole());
+  }
+
+  @Test
+  void test_switchToBalancedReader_switchesFromWriterToReader() throws Exception {
+    final AutoReadWriteSplittingPlugin p = balancingPlugin(false);
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
+    when(mockWriterConn.isClosed()).thenReturn(false);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(writerHost);
+    when(mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHost, readerHost1, readerHost2));
+    when(mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), anyString()))
+        .thenReturn(readerHost1);
+    when(mockPluginService.connect(eq(readerHost1), any(), any())).thenReturn(mockReaderConn1);
+    when(mockPluginService.isPooledConnection()).thenReturn(false);
+
+    p.switchToBalancedReader();
+
+    verify(mockPluginService).setCurrentConnection(mockReaderConn1, readerHost1);
+    // The writer connection is preserved for later write routing and never closed here.
+    assertSame(mockWriterConn, p.getWriterConnection());
+    verify(mockWriterConn, never()).close();
+  }
+
+  @Test
+  void test_switchToBalancedReader_closesPreviousReaderWhenBalancingReaderToReader() throws Exception {
+    final AutoReadWriteSplittingPlugin p = balancingPlugin(false);
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(mockReaderConn1.isClosed()).thenReturn(false);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHost1);
+    when(mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHost, readerHost1, readerHost2));
+    when(mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), anyString()))
+        .thenReturn(readerHost2);
+    when(mockPluginService.connect(eq(readerHost2), any(), any())).thenReturn(mockReaderConn2);
+    when(mockPluginService.isPooledConnection()).thenReturn(false);
+
+    p.switchToBalancedReader();
+
+    verify(mockPluginService).setCurrentConnection(mockReaderConn2, readerHost2);
+    // The reader we balanced away from is returned to the pool / closed.
+    verify(mockReaderConn1).close();
+  }
+
+  @Test
+  void test_switchToBalancedReader_noSwitchWhenAlreadyOnSelectedHost() throws Exception {
+    final AutoReadWriteSplittingPlugin p = balancingPlugin(false);
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(mockReaderConn1.isClosed()).thenReturn(false);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHost1);
+    when(mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHost, readerHost1, readerHost2));
+    when(mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), anyString()))
+        .thenReturn(readerHost1);
+
+    p.switchToBalancedReader();
+
+    verify(mockPluginService, never()).setCurrentConnection(any(), any());
+    verify(mockPluginService, never()).connect(any(), any(), any());
+  }
+
+  @Test
+  void test_switchToBalancedReader_includeWriterUsesNullRole() throws Exception {
+    final AutoReadWriteSplittingPlugin p = balancingPlugin(true);
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(mockReaderConn1.isClosed()).thenReturn(false);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHost1);
+    when(mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHost, readerHost1, readerHost2));
+    when(mockPluginService.getHostSpecByStrategy(anyList(), isNull(), anyString()))
+        .thenReturn(writerHost);
+    when(mockPluginService.connect(eq(writerHost), any(), any())).thenReturn(mockWriterConn);
+    when(mockPluginService.isPooledConnection()).thenReturn(false);
+
+    p.switchToBalancedReader();
+
+    // With loadBalancingIncludeWriter=true the selector is queried with a null role so the
+    // writer instance is eligible as a balancing candidate.
+    verify(mockPluginService).getHostSpecByStrategy(anyList(), isNull(), anyString());
+    verify(mockPluginService).setCurrentConnection(mockWriterConn, writerHost);
   }
 }
