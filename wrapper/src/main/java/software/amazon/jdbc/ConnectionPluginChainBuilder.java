@@ -52,8 +52,10 @@ import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
 import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.AutoReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPluginFactory;
 import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
@@ -90,6 +92,7 @@ public class ConnectionPluginChainBuilder {
           put("okta", new OktaAuthPluginFactory());
           put("auroraStaleDns", new AuroraStaleDnsPluginFactory());
           put("readWriteSplitting", new ReadWriteSplittingPluginFactory());
+          put("autoReadWriteSplitting", new AutoReadWriteSplittingPluginFactory());
           put("srw", new SimpleReadWriteSplittingPluginFactory());
           put("gdbReadWriteSplitting", new GdbReadWriteSplittingPluginFactory());
           put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
@@ -101,6 +104,7 @@ public class ConnectionPluginChainBuilder {
           put("limitless", new LimitlessConnectionPluginFactory());
           put("bg", new BlueGreenConnectionPluginFactory());
           put("kmsEncryption", new KmsEncryptionConnectionPluginFactory());
+          put("sqlParser", new SqlParserConnectionPluginFactory());
         }
       };
 
@@ -123,7 +127,9 @@ public class ConnectionPluginChainBuilder {
           put(FailoverConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 900);
           put(GlobalDbFailoverConnectionPluginFactory.class, 1000);
+          put(SqlParserConnectionPluginFactory.class, 1050);
           put(ReadWriteSplittingPluginFactory.class, 1100);
+          put(AutoReadWriteSplittingPluginFactory.class, 1150);
           put(SimpleReadWriteSplittingPluginFactory.class, 1200);
           put(GdbReadWriteSplittingPluginFactory.class, 1300);
           put(HostMonitoringConnectionPluginV1Factory.class, 1400);

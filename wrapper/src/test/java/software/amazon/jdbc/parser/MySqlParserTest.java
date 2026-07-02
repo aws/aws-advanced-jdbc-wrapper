@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.parser;
+package software.amazon.jdbc.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,7 +31,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -41,7 +41,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("INSERT", result.queryType);
+    assertEquals(QueryType.INSERT, result.queryType);
     assertEquals(3, result.columns.size());
   }
 
@@ -51,7 +51,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("UPDATE", result.queryType);
+    assertEquals(QueryType.UPDATE, result.queryType);
     assertEquals(2, result.columns.size());
   }
 
@@ -61,7 +61,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("DELETE", result.queryType);
+    assertEquals(QueryType.DELETE, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -73,7 +73,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.size() >= 2);
   }
 
@@ -84,7 +84,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertNotNull(result.tables);
   }
 
@@ -94,7 +94,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("users"));
   }
 
@@ -105,7 +105,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("orders") || result.tables.contains("`orders`"));
   }
 
@@ -115,7 +115,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("INSERT", result.queryType);
+    assertEquals(QueryType.INSERT, result.queryType);
     assertEquals(2, result.columns.size()); // Column count, not value count
   }
 
@@ -127,7 +127,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("INSERT", result.queryType);
+    assertEquals(QueryType.INSERT, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -137,7 +137,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -147,7 +147,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -162,7 +162,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("CREATE", result.queryType);
+    assertEquals(QueryType.CREATE, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -172,7 +172,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("DROP", result.queryType);
+    assertEquals(QueryType.DROP, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -184,7 +184,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.size() >= 2);
   }
 
@@ -197,7 +197,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.size() >= 2);
   }
 
@@ -207,7 +207,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
   }
 
@@ -219,7 +219,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.whereColumns.size() >= 3);
   }
 
@@ -231,7 +231,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("employees") || result.tables.contains("`employees`"));
   }
 
@@ -243,7 +243,7 @@ class MySqlParserTest {
     JSQLParserAnalyzer.QueryAnalysis result =
         JSQLParserAnalyzer.analyze(sql);
 
-    assertEquals("SELECT", result.queryType);
+    assertEquals(QueryType.SELECT, result.queryType);
     assertTrue(result.tables.contains("employees") || result.tables.contains("`employees`"));
   }
 }
