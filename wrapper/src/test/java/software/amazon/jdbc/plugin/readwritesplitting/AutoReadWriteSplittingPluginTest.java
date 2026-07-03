@@ -259,7 +259,7 @@ public class AutoReadWriteSplittingPluginTest {
   }
 
   @Test
-  void test_switchToBalancedReader_closesPreviousReaderWhenBalancingReaderToReader() throws Exception {
+  void test_switchToBalancedReader_doesNotCloseInFlightReaderConnection() throws Exception {
     final AutoReadWriteSplittingPlugin p = balancingPlugin(false);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
     when(mockReaderConn1.isClosed()).thenReturn(false);
@@ -273,7 +273,43 @@ public class AutoReadWriteSplittingPluginTest {
     p.switchToBalancedReader();
 
     verify(mockPluginService).setCurrentConnection(mockReaderConn2, readerHost2);
-    // The reader we balanced away from is returned to the pool / closed.
+    // The previous reader must NOT be closed: a Statement created before the switch may still be
+    // bound to it. It is retained for reuse and closed only in releaseResources().
+    verify(mockReaderConn1, never()).close();
+  }
+
+  @Test
+  void test_switchToBalancedReader_deferredCloseOfVacatedReader() throws Exception {
+    final AutoReadWriteSplittingPlugin p = balancingPlugin(false);
+    when(mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHost, readerHost1, readerHost2));
+    when(mockPluginService.isPooledConnection()).thenReturn(false);
+    when(mockWriterConn.isClosed()).thenReturn(false);
+    when(mockReaderConn1.isClosed()).thenReturn(false);
+    when(mockReaderConn2.isClosed()).thenReturn(false);
+
+    // Switch 1: writer -> reader1. Writer is preserved, nothing is vacated.
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(writerHost);
+    when(mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), anyString()))
+        .thenReturn(readerHost1);
+    when(mockPluginService.connect(eq(readerHost1), any(), any())).thenReturn(mockReaderConn1);
+    p.switchToBalancedReader();
+
+    // Switch 2: reader1 -> reader2. reader1 is vacated but must NOT be closed yet.
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHost1);
+    when(mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), anyString()))
+        .thenReturn(readerHost2);
+    when(mockPluginService.connect(eq(readerHost2), any(), any())).thenReturn(mockReaderConn2);
+    p.switchToBalancedReader();
+    verify(mockReaderConn1, never()).close();
+
+    // Switch 3: reader2 -> reader1. The reader1 connection vacated at switch 2 is now closed.
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn2);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHost2);
+    when(mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), anyString()))
+        .thenReturn(readerHost1);
+    p.switchToBalancedReader();
     verify(mockReaderConn1).close();
   }
 

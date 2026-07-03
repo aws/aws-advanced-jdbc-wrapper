@@ -86,6 +86,11 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
   private final boolean queryLevelLoadBalancing;
   private final boolean loadBalancingIncludeWriter;
 
+  // The reader connection vacated by the most recent balancing switch, pending close on the next
+  // switch. Held so a connection is not closed while a Statement created before the switch may
+  // still be executing on it. Never holds the writer connection.
+  private Connection vacatedConnection;
+
   private static final Set<String> executeMethodNames;
 
   static {
@@ -174,10 +179,16 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
    * the behavior of the other read/write splitting plugins.
    */
   protected void switchToBalancedReader() throws SQLException {
+    // Close the connection vacated during the PREVIOUS balancing switch. It is only safe to close
+    // it now, one query later: any Statement/ResultSet created before that switch has since been
+    // closed by the caller. The connection vacated by THIS switch cannot be closed yet (a statement
+    // created before this switch may still be executing on it), so its cleanup is deferred.
+    releaseVacatedConnection();
+
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
 
-    if (currentConnection == null || currentConnection.isClosed()) {
+    if (currentConnection == null || currentConnection.isClosed() || currentHost == null) {
       // No usable current connection; let the standard reader-routing path establish one.
       switchConnectionIfRequired(true);
       return;
@@ -197,7 +208,7 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       return;
     }
 
-    if (currentHost != null && target.getHostAndPort().equals(currentHost.getHostAndPort())) {
+    if (target.getHostAndPort().equals(currentHost.getHostAndPort())) {
       // Already connected to the selected host; nothing to switch.
       this.inReadWriteSplit = true;
       return;
@@ -205,10 +216,12 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
 
     // Preserve the writer connection so it can be reused for later write routing instead of
     // being orphaned when we balance away from it.
-    if (currentHost != null && isWriter(currentHost) && !isConnectionUsable(this.writerConnection)) {
+    if (isWriter(currentHost) && !isConnectionUsable(this.writerConnection)) {
       setWriterConnection(currentConnection, currentHost);
     }
 
+    // Ask the plugin service for a connection to the selected host. When the user has configured
+    // an internal connection pool, this reuses a pooled connection; otherwise it opens a new one.
     final Connection newConnection;
     try {
       newConnection = this.pluginService.connect(target, this.properties, this);
@@ -219,29 +232,49 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       }
       LOGGER.fine(() -> Messages.get(
           "ReadWriteSplittingPlugin.fallbackToCurrentConnection",
-          new Object[] {currentHost == null ? "" : currentHost.getHostAndPort(), e.getMessage()}));
+          new Object[] {currentHost.getHostAndPort(), e.getMessage()}));
       return;
     }
 
     this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
     this.inReadWriteSplit = true;
+    // Store the new reader in the base reader cache (honoring cachedReaderKeepAliveTimeoutMs) so
+    // notifyConnectionChanged treats it as a cached connection and does not close it.
     setReaderConnection(newConnection, target);
     switchCurrentConnectionTo(newConnection, target);
     LOGGER.finest(() -> Messages.get(
         "AutoReadWriteSplittingPlugin.switchedToBalancedReader",
         new Object[] {target.getHostAndPort()}));
 
-    // Return the previous connection to the pool (or close it) when we balanced away from a
-    // reader. The writer connection is never closed here so it can be reused for writes.
-    if (currentConnection != newConnection && currentHost != null && isReader(currentHost)) {
-      try {
-        if (!currentConnection.isClosed()) {
-          currentConnection.close();
-        }
-      } catch (final SQLException e) {
-        // best-effort cleanup / pool return; ignore
-      }
+    // Defer closing the connection we just left until the next balancing switch: it may still be
+    // in use by an in-flight statement created before this switch. The writer connection is never
+    // queued for closing so it remains available for write routing.
+    this.vacatedConnection = (currentConnection == this.writerConnection) ? null : currentConnection;
+  }
+
+  /**
+   * Closes the connection that was vacated by the previous balancing switch, unless it is the
+   * preserved writer connection or has become the current connection again.
+   */
+  private void releaseVacatedConnection() {
+    final Connection toClose = this.vacatedConnection;
+    this.vacatedConnection = null;
+    if (toClose == null || toClose == this.writerConnection) {
+      return;
     }
+    try {
+      if (toClose != this.pluginService.getCurrentConnection() && !toClose.isClosed()) {
+        toClose.close();
+      }
+    } catch (final SQLException e) {
+      // best-effort cleanup / pool return; ignore
+    }
+  }
+
+  @Override
+  public void releaseResources() {
+    releaseVacatedConnection();
+    super.releaseResources();
   }
 
   // Visible for testing
