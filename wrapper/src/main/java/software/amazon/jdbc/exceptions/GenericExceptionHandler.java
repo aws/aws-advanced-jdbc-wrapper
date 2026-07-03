@@ -59,7 +59,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isNetworkException(final String sqlState) {
+  public boolean isNetworkException(final @Nullable String sqlState) {
     if (sqlState == null) {
       return false;
     }
@@ -74,7 +74,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(final Throwable throwable, TargetDriverDialect targetDriverDialect) {
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -100,8 +100,8 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(final String sqlState) {
-    return ACCESS_ERRORS.contains(sqlState);
+  public boolean isLoginException(final @Nullable String sqlState) {
+    return sqlState != null && ACCESS_ERRORS.contains(sqlState);
   }
 
   @Override

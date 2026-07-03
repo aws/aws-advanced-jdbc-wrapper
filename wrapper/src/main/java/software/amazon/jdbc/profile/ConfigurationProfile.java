@@ -102,12 +102,13 @@ public class ConfigurationProfile {
     if (this.dialect != null) {
       return this.dialect;
     }
-    if (this.dialectSupplier == null) {
+    final Supplier<Dialect> supplier = this.dialectSupplier;
+    if (supplier == null) {
       return null;
     }
 
     try (ResourceLock ignored = this.lock.obtain()) {
-      this.dialect = this.dialectSupplier.get();
+      this.dialect = supplier.get();
       return this.dialect;
     }
   }
@@ -116,14 +117,15 @@ public class ConfigurationProfile {
     if (this.targetDriverDialect != null) {
       return this.targetDriverDialect;
     }
-    if (this.targetDriverDialectSupplier == null) {
+    final Supplier<TargetDriverDialect> supplier = this.targetDriverDialectSupplier;
+    if (supplier == null) {
       return null;
     }
     try (ResourceLock ignored = this.lock.obtain()) {
       if (this.targetDriverDialect != null) {
         return this.targetDriverDialect;
       }
-      this.targetDriverDialect = this.targetDriverDialectSupplier.get();
+      this.targetDriverDialect = supplier.get();
       return this.targetDriverDialect;
     }
   }
@@ -132,14 +134,15 @@ public class ConfigurationProfile {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler;
     }
-    if (this.exceptionHandlerSupplier == null) {
+    final Supplier<ExceptionHandler> supplier = this.exceptionHandlerSupplier;
+    if (supplier == null) {
       return null;
     }
     try (ResourceLock ignored = this.lock.obtain()) {
       if (this.exceptionHandler != null) {
         return this.exceptionHandler;
       }
-      this.exceptionHandler = this.exceptionHandlerSupplier.get();
+      this.exceptionHandler = supplier.get();
       return this.exceptionHandler;
     }
   }
@@ -148,14 +151,15 @@ public class ConfigurationProfile {
     if (this.connectionProvider != null) {
       return this.connectionProvider;
     }
-    if (this.connectionProviderSupplier == null) {
+    final Supplier<ConnectionProvider> supplier = this.connectionProviderSupplier;
+    if (supplier == null) {
       return null;
     }
     try (ResourceLock ignored = this.lock.obtain()) {
       if (this.connectionProvider != null) {
         return this.connectionProvider;
       }
-      this.connectionProvider = this.connectionProviderSupplier.get();
+      this.connectionProvider = supplier.get();
       return this.connectionProvider;
     }
   }
@@ -164,14 +168,15 @@ public class ConfigurationProfile {
     if (this.awsCredentialsProviderHandler != null) {
       return this.awsCredentialsProviderHandler;
     }
-    if (this.awsCredentialsProviderHandlerSupplier == null) {
+    final Supplier<AwsCredentialsProviderHandler> supplier = this.awsCredentialsProviderHandlerSupplier;
+    if (supplier == null) {
       return null;
     }
     try (ResourceLock ignored = this.lock.obtain()) {
       if (this.awsCredentialsProviderHandler != null) {
         return this.awsCredentialsProviderHandler;
       }
-      this.awsCredentialsProviderHandler = this.awsCredentialsProviderHandlerSupplier.get();
+      this.awsCredentialsProviderHandler = supplier.get();
       return this.awsCredentialsProviderHandler;
     }
   }

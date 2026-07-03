@@ -19,6 +19,7 @@ package software.amazon.jdbc.util.events;
 import java.util.Objects;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class MonitorResetEvent implements Event {
 
@@ -31,7 +32,7 @@ public class MonitorResetEvent implements Event {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

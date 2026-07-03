@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -35,7 +36,7 @@ public class SessionStateServiceImpl implements SessionStateService {
   private static final Logger LOGGER = Logger.getLogger(SessionStateServiceImpl.class.getName());
 
   protected SessionState sessionState;
-  protected SessionState copySessionState;
+  protected @Nullable SessionState copySessionState;
 
   protected final PluginService pluginService;
   protected final Properties props;
@@ -484,28 +485,33 @@ public class SessionStateServiceImpl implements SessionStateService {
       }
     }
 
-    if (this.copySessionState.autoCommit.canRestorePristine()) {
+    final SessionState copySessionState = this.copySessionState;
+    if (copySessionState == null) {
+      return;
+    }
+
+    if (copySessionState.autoCommit.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        connection.setAutoCommit(this.copySessionState.autoCommit.getPristineValue().get());
+        connection.setAutoCommit(copySessionState.autoCommit.getPristineValue().get());
       } catch (final SQLException e) {
         // Ignore any exception
       }
     }
 
-    if (this.copySessionState.readOnly.canRestorePristine()) {
+    if (copySessionState.readOnly.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        connection.setReadOnly(this.copySessionState.readOnly.getPristineValue().get());
+        connection.setReadOnly(copySessionState.readOnly.getPristineValue().get());
       } catch (final SQLException e) {
         // Ignore any exception
       }
     }
 
-    if (this.copySessionState.catalog.canRestorePristine()) {
+    if (copySessionState.catalog.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        final String pristineCatalog = this.copySessionState.catalog.getPristineValue().get();
+        final String pristineCatalog = copySessionState.catalog.getPristineValue().get();
         if (!StringUtils.isNullOrEmpty(pristineCatalog)) {
           connection.setCatalog(pristineCatalog);
         }
@@ -514,51 +520,51 @@ public class SessionStateServiceImpl implements SessionStateService {
       }
     }
 
-    if (this.copySessionState.schema.canRestorePristine()) {
+    if (copySessionState.schema.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        connection.setSchema(this.copySessionState.schema.getPristineValue().get());
+        connection.setSchema(copySessionState.schema.getPristineValue().get());
       } catch (final SQLException e) {
         // Ignore any exception
       }
     }
 
-    if (this.copySessionState.holdability.canRestorePristine()) {
+    if (copySessionState.holdability.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        connection.setHoldability(this.copySessionState.holdability.getPristineValue().get());
+        connection.setHoldability(copySessionState.holdability.getPristineValue().get());
       } catch (final SQLException e) {
         // Ignore any exception
       }
     }
 
-    if (this.copySessionState.transactionIsolation.canRestorePristine()) {
+    if (copySessionState.transactionIsolation.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent,MagicConstant
         connection.setTransactionIsolation(
-            this.copySessionState.transactionIsolation.getPristineValue().get());
+            copySessionState.transactionIsolation.getPristineValue().get());
       } catch (final SQLException e) {
         // Ignore any exception
       }
     }
 
-    if (this.copySessionState.networkTimeout.canRestorePristine()) {
+    if (copySessionState.networkTimeout.canRestorePristine()) {
       try {
         final ExecutorService executorService =
             ExecutorFactory.newSingleThreadExecutor("session");
         //noinspection OptionalGetWithoutIsPresent
         connection.setNetworkTimeout(executorService,
-            this.copySessionState.networkTimeout.getPristineValue().get());
+            copySessionState.networkTimeout.getPristineValue().get());
         executorService.shutdown();
       } catch (final SQLException e) {
         // Ignore any exception
       }
     }
 
-    if (this.copySessionState.typeMap.canRestorePristine()) {
+    if (copySessionState.typeMap.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        connection.setTypeMap(this.copySessionState.typeMap.getPristineValue().get());
+        connection.setTypeMap(copySessionState.typeMap.getPristineValue().get());
       } catch (final SQLException e) {
         // Ignore any exception
       }

@@ -19,10 +19,12 @@ package software.amazon.jdbc.util.storage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.ResourceLock;
 
-public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpirationCache<K, V> {
+public class SlidingExpirationCacheWithCleanupThread<K extends @NonNull Object, V extends @NonNull Object>
+    extends SlidingExpirationCache<K, V> {
 
   private static final Logger LOGGER =
       Logger.getLogger(SlidingExpirationCacheWithCleanupThread.class.getName());
@@ -32,11 +34,17 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
   protected final ResourceLock initLock = new ResourceLock();
   protected boolean isInitialized = false;
 
+  // initCleanupThread() only touches fields that are already initialized at this point (this
+  // class's field initializers and the superclass constructor have run); the async cleanup task
+  // it submits runs after construction completes. The checker cannot see this, hence the
+  // localized suppression of the under-initialization receiver warning.
+  @SuppressWarnings("method.invocation")
   public SlidingExpirationCacheWithCleanupThread() {
     super();
     this.initCleanupThread();
   }
 
+  @SuppressWarnings("method.invocation")
   public SlidingExpirationCacheWithCleanupThread(
       final ShouldDisposeFunc<V> shouldDisposeFunc,
       final ItemDisposalFunc<V> itemDisposalFunc) {
@@ -44,6 +52,7 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
     this.initCleanupThread();
   }
 
+  @SuppressWarnings("method.invocation")
   public SlidingExpirationCacheWithCleanupThread(
       final ShouldDisposeFunc<V> shouldDisposeFunc,
       final ItemDisposalFunc<V> itemDisposalFunc,

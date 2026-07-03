@@ -26,11 +26,11 @@ import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 
 public class AwsCredentialsManager {
-  private static AwsCredentialsProviderHandler handler = null;
+  private static @Nullable AwsCredentialsProviderHandler handler = null;
 
   private static final ResourceLock lock = new ResourceLock();
 
-  public static void setCustomHandler(final AwsCredentialsProviderHandler customHandler) {
+  public static void setCustomHandler(final @Nullable AwsCredentialsProviderHandler customHandler) {
     try (ResourceLock ignored = lock.obtain()) {
       handler = customHandler;
     }

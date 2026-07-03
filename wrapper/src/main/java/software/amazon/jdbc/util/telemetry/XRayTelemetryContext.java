@@ -30,6 +30,9 @@ public class XRayTelemetryContext implements TelemetryContext {
   private Entity traceEntity;
   private final String name;
 
+  // setAttribute() only writes to the trace entity created earlier in this constructor and guards
+  // on traceEntity != null; calling it during construction is safe. The checker cannot see this.
+  @SuppressWarnings("method.invocation")
   public XRayTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
     this.name = name;
 

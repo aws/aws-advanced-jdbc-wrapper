@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util.telemetry;
 
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class DefaultTelemetryFactory implements TelemetryFactory {
@@ -25,12 +26,12 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
   private static final XRayTelemetryFactory X_RAY_TELEMETRY_FACTORY = new XRayTelemetryFactory();
 
   private final boolean enableTelemetry;
-  private final String telemetryTracesBackend;
-  private final String telemetryMetricsBackend;
+  private final @Nullable String telemetryTracesBackend;
+  private final @Nullable String telemetryMetricsBackend;
   private final boolean telemetrySubmitTopLevel;
 
-  private final TelemetryFactory tracesTelemetryFactory;
-  private final TelemetryFactory metricsTelemetryFactory;
+  private final @Nullable TelemetryFactory tracesTelemetryFactory;
+  private final @Nullable TelemetryFactory metricsTelemetryFactory;
   private final boolean telemetryInUse;
 
   public DefaultTelemetryFactory(final Properties properties) {
@@ -72,7 +73,7 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
   }
 
   @Override
-  public TelemetryContext openTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
+  public @Nullable TelemetryContext openTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
     if (this.tracesTelemetryFactory == null) {
       return null;
     }
@@ -91,7 +92,7 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
   }
 
   @Override
-  public TelemetryCounter createCounter(final String name) {
+  public @Nullable TelemetryCounter createCounter(final String name) {
     if (this.metricsTelemetryFactory == null) {
       return null;
     }
@@ -99,7 +100,7 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
   }
 
   @Override
-  public TelemetryGauge createGauge(final String name, final GaugeCallable<Long> callback) {
+  public @Nullable TelemetryGauge createGauge(final String name, final GaugeCallable<Long> callback) {
     if (this.metricsTelemetryFactory == null) {
       return null;
     }

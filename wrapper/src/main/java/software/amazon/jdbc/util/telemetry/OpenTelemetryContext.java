@@ -48,6 +48,9 @@ public class OpenTelemetryContext implements TelemetryContext {
     this(tracer, name, traceLevel, getEpochNanos(Instant.now()));
   }
 
+  // setAttribute() only writes to the span created earlier in this constructor and guards on
+  // span != null; calling it during construction is safe. The checker cannot see this.
+  @SuppressWarnings("method.invocation")
   private OpenTelemetryContext(
       final Tracer tracer,
       final String name,

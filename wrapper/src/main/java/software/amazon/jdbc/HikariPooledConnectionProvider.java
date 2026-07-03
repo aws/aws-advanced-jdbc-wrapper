@@ -74,7 +74,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   protected static final RdsUtils rdsUtils = new RdsUtils();
   protected static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   protected final HikariPoolConfigurator poolConfigurator;
-  protected final HikariPoolMapping poolMapping;
+  protected final @Nullable HikariPoolMapping poolMapping;
   protected final AcceptsUrlFunc acceptsUrlFunc;
   protected LeastConnectionsHostSelector leastConnectionsHostSelector;
 
@@ -151,7 +151,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *                               generated for each unique key returned by this function.
    */
   public HikariPooledConnectionProvider(
-      HikariPoolConfigurator hikariPoolConfigurator, HikariPoolMapping mapping) {
+      HikariPoolConfigurator hikariPoolConfigurator, @Nullable HikariPoolMapping mapping) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
     this.acceptsUrlFunc = null;
@@ -185,7 +185,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator,
-      HikariPoolMapping mapping,
+      @Nullable HikariPoolMapping mapping,
       long poolExpirationNanos,
       long poolCleanupNanos) {
     this.poolConfigurator = hikariPoolConfigurator;
@@ -226,7 +226,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator,
-      HikariPoolMapping mapping,
+      @Nullable HikariPoolMapping mapping,
       AcceptsUrlFunc acceptsUrlFunc,
       long poolExpirationNanos,
       long poolCleanupNanos) {

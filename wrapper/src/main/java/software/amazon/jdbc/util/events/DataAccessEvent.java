@@ -18,6 +18,7 @@ package software.amazon.jdbc.util.events;
 
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A class defining a data access event. The class specifies the class of the data that was accessed and the key for the
@@ -47,7 +48,7 @@ public class DataAccessEvent implements Event {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

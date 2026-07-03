@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
@@ -34,14 +35,14 @@ import software.amazon.jdbc.util.Messages;
  * @param <K> the type of the keys in the cache.
  * @param <V> the type of the values in the cache.
  */
-public class ExpirationCache<K, V> {
+public class ExpirationCache<K extends @NonNull Object, V extends @NonNull Object> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected static final long DEFAULT_TIME_TO_LIVE_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final boolean isRenewableExpiration;
   protected final long timeToLiveNanos;
-  protected final ShouldDisposeFunc<V> shouldDisposeFunc;
-  protected final ItemDisposalFunc<V> itemDisposalFunc;
+  protected final @Nullable ShouldDisposeFunc<V> shouldDisposeFunc;
+  protected final @Nullable ItemDisposalFunc<V> itemDisposalFunc;
 
   public ExpirationCache() {
     this(false, DEFAULT_TIME_TO_LIVE_NANOS, null, null);
@@ -113,7 +114,7 @@ public class ExpirationCache<K, V> {
     // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
     // which is important because the disposal function may be long-running.
     final List<V> toDisposeList = new ArrayList<>(1);
-    final CacheItem<V> cacheItem = cache.compute(
+    final @Nullable CacheItem<V> cacheItem = cache.compute(
         key,
         (k, valueItem) -> {
           if (valueItem == null) {
@@ -146,7 +147,10 @@ public class ExpirationCache<K, V> {
       this.itemDisposalFunc.dispose(toDisposeList.get(0));
     }
 
-    return cacheItem.item;
+    // The remapping function never returns null, so compute() never returns null here.
+    @SuppressWarnings("dereference.of.nullable")
+    final V item = cacheItem.item;
+    return item;
   }
 
   /**

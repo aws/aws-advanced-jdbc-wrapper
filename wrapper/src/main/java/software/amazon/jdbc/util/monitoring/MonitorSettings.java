@@ -27,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class MonitorSettings {
   private final long expirationTimeoutNanos;
   private final long inactiveTimeoutNanos;
-  private @Nullable final EnumSet<MonitorErrorResponse> errorResponses;
+  private final @Nullable EnumSet<MonitorErrorResponse> errorResponses;
 
   /**
    * Constructs a MonitorSettings instance.

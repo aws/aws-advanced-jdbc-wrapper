@@ -49,7 +49,7 @@ public class CacheItem<V> {
    *                            always be disposed when expired.
    */
   protected CacheItem(
-      final @NonNull V item, final long expirationTimeNanos, @Nullable final ShouldDisposeFunc<V> shouldDisposeFunc) {
+      final @NonNull V item, final long expirationTimeNanos, final @Nullable ShouldDisposeFunc<V> shouldDisposeFunc) {
     this.item = item;
     this.expirationTimeNanos = expirationTimeNanos;
     this.shouldDisposeFunc = shouldDisposeFunc;
@@ -94,7 +94,7 @@ public class CacheItem<V> {
   }
 
   @Override
-  public boolean equals(final Object obj) {
+  public boolean equals(final @Nullable Object obj) {
     if (this == obj) {
       return true;
     }

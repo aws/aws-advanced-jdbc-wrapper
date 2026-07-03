@@ -90,6 +90,10 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
    *                             nanoseconds.
    * @param publisher            the publisher to subscribe to for data access events.
    */
+  // Subscribing this as an event subscriber and scheduling the cleanup task are both safe to do
+  // here: the subscriber callbacks and the cleanup task only run after construction completes. The
+  // checker cannot see this, hence the localized suppression of the under-initialization warnings.
+  @SuppressWarnings({"method.invocation", "argument"})
   public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
     this.publisher.subscribe(this,
@@ -202,6 +206,10 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     );
   }
 
+  // The computeIfAbsent lambda intentionally returns null when monitor creation throws; the
+  // exception is captured in exceptionList and rethrown immediately after, so the null value is
+  // never observed by callers. The checker cannot see this, hence the localized suppression.
+  @SuppressWarnings("return")
   @Override
   public <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
@@ -318,7 +326,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public <T extends Monitor> T remove(Class<T> monitorClass, Object key) {
+  public <T extends Monitor> @Nullable T remove(Class<T> monitorClass, Object key) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       return null;
@@ -433,9 +441,9 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
    * A container that holds a cache of monitors of a given type with the related settings and info for that type.
    */
   protected static class CacheContainer {
-    private @NonNull final MonitorSettings settings;
-    private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
-    private @Nullable final Class<?> producedDataClass;
+    private final @NonNull MonitorSettings settings;
+    private final @NonNull ExternallyManagedCache<Object, MonitorItem> cache;
+    private final @Nullable Class<?> producedDataClass;
 
     /**
      * Constructs a CacheContainer instance. As part of the constructor, a new cache will be created based on the given
@@ -444,7 +452,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
      * @param settings          the settings for the cache and monitor type.
      * @param producedDataClass the class of the data produced by the monitor type, if it produces any data.
      */
-    public CacheContainer(@NonNull final MonitorSettings settings, @Nullable Class<?> producedDataClass) {
+    public CacheContainer(final @NonNull MonitorSettings settings, @Nullable Class<?> producedDataClass) {
       this.settings = settings;
       this.cache = new ExternallyManagedCache<>(settings.getExpirationTimeoutNanos());
       this.producedDataClass = producedDataClass;
@@ -468,8 +476,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
    * be used to recreate the monitor if it encounters an error or becomes stuck.
    */
   protected static class MonitorItem {
-    private @NonNull final Supplier<? extends Monitor> monitorSupplier;
-    private @NonNull final Monitor monitor;
+    private final @NonNull Supplier<? extends Monitor> monitorSupplier;
+    private final @NonNull Monitor monitor;
 
     /**
      * Constructs a MonitorItem instance. As part of the constructor, a new monitor will be created using the given
