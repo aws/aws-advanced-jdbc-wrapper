@@ -244,16 +244,6 @@ public class DialectManager implements DialectProvider {
     return resolved;
   }
 
-  private static @NonNull Dialect getDialectByCode(final String dialectCode) throws SQLException {
-    // All codes passed here are constants that are registered in knownDialectsByCode, so this
-    // lookup never returns null in practice; the guard preserves the non-null return contract.
-    final Dialect resolved = knownDialectsByCode.get(dialectCode);
-    if (resolved == null) {
-      throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
-    }
-    return resolved;
-  }
-
   @Override
   public Dialect getDialect(
       final @NonNull String originalUrl,
@@ -312,6 +302,16 @@ public class DialectManager implements DialectProvider {
 
     this.logCurrentDialect();
     return currentDialect;
+  }
+
+  private static @NonNull Dialect getDialectByCode(final String dialectCode) throws SQLException {
+    // All codes passed here are constants that are registered in knownDialectsByCode, so this
+    // lookup never returns null in practice; the guard preserves the non-null return contract.
+    final Dialect resolved = knownDialectsByCode.get(dialectCode);
+    if (resolved == null) {
+      throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
+    }
+    return resolved;
   }
 
   private void logCurrentDialect() {
