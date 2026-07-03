@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -177,38 +176,35 @@ public class ConnectionPluginChainBuilder {
     List<ConnectionPlugin> plugins;
     List<ConnectionPluginFactory> pluginFactories;
 
-    if (configurationProfile != null && configurationProfile.getPluginFactories() != null) {
-      List<Class<? extends ConnectionPluginFactory>> pluginFactoryClasses = configurationProfile.getPluginFactories();
+    final List<Class<? extends ConnectionPluginFactory>> pluginFactoryClasses =
+        configurationProfile == null ? null : configurationProfile.getPluginFactories();
+    if (pluginFactoryClasses != null) {
       pluginFactories = new ArrayList<>(pluginFactoryClasses.size());
 
       for (final Class<? extends ConnectionPluginFactory> factoryClazz : pluginFactoryClasses) {
-        final AtomicReference<InstantiationException> lastException = new AtomicReference<>(null);
-        final ConnectionPluginFactory factory = pluginFactoriesByClass.computeIfAbsent(factoryClazz, (key) -> {
+        // Resolve (and cache) the factory instance. This replaces a previous computeIfAbsent call
+        // whose mapping lambda returned null on failure; here the checked InstantiationException is
+        // rethrown directly, preserving the same SQLException on error. The factory instances are
+        // stateless singletons, so a rare concurrent double-create is harmless.
+        ConnectionPluginFactory factory = pluginFactoriesByClass.get(factoryClazz);
+        if (factory == null) {
           try {
-            return WrapperUtils.createInstance(
+            factory = WrapperUtils.createInstance(
                 factoryClazz,
                 ConnectionPluginFactory.class,
-                null,
-                (Object) null);
-
-          } catch (InstantiationException ex) {
-            lastException.set(ex);
+                (Class<?>[]) null);
+          } catch (final InstantiationException ex) {
+            throw new SQLException(
+                Messages.get(
+                    "ConnectionPluginManager.unableToLoadPlugin",
+                    new Object[] {factoryClazz.getName()}),
+                SqlState.UNKNOWN_STATE.getState(),
+                ex);
           }
-          return null;
-        });
-
-        if (lastException.get() != null) {
-          throw new SQLException(
-              Messages.get(
-                  "ConnectionPluginManager.unableToLoadPlugin",
-                  new Object[] {factoryClazz.getName()}),
-              SqlState.UNKNOWN_STATE.getState(),
-              lastException.get());
+          pluginFactoriesByClass.put(factoryClazz, factory);
         }
 
-        if (factory != null) {
-          pluginFactories.add(factory);
-        }
+        pluginFactories.add(factory);
       }
     } else {
 

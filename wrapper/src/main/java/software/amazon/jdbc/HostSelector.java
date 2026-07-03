@@ -33,6 +33,6 @@ public interface HostSelector {
    * @return a host matching the requested role, or null if no hosts match the requested role
    * @throws SQLException if an error occurs while selecting a host
    */
-  HostSpec getHost(
+  @Nullable HostSpec getHost(
       @NonNull List<HostSpec> hosts, @Nullable HostRole role, @Nullable Properties props) throws SQLException;
 }

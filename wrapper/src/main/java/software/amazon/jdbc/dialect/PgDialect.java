@@ -72,7 +72,7 @@ public class PgDialect implements Dialect {
   }
 
   @Override
-  public List<String> getDialectUpdateCandidates() {
+  public @Nullable List<String> getDialectUpdateCandidates() {
     return dialectUpdateCandidates;
   }
 
@@ -118,7 +118,7 @@ public class PgDialect implements Dialect {
   }
 
   @Override
-  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+  public @Nullable Pair<@Nullable String, @Nullable String> getHostId(Connection connection) throws SQLException {
     return this.dialectUtils.getInstanceId(connection, HOST_ID_QUERY);
   }
 }

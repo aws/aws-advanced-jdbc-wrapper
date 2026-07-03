@@ -457,14 +457,20 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     if (!Utils.isNullOrEmpty(allowedHostIds)) {
       hosts = hosts.stream()
-          .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
+          .filter((hostSpec -> {
+            final String hostId = hostSpec.getHostId();
+            return hostId != null && allowedHostIds.contains(hostId);
+          }))
           .filter(hostSpec -> requiredRole == null || requiredRole == hostSpec.getRole())
           .collect(Collectors.toList());
     }
 
     if (!Utils.isNullOrEmpty(blockedHostIds)) {
       hosts = hosts.stream()
-          .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .filter((hostSpec -> {
+            final String hostId = hostSpec.getHostId();
+            return hostId == null || !blockedHostIds.contains(hostId);
+          }))
           .filter(hostSpec -> requiredRole == null || requiredRole == hostSpec.getRole())
           .collect(Collectors.toList());
     }
@@ -476,8 +482,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public void setAvailability(final @NonNull HostSpec hostSpec, final @NonNull HostAvailability availability) {
 
     final List<HostSpec> hostsToChange = this.getAllHosts().stream()
-        .filter((host) -> hostSpec.getHostId() != null && hostSpec.getHostId().equals(host.getHostId())
-            || hostSpec.getHost() != null && hostSpec.getHost().equalsIgnoreCase(host.getHost()))
+        .filter((host) -> {
+          final String hostId = hostSpec.getHostId();
+          return (hostId != null && hostId.equals(host.getHostId()))
+              || (hostSpec.getHost() != null && hostSpec.getHost().equalsIgnoreCase(host.getHost()));
+        })
         .distinct()
         .collect(Collectors.toList());
 
@@ -547,7 +556,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     final HostListProvider hostListProvider = this.getHostListProvider();
     try {
-      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(verifyTopology, timeoutMs);
+      final @Nullable List<HostSpec> updatedHostList = hostListProvider.forceRefresh(verifyTopology, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);
@@ -767,7 +776,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         return null;
       }
 
-      List<HostSpec> topology = this.hostListProvider.refresh();
+      @Nullable List<HostSpec> topology = this.hostListProvider.refresh();
       if (topology == null) {
         topology = this.hostListProvider.forceRefresh();
       }

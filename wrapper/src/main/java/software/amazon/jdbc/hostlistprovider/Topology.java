@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StateSnapshotProvider;
@@ -41,7 +42,7 @@ public class Topology implements StateSnapshotProvider {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(final @Nullable Object obj) {
     if (this == obj) {
       return true;
     }
@@ -54,7 +55,12 @@ public class Topology implements StateSnapshotProvider {
     return Objects.equals(hosts, other.hosts);
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the
+  // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
+  // Fixing this properly means widening that interface to Pair<String, @Nullable Object>
+  // across all ~25 implementers - out of scope for this change. Suppress locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     for (HostSpec host : this.hosts) {

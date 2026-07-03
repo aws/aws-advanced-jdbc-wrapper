@@ -20,6 +20,9 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPoolsHolder {
+  // A null shouldDisposeFunc is valid (SlidingExpirationCache stores it in a @Nullable field); only
+  // the constructor parameter is typed @NonNull, so the argument is suppressed here.
+  @SuppressWarnings("argument")
   static SlidingExpirationCache<Pair, AutoCloseable> databasePools =
       new SlidingExpirationCache<>(
           null,

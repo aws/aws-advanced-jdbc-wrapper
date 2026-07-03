@@ -69,7 +69,7 @@ public interface TargetDriverDialect {
   void abortConnection(final @NonNull Connection connectionToAbort, final @NonNull Executor abortExecutor)
       throws SQLException;
 
-  String getSQLQueryString(PreparedStatement ps);
+  @Nullable String getSQLQueryString(PreparedStatement ps);
 
   void registerDataType(final @NonNull Connection connection,  final @NonNull String typeName,
       final @NonNull String className)
@@ -78,7 +78,7 @@ public interface TargetDriverDialect {
   void setEncryptedParameter(final @NonNull PreparedStatement ps, int paramIndex, byte[] encrypted)
       throws SQLException;
 
-  byte[] getEncryptedBytes(final @NonNull ResultSet rs, Object columnRef) throws SQLException;
+  byte @Nullable [] getEncryptedBytes(final @NonNull ResultSet rs, Object columnRef) throws SQLException;
 
   /**
    * Allows each target driver dialect to perform last-minute adjustments to the wrapper's

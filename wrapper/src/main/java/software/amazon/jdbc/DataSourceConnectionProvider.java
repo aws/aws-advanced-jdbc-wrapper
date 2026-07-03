@@ -99,17 +99,18 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
+  public @Nullable HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException {
-    if (!acceptedStrategies.containsKey(strategy)) {
+    final HostSelector hostSelector = acceptedStrategies.get(strategy);
+    if (hostSelector == null) {
       throw new UnsupportedOperationException(
           Messages.get(
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
               new Object[] {strategy, DataSourceConnectionProvider.class}));
     }
 
-    return acceptedStrategies.get(strategy).getHost(hosts, role, props);
+    return hostSelector.getHost(hosts, role, props);
   }
 
   /**

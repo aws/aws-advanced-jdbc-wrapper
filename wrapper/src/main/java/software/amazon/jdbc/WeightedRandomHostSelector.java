@@ -55,22 +55,22 @@ public class WeightedRandomHostSelector implements HostSelector {
     this.random = random;
   }
 
-  public HostSpec getHost(
-      @NonNull List<HostSpec> hosts,
-      @Nullable HostRole role,
-      @Nullable Properties props) throws SQLException {
+  @Override
+  public @Nullable HostSpec getHost(
+      final @NonNull List<HostSpec> hosts,
+      final @Nullable HostRole role,
+      final @Nullable Properties props) throws SQLException {
 
-    String hostWeightPairsValue = props == null ? null : WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props);
+    final @Nullable String hostWeightPairsValue =
+        props == null ? null : WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props);
 
     // Parse property map if provided, otherwise use HostSpec.getWeight().
     // NOTE: If limitless plugin is used, weightedRandomHostWeightPairs must be null.
-    Map<String, Integer> hostWeightMap = StringUtils.isNullOrEmpty(hostWeightPairsValue)
+    final @Nullable Map<String, Integer> hostWeightMap = StringUtils.isNullOrEmpty(hostWeightPairsValue)
         ? null
         : getHostWeightPairMap(hostWeightPairsValue);
 
-    HostSpec selected = selectWeightedRandom(hosts, role, hostWeightMap);
-
-    return selected;
+    return selectWeightedRandom(hosts, role, hostWeightMap);
   }
 
   // Selects a host using cumulative weight selection algorithm.
@@ -148,8 +148,11 @@ public class WeightedRandomHostSelector implements HostSelector {
           throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
         }
 
-        final String hostName = matcher.group("host").trim();
-        final String hostWeight = matcher.group("weight").trim();
+        // Named groups "host" and "weight" are always present when matches() is true.
+        final String hostGroup = matcher.group("host");
+        final String weightGroup = matcher.group("weight");
+        final String hostName = hostGroup == null ? "" : hostGroup.trim();
+        final String hostWeight = weightGroup == null ? "" : weightGroup.trim();
         if (hostName.isEmpty() || hostWeight.isEmpty()) {
           throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
         }

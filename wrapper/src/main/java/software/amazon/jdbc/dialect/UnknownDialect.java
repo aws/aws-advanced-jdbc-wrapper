@@ -67,12 +67,12 @@ public class UnknownDialect implements Dialect {
   }
 
   @Override
-  public String getHostAliasQuery() {
+  public @Nullable String getHostAliasQuery() {
     return null;
   }
 
   @Override
-  public String getServerVersionQuery() {
+  public @Nullable String getServerVersionQuery() {
     return null;
   }
 
@@ -83,7 +83,7 @@ public class UnknownDialect implements Dialect {
   }
 
   @Override
-  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+  public @Nullable Pair<@Nullable String, @Nullable String> getHostId(Connection connection) throws SQLException {
     throw new UnsupportedOperationException(
         "Unable to gather host id, connected to unknown DB type.");
   }

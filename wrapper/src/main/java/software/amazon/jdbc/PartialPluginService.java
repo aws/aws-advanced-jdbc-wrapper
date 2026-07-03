@@ -85,18 +85,21 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected final String driverProtocol;
   protected TargetDriverDialect targetDriverDialect;
   protected Dialect dbDialect;
-  protected @Nullable final ConfigurationProfile configurationProfile;
+  protected final @Nullable ConfigurationProfile configurationProfile;
   protected final ConnectionProviderManager connectionProviderManager;
 
+  // The constructor publishes 'this' to the services container (setHostListProviderService, etc.)
+  // before the instance is fully initialized; this is intentional and safe here.
+  @SuppressWarnings({"argument", "method.invocation"})
   public PartialPluginService(
-      @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final ExceptionManager exceptionManager,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ExceptionManager exceptionManager,
+      final @NonNull Properties props,
+      final @NonNull String originalUrl,
+      final @NonNull String targetDriverProtocol,
+      final @NonNull TargetDriverDialect targetDriverDialect,
+      final @NonNull Dialect dbDialect,
+      final @Nullable ConfigurationProfile configurationProfile) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.servicesContainer.setHostListProviderService(this);
     this.servicesContainer.setPluginService(this);
@@ -129,6 +132,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCurrentConnection"}));
   }
 
+  // Utils.getWriter may return null; the null-guards in this method preserve prior behavior. The
+  // currentHostSpec field is typed @NonNull, so the possibly-null assignment is suppressed.
+  @SuppressWarnings("assignment")
   @Override
   public HostSpec getCurrentHostSpec() {
     if (this.currentHostSpec == null) {
@@ -228,7 +234,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   public EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
-      @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
@@ -300,14 +306,20 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
     if (!Utils.isNullOrEmpty(allowedHostIds)) {
       hosts = hosts.stream()
-          .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
+          .filter((hostSpec -> {
+            final String hostId = hostSpec.getHostId();
+            return hostId != null && allowedHostIds.contains(hostId);
+          }))
           .filter(hostSpec -> requiredRole == null || requiredRole == hostSpec.getRole())
           .collect(Collectors.toList());
     }
 
     if (!Utils.isNullOrEmpty(blockedHostIds)) {
       hosts = hosts.stream()
-          .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .filter((hostSpec -> {
+            final String hostId = hostSpec.getHostId();
+            return hostId == null || !blockedHostIds.contains(hostId);
+          }))
           .filter(hostSpec -> requiredRole == null || requiredRole == hostSpec.getRole())
           .collect(Collectors.toList());
     }
@@ -319,7 +331,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   public void setAvailability(final @NonNull HostSpec hostSpec, final @NonNull HostAvailability availability) {
 
     final List<HostSpec> hostsToChange = this.getAllHosts().stream()
-        .filter((host) -> hostSpec.getHostId().equals(host.getHostId())
+        .filter((host) -> Objects.equals(hostSpec.getHostId(), host.getHostId())
             || hostSpec.getHost().equalsIgnoreCase(host.getHost()))
         .distinct()
         .collect(Collectors.toList());
@@ -405,8 +417,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return false;
   }
 
-  void setNodeList(@Nullable final List<HostSpec> oldHosts,
-      @Nullable final List<HostSpec> newHosts) {
+  void setNodeList(final @Nullable List<HostSpec> oldHosts,
+      final @Nullable List<HostSpec> newHosts) {
 
     final Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()
@@ -513,7 +525,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isNetworkException(final String sqlState) {
+  public boolean isNetworkException(final @Nullable String sqlState) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(sqlState);
     }
@@ -529,7 +541,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isLoginException(final String sqlState) {
+  public boolean isLoginException(final @Nullable String sqlState) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(sqlState);
     }
@@ -572,7 +584,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   public @Nullable HostSpec identifyConnection(Connection connection, final @NonNull HostSpec connectionHostSpec)
       throws SQLException {
 
-    final HostIdCacheService hostIdCacheService = this.servicesContainer.getHostIdCacheService();
+    final @Nullable HostIdCacheService hostIdCacheService = this.servicesContainer.getHostIdCacheService();
     if (hostIdCacheService == null) {
       return this.identifyConnection(connection);
     }
@@ -582,12 +594,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
     try {
-      Pair<String, String> instanceIds = this.getDialect().getHostId(connection);
+      final @Nullable Pair<@Nullable String, @Nullable String> instanceIds =
+          this.getDialect().getHostId(connection);
       if (instanceIds == null) {
         throw new SQLException(Messages.get("PluginServiceImpl.errorIdentifyConnection"));
       }
 
-      List<HostSpec> topology = this.hostListProvider.refresh();
+      @Nullable List<HostSpec> topology = this.hostListProvider.refresh();
       boolean isForcedRefresh = false;
       if (topology == null) {
         topology = this.hostListProvider.forceRefresh();
@@ -598,8 +611,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         return null;
       }
 
-      String instanceId = instanceIds.getValue1();
-      String instanceName = instanceIds.getValue2();
+      final @Nullable String instanceId = instanceIds.getValue1();
+      final @Nullable String instanceName = instanceIds.getValue2();
       HostSpec foundHost = topology
           .stream()
           .filter(host -> Objects.equals(instanceId, host.getHostId())
@@ -709,6 +722,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
+  // Class.cast is @Nullable by its null-in/null-out contract, but 'this' is non-null so the cast
+  // result is non-null.
+  @SuppressWarnings("return")
   @Override
   public <T> T unwrap(Class<T> iface) throws SQLException {
     if (iface == PluginService.class) {
@@ -732,7 +748,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public List<Pair<String, Object>> getSnapshotState() {
+  public @Nullable List<Pair<String, Object>> getSnapshotState() {
     return null;
   }
 }

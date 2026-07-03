@@ -19,6 +19,7 @@ package software.amazon.jdbc.hostlistprovider;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.monitoring.Monitor;
@@ -27,6 +28,6 @@ public interface ClusterTopologyMonitor extends Monitor, EventSubscriber {
 
   boolean canDispose();
 
-  List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
+  @Nullable List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException;
 }

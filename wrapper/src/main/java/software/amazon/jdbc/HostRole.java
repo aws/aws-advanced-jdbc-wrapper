@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public enum HostRole {
   UNKNOWN,
@@ -33,7 +34,7 @@ public enum HostRole {
         }
       };
 
-  public static HostRole verifyConnectionTypeFromValue(String value) {
+  public static @Nullable HostRole verifyConnectionTypeFromValue(final @Nullable String value) {
     if (value == null) {
       return null;
     }

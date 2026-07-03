@@ -71,7 +71,7 @@ public class RoundRobinHostSelector implements HostSelector {
   }
 
   @Override
-  public HostSpec getHost(
+  public @Nullable HostSpec getHost(
       final @NonNull List<HostSpec> hosts,
       final @Nullable HostRole role,
       final @Nullable Properties props) throws SQLException {
@@ -92,8 +92,13 @@ public class RoundRobinHostSelector implements HostSelector {
       createCacheEntryForHosts(eligibleHosts, props);
       final String currentClusterInfoKey = eligibleHosts.get(0).getHost();
       final RoundRobinClusterInfo clusterInfo = roundRobinCache.get(currentClusterInfoKey);
+      // createCacheEntryForHosts above always populates the cache for every eligible host, so
+      // clusterInfo is present here; the guard preserves "no host" semantics defensively.
+      if (clusterInfo == null) {
+        return null;
+      }
 
-      final HostSpec lastHost = clusterInfo.lastHost;
+      final @Nullable HostSpec lastHost = clusterInfo.lastHost;
       int lastHostIndex = -1;
 
       // Check if lastHost is in list of eligible hosts. Update lastHostIndex.
@@ -116,7 +121,8 @@ public class RoundRobinHostSelector implements HostSelector {
           targetHostIndex = 0;
         }
 
-        final Integer weight = clusterInfo.clusterWeightsMap.get(eligibleHosts.get(targetHostIndex).getHostId());
+        final @Nullable Integer weight =
+            clusterInfo.clusterWeightsMap.get(eligibleHosts.get(targetHostIndex).getHostId());
         clusterInfo.weightCounter = weight == null ? clusterInfo.defaultWeight : weight;
       }
 
@@ -142,23 +148,27 @@ public class RoundRobinHostSelector implements HostSelector {
     // If there is a host with an existing entry, update the cache entries for all hosts to point each to the same
     // RoundRobinClusterInfo object. If there are no cache entries, create a new RoundRobinClusterInfo.
     if (!hostsWithCacheEntry.isEmpty()) {
+      // hostsWithCacheEntry only contains hosts whose cache entry was non-null just above, so the
+      // lookup is present; the guard preserves behavior defensively for the (impossible) expiry race.
       final RoundRobinClusterInfo roundRobinClusterInfo = roundRobinCache.get(hostsWithCacheEntry.get(0).getHost());
-      if (hasPropertyChanged(roundRobinClusterInfo.lastClusterHostWeightPairPropertyValue,
-          ROUND_ROBIN_HOST_WEIGHT_PAIRS, props)) {
-        roundRobinClusterInfo.lastHost = null;
-        roundRobinClusterInfo.weightCounter = 0;
-        updateCachedHostWeightPairsPropertiesForRoundRobinClusterInfo(roundRobinClusterInfo, props);
-      }
-      if (hasPropertyChanged(roundRobinClusterInfo.lastClusterDefaultWeightPropertyValue, ROUND_ROBIN_DEFAULT_WEIGHT,
-          props)) {
-        roundRobinClusterInfo.defaultWeight = 1;
-        updateCachedDefaultWeightPropertiesForRoundRobinClusterInfo(roundRobinClusterInfo, props);
-      }
-      for (final HostSpec host : hosts) {
-        roundRobinCache.put(
-            host.getHost(),
-            roundRobinClusterInfo,
-            DEFAULT_ROUND_ROBIN_CACHE_EXPIRE_NANO);
+      if (roundRobinClusterInfo != null) {
+        if (hasPropertyChanged(roundRobinClusterInfo.lastClusterHostWeightPairPropertyValue,
+            ROUND_ROBIN_HOST_WEIGHT_PAIRS, props)) {
+          roundRobinClusterInfo.lastHost = null;
+          roundRobinClusterInfo.weightCounter = 0;
+          updateCachedHostWeightPairsPropertiesForRoundRobinClusterInfo(roundRobinClusterInfo, props);
+        }
+        if (hasPropertyChanged(roundRobinClusterInfo.lastClusterDefaultWeightPropertyValue, ROUND_ROBIN_DEFAULT_WEIGHT,
+            props)) {
+          roundRobinClusterInfo.defaultWeight = 1;
+          updateCachedDefaultWeightPropertiesForRoundRobinClusterInfo(roundRobinClusterInfo, props);
+        }
+        for (final HostSpec host : hosts) {
+          roundRobinCache.put(
+              host.getHost(),
+              roundRobinClusterInfo,
+              DEFAULT_ROUND_ROBIN_CACHE_EXPIRE_NANO);
+        }
       }
     } else {
       final RoundRobinClusterInfo roundRobinClusterInfo = new RoundRobinClusterInfo();
@@ -173,11 +183,14 @@ public class RoundRobinHostSelector implements HostSelector {
   }
 
   private boolean hasPropertyChanged(final String lastClusterHostWeightPairPropertyValue,
-      final AwsWrapperProperty wrapperProperty, final Properties props) {
-    if (props == null || wrapperProperty.getString(props) == null) {
+      final AwsWrapperProperty wrapperProperty, final @Nullable Properties props) {
+    if (props == null) {
       return false;
     }
     final String propValue = wrapperProperty.getString(props);
+    if (propValue == null) {
+      return false;
+    }
 
     return !propValue.equals(lastClusterHostWeightPairPropertyValue);
   }
@@ -194,7 +207,7 @@ public class RoundRobinHostSelector implements HostSelector {
       final @Nullable Properties props) throws SQLException {
     int defaultWeight = DEFAULT_WEIGHT;
     if (props != null) {
-      final String defaultWeightString = ROUND_ROBIN_DEFAULT_WEIGHT.getString(props);
+      final @Nullable String defaultWeightString = ROUND_ROBIN_DEFAULT_WEIGHT.getString(props);
       if (!StringUtils.isNullOrEmpty(defaultWeightString)) {
         try {
           final int parsedWeight = Integer.parseInt(defaultWeightString);
@@ -205,7 +218,7 @@ public class RoundRobinHostSelector implements HostSelector {
         } catch (NumberFormatException e) {
           throw new SQLException(Messages.get("HostSelector.roundRobinInvalidDefaultWeight"));
         }
-        roundRobinClusterInfo.lastClusterDefaultWeightPropertyValue = ROUND_ROBIN_DEFAULT_WEIGHT.getString(props);
+        roundRobinClusterInfo.lastClusterDefaultWeightPropertyValue = defaultWeightString;
       }
     }
     roundRobinClusterInfo.defaultWeight = defaultWeight;
@@ -215,7 +228,7 @@ public class RoundRobinHostSelector implements HostSelector {
       final @NonNull RoundRobinClusterInfo roundRobinClusterInfo,
       final @Nullable Properties props) throws SQLException {
     if (props != null) {
-      final String hostWeights = ROUND_ROBIN_HOST_WEIGHT_PAIRS.getString(props);
+      final @Nullable String hostWeights = ROUND_ROBIN_HOST_WEIGHT_PAIRS.getString(props);
       if (!StringUtils.isNullOrEmpty(hostWeights)) {
         final String[] hostWeightPairs = hostWeights.split(",");
         for (final String pair : hostWeightPairs) {
@@ -224,8 +237,11 @@ public class RoundRobinHostSelector implements HostSelector {
             throw new SQLException(Messages.get("HostSelector.roundRobinInvalidHostWeightPairs"));
           }
 
-          final String hostName = matcher.group("host").trim();
-          final String hostWeight = matcher.group("weight").trim();
+          // Named groups "host" and "weight" are always present when matches() is true.
+          final String hostGroup = matcher.group("host");
+          final String weightGroup = matcher.group("weight");
+          final String hostName = hostGroup == null ? "" : hostGroup.trim();
+          final String hostWeight = weightGroup == null ? "" : weightGroup.trim();
           if (hostName.isEmpty() || hostWeight.isEmpty()) {
             throw new SQLException(Messages.get("HostSelector.roundRobinInvalidHostWeightPairs"));
           }
@@ -240,10 +256,10 @@ public class RoundRobinHostSelector implements HostSelector {
             throw new SQLException(Messages.get("HostSelector.roundRobinInvalidHostWeightPairs"));
           }
         }
-        roundRobinClusterInfo.lastClusterHostWeightPairPropertyValue = ROUND_ROBIN_HOST_WEIGHT_PAIRS.getString(props);
+        roundRobinClusterInfo.lastClusterHostWeightPairPropertyValue = hostWeights;
       } else if (hostWeights != null && hostWeights.isEmpty()) {
         roundRobinClusterInfo.clusterWeightsMap.clear();
-        roundRobinClusterInfo.lastClusterHostWeightPairPropertyValue = ROUND_ROBIN_HOST_WEIGHT_PAIRS.getString(props);
+        roundRobinClusterInfo.lastClusterHostWeightPairPropertyValue = hostWeights;
       }
     }
   }
@@ -253,7 +269,7 @@ public class RoundRobinHostSelector implements HostSelector {
   }
 
   public static class RoundRobinClusterInfo {
-    public HostSpec lastHost;
+    public @Nullable HostSpec lastHost;
     public HashMap<String, Integer> clusterWeightsMap = new HashMap<>();
     public int defaultWeight = 1;
     public int weightCounter = 0;

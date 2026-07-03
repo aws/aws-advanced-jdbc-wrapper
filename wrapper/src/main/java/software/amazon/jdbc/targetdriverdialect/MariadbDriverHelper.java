@@ -42,6 +42,10 @@ public class MariadbDriverHelper {
   private static final String DS_CLASS_NAME = MariaDbDataSource.class.getName();
   private static final String DS_CP_CLASS_NAME = MariaDbPoolDataSource.class.getName();
 
+  // MariaDbDataSource/MariaDbPoolDataSource #setUser/#setPassword are declared with @NonNull
+  // parameters in the driver stubs, but they accept null (meaning "no value configured"). The
+  // wrapper USER/PASSWORD properties may legitimately be null here, so the arguments are safe.
+  @SuppressWarnings("argument")
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,

@@ -88,7 +88,7 @@ public class HostIdCacheServiceImpl implements HostIdCacheService {
       return null;
     }
 
-    List<HostSpec> topology;
+    @Nullable List<HostSpec> topology;
     try {
       topology = pluginService.getAllHosts();
       if (topology == null) {

@@ -121,6 +121,13 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     }
 
     result = knownDialectsByCode.get(TargetDriverDialectCodes.GENERIC);
+    if (result == null) {
+      // GENERIC is always registered in knownDialectsByCode, so this never happens in practice;
+      // the guard preserves the non-null return contract of getDialect.
+      throw new SQLException(Messages.get(
+          "TargetDriverDialectManager.unknownDialectCode",
+          new Object[] {TargetDriverDialectCodes.GENERIC}));
+    }
     this.logDialect(TargetDriverDialectCodes.GENERIC, result);
     return result;
   }

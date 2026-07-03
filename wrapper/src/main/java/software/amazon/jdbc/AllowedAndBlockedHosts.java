@@ -25,9 +25,9 @@ import software.amazon.jdbc.util.Utils;
  * Represents the allowed and blocked hosts for connections.
  */
 public class AllowedAndBlockedHosts {
-  @Nullable private final Set<String> allowedHostIds;
-  @Nullable private final Set<String> blockedHostIds;
-  @Nullable private final HostRole requiredRole;
+  private final @Nullable Set<String> allowedHostIds;
+  private final @Nullable Set<String> blockedHostIds;
+  private final @Nullable HostRole requiredRole;
 
   /**
    * Constructs an AllowedAndBlockedHosts instance with the specified allowed and blocked host IDs.
@@ -55,8 +55,7 @@ public class AllowedAndBlockedHosts {
    *
    * @return the set of allowed host IDs for connections.
    */
-  @Nullable
-  public Set<String> getAllowedHostIds() {
+  public @Nullable Set<String> getAllowedHostIds() {
     return this.allowedHostIds;
   }
 
@@ -66,8 +65,7 @@ public class AllowedAndBlockedHosts {
    *
    * @return the set of blocked host IDs for connections.
    */
-  @Nullable
-  public Set<String> getBlockedHostIds() {
+  public @Nullable Set<String> getBlockedHostIds() {
     return this.blockedHostIds;
   }
 
@@ -78,8 +76,7 @@ public class AllowedAndBlockedHosts {
    *
    * @return the required role of instances in the custom endpoint, or null if there is no strict role requirement.
    */
-  @Nullable
-  public HostRole getRequiredRole() {
+  public @Nullable HostRole getRequiredRole() {
     return this.requiredRole;
   }
 }

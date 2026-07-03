@@ -46,6 +46,9 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
   private static final String CONNECTION_POOL_PROPERTY_PREFIX = "cp-";
 
+  // A null shouldDisposeFunc is valid (SlidingExpirationCache stores it in a @Nullable field); only
+  // the constructor parameter is typed @NonNull, so the argument is suppressed here.
+  @SuppressWarnings("argument")
   protected static final SlidingExpirationCache<String, ComboPooledDataSource> databasePools =
       new SlidingExpirationCache<>(null, ComboPooledDataSource::close);
 
@@ -82,19 +85,23 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
+  public @Nullable HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException, UnsupportedOperationException {
-    if (!acceptsStrategy(role, strategy)) {
+    final HostSelector hostSelector = acceptedStrategies.get(strategy);
+    if (hostSelector == null) {
       throw new UnsupportedOperationException(
           Messages.get(
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
               new Object[] {strategy, C3P0PooledConnectionProvider.class}));
     }
 
-    return acceptedStrategies.get(strategy).getHost(hosts, role, props);
+    return hostSelector.getHost(hosts, role, props);
   }
 
+  // c3p0's setPassword accepts a null password (only the stub types it @NonNull); the
+  // unconditional call with a possibly-null value is preserved.
+  @SuppressWarnings("argument")
   @Override
   public @NonNull ConnectionInfo connect(@NonNull String protocol, @NonNull Dialect dialect,
       @NonNull TargetDriverDialect targetDriverDialect, @NonNull HostSpec hostSpec,
@@ -113,6 +120,9 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
     return new ConnectionInfo(ds.getConnection(), true);
   }
 
+  // Values come from stringPropertyNames(), so getProperty(p) is non-null; only the stub types
+  // Properties.put's value @NonNull.
+  @SuppressWarnings("argument")
   protected ComboPooledDataSource createDataSource(
       @NonNull String protocol,
       @NonNull HostSpec hostSpec,

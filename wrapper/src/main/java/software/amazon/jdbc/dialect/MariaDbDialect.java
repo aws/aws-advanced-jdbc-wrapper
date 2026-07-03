@@ -120,7 +120,7 @@ public class MariaDbDialect implements Dialect {
   }
 
   @Override
-  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+  public @Nullable Pair<@Nullable String, @Nullable String> getHostId(Connection connection) throws SQLException {
     return this.dialectUtils.getInstanceId(connection, HOST_ID_QUERY);
   }
 

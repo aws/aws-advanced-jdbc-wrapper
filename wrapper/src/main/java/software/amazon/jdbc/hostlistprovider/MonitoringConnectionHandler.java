@@ -61,7 +61,7 @@ public interface MonitoringConnectionHandler extends StateSnapshotProvider {
   @Nullable HostSpec acceptConnections(
       Map<HostSpec, AtomicConnection> connections,
       @Nullable HostSpec writerHostSpec,
-      List<HostSpec> topology);
+      @Nullable List<HostSpec> topology);
 
   /**
    * Non-blocking attempt to upgrade the monitoring connection to a higher-priority node.

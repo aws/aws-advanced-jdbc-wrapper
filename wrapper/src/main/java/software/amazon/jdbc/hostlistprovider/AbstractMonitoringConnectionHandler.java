@@ -56,11 +56,15 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
   protected final @Nullable Runnable upgradeReadyNotifier;
 
   protected int currentPriorityIndex = -1;
-  protected volatile Future<?> upgradeFuture = null;
-  protected volatile HostSpec upgradeConnectedHost = null;
+  protected volatile @Nullable Future<?> upgradeFuture = null;
+  protected volatile @Nullable HostSpec upgradeConnectedHost = null;
   // A single long-lived executor for async upgrade attempts, created lazily on first use and shut down on close.
-  protected ExecutorService upgradeExecutor = null;
+  protected @Nullable ExecutorService upgradeExecutor = null;
 
+  // Publishing `this` to the AtomicConnection/LazyCleaner during construction is safe here: the cleaner only
+  // dereferences the referent for reachability tracking, not for state, so escape of the partially-initialized
+  // instance cannot observe uninitialized fields.
+  @SuppressWarnings({"argument", "assignment"})
   protected AbstractMonitoringConnectionHandler(
       final AtomicConnection monitoringConnection,
       final PluginService pluginService,
@@ -169,7 +173,7 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
   public @Nullable HostSpec acceptConnections(
       Map<HostSpec, AtomicConnection> connections,
       @Nullable HostSpec writerHostSpec,
-      List<HostSpec> topology) {
+      @Nullable List<HostSpec> topology) {
 
     if (connections == null || connections.isEmpty()) {
       return null;
@@ -199,7 +203,12 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
       return null;
     }
 
-    final AtomicConnection bestAtomic = connections.get(bestHost);
+    final @Nullable AtomicConnection bestAtomic = connections.get(bestHost);
+    if (bestAtomic == null) {
+      // bestHost was selected from connections' keys above; a null here could only arise from concurrent
+      // removal, in which case there is no connection to adopt.
+      return null;
+    }
     final Connection bestConn = bestAtomic.get();
     // Detach from the AtomicConnection so it doesn't close the connection when cleaned up.
     bestAtomic.set(null, false);
@@ -282,14 +291,16 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
         return;
       }
 
-      if (this.upgradeExecutor == null) {
-        this.upgradeExecutor = ExecutorFactory.newSingleThreadExecutor(getUpgradeThreadName());
+      ExecutorService executor = this.upgradeExecutor;
+      if (executor == null) {
+        executor = ExecutorFactory.newSingleThreadExecutor(getUpgradeThreadName());
+        this.upgradeExecutor = executor;
       }
       final int candidateCount = candidates.size();
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.upgradeTaskSubmitted",
           new Object[]{candidateCount}));
-      this.upgradeFuture = this.upgradeExecutor.submit(() -> {
+      this.upgradeFuture = executor.submit(() -> {
         for (HostSpec candidate : candidates) {
           if (Thread.currentThread().isInterrupted()) {
             return;

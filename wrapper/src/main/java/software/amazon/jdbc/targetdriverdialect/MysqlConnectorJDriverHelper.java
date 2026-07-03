@@ -36,6 +36,10 @@ public class MysqlConnectorJDriverHelper {
   private static final Logger LOGGER =
       Logger.getLogger(MysqlConnectorJDriverHelper.class.getName());
 
+  // MysqlDataSource#setDatabaseName/#setUser/#setPassword are declared with @NonNull parameters in
+  // the driver stubs, but they accept null (meaning "no value configured"). The wrapper properties
+  // may legitimately be null here, so the possibly-null arguments are safe.
+  @SuppressWarnings("argument")
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull HostSpec hostSpec,
@@ -94,6 +98,11 @@ public class MysqlConnectorJDriverHelper {
     }
   }
 
+  // CJException#getSQLState may return null and no SQL state is available for non-CJExceptions, so
+  // this method can legitimately return null. Callers guard the result (e.g. StringUtils.isNullOrEmpty),
+  // and the return type is kept non-null here to match the TargetDriverDialect.getSQLState contract,
+  // which stays non-null in this pilot scope to avoid cascading findings into the exception handlers.
+  @SuppressWarnings("return")
   public String getSQLState(final Throwable throwable) {
     return throwable instanceof CJException ? ((CJException) throwable).getSQLState() : null;
   }

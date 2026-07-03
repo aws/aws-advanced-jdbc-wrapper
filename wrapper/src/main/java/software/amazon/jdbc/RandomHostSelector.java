@@ -30,10 +30,10 @@ public class RandomHostSelector implements HostSelector {
   public static final String STRATEGY_RANDOM = "random";
 
   @Override
-  public HostSpec getHost(
-      @NonNull final List<HostSpec> hosts,
-      @Nullable final HostRole role,
-      @Nullable final Properties props) throws SQLException {
+  public @Nullable HostSpec getHost(
+      final @NonNull List<HostSpec> hosts,
+      final @Nullable HostRole role,
+      final @Nullable Properties props) throws SQLException {
     final List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec ->
             (role == null || role.equals(hostSpec.getRole()))

@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
@@ -169,7 +170,7 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public String getSQLQueryString(PreparedStatement ps) {
+  public @Nullable String getSQLQueryString(PreparedStatement ps) {
     // For MariaDB, this gives something like "ClientPreparedStatement{sql:'select * from T where A=1', parameters:[]}"
     return this.findSQLQueryString(ps, PREPARED_STATEMENT_QUERY_HEADER);
   }

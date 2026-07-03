@@ -75,7 +75,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   protected static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   protected final HikariPoolConfigurator poolConfigurator;
   protected final @Nullable HikariPoolMapping poolMapping;
-  protected final AcceptsUrlFunc acceptsUrlFunc;
+  protected final @Nullable AcceptsUrlFunc acceptsUrlFunc;
   protected LeastConnectionsHostSelector leastConnectionsHostSelector;
 
   static {
@@ -88,6 +88,9 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
         });
   }
 
+  // Pool property values come from stringPropertyNames(), so getProperty(p) is non-null; only the
+  // stub types Properties.put's value @NonNull.
+  @SuppressWarnings("argument")
   public HikariPooledConnectionProvider() {
     this((hostSpec, originalProps) -> {
       HikariConfig config = new HikariConfig();
@@ -257,24 +260,27 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
+  public @Nullable HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts,
       @Nullable HostRole role,
       @NonNull String strategy,
       @Nullable Properties props) throws SQLException {
-    if (!acceptsStrategy(role, strategy)) {
+    if (LeastConnectionsHostSelector.STRATEGY_LEAST_CONNECTIONS.equals(strategy)) {
+      return this.leastConnectionsHostSelector.getHost(hosts, role, props);
+    }
+    final HostSelector hostSelector = acceptedStrategies.get(strategy);
+    if (hostSelector == null) {
       throw new UnsupportedOperationException(
           Messages.get(
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
               new Object[] {strategy, DataSourceConnectionProvider.class}));
     }
-    if (LeastConnectionsHostSelector.STRATEGY_LEAST_CONNECTIONS.equals(strategy)) {
-      return this.leastConnectionsHostSelector.getHost(hosts, role, props);
-    } else {
-      return acceptedStrategies.get(strategy).getHost(hosts, role, props);
-    }
+    return hostSelector.getHost(hosts, role, props);
   }
 
+  // HikariConfig's setPassword accepts a null password (only the stub types it @NonNull); the
+  // unconditional call with a possibly-null value is preserved.
+  @SuppressWarnings("argument")
   @Override
   public @NonNull ConnectionInfo connect(
       @NonNull String protocol,
@@ -419,9 +425,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    * @return a set containing every host URL for which there are one or more connection pool(s).
    */
   public Set<String> getHosts() {
+    // value1 is the pool's host URL (always a non-null String); String.valueOf yields a non-null
+    // element type so the resulting Set<String> is non-null.
     return Collections.unmodifiableSet(
         HikariPoolsHolder.databasePools.getEntries().keySet().stream()
-            .map(poolKey -> (String) poolKey.getValue1())
+            .map(poolKey -> String.valueOf(poolKey.getValue1()))
             .collect(Collectors.toSet()));
   }
 
@@ -430,6 +438,9 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *
    * @return a set containing every key associated with an active connection pool
    */
+  // keySet() returns the (non-null) pool keys; the raw Pair element type triggers a spurious
+  // nullness mismatch against the declared Set<Pair> return.
+  @SuppressWarnings("return")
   public Set<Pair> getKeys() {
     return HikariPoolsHolder.databasePools.getEntries().keySet();
   }

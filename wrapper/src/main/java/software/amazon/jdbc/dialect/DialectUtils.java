@@ -86,13 +86,13 @@ public class DialectUtils {
 
    * @return a pair of instanceId and instanceName if successful, null otherwise.
    */
-  public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(
+  public @Nullable Pair<@Nullable String /* instanceId */, @Nullable String /* instanceName */> getInstanceId(
       final Connection connection, String instanceIdQuery) {
     try {
       try (final Statement stmt = connection.createStatement();
            final ResultSet rs = stmt.executeQuery(instanceIdQuery)) {
         if (rs.next()) {
-          return Pair.create(rs.getString(1), rs.getString(2));
+          return Pair.<@Nullable String, @Nullable String>create(rs.getString(1), rs.getString(2));
         }
       }
     } catch (SQLException ex) {

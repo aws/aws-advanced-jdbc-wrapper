@@ -75,7 +75,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+  public @Nullable Pair<@Nullable String, @Nullable String> getHostId(Connection connection) throws SQLException {
     return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 

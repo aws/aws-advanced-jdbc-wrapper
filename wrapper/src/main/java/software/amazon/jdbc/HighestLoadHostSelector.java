@@ -76,10 +76,10 @@ public class HighestLoadHostSelector implements HostSelector {
   }
 
   @Override
-  public HostSpec getHost(
-      @NonNull final List<HostSpec> hosts,
-      @Nullable final HostRole role,
-      @Nullable final Properties props) throws SQLException {
+  public @Nullable HostSpec getHost(
+      final @NonNull List<HostSpec> hosts,
+      final @Nullable HostRole role,
+      final @Nullable Properties props) throws SQLException {
 
     final List<HostSpec> eligible = hosts.stream()
         .filter(h -> (role == null || role.equals(h.getRole()))
@@ -90,7 +90,7 @@ public class HighestLoadHostSelector implements HostSelector {
       return null;
     }
 
-    HostSpec highestLoadHost = null;
+    @Nullable HostSpec highestLoadHost = null;
     long highestLoad = -1;
     for (final HostSpec host : eligible) {
       final long currentLoad = calculateLoad(host, props);
@@ -106,24 +106,26 @@ public class HighestLoadHostSelector implements HostSelector {
     return highestLoadHost;
   }
 
-  private long calculateLoad(final HostSpec host, @Nullable final Properties props) {
+  private long calculateLoad(final HostSpec host, final @Nullable Properties props) {
     final long cpuWeight = getCpuWeight(props);
     final long lagWeight = getLagWeight(props);
-    final long cpuPercentWeighted = (host.getCpuPercent() == null ? CPU_DEFAULT : Math.round(host.getCpuPercent()))
+    final Float cpuPercent = host.getCpuPercent();
+    final Float lagMs = host.getLagMs();
+    final long cpuPercentWeighted = (cpuPercent == null ? CPU_DEFAULT : Math.round(cpuPercent))
         * cpuWeight;
-    final long lagWeighted = (host.getLagMs() == null ? LAG_MS_DEFAULT : Math.round(host.getLagMs()))
+    final long lagWeighted = (lagMs == null ? LAG_MS_DEFAULT : Math.round(lagMs))
         * lagWeight;
     return cpuPercentWeighted + lagWeighted;
   }
 
-  private long getCpuWeight(@Nullable final Properties props) {
+  private long getCpuWeight(final @Nullable Properties props) {
     if (props != null && props.containsKey(HIGHEST_LOAD_CPU_WEIGHT.name)) {
       return HIGHEST_LOAD_CPU_WEIGHT.getLong(props);
     }
     return this.defaultCpuWeight;
   }
 
-  private long getLagWeight(@Nullable final Properties props) {
+  private long getLagWeight(final @Nullable Properties props) {
     if (props != null && props.containsKey(HIGHEST_LOAD_LAG_WEIGHT.name)) {
       return HIGHEST_LOAD_LAG_WEIGHT.getLong(props);
     }

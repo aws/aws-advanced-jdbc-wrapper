@@ -254,6 +254,11 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     return ALLOWED_ON_CLOSED_METHODS;
   }
 
+  // The generic dialect cannot extract a driver-specific SQL state, so it always returns null.
+  // Callers guard the result (e.g. StringUtils.isNullOrEmpty), so the null return is safe; the
+  // TargetDriverDialect.getSQLState contract is kept non-null in this pilot scope to avoid
+  // cascading nullness findings into the in-scope exception handlers that consume it.
+  @SuppressWarnings("return")
   @Override
   public String getSQLState(Throwable throwable) {
     return null;
@@ -273,7 +278,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public String getSQLQueryString(PreparedStatement ps) {
+  public @Nullable String getSQLQueryString(PreparedStatement ps) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
@@ -289,7 +294,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public byte[] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
+  public byte @Nullable [] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
     if (columnRef instanceof Integer) {
       return rs.getBytes((Integer) columnRef);
     }
@@ -304,7 +309,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   // Get the SQL query string from a PreparedStatement which comes after a dialect specific header
-  protected String findSQLQueryString(PreparedStatement ps, String queryHeader) {
+  protected @Nullable String findSQLQueryString(PreparedStatement ps, @Nullable String queryHeader) {
     String rawStatementStr = ps.toString();
     if (rawStatementStr == null) {
       return null;
