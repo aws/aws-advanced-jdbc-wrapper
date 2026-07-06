@@ -30,9 +30,9 @@ public class HighestWeightHostSelector implements HostSelector {
   public static final String STRATEGY_HIGHEST_WEIGHT = "highestWeight";
 
   @Override
-  public HostSpec getHost(@NonNull final List<HostSpec> hosts,
-      @Nullable final HostRole role,
-      @Nullable final Properties props) throws SQLException {
+  public @Nullable HostSpec getHost(final @NonNull List<HostSpec> hosts,
+      final @Nullable HostRole role,
+      final @Nullable Properties props) throws SQLException {
 
     final List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec ->

@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -156,11 +157,11 @@ public abstract class TopologyUtils {
    * @return a {@link HostSpec} representing the given information.
    */
   public HostSpec createHost(
-      String instanceId,
-      String instanceName,
+      final @Nullable String instanceId,
+      final @Nullable String instanceName,
       final boolean isWriter,
       final long weight,
-      final Timestamp lastUpdateTime,
+      final @Nullable Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
     return createHost(instanceId, instanceName, isWriter, weight, null,
@@ -180,13 +181,13 @@ public abstract class TopologyUtils {
    * @return a {@link HostSpec} representing the given information.
    */
   public HostSpec createHost(
-      String instanceId,
-      String instanceName,
+      final @Nullable String instanceId,
+      @Nullable String instanceName,
       final boolean isWriter,
       final long weight,
-      final Float cpuPercent,
-      final Float lag,
-      final Timestamp lastUpdateTime,
+      final @Nullable Float cpuPercent,
+      final @Nullable Float lag,
+      final @Nullable Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
     instanceName = instanceName == null ? "?" : instanceName;
@@ -194,6 +195,11 @@ public abstract class TopologyUtils {
     final int port = instanceTemplate.isPortSpecified()
         ? instanceTemplate.getPort()
         : (initialHostSpec == null ? HostSpec.NO_PORT : initialHostSpec.getPort());
+
+    // HostSpec.lastUpdateTime is non-null by contract; when a caller has no timestamp (null), fall back to
+    // "now" - the same fallback already used by callers that fail to read the timestamp from the result set.
+    final Timestamp resolvedLastUpdateTime =
+        lastUpdateTime == null ? Timestamp.from(Instant.now()) : lastUpdateTime;
 
     final HostSpec hostSpec = this.hostSpecBuilder
         .hostId(instanceId)
@@ -204,7 +210,7 @@ public abstract class TopologyUtils {
         .weight(weight)
         .cpuPercent(cpuPercent)
         .lagMs(lag)
-        .lastUpdateTime(lastUpdateTime)
+        .lastUpdateTime(resolvedLastUpdateTime)
         .build();
     return hostSpec;
   }

@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
@@ -140,7 +141,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   }
 
   @Override
-  public String getSQLQueryString(PreparedStatement ps) {
+  public @Nullable String getSQLQueryString(PreparedStatement ps) {
     // For MySQL, this gives something like "com.mysql.cj.jdbc.ClientPreparedStatement: select * from T where A=1"
     return this.findSQLQueryString(ps, PREPARED_STATEMENT_QUERY_HEADER);
   }

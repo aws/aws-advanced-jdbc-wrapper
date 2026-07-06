@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 public interface HostListProvider {
@@ -34,7 +35,7 @@ public interface HostListProvider {
    * @return the topology information for the connected database.
    * @throws SQLException if an error occurs while attempting to acquire the database topology information.
    */
-  List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException;
+  @Nullable List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException;
 
   List<HostSpec> refresh() throws SQLException;
 
@@ -47,7 +48,7 @@ public interface HostListProvider {
    * @throws SQLException     if there's errors updating topology
    * @throws TimeoutException if topology update takes longer time than expected
    */
-  List<HostSpec> forceRefresh() throws SQLException, TimeoutException;
+  @Nullable List<HostSpec> forceRefresh() throws SQLException, TimeoutException;
 
   /**
    * Force a host list provider to update its topology information. Results will be returned when the topology is
@@ -63,7 +64,7 @@ public interface HostListProvider {
    * @throws SQLException     if there's errors updating topology
    * @throws TimeoutException if the timeout is hit
    */
-  List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
+  @Nullable List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException;
 
   String getClusterId() throws UnsupportedOperationException, SQLException;

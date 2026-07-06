@@ -141,7 +141,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     this.initialHostSpec = this.initialHostList.get(0);
     this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
 
-    this.clusterId = CLUSTER_ID.getString(this.properties);
+    final String configuredClusterId = CLUSTER_ID.getString(this.properties);
+    // CLUSTER_ID declares a non-null default ("1"), so getString never returns null here; the fallback
+    // matches that default and keeps clusterId non-null.
+    this.clusterId = configuredClusterId != null ? configuredClusterId : "1";
     HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
     String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
     if (clusterInstancePattern != null) {
@@ -178,12 +181,12 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   @Override
-  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+  public @Nullable List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
     init();
     return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplate);
   }
 
-  protected List<HostSpec> forceRefreshMonitor(boolean verifyTopology, long timeoutMs) throws SQLException {
+  protected @Nullable List<HostSpec> forceRefreshMonitor(boolean verifyTopology, long timeoutMs) throws SQLException {
     ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     try {
       return monitor.forceRefresh(verifyTopology, timeoutMs);
@@ -294,12 +297,12 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   @Override
-  public List<HostSpec> forceRefresh() throws SQLException, TimeoutException {
+  public @Nullable List<HostSpec> forceRefresh() throws SQLException, TimeoutException {
     return this.forceRefresh(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
   }
 
   @Override
-  public List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
+  public @Nullable List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException {
     init();
     if (!this.pluginService.isDialectConfirmed()) {

@@ -24,13 +24,13 @@ import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 
 public class HostSpecBuilder {
   private String host;
-  private String hostId;
+  private @Nullable String hostId;
   private int port = HostSpec.NO_PORT;
   private HostAvailability availability = HostAvailability.AVAILABLE;
-  private HostRole role = HostRole.WRITER;
+  private @Nullable HostRole role = HostRole.WRITER;
   private long weight = HostSpec.DEFAULT_WEIGHT; // Greater than or equal to 0. Healthier nodes have lower weights.
-  private Float cpuPercent;
-  private Float lagMs;
+  private @Nullable Float cpuPercent;
+  private @Nullable Float lagMs;
   private Timestamp lastUpdateTime;
   private HostAvailabilityStrategy hostAvailabilityStrategy;
 
@@ -94,12 +94,12 @@ public class HostSpecBuilder {
     return this;
   }
 
-  public HostSpecBuilder cpuPercent(Float cpuPercent) {
+  public HostSpecBuilder cpuPercent(@Nullable Float cpuPercent) {
     this.cpuPercent = cpuPercent;
     return this;
   }
 
-  public HostSpecBuilder lagMs(Float lag) {
+  public HostSpecBuilder lagMs(@Nullable Float lag) {
     this.lagMs = lag;
     return this;
   }

@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
@@ -81,7 +82,7 @@ public class DialectManager implements DialectProvider {
   private final RdsUtils rdsHelper = new RdsUtils();
   private final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   private boolean canUpdate = false;
-  private Dialect dialect = null;
+  private @Nullable Dialect dialect = null;
   private String dialectCode;
   private boolean confirmed = false;
 
@@ -120,7 +121,7 @@ public class DialectManager implements DialectProvider {
       this.dialectCode = DialectCodes.CUSTOM;
       this.dialect = customDialect;
       this.logCurrentDialect();
-      return this.dialect;
+      return customDialect;
     }
 
     final String userDialectSetting = DIALECT.getString(props);
@@ -155,81 +156,92 @@ public class DialectManager implements DialectProvider {
     if (driverProtocol.contains("mysql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(host);
       if (type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
+        final Dialect resolved = getDialectByCode(DialectCodes.GLOBAL_AURORA_MYSQL);
         this.canUpdate = false;
         this.dialectCode = DialectCodes.GLOBAL_AURORA_MYSQL;
-        this.dialect = knownDialectsByCode.get(DialectCodes.GLOBAL_AURORA_MYSQL);
+        this.dialect = resolved;
         this.confirmed = true;
-        return this.dialect;
+        return resolved;
       }
       if (type.isRdsCluster()) {
+        final Dialect resolved = getDialectByCode(DialectCodes.AURORA_MYSQL);
         this.canUpdate = true;
         this.dialectCode = DialectCodes.AURORA_MYSQL;
-        this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_MYSQL);
-        return this.dialect;
+        this.dialect = resolved;
+        return resolved;
       }
       if (type.isRds()) {
+        final Dialect resolved = getDialectByCode(DialectCodes.RDS_MYSQL);
         this.canUpdate = true;
         this.dialectCode = DialectCodes.RDS_MYSQL;
-        this.dialect = knownDialectsByCode.get(DialectCodes.RDS_MYSQL);
+        this.dialect = resolved;
         this.logCurrentDialect();
-        return this.dialect;
+        return resolved;
       }
+      final Dialect resolved = getDialectByCode(DialectCodes.MYSQL);
       this.canUpdate = true;
       this.dialectCode = DialectCodes.MYSQL;
-      this.dialect = knownDialectsByCode.get(DialectCodes.MYSQL);
+      this.dialect = resolved;
       this.logCurrentDialect();
-      return this.dialect;
+      return resolved;
     }
 
     if (driverProtocol.contains("postgresql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(host);
       if (RdsUrlType.RDS_AURORA_LIMITLESS_DB_SHARD_GROUP.equals(type)) {
+        final Dialect resolved = getDialectByCode(DialectCodes.AURORA_PG);
         this.canUpdate = false;
         this.dialectCode = DialectCodes.AURORA_PG;
-        this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_PG);
+        this.dialect = resolved;
         this.confirmed = true;
-        return this.dialect;
+        return resolved;
       }
       if (RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER.equals(type)) {
+        final Dialect resolved = getDialectByCode(DialectCodes.GLOBAL_AURORA_PG);
         this.canUpdate = false;
         this.dialectCode = DialectCodes.GLOBAL_AURORA_PG;
-        this.dialect = knownDialectsByCode.get(DialectCodes.GLOBAL_AURORA_PG);
+        this.dialect = resolved;
         this.confirmed = true;
-        return this.dialect;
+        return resolved;
       }
       if (type.isRdsCluster()) {
+        final Dialect resolved = getDialectByCode(DialectCodes.AURORA_PG);
         this.canUpdate = true;
         this.dialectCode = DialectCodes.AURORA_PG;
-        this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_PG);
-        return this.dialect;
+        this.dialect = resolved;
+        return resolved;
       }
       if (type.isRds()) {
+        final Dialect resolved = getDialectByCode(DialectCodes.RDS_PG);
         this.canUpdate = true;
         this.dialectCode = DialectCodes.RDS_PG;
-        this.dialect = knownDialectsByCode.get(DialectCodes.RDS_PG);
+        this.dialect = resolved;
         this.logCurrentDialect();
-        return this.dialect;
+        return resolved;
       }
+      final Dialect resolved = getDialectByCode(DialectCodes.PG);
       this.canUpdate = true;
       this.dialectCode = DialectCodes.PG;
-      this.dialect = knownDialectsByCode.get(DialectCodes.PG);
+      this.dialect = resolved;
       this.logCurrentDialect();
-      return this.dialect;
+      return resolved;
     }
 
     if (driverProtocol.contains("mariadb")) {
+      final Dialect resolved = getDialectByCode(DialectCodes.MARIADB);
       this.canUpdate = true;
       this.dialectCode = DialectCodes.MARIADB;
-      this.dialect = knownDialectsByCode.get(DialectCodes.MARIADB);
+      this.dialect = resolved;
       this.logCurrentDialect();
-      return this.dialect;
+      return resolved;
     }
 
+    final Dialect resolved = getDialectByCode(DialectCodes.UNKNOWN);
     this.canUpdate = true;
     this.dialectCode = DialectCodes.UNKNOWN;
-    this.dialect = knownDialectsByCode.get(DialectCodes.UNKNOWN);
+    this.dialect = resolved;
     this.logCurrentDialect();
-    return this.dialect;
+    return resolved;
   }
 
   @Override
@@ -238,13 +250,24 @@ public class DialectManager implements DialectProvider {
       final @NonNull HostSpec hostSpec,
       final @NonNull Connection connection) throws SQLException {
 
+    // this.dialect is always populated by a prior getDialect(protocol, url, props) call; guard
+    // for null here to preserve the non-null return contract of DialectProvider.getDialect.
+    final Dialect currentDialect = this.dialect;
+
     if (!this.canUpdate) {
       this.confirmed = true;
       this.logCurrentDialect();
-      return this.dialect;
+      if (currentDialect == null) {
+        throw new SQLException(Messages.get("DialectManager.unknownDialect"));
+      }
+      return currentDialect;
     }
 
-    final List<String> dialectCandidates = this.dialect.getDialectUpdateCandidates();
+    if (currentDialect == null) {
+      throw new SQLException(Messages.get("DialectManager.unknownDialect"));
+    }
+
+    final @Nullable List<String> dialectCandidates = currentDialect.getDialectUpdateCandidates();
     if (dialectCandidates != null) {
       for (String dialectCandidateCode : dialectCandidates) {
         Dialect dialectCandidate = knownDialectsByCode.get(dialectCandidateCode);
@@ -263,7 +286,7 @@ public class DialectManager implements DialectProvider {
           knownEndpointDialects.put(hostSpec.getUrl(), dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
 
           this.logCurrentDialect();
-          return this.dialect;
+          return dialectCandidate;
         }
       }
     }
@@ -278,7 +301,17 @@ public class DialectManager implements DialectProvider {
     knownEndpointDialects.put(hostSpec.getUrl(), this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
 
     this.logCurrentDialect();
-    return this.dialect;
+    return currentDialect;
+  }
+
+  private static @NonNull Dialect getDialectByCode(final String dialectCode) throws SQLException {
+    // All codes passed here are constants that are registered in knownDialectsByCode, so this
+    // lookup never returns null in practice; the guard preserves the non-null return contract.
+    final Dialect resolved = knownDialectsByCode.get(dialectCode);
+    if (resolved == null) {
+      throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
+    }
+    return resolved;
   }
 
   private void logCurrentDialect() {

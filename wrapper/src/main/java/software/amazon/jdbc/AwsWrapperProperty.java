@@ -26,26 +26,29 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
   public final @Nullable String defaultValue;
 
   public AwsWrapperProperty(
-      @NonNull final String name,
-      @Nullable final String defaultValue,
+      final @NonNull String name,
+      final @Nullable String defaultValue,
       final String description) {
     this(name, defaultValue, description, false);
   }
 
   public AwsWrapperProperty(
-      @NonNull final String name,
-      @Nullable final String defaultValue,
+      final @NonNull String name,
+      final @Nullable String defaultValue,
       final String description,
       final boolean required) {
     this(name, defaultValue, description, required, null);
   }
 
+  // DriverPropertyInfo's stub types the constructor 'value' parameter as @NonNull (a null initial
+  // value is valid here) and its 'choices' field as @NonNull (a null choices array is valid).
+  @SuppressWarnings({"argument", "assignment"})
   public AwsWrapperProperty(
-      @NonNull final String name,
-      @Nullable final String defaultValue,
+      final @NonNull String name,
+      final @Nullable String defaultValue,
       final String description,
       final boolean required,
-      @Nullable final String [] choices) {
+      final String @Nullable [] choices) {
     super(name, null);
     this.defaultValue = defaultValue;
     this.required = required;
@@ -70,7 +73,12 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     if (value instanceof Integer) {
       return (Integer) value;
     }
-    return Integer.parseInt(properties.getProperty(name, defaultValue));
+    final @Nullable String stringValue = properties.getProperty(name, defaultValue);
+    // Integer.parseInt throws NumberFormatException on null, matching prior behavior when the
+    // property is unset and has no default value.
+    @SuppressWarnings("argument")
+    final int result = Integer.parseInt(stringValue);
+    return result;
   }
 
   public long getLong(final Properties properties) {
@@ -78,10 +86,15 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     if (value instanceof Long) {
       return (Long) value;
     }
-    return Long.parseLong(properties.getProperty(name, defaultValue));
+    final @Nullable String stringValue = properties.getProperty(name, defaultValue);
+    // Long.parseLong throws NumberFormatException on null, matching prior behavior when the
+    // property is unset and has no default value.
+    @SuppressWarnings("argument")
+    final long result = Long.parseLong(stringValue);
+    return result;
   }
 
-  public void set(final Properties properties, @Nullable final String value) {
+  public void set(final Properties properties, final @Nullable String value) {
     if (value == null) {
       properties.remove(name);
     } else {
@@ -94,7 +107,11 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
   }
 
   public DriverPropertyInfo toDriverPropertyInfo(final Properties properties) {
-    final DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, getString(properties));
+    final @Nullable String value = getString(properties);
+    // DriverPropertyInfo's stub types the constructor 'value' parameter as @NonNull, but a null
+    // value is valid (indicates the property is unset).
+    @SuppressWarnings("argument")
+    final DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, value);
     propertyInfo.required = required;
     propertyInfo.description = description;
     propertyInfo.choices = choices;

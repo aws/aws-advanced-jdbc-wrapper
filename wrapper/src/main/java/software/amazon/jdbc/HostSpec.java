@@ -35,25 +35,26 @@ public class HostSpec {
 
   protected final String host; // full domain name
   protected final int port;
-  protected final HostRole role;
+  protected final @Nullable HostRole role;
   protected final Timestamp lastUpdateTime;
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
-  protected Float cpuPercent;
-  protected Float lagMs;
-  protected final String hostId; // id; could be a node name, node domain name, or some gibberish code
+  protected @Nullable Float cpuPercent;
+  protected @Nullable Float lagMs;
+  // id; could be a node name, node domain name, or some gibberish code
+  protected final @Nullable String hostId;
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
   protected final ResourceLock resourceLock = new ResourceLock();
-  protected volatile String hostAndPort = null;
-  protected volatile String url = null;
-  protected volatile String toString = null;
+  protected volatile @Nullable String hostAndPort = null;
+  protected volatile @Nullable String url = null;
+  protected volatile @Nullable String toString = null;
 
   private HostSpec(
       final String host,
       final int port,
-      final String hostId,
-      final HostRole role,
+      final @Nullable String hostId,
+      final @Nullable HostRole role,
       final HostAvailability availability,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
@@ -64,8 +65,8 @@ public class HostSpec {
   HostSpec(
       final String host,
       final int port,
-      final String hostId,
-      final HostRole role,
+      final @Nullable String hostId,
+      final @Nullable HostRole role,
       final HostAvailability availability,
       final long weight,
       final Timestamp lastUpdateTime,
@@ -77,12 +78,12 @@ public class HostSpec {
   HostSpec(
       final String host,
       final int port,
-      final String hostId,
-      final HostRole role,
+      final @Nullable String hostId,
+      final @Nullable HostRole role,
       final HostAvailability availability,
       final long weight,
-      final Float cpuPercent,
-      final Float lagMs,
+      final @Nullable Float cpuPercent,
+      final @Nullable Float lagMs,
       final Timestamp lastUpdateTime,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
@@ -121,7 +122,7 @@ public class HostSpec {
     return port != NO_PORT;
   }
 
-  public HostRole getRole() {
+  public @Nullable HostRole getRole() {
     return this.role;
   }
 
@@ -169,55 +170,64 @@ public class HostSpec {
     }
   }
 
-  public Float getCpuPercent() {
+  public @Nullable Float getCpuPercent() {
     return this.cpuPercent;
   }
 
-  public Float getLagMs() {
+  public @Nullable Float getLagMs() {
     return this.lagMs;
   }
 
   public String getUrl() {
-    if (this.url == null) {
+    String result = this.url;
+    if (result == null) {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
-        if (this.url == null) {
-          this.url = this.getHostAndPort() + "/";
+        result = this.url;
+        if (result == null) {
+          result = this.getHostAndPort() + "/";
+          this.url = result;
         }
       }
     }
-    return this.url;
+    return result;
   }
 
   public String getHostAndPort() {
-    if (this.hostAndPort == null) {
+    String result = this.hostAndPort;
+    if (result == null) {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
-        if (this.hostAndPort == null) {
-          this.hostAndPort = this.isPortSpecified() ? host + ":" + port : host;
+        result = this.hostAndPort;
+        if (result == null) {
+          result = this.isPortSpecified() ? host + ":" + port : host;
+          this.hostAndPort = result;
         }
       }
     }
-    return this.hostAndPort;
+    return result;
   }
 
-  public String getHostId() {
+  public @Nullable String getHostId() {
     return this.hostId;
   }
 
   public String toString() {
-    if (this.toString == null) {
+    String result = this.toString;
+    if (result == null) {
       try (ResourceLock ignored = this.resourceLock.obtain()) {
-        if (this.toString == null) {
-          this.toString = String.format(
+        result = this.toString;
+        if (result == null) {
+          result = String.format(
               "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, cpuPercent=%s, lagMs=%s, %s]",
               Integer.toHexString(System.identityHashCode(this)),
               this.hostId, this.host, this.port, this.role, this.availability, this.weight,
               this.cpuPercent != null ? String.format("%.2f", this.cpuPercent) : "N/A",
               this.lagMs != null ? String.format("%.2f", this.lagMs) : "N/A",
               this.lastUpdateTime);
+          this.toString = result;
         }
       }
     }
-    return this.toString;
+    return result;
   }
 
   @Override
@@ -226,7 +236,7 @@ public class HostSpec {
   }
 
   @Override
-  public boolean equals(final Object obj) {
+  public boolean equals(final @Nullable Object obj) {
     if (obj == this) {
       return true;
     }

@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.StringUtils;
@@ -31,7 +32,8 @@ public class InternalConnectionPoolService {
 
   private static final Logger LOGGER = Logger.getLogger(InternalConnectionPoolService.class.getName());
 
-  private static final AtomicReference<InternalConnectionPoolService> INSTANCE = new AtomicReference<>(null);
+  private static final AtomicReference<@Nullable InternalConnectionPoolService> INSTANCE =
+      new AtomicReference<>(null);
 
   private final Map<String, PooledConnectionProvider> pooledProviderMap = new ConcurrentHashMap<>();
 
@@ -39,20 +41,21 @@ public class InternalConnectionPoolService {
   }
 
   public static InternalConnectionPoolService getInstance() {
-    InternalConnectionPoolService instance = INSTANCE.get();
-    if (instance == null) {
-      InternalConnectionPoolService newInstance = new InternalConnectionPoolService();
-      if (INSTANCE.compareAndSet(null, newInstance)) {
-        instance = newInstance;
-      } else {
-        instance = INSTANCE.get();
-      }
+    final InternalConnectionPoolService instance = INSTANCE.get();
+    if (instance != null) {
+      return instance;
     }
-    return instance;
+    final InternalConnectionPoolService newInstance = new InternalConnectionPoolService();
+    if (INSTANCE.compareAndSet(null, newInstance)) {
+      return newInstance;
+    }
+    // Another thread won the race and stored its instance, which is therefore non-null.
+    final InternalConnectionPoolService current = INSTANCE.get();
+    return current != null ? current : newInstance;
   }
 
   public static void releaseResources() {
-    InternalConnectionPoolService instance = INSTANCE.getAndSet(null);
+    final @Nullable InternalConnectionPoolService instance = INSTANCE.getAndSet(null);
     if (instance != null) {
       instance.pooledProviderMap.values().forEach((x) -> {
         if (x instanceof CanReleaseResources) {
@@ -63,40 +66,53 @@ public class InternalConnectionPoolService {
     }
   }
 
-  public ConnectionProvider getEffectiveConnectionProvider(final Properties props) {
+  public @Nullable ConnectionProvider getEffectiveConnectionProvider(final Properties props) {
 
     final String clusterId = RdsHostListProvider.CLUSTER_ID.getString(props);
-    return this.pooledProviderMap.computeIfAbsent(clusterId, (key) -> {
-      final String connectionPoolType = PropertyDefinition.CONNECTION_POOL_TYPE.getString(props);
-      if (StringUtils.isNullOrEmpty(connectionPoolType)) {
-        return null;
-      }
-      PooledConnectionProvider provider = null;
-      switch (connectionPoolType.toLowerCase()) {
-        case "c3p0":
-          try {
-            provider = WrapperUtils.createInstance(
-                "software.amazon.jdbc.C3P0PooledConnectionProvider", PooledConnectionProvider.class);
-          } catch (InstantiationException e) {
-            throw new RuntimeException("Can't create connection pool provider.", e);
-          }
-          break;
-        case "hikari":
-          try {
-            provider = WrapperUtils.createInstance(
-                "software.amazon.jdbc.HikariPooledConnectionProvider", PooledConnectionProvider.class);
-          } catch (InstantiationException e) {
-            throw new RuntimeException("Can't create connection pool provider.", e);
-          }
-          break;
-        default:
-          throw new RuntimeException("Unknown connection pool type: " + connectionPoolType);
-      }
+    // CLUSTER_ID resolves to a non-null value (it has a default), so this guard never triggers in
+    // practice; it mirrors ConcurrentHashMap's rejection of null keys used by the prior
+    // computeIfAbsent call.
+    if (clusterId == null) {
+      return null;
+    }
 
-      LOGGER.finest(() -> String.format(
-          "[clusterId: %s] Created a new connection pool (%s).", clusterId, connectionPoolType));
+    final PooledConnectionProvider existing = this.pooledProviderMap.get(clusterId);
+    if (existing != null) {
+      return existing;
+    }
 
-      return provider;
-    });
+    final String connectionPoolType = PropertyDefinition.CONNECTION_POOL_TYPE.getString(props);
+    if (StringUtils.isNullOrEmpty(connectionPoolType)) {
+      return null;
+    }
+    final PooledConnectionProvider provider;
+    switch (connectionPoolType.toLowerCase()) {
+      case "c3p0":
+        try {
+          provider = WrapperUtils.createInstance(
+              "software.amazon.jdbc.C3P0PooledConnectionProvider", PooledConnectionProvider.class);
+        } catch (InstantiationException e) {
+          throw new RuntimeException("Can't create connection pool provider.", e);
+        }
+        break;
+      case "hikari":
+        try {
+          provider = WrapperUtils.createInstance(
+              "software.amazon.jdbc.HikariPooledConnectionProvider", PooledConnectionProvider.class);
+        } catch (InstantiationException e) {
+          throw new RuntimeException("Can't create connection pool provider.", e);
+        }
+        break;
+      default:
+        throw new RuntimeException("Unknown connection pool type: " + connectionPoolType);
+    }
+
+    LOGGER.finest(() -> String.format(
+        "[clusterId: %s] Created a new connection pool (%s).", clusterId, connectionPoolType));
+
+    // putIfAbsent keeps a single provider per clusterId even under concurrent creation, matching
+    // the prior computeIfAbsent semantics.
+    final PooledConnectionProvider previous = this.pooledProviderMap.putIfAbsent(clusterId, provider);
+    return previous != null ? previous : provider;
   }
 }

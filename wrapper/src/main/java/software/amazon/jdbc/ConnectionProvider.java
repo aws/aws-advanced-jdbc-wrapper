@@ -64,11 +64,11 @@ public interface ConnectionProvider extends StateSnapshotProvider {
    * @param strategy the strategy determining how the {@link HostSpec} should be selected, e.g.,
    *                 random or round-robin
    * @param props    any properties that are required by the provided strategy to select a host
-   * @return the {@link HostSpec} selected using the specified strategy
+   * @return the {@link HostSpec} selected using the specified strategy, or null if no host matches
    * @throws SQLException                  if an error occurred while returning the hosts
    * @throws UnsupportedOperationException if the strategy is unsupported by the provider
    */
-  HostSpec getHostSpecByStrategy(
+  @Nullable HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException, UnsupportedOperationException;
 

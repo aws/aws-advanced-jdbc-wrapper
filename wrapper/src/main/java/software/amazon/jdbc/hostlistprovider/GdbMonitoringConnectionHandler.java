@@ -58,7 +58,7 @@ public class GdbMonitoringConnectionHandler
   }
 
   protected final RdsUtils rdsUtils = new RdsUtils();
-  protected final AtomicReference<HostSpec> writerHostSpec;
+  protected final AtomicReference<@Nullable HostSpec> writerHostSpec;
 
   public GdbMonitoringConnectionHandler(
       final AtomicConnection monitoringConnection,
@@ -66,7 +66,7 @@ public class GdbMonitoringConnectionHandler
       final TopologyUtils topologyUtils,
       final Properties properties,
       final Properties monitoringProperties,
-      final AtomicReference<HostSpec> writerHostSpec) {
+      final AtomicReference<@Nullable HostSpec> writerHostSpec) {
     this(monitoringConnection, pluginService, topologyUtils, properties, monitoringProperties, writerHostSpec, null);
   }
 
@@ -76,7 +76,7 @@ public class GdbMonitoringConnectionHandler
       final TopologyUtils topologyUtils,
       final Properties properties,
       final Properties monitoringProperties,
-      final AtomicReference<HostSpec> writerHostSpec,
+      final AtomicReference<@Nullable HostSpec> writerHostSpec,
       final @Nullable Runnable upgradeReadyNotifier) {
     super(
         monitoringConnection,
@@ -98,7 +98,7 @@ public class GdbMonitoringConnectionHandler
   public @Nullable HostSpec acceptConnections(
       Map<HostSpec, AtomicConnection> connections,
       @Nullable HostSpec writerHostSpecOverride,
-      List<HostSpec> topology) {
+      @Nullable List<HostSpec> topology) {
     if (connections == null || connections.isEmpty()) {
       return null;
     }
@@ -129,7 +129,12 @@ public class GdbMonitoringConnectionHandler
       return null;
     }
 
-    final AtomicConnection bestAtomic = connections.get(bestHost);
+    final @Nullable AtomicConnection bestAtomic = connections.get(bestHost);
+    if (bestAtomic == null) {
+      // bestHost was selected from connections' keys above; a null here could only arise from concurrent
+      // removal, in which case there is no connection to adopt.
+      return null;
+    }
     final Connection bestConn = bestAtomic.get();
     bestAtomic.set(null, false);
     this.monitoringConnection.set(bestConn);
@@ -157,7 +162,12 @@ public class GdbMonitoringConnectionHandler
     return "gatmu";
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the
+  // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
+  // Fixing this properly means widening that interface to Pair<String, @Nullable Object>
+  // across all ~25 implementers - out of scope for this change. Suppress locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   protected @Nullable List<Pair<String, Object>> getAdditionalSnapshotState() {
     final List<Pair<String, Object>> extra = new ArrayList<>();
     extra.add(Pair.create("primaryRegion", getPrimaryRegion()));

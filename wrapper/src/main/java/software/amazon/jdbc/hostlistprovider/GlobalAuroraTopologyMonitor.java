@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -43,7 +44,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
 
   protected final Map<String, HostSpec> instanceTemplatesByRegion;
   protected final GlobalAuroraTopologyUtils topologyUtils;
-  protected final Set<String> accessibleRegions;
+  protected final @Nullable Set<String> accessibleRegions;
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   public GlobalAuroraTopologyMonitor(
@@ -72,10 +73,10 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   }
 
   @Override
-  protected HostSpec getInstanceTemplate(String instanceId, Connection connection) throws SQLException {
+  protected HostSpec getInstanceTemplate(@Nullable String instanceId, Connection connection) throws SQLException {
     String region = this.topologyUtils.getRegion(instanceId, connection);
     if (!StringUtils.isNullOrEmpty(region)) {
-      final HostSpec instanceTemplate = this.instanceTemplatesByRegion.get(region);
+      final @Nullable HostSpec instanceTemplate = this.instanceTemplatesByRegion.get(region);
       if (instanceTemplate == null) {
         throw new SQLException(
             Messages.get("GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {region}));
@@ -88,12 +89,12 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   }
 
   @Override
-  protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
+  protected @Nullable List<HostSpec> queryForTopology(Connection connection) throws SQLException {
     return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
   }
 
   @Override
-  protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
+  protected @Nullable List<HostSpec> openAnyConnectionAndUpdateTopology() {
     if (this.accessibleRegions != null) {
       final String region = this.rdsUtils.getRdsRegion(this.initialHostSpec.getHost());
       if (region != null && !this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT))) {
@@ -107,13 +108,14 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
 
   @Override
   protected List<HostSpec> filterHostsForNodeMonitoring(final List<HostSpec> hosts) {
-    if (this.accessibleRegions == null) {
+    final Set<String> regions = this.accessibleRegions;
+    if (regions == null) {
       return hosts;
     }
     return hosts.stream()
         .filter(host -> {
           final String region = this.rdsUtils.getRdsRegion(host.getHost());
-          return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
+          return region != null && regions.contains(region.toLowerCase(Locale.ROOT));
         })
         .collect(Collectors.toList());
   }

@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
@@ -185,7 +186,7 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public String getSQLQueryString(PreparedStatement ps) {
+  public @Nullable String getSQLQueryString(PreparedStatement ps) {
     // For PG, this gives the raw query string itself. i.e. "select * from T where A = 1".
     return this.findSQLQueryString(ps, null);
   }

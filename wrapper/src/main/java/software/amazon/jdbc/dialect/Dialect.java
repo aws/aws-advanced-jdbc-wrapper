@@ -36,20 +36,20 @@ public interface Dialect {
 
   int getDefaultPort();
 
-  List</* dialect code */ String> getDialectUpdateCandidates();
+  @Nullable List</* dialect code */ String> getDialectUpdateCandidates();
 
   ExceptionHandler getExceptionHandler();
 
   HostListProviderSupplier getHostListProviderSupplier();
 
-  String getHostAliasQuery();
+  @Nullable String getHostAliasQuery();
 
   void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec);
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
 
-  String getServerVersionQuery();
+  @Nullable String getServerVersionQuery();
 
   HostRole getHostRole(Connection connection) throws SQLException;
 

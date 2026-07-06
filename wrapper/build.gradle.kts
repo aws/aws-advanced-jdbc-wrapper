@@ -322,7 +322,10 @@ if (project.hasProperty("enableCheckerFramework")) {
         // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers),
         // (part 6) all of the per-object JDBC wrapper classes plus LazyCleanerImpl, and
         // (parts 8-10) the whole util package plus the exceptions, cleanup, authentication,
-        // hostavailability, osgi, profile, states and ds packages.
+        // hostavailability, osgi, profile, states and ds packages,
+        // (part 11) the targetdriverdialect and dialect packages,
+        // (part 12) the hostlistprovider package, and
+        // (part 13) the remaining top-level software.amazon.jdbc classes.
         // No end-anchor: matching an outer class also covers its nested classes (and, for
         // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*).
         extraJavacArgs = listOf(
@@ -331,7 +334,10 @@ if (project.hasProperty("enableCheckerFramework")) {
                 + "|util\\.\\w+"
                 + "|exceptions\\.\\w+|cleanup\\.\\w+|authentication\\.\\w+"
                 + "|hostavailability\\.\\w+|osgi\\.\\w+|profile\\.\\w+"
-                + "|states\\.\\w+|ds\\.\\w+)",
+                + "|states\\.\\w+|ds\\.\\w+"
+                + "|targetdriverdialect\\.\\w+|dialect\\.\\w+"
+                + "|hostlistprovider\\.\\w+"
+                + "|[A-Z]\\w*)",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",
             // Keep the output focused and avoid drowning in framework boilerplate.

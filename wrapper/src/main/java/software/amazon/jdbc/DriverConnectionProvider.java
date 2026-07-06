@@ -95,17 +95,18 @@ public class DriverConnectionProvider implements ConnectionProvider {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
+  public @Nullable HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException {
-    if (!acceptedStrategies.containsKey(strategy)) {
+    final HostSelector hostSelector = acceptedStrategies.get(strategy);
+    if (hostSelector == null) {
       throw new UnsupportedOperationException(
           Messages.get(
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
               new Object[] {strategy, DriverConnectionProvider.class}));
     }
 
-    return acceptedStrategies.get(strategy).getHost(hosts, role, props);
+    return hostSelector.getHost(hosts, role, props);
   }
 
   /**
@@ -216,7 +217,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
   @Override
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
-    state.add(Pair.create("driver", this.driver != null ? this.driver.getClass().getName() : null));
+    // this.driver is a non-null final field, so the class name is always available.
+    state.add(Pair.create("driver", this.driver.getClass().getName()));
     state.add(Pair.create("targetDriverClassName", this.targetDriverClassName));
     return state;
   }

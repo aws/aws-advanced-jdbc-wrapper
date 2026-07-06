@@ -32,10 +32,10 @@ public class AtomicConnection {
 
   private static final Logger LOGGER = Logger.getLogger(AtomicConnection.class.getName());
 
-  protected final AtomicReference<Connection> atomicReference = new AtomicReference<>();
+  protected final AtomicReference<@Nullable Connection> atomicReference = new AtomicReference<>();
   protected boolean logUnclosedConnections = false;
   protected LazyCleaner.Cleanable cleanable;
-  protected ConnectionCleanupAction cleanupAction;
+  protected @Nullable ConnectionCleanupAction cleanupAction;
 
   public AtomicConnection(final @NonNull Object referent) {
     this(referent, false);
@@ -57,7 +57,7 @@ public class AtomicConnection {
     }
   }
 
-  public Connection get() {
+  public @Nullable Connection get() {
     return this.atomicReference.get();
   }
 
@@ -74,7 +74,9 @@ public class AtomicConnection {
       final @Nullable Throwable openConnectionStacktrace,
       final boolean closePreviousConnection) {
 
-    if (this.cleanupAction == null) {
+    // Capture the field into a local so its non-null narrowing survives the getAndSet() call below.
+    final ConnectionCleanupAction action = this.cleanupAction;
+    if (action == null) {
       if (connection == null) {
         // Everything is already cleaned up
         return;
@@ -82,19 +84,19 @@ public class AtomicConnection {
       throw new IllegalStateException(Messages.get("AtomicConnection.alreadyClean"));
     }
 
-    Connection prevConnection = null;
+    @Nullable Connection prevConnection = null;
     try {
       prevConnection = this.atomicReference.getAndSet(connection);
 
       if (this.logUnclosedConnections) {
-        this.cleanupAction.setOpenConnectionStacktrace(
+        action.setOpenConnectionStacktrace(
             connection == null
                 ? null
                 : (openConnectionStacktrace == null
                     ? new UnclosedConnectionException()
                     : new UnclosedConnectionException(openConnectionStacktrace)));
       } else {
-        this.cleanupAction.setOpenConnectionStacktrace(null);
+        action.setOpenConnectionStacktrace(null);
       }
     } finally {
       if (closePreviousConnection && prevConnection != null && prevConnection != connection) {
@@ -107,8 +109,8 @@ public class AtomicConnection {
     }
   }
 
-  public boolean compareAndSet(Connection expected, Connection updated) {
-    final Connection prevConnection = this.atomicReference.get();
+  public boolean compareAndSet(final @Nullable Connection expected, final @Nullable Connection updated) {
+    final @Nullable Connection prevConnection = this.atomicReference.get();
     boolean result = false;
     try {
       result = this.atomicReference.compareAndSet(expected, updated);
@@ -125,21 +127,21 @@ public class AtomicConnection {
   }
 
   public static class ConnectionCleanupAction implements LazyCleaner.CleaningAction {
-    private Throwable openConnectionStacktrace;
+    private @Nullable Throwable openConnectionStacktrace;
     private String threadName;
-    private AtomicReference<Connection> atomicReference;
+    private @Nullable AtomicReference<@Nullable Connection> atomicReference;
     protected boolean logUnclosedConnections = false;
     private volatile boolean cleaned = false;
 
     ConnectionCleanupAction(
-        final AtomicReference<Connection> atomicReference,
+        final AtomicReference<@Nullable Connection> atomicReference,
         boolean logUnclosedConnections) {
       this.atomicReference = atomicReference;
       this.logUnclosedConnections = logUnclosedConnections;
       this.threadName = Thread.currentThread().getName();
     }
 
-    public void setOpenConnectionStacktrace(Throwable openConnectionStacktrace) {
+    public void setOpenConnectionStacktrace(final @Nullable Throwable openConnectionStacktrace) {
       this.openConnectionStacktrace = openConnectionStacktrace;
       this.threadName = Thread.currentThread().getName();
     }
@@ -151,7 +153,10 @@ public class AtomicConnection {
       }
       this.cleaned = true;
 
-      final Connection prevConnection = this.atomicReference.getAndSet(null);
+      // atomicReference is only nulled at the end of onClean, and the 'cleaned' guard above
+      // prevents re-entry, so it is non-null here; the local guard is defensive.
+      final AtomicReference<@Nullable Connection> ref = this.atomicReference;
+      final @Nullable Connection prevConnection = ref == null ? null : ref.getAndSet(null);
 
       if (prevConnection == null) {
         this.atomicReference = null;

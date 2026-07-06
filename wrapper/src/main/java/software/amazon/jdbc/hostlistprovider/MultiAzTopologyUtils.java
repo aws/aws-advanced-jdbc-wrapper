@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
@@ -95,7 +96,7 @@ public class MultiAzTopologyUtils extends TopologyUtils {
     // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
     // means we are connected to a writer
     try {
-      Pair<String, String> pair = this.dialect.getHostId(connection);
+      final @Nullable Pair<@Nullable String, @Nullable String> pair = this.dialect.getHostId(connection);
       if (pair != null) {
         return pair.getValue1();
       }
@@ -112,10 +113,13 @@ public class MultiAzTopologyUtils extends TopologyUtils {
       final HostSpec instanceTemplate,
       final @Nullable String writerId) throws SQLException {
 
-    String endpoint = rs.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
-    String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
-    String hostId = rs.getString("id"); // "1034958454"
-    final boolean isWriter = hostId.equals(writerId);
+    final String endpoint = rs.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
+    if (endpoint == null) {
+      throw new SQLException(Messages.get("MultiAzTopologyUtils.missingEndpoint"));
+    }
+    final String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
+    final String hostId = rs.getString("id"); // "1034958454"
+    final boolean isWriter = Objects.equals(hostId, writerId);
 
     return createHost(
         hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);

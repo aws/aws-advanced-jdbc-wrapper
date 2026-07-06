@@ -76,24 +76,24 @@ public class Driver implements java.sql.Driver {
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
 
-  private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
+  private static final AtomicReference<@Nullable ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
       new AtomicReference<>(null);
-  private static final AtomicReference<TransferSessionStateOnSwitchCallable> transferSessionStateOnSwitchCallable =
+  private static final AtomicReference<@Nullable TransferSessionStateOnSwitchCallable>
+      transferSessionStateOnSwitchCallable = new AtomicReference<>(null);
+
+  private static final AtomicReference<@Nullable ExceptionHandler> customExceptionHandler =
       new AtomicReference<>(null);
 
-  private static final AtomicReference<ExceptionHandler> customExceptionHandler =
+  private static final AtomicReference<@Nullable Dialect> customDialect =
       new AtomicReference<>(null);
 
-  private static final AtomicReference<Dialect> customDialect =
+  private static final AtomicReference<@Nullable TargetDriverDialect> customTargetDriverDialect =
       new AtomicReference<>(null);
 
-  private static final AtomicReference<TargetDriverDialect> customTargetDriverDialect =
+  private static final AtomicReference<@Nullable ConnectionProvider> customConnectionProvider =
       new AtomicReference<>(null);
 
-  private static final AtomicReference<ConnectionProvider> customConnectionProvider =
-      new AtomicReference<>(null);
-
-  private static final AtomicReference<ConnectionInitFunc> connectionInitFunc =
+  private static final AtomicReference<@Nullable ConnectionInitFunc> connectionInitFunc =
       new AtomicReference<>(null);
 
   static {
@@ -153,8 +153,11 @@ public class Driver implements java.sql.Driver {
     return false;
   }
 
+  // java.sql.Driver.connect returns null when the driver does not understand the URL (per the JDBC
+  // contract), but the annotated JDK stub types the return as @NonNull; keep @Nullable here.
+  @SuppressWarnings("override.return")
   @Override
-  public Connection connect(final String url, final Properties info) throws SQLException {
+  public @Nullable Connection connect(final String url, final Properties info) throws SQLException {
     if (!acceptsURL(url)) {
       return null;
     }
@@ -339,7 +342,7 @@ public class Driver implements java.sql.Driver {
     resetSessionStateOnCloseCallable.set(null);
   }
 
-  public static ResetSessionStateOnCloseCallable getResetSessionStateOnCloseFunc() {
+  public static @Nullable ResetSessionStateOnCloseCallable getResetSessionStateOnCloseFunc() {
     return resetSessionStateOnCloseCallable.get();
   }
 
@@ -351,7 +354,7 @@ public class Driver implements java.sql.Driver {
     transferSessionStateOnSwitchCallable.set(null);
   }
 
-  public static TransferSessionStateOnSwitchCallable getTransferSessionStateOnSwitchFunc() {
+  public static @Nullable TransferSessionStateOnSwitchCallable getTransferSessionStateOnSwitchFunc() {
     return transferSessionStateOnSwitchCallable.get();
   }
 
@@ -367,7 +370,7 @@ public class Driver implements java.sql.Driver {
     customExceptionHandler.set(exceptionHandler);
   }
 
-  public static ExceptionHandler getCustomExceptionHandler() {
+  public static @Nullable ExceptionHandler getCustomExceptionHandler() {
     return customExceptionHandler.get();
   }
 
@@ -379,7 +382,7 @@ public class Driver implements java.sql.Driver {
     customDialect.set(dialect);
   }
 
-  public static Dialect getCustomDialect() {
+  public static @Nullable Dialect getCustomDialect() {
     return customDialect.get();
   }
 
@@ -391,7 +394,7 @@ public class Driver implements java.sql.Driver {
     customTargetDriverDialect.set(targetDriverDialect);
   }
 
-  public static TargetDriverDialect getCustomTargetDriverDialect() {
+  public static @Nullable TargetDriverDialect getCustomTargetDriverDialect() {
     return customTargetDriverDialect.get();
   }
 
@@ -411,7 +414,7 @@ public class Driver implements java.sql.Driver {
     customConnectionProvider.set(connProvider);
   }
 
-  public static ConnectionProvider getCustomConnectionProvider() {
+  public static @Nullable ConnectionProvider getCustomConnectionProvider() {
     return customConnectionProvider.get();
   }
 
@@ -428,7 +431,7 @@ public class Driver implements java.sql.Driver {
     connectionInitFunc.set(func);
   }
 
-  public static ConnectionInitFunc getConnectionInitFunc() {
+  public static @Nullable ConnectionInitFunc getConnectionInitFunc() {
     return connectionInitFunc.get();
   }
 

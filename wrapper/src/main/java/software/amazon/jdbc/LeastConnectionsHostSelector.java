@@ -42,10 +42,10 @@ public class LeastConnectionsHostSelector implements HostSelector {
   }
 
   @Override
-  public HostSpec getHost(
-      @NonNull final List<HostSpec> hosts,
-      @Nullable final HostRole role,
-      @Nullable final Properties props) throws SQLException {
+  public @Nullable HostSpec getHost(
+      final @NonNull List<HostSpec> hosts,
+      final @Nullable HostRole role,
+      final @Nullable Properties props) throws SQLException {
 
     // Get all eligible hosts along with number of active connections
     final List<Pair<HostSpec, Integer>> eligibleHosts = hosts.stream()
@@ -62,6 +62,11 @@ public class LeastConnectionsHostSelector implements HostSelector {
     // Get min number of connections
     final Pair<HostSpec, Integer> minNumConnectionPair =
         eligibleHosts.stream().min(Comparator.comparingInt(Pair::getValue2)).orElse(null);
+    // eligibleHosts is non-empty (checked above), so min() is always present; guard preserves
+    // "no eligible host" semantics without changing observable behavior.
+    if (minNumConnectionPair == null) {
+      return null;
+    }
 
     // Get all hosts with found min number of connections
     final List<HostSpec> hostsWithMinConnections = eligibleHosts.stream()

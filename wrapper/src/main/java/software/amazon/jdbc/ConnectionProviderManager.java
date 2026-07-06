@@ -67,7 +67,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
   public ConnectionProvider getConnectionProvider(
       String driverProtocol, HostSpec host, Properties props) {
 
-    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(driverProtocol, host, props)) {
       return customConnectionProvider;
     }
@@ -99,7 +99,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
    *     return false
    */
   public boolean acceptsStrategy(HostRole role, String strategy) {
-    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
       return true;
     }
@@ -129,10 +129,11 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
    * @throws UnsupportedOperationException if the available {@link ConnectionProvider} instances do
    *                                       not support the requested strategy
    */
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy, Properties props)
+  public @Nullable HostSpec getHostSpecByStrategy(
+      List<HostSpec> hosts, HostRole role, String strategy, Properties props)
       throws SQLException, UnsupportedOperationException {
-    HostSpec host = null;
-    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    @Nullable HostSpec host = null;
+    final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     try {
       if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
         host = customConnectionProvider.getHostSpecByStrategy(hosts, role, strategy, props);
@@ -159,7 +160,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
    * Releases any resources held by the available {@link ConnectionProvider} instances.
    */
   public static void releaseResources() {
-    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     if (customConnectionProvider instanceof CanReleaseResources) {
       ((CanReleaseResources) customConnectionProvider).releaseResources();
     }
@@ -171,7 +172,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException {
 
-    final ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
+    final @Nullable ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
     if (connectionInitFunc == null) {
       return;
     }
@@ -188,7 +189,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
   }
 
   @Override
-  public List<Pair<String, Object>> getSnapshotState() {
+  public @Nullable List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     WrapperUtils.addSnapshotState(state, "defaultProvider", this.defaultProvider);
     WrapperUtils.addSnapshotState(state, "effectiveConnProvider", this.effectiveConnProvider);
