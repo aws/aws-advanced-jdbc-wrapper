@@ -86,18 +86,21 @@ The `/*@keep*/` hint is useful when you want to observe or operate on the curren
 
 ## Query-level load balancing
 
-By default, once the connection has switched to a reader it stays on that single reader for all subsequent read queries. Enabling query-level load balancing makes the plugin select a reader **per read query**, spreading reads across the available reader instances using the configured [reader selection strategy](../HostSelectionStrategies.md).
+By default, once the connection has switched to a reader it stays on that single reader for all subsequent read queries. Enabling query-level load balancing makes the plugin select a reader **per read query**, spreading reads across the available reader instances.
+
+These parameters control *when* a new reader is selected (per query vs. sticky) — they do not change *how* a reader is picked. Reader selection continues to use the configured [`readerHostSelectorStrategy`](../HostSelectionStrategies.md), and any supported strategy applies.
 
 | Parameter                     | Default | Description                                                                                                                                                 |
 |-------------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `queryLevelLoadBalancing`     | `false` | When `true`, a read query routed to a reader triggers a per-query reader selection instead of reusing the single cached reader.                              |
-| `loadBalancingIncludeWriter`  | `false` | When `true` (and `queryLevelLoadBalancing` is enabled), the writer instance is also included in the pool of balancing candidates. Only relevant with `random`/`roundRobin` strategies. |
+| `queryLevelLoadBalancing`     | `false` | When `true`, a read query routed to a reader triggers a per-query reader selection (using `readerHostSelectorStrategy`) instead of reusing the single cached reader. |
+| `loadBalancingIncludeWriter`  | `false` | When `true` (and `queryLevelLoadBalancing` is enabled), the writer instance is also included in the pool of balancing candidates.                            |
 
 ```java
 final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,autoReadWriteSplitting");
 properties.setProperty("queryLevelLoadBalancing", "true");
-properties.setProperty("readerHostSelectorStrategy", "roundRobin"); // or "random"
+// Reader selection uses readerHostSelectorStrategy; any supported strategy works (default: random).
+properties.setProperty("readerHostSelectorStrategy", "roundRobin");
 // Optional: also send some reads to the writer
 // properties.setProperty("loadBalancingIncludeWriter", "true");
 ```

@@ -244,7 +244,7 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     switchCurrentConnectionTo(newConnection, target);
     LOGGER.finest(() -> Messages.get(
         "AutoReadWriteSplittingPlugin.switchedToBalancedReader",
-        new Object[] {target.getHostAndPort()}));
+        new Object[] {target.getHostAndPort(), this.readerSelectorStrategy}));
 
     // Defer closing the connection we just left until the next balancing switch: it may still be
     // in use by an in-flight statement created before this switch. The writer connection is never
