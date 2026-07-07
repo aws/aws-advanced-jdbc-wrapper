@@ -158,6 +158,60 @@ public class PluginServiceImplTests {
   }
 
   @Test
+  public void testSetCurrentConnection_rejectedDuringXaTransaction() throws SQLException {
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.currentConnection = oldConnection;
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host").build();
+    target.setXaTransactionActive(true);
+
+    final SQLException ex = assertThrows(SQLException.class, () -> target.setCurrentConnection(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build()));
+
+    assertEquals("25001", ex.getSQLState());
+    // The connection must not have been swapped.
+    assertEquals(oldConnection, target.currentConnection);
+    verify(pluginManager, never()).notifyConnectionChanged(any(), any());
+  }
+
+  @Test
+  public void testSetCurrentConnection_allowsSameConnectionHostSpecUpdateDuringXa() throws SQLException {
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
+
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.currentConnection = oldConnection;
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("old-host").role(HostRole.WRITER).build();
+    target.setXaTransactionActive(true);
+
+    // Same connection object, only the HostSpec is updated (e.g. host-monitoring). Must be allowed.
+    target.setCurrentConnection(oldConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host").role(HostRole.READER).build());
+
+    assertEquals(oldConnection, target.currentConnection);
+  }
+
+  @Test
   public void testOldConnectionDisposeSuggestion() throws SQLException {
     when(pluginManager.notifyConnectionChanged(any(), any()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.DISPOSE));

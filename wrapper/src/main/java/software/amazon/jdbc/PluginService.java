@@ -163,6 +163,25 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
 
   boolean isInTransaction();
 
+  /**
+   * Indicates whether the current connection is enlisted in an active XA transaction branch (i.e.
+   * between {@code XAResource.start(xid)} and the terminal {@code commit}/{@code rollback}). This is
+   * tracked separately from {@link #isInTransaction()} because XA branches driven by a transaction
+   * manager run without the {@code BEGIN}/{@code COMMIT} SQL that the SQL heuristic observes.
+   *
+   * @return true if an XA transaction branch is currently active on the connection.
+   */
+  boolean isXaTransactionActive();
+
+  /**
+   * Marks whether the current connection is enlisted in an active XA transaction branch. Driven by
+   * the wrapper's {@code XAResourceWrapper} ({@code start} sets it; terminal {@code commit}/
+   * {@code rollback} clears it; {@code prepare} does not clear it).
+   *
+   * @param active true to mark the connection XA-active, false to clear.
+   */
+  void setXaTransactionActive(boolean active);
+
   boolean isDialectConfirmed();
 
   HostListProvider getHostListProvider();

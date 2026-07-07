@@ -588,6 +588,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
    * @throws SQLException if an error occurs
    */
   protected void failover(final @Nullable HostSpec failedHost, boolean isInitialConnection) throws SQLException {
+    // Failover cannot be skipped (the current connection is broken) and cannot preserve an XA
+    // branch. Fail fast so the transaction manager rolls the branch back, instead of swapping the
+    // physical connection out from under the XA session.
+    if (this.pluginService.isXaTransactionActive()) {
+      throw new XaFailoverNotSupportedSQLException();
+    }
+
     if (failedHost != null) {
       this.pluginService.setAvailability(failedHost, HostAvailability.NOT_AVAILABLE);
     }

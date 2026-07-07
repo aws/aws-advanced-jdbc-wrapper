@@ -150,6 +150,25 @@ public class DriverHelper {
     }
   }
 
+  public static String getXaDataSourceClassname() {
+    return getXaDataSourceClassname(TestEnvironment.getCurrent().getCurrentDriver());
+  }
+
+  public static String getXaDataSourceClassname(TestDriver testDriver) {
+    switch (testDriver) {
+      case MYSQL:
+        return "com.mysql.cj.jdbc.MysqlXADataSource";
+      case PG:
+        return "org.postgresql.xa.PGXADataSource";
+      case MARIADB:
+        // MariaDB Connector/J exposes a single unified class that implements javax.sql.DataSource,
+        // javax.sql.ConnectionPoolDataSource, and javax.sql.XADataSource.
+        return "org.mariadb.jdbc.MariaDbDataSource";
+      default:
+        throw new NotImplementedException("XADataSource not supported for driver " + testDriver);
+    }
+  }
+
   public static Class<?> getConnectionClass() {
     return getConnectionClass(TestEnvironment.getCurrent().getCurrentDriver());
   }

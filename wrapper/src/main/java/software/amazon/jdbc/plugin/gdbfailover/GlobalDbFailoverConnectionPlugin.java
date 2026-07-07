@@ -34,6 +34,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
+import software.amazon.jdbc.plugin.failover.XaFailoverNotSupportedSQLException;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.AccessibleRegions;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -186,6 +187,12 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
 
   @Override
   protected void failover() throws SQLException {
+    // Failover cannot be skipped (the current connection is broken) and cannot preserve an XA
+    // branch. Fail fast so the transaction manager rolls the branch back.
+    if (this.pluginService.isXaTransactionActive()) {
+      throw new XaFailoverNotSupportedSQLException();
+    }
+
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_FAILOVER, TelemetryTraceLevel.NESTED);

@@ -1,2 +1,6 @@
 * text=auto
 gradlew text eol=lf
+# Shell scripts must always use LF so they run inside Linux containers (a CRLF shebang
+# produces "/bin/bash^M: bad interpreter"). This matters for scripts copied verbatim into
+# containers by the integration-test harness (e.g. src/test/config/*.sh).
+*.sh text eol=lf

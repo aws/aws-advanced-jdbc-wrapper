@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -217,6 +218,31 @@ class FailoverConnectionPluginTest {
   @Test
   void test_failover_failoverWriter() throws SQLException {
     when(mockPluginService.isInTransaction()).thenReturn(true);
+
+    initializePlugin();
+    doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverWriter(false);
+    spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
+
+    assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failover(mockHostSpec, false));
+    verify(spyPlugin).failoverWriter(false);
+  }
+
+  @Test
+  void test_failover_failsFastDuringXaTransaction() throws SQLException {
+    when(mockPluginService.isXaTransactionActive()).thenReturn(true);
+
+    initializePlugin();
+    spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
+
+    assertThrows(XaFailoverNotSupportedSQLException.class, () -> spyPlugin.failover(mockHostSpec, false));
+    // Failover must not attempt to swap the connection while an XA branch is active.
+    verify(spyPlugin, never()).failoverWriter(anyBoolean());
+    verify(spyPlugin, never()).failoverReader(any());
+  }
+
+  @Test
+  void test_failover_notXaActive_proceedsNormally() throws SQLException {
+    when(mockPluginService.isXaTransactionActive()).thenReturn(false);
 
     initializePlugin();
     doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverWriter(false);

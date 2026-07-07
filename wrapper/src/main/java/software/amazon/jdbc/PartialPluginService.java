@@ -369,6 +369,18 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isXaTransactionActive() {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isXaTransactionActive"}));
+  }
+
+  @Override
+  public void setXaTransactionActive(final boolean active) {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setXaTransactionActive"}));
+  }
+
+  @Override
   public boolean isDialectConfirmed() {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isDialectConfirmed"}));

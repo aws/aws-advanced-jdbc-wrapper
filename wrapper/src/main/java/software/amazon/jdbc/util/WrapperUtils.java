@@ -249,7 +249,14 @@ public class WrapperUtils {
       connectionWrapper.getServicesContainer().getPluginManagerService().resetCallContext();
 
       // The target driver may block on Statement.getConnection().
-      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
+      // This guard detects a statement bound to a connection that was swapped out by failover or
+      // read/write splitting. On the XA path the physical connection is pinned for the branch (a
+      // swap is rejected by PluginServiceImpl.setCurrentConnection), so this can only be a false
+      // positive there: some target XA drivers (e.g. PostgreSQL's pooled XA connection) hand out a
+      // statement whose getConnection() is not reference-identical to the logical handle the wrapper
+      // holds, even though it is the same physical session. Skip while an XA transaction is active.
+      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection
+          && !connectionWrapper.getServicesContainer().getPluginService().isXaTransactionActive()) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
         if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
           throw new SQLException(Messages.get(
@@ -366,7 +373,14 @@ public class WrapperUtils {
       }
 
       // The target driver may block on Statement.getConnection().
-      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
+      // This guard detects a statement bound to a connection that was swapped out by failover or
+      // read/write splitting. On the XA path the physical connection is pinned for the branch (a
+      // swap is rejected by PluginServiceImpl.setCurrentConnection), so this can only be a false
+      // positive there: some target XA drivers (e.g. PostgreSQL's pooled XA connection) hand out a
+      // statement whose getConnection() is not reference-identical to the logical handle the wrapper
+      // holds, even though it is the same physical session. Skip while an XA transaction is active.
+      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection
+          && !connectionWrapper.getServicesContainer().getPluginService().isXaTransactionActive()) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
         if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
           throw new SQLException(Messages.get(

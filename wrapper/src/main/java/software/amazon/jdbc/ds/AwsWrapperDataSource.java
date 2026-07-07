@@ -16,9 +16,6 @@
 
 package software.amazon.jdbc.ds;
 
-import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
-import static software.amazon.jdbc.util.ConnectionUrlParser.parsePropertiesFromUrl;
-
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.sql.Connection;
@@ -38,7 +35,6 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.DataSourceConnectionProvider;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.DriverConnectionProvider;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
@@ -69,9 +65,6 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private static final Logger LOGGER = Logger.getLogger(AwsWrapperDataSource.class.getName());
 
   private static final String PROTOCOL_PREFIX = "jdbc:aws-wrapper:";
-
-  private static final String SERVER_NAME = "serverName";
-  private static final String SERVER_PORT = "serverPort";
 
   private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
   private final StorageService storageService;
@@ -157,55 +150,17 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         TelemetryTraceLevel.TOP_LEVEL);
 
     try {
-      // Identify the URL for connection.
-      if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
-        finalUrl = this.jdbcUrl.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
-
-        parsePropertiesFromUrl(this.jdbcUrl, props);
-        setDatabasePropertyFromUrl(props);
-
-        // Override credentials with the ones provided through the data source property.
-        setCredentialProperties(props);
-
-        // Override database with the one provided through the data source property.
-        if (!StringUtils.isNullOrEmpty(this.database)) {
-          PropertyDefinition.DATABASE.set(props, this.database);
-        }
-
-      } else {
-        final String serverName = !StringUtils.isNullOrEmpty(this.serverName)
-            ? this.serverName
-            : props.getProperty(SERVER_NAME);
-        final String serverPort = !StringUtils.isNullOrEmpty(this.serverPort)
-            ? this.serverPort
-            : props.getProperty(SERVER_PORT);
-        final String databaseName = !StringUtils.isNullOrEmpty(this.database)
-            ? this.database
-            : PropertyDefinition.DATABASE.getString(props);
-
-        if (StringUtils.isNullOrEmpty(serverName)) {
-          throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
-        }
-        final String jdbcProtocol = this.jdbcProtocol;
-        if (StringUtils.isNullOrEmpty(jdbcProtocol)) {
-          throw new SQLException(Messages.get("AwsWrapperDataSource.missingJdbcProtocol"));
-        }
-
-        int port = HostSpec.NO_PORT;
-        if (!StringUtils.isNullOrEmpty(serverPort)) {
-          port = Integer.parseInt(serverPort);
-        }
-
-        finalUrl = buildUrl(jdbcProtocol, serverName, port, databaseName);
-
-        // Override credentials with the ones provided through the data source property.
-        setCredentialProperties(props);
-
-        // Override database with the one provided through the data source property.
-        if (!StringUtils.isNullOrEmpty(databaseName)) {
-          PropertyDefinition.DATABASE.set(props, databaseName);
-        }
-      }
+      // Identify the URL for connection (shared with AwsWrapperXADataSource).
+      finalUrl = DataSourceConfigHelper.resolveFinalUrl(
+          props,
+          PROTOCOL_PREFIX,
+          this.jdbcUrl,
+          this.serverName,
+          this.serverPort,
+          this.database,
+          this.jdbcProtocol,
+          this.user,
+          this.password);
 
       TargetDriverDialect targetDriverDialect = configurationProfile == null
           ? null
@@ -454,33 +409,11 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return reference;
   }
 
-  private void setCredentialProperties(final Properties props) {
-    // If username was provided as a get connection parameter.
-    if (!StringUtils.isNullOrEmpty(this.user)) {
-      PropertyDefinition.USER.set(props, this.user);
-    }
-
-    if (!StringUtils.isNullOrEmpty(this.password)) {
-      PropertyDefinition.PASSWORD.set(props, this.password);
-    }
-  }
-
   DataSource createTargetDataSource() throws SQLException {
     try {
       return WrapperUtils.createInstance(this.targetDataSourceClassName, DataSource.class);
     } catch (final InstantiationException instEx) {
       throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
-    }
-  }
-
-  private void setDatabasePropertyFromUrl(final Properties props) {
-    final String url = this.jdbcUrl;
-    if (StringUtils.isNullOrEmpty(url)) {
-      return;
-    }
-    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
-    if (!StringUtils.isNullOrEmpty(databaseName)) {
-      PropertyDefinition.DATABASE.set(props, databaseName);
     }
   }
 
