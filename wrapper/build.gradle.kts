@@ -324,10 +324,14 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (parts 8-10) the whole util package plus the exceptions, cleanup, authentication,
         // hostavailability, osgi, profile, states and ds packages,
         // (part 11) the targetdriverdialect and dialect packages,
-        // (part 12) the hostlistprovider package, and
-        // (part 13) the remaining top-level software.amazon.jdbc classes.
+        // (part 12) the hostlistprovider package,
+        // (part 13) the remaining top-level software.amazon.jdbc classes, and
+        // (part 14) the top-level classes of the plugin package (the plugin sub-package
+        // families remain out of scope for follow-on parts).
         // No end-anchor: matching an outer class also covers its nested classes (and, for
-        // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*).
+        // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*). The
+        // "plugin\.[A-Z]\w*" entry matches only classes directly in the plugin package
+        // (upper-case class names), not its lower-case sub-packages (efm, cache, ...).
         extraJavacArgs = listOf(
             "-AonlyDefs=^software\\.amazon\\.jdbc\\.(ConnectionPluginManager|PluginServiceImpl"
                 + "|wrapper\\.\\w+"
@@ -337,6 +341,7 @@ if (project.hasProperty("enableCheckerFramework")) {
                 + "|states\\.\\w+|ds\\.\\w+"
                 + "|targetdriverdialect\\.\\w+|dialect\\.\\w+"
                 + "|hostlistprovider\\.\\w+"
+                + "|plugin\\.[A-Z]\\w*"
                 + "|[A-Z]\\w*)",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",

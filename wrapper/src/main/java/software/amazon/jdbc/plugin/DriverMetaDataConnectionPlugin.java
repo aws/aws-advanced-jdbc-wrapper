@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -47,10 +48,13 @@ public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
         Collections.singletonList(JdbcMethod.DATABASEMETADATA_GETDRIVERNAME.methodName));
   }
 
+  // WRAPPER_DRIVER_NAME is declared with a non-null default value, so getString (and therefore the
+  // cast) never yields null here; the interface's execute contract is a non-null result.
+  @SuppressWarnings("return")
   @Override
   public <T, E extends Exception> T execute(Class<T> resultClass, Class<E> exceptionClass,
       Object methodInvokeOn, String methodName, JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs) throws E {
+      @Nullable Object[] jdbcMethodArgs) throws E {
     return resultClass.cast(WRAPPER_DRIVER_NAME.getString(this.properties));
   }
 }

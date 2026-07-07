@@ -117,7 +117,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     LOGGER.finest(
@@ -244,7 +244,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
-    if (HostRole.UNKNOWN.equals(role)) {
+    if (role == null || HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.
       return false;
     }
@@ -253,7 +253,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy)
+  public @Nullable HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy)
       throws SQLException {
     List<HostSpec> hosts = this.pluginService.getHosts();
 
@@ -261,10 +261,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
+  public @Nullable HostSpec getHostSpecByStrategy(
       final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException {
-    if (HostRole.UNKNOWN.equals(role)) {
+    if (role == null || HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.
       return null;
     }
@@ -317,7 +317,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public List<Pair<String, Object>> getSnapshotState() {
+  public @Nullable List<Pair<String, Object>> getSnapshotState() {
     return null;
   }
 }

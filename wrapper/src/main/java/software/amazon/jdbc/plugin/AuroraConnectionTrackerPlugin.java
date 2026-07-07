@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -51,7 +52,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   private final PluginService pluginService;
   private final RdsUtils rdsHelper;
   private final OpenedConnectionTracker tracker;
-  private HostSpec currentWriter = null;
+  private @Nullable HostSpec currentWriter = null;
   private boolean needUpdateCurrentWriter = false;
 
   AuroraConnectionTrackerPlugin(final PluginService pluginService, final Properties props) {
@@ -88,9 +89,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     final Connection conn = connectFunc.call();
 
     if (conn != null && !Boolean.TRUE.equals(this.pluginService.isPooledConnection())) {
-      HostSpec connectionHostSpec = this.pluginService.getRoutedHostSpec() == null
-          ? hostSpec
-          : this.pluginService.getRoutedHostSpec();
+      final HostSpec routedHostSpec = this.pluginService.getRoutedHostSpec();
+      HostSpec connectionHostSpec = routedHostSpec == null ? hostSpec : routedHostSpec;
       final RdsUrlType type = this.rdsHelper.identifyRdsType(connectionHostSpec.getHost());
       if (type.isRdsCluster() || type == RdsUrlType.OTHER || type == RdsUrlType.IP_ADDRESS) {
         final HostSpec identifiedHostSpec = this.pluginService.identifyConnection(conn, connectionHostSpec);
@@ -109,7 +109,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   @Override
   public <T, E extends Exception> T execute(final Class<T> resultClass, final Class<E> exceptionClass,
       final Object methodInvokeOn, final String methodName, final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs) throws E {
+      final @Nullable Object[] jdbcMethodArgs) throws E {
 
     final HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
     this.rememberWriter();
@@ -173,12 +173,13 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    if (this.currentWriter == null) {
+    final HostSpec previousWriter = this.currentWriter;
+    if (previousWriter == null) {
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
-    } else if (!this.currentWriter.getHostAndPort().equals(hostSpecAfterFailover.getHostAndPort())) {
+    } else if (!previousWriter.getHostAndPort().equals(hostSpecAfterFailover.getHostAndPort())) {
       // the writer's changed
-      tracker.invalidateAllConnections(this.currentWriter);
+      tracker.invalidateAllConnections(previousWriter);
       tracker.logOpenedConnections();
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;

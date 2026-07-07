@@ -225,6 +225,11 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
               originalConnectHost, urlType, substitutionStrategy, props, connectFunc, candidateConnHolder);
 
           final Connection candidateConn = candidateConnHolder.get();
+          if (candidateConn == null) {
+            // openCandidateConnection always stores a connection on success; if none is present the
+            // attempt did not yield a usable connection, so retry until the timeout is reached.
+            continue;
+          }
 
           if (roleToVerify == null) {
             // No verification required.
@@ -575,7 +580,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  protected HostSpec getCandidateHost(
+  protected @Nullable HostSpec getCandidateHost(
       final @NonNull HostSpec originalConnectHost,
       final @NonNull RdsUrlType urlType,
       final @NonNull InstanceSubstitutionStrategy substitutionStrategy)
@@ -590,8 +595,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       return Utils.getWriter(availableHosts);
     }
 
-    HostRole targetRole = InstanceSubstitutionStrategy.toTargetRole(substitutionStrategy);
-    if (!this.pluginService.acceptsStrategy(targetRole, this.selectionStrategyPropValue)) {
+    final HostRole targetRole = InstanceSubstitutionStrategy.toTargetRole(substitutionStrategy);
+    final String selectionStrategy = this.selectionStrategyPropValue;
+    if (targetRole == null || selectionStrategy == null
+        || !this.pluginService.acceptsStrategy(targetRole, selectionStrategy)) {
       throw new UnsupportedOperationException(
           Messages.get(
               "AuroraInitialConnectionStrategyPlugin.unsupportedStrategy",
@@ -611,9 +618,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         final List<HostSpec> hostsInRegion = availableHosts.stream()
             .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
             .collect(Collectors.toList());
-        return this.pluginService.getHostSpecByStrategy(hostsInRegion, targetRole, this.selectionStrategyPropValue);
+        return this.pluginService.getHostSpecByStrategy(hostsInRegion, targetRole, selectionStrategy);
       } else {
-        return this.pluginService.getHostSpecByStrategy(availableHosts, targetRole, this.selectionStrategyPropValue);
+        return this.pluginService.getHostSpecByStrategy(availableHosts, targetRole, selectionStrategy);
       }
     } catch (SQLException ex) {
       // Unable to find candidate host.

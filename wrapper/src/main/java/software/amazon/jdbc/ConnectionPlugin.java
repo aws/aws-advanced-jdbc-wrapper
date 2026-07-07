@@ -132,10 +132,11 @@ public interface ConnectionPlugin extends StateSnapshotProvider {
    * @throws UnsupportedOperationException if this {@link ConnectionPlugin} does not support the
    *                                       requested strategy
    */
-  HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
+  @Nullable HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
-  HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
+  @Nullable HostSpec getHostSpecByStrategy(
+      final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
   void initHostProvider(

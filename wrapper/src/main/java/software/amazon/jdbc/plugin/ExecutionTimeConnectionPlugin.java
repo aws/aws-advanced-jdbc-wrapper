@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
 
@@ -44,7 +45,7 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     final long startTime = System.nanoTime();
