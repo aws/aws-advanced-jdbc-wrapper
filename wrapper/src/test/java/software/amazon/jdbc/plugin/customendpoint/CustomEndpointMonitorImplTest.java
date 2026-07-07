@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -31,6 +32,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -40,10 +43,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsResponse;
+import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -149,5 +154,98 @@ public class CustomEndpointMonitorImplTest {
     // Wait for monitor to close
     TimeUnit.MILLISECONDS.sleep(refreshRateMs);
     verify(mockRdsClient, atLeastOnce()).close();
+  }
+
+  /**
+   * Reproduces the production issue where RDS {@code DescribeDBClusterEndpoints} calls keep getting throttled even
+   * though the monitor has exponential-backoff logic that is supposed to slow the call rate down.
+   *
+   * <p>When the RDS API throttles the monitor, no custom endpoint info is ever cached. As a result, every incoming
+   * connection calls {@link CustomEndpointMonitorImpl#requestCustomEndpointInfoUpdate()} /
+   * {@link CustomEndpointMonitorImpl#hasCustomEndpointInfo()}, both of which set {@code refreshRequired = true}. That
+   * flag is never cleared on the throttling path, and {@link CustomEndpointMonitorImpl#sleep(long)} returns
+   * immediately whenever {@code refreshRequired} is {@code true}. Consequently the backoff sleep is bypassed and the
+   * monitor spins, issuing RDS API calls as fast as it can instead of honoring the growing refresh rate.
+   *
+   * <p>This test starts a background "connection storm" that continuously requests custom endpoint info while the
+   * RDS API always throttles, then asserts that the number of RDS API calls over a fixed window stays small (i.e.
+   * the backoff is actually honored). It fails against the current (buggy) implementation and should pass once the
+   * throttling backoff can no longer be short-circuited by connection-driven refresh requests.
+   */
+  @Test
+  public void testThrottlingBackoffBypassedByConnectionStorm() throws InterruptedException {
+    // Ensure no leftover cached info from other tests so hasCustomEndpointInfo() reflects the throttled state.
+    CustomEndpointMonitorImpl.customEndpointInfoCache.clear();
+
+    final int refreshRateMs = 50;
+    final int backoffFactor = 2;
+    final int maxRefreshRateMs = 2000;
+
+    // The RDS API always responds with a throttling exception.
+    final RdsException throttlingException = (RdsException) RdsException.builder()
+        .awsErrorDetails(AwsErrorDetails.builder().errorCode("ThrottlingException").build())
+        .statusCode(400)
+        .message("Rate exceeded")
+        .build();
+
+    final AtomicInteger describeCallCount = new AtomicInteger(0);
+    when(mockRdsClient.describeDBClusterEndpoints(any(Consumer.class))).thenAnswer(invocation -> {
+      int count = describeCallCount.incrementAndGet();
+      // Safety valve: if the backoff is bypassed the monitor spins. Slow the runaway loop once it is clearly
+      // established so the test does not exhaust resources while still far exceeding the expected call count.
+      if (count > 2000) {
+        TimeUnit.MILLISECONDS.sleep(5);
+      }
+      throw throttlingException;
+    });
+
+    final CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
+        mockStorageService,
+        mockTelemetryFactory,
+        host,
+        endpointId,
+        Region.US_EAST_1,
+        TimeUnit.MILLISECONDS.toNanos(refreshRateMs),
+        backoffFactor,
+        TimeUnit.MILLISECONDS.toNanos(maxRefreshRateMs),
+        mockRdsClientFunc);
+
+    // Simulate a connection storm: connections continuously ask the monitor for custom endpoint info while it is
+    // unable to provide any (because it is being throttled). Each request sets refreshRequired = true.
+    final AtomicBoolean stormActive = new AtomicBoolean(true);
+    final Thread stormThread = new Thread(() -> {
+      while (stormActive.get()) {
+        monitor.requestCustomEndpointInfoUpdate();
+        try {
+          TimeUnit.MILLISECONDS.sleep(1);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+      }
+    });
+
+    monitor.start();
+    stormThread.start();
+
+    // Measure how many RDS API calls the monitor issues during the window.
+    final long measurementWindowMs = 1000;
+    TimeUnit.MILLISECONDS.sleep(measurementWindowMs);
+
+    stormActive.set(false);
+    stormThread.join(TimeUnit.SECONDS.toMillis(5));
+    monitor.stop();
+
+    final int calls = describeCallCount.get();
+
+    // With the backoff honored (50 -> 100 -> 200 -> 400 -> 800 -> ... capped at 2000ms), the monitor makes only a
+    // handful of calls (~4) during a 1s window. If connection-driven refresh requests bypass the backoff, the
+    // monitor spins and issues far more calls.
+    final int maxExpectedCalls = 10;
+    assertTrue(
+        calls <= maxExpectedCalls,
+        "Expected throttling backoff to limit RDS DescribeDBClusterEndpoints calls to at most " + maxExpectedCalls
+            + " during the " + measurementWindowMs + "ms window, but the monitor made " + calls + " calls. "
+            + "The backoff is being bypassed by connection-driven refresh requests (refreshRequired).");
   }
 }
