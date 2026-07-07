@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -96,7 +97,8 @@ public class OpenedConnectionTracker {
     this.pluginService = pluginService;
   }
 
-  public TrackedConnectionList.Node populateOpenedConnectionQueue(final HostSpec hostSpec, final Connection conn) {
+  public TrackedConnectionList.@Nullable Node populateOpenedConnectionQueue(
+      final HostSpec hostSpec, final Connection conn) {
     if (hostSpec == null || conn == null) {
       return null;
     }
@@ -132,7 +134,7 @@ public class OpenedConnectionTracker {
     invalidateAllConnections(hostSpec.getHostAndPort(), hostSpec.getHost(), hostSpec.getHostId());
   }
 
-  public void invalidateAllConnections(final String... keys) {
+  public void invalidateAllConnections(final @Nullable String... keys) {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_INVALIDATE_CONNECTIONS, TelemetryTraceLevel.NESTED);
@@ -196,7 +198,7 @@ public class OpenedConnectionTracker {
     }
   }
 
-  private TrackedConnectionList.Node trackConnection(
+  private TrackedConnectionList.@Nullable Node trackConnection(
       final String instanceEndpoint, final Connection connection) {
     if (connection == null) {
       return null;
@@ -209,12 +211,14 @@ public class OpenedConnectionTracker {
     return connectionList.add(connection);
   }
 
-  private void invalidateConnections(final TrackedConnectionList connectionList) {
+  private void invalidateConnections(final @Nullable TrackedConnectionList connectionList) {
     if (connectionList == null || connectionList.isEmpty()) {
       return;
     }
+    // connectionList is non-null past the guard; capture it so the refinement holds inside the lambda.
+    final TrackedConnectionList list = connectionList;
     getOrCreateInvalidateExecutor().submit(() -> {
-      final List<Connection> connections = connectionList.drainAll();
+      final List<Connection> connections = list.drainAll();
       for (final Connection conn : connections) {
         try {
           conn.abort(abortConnectionExecutor);
@@ -241,7 +245,7 @@ public class OpenedConnectionTracker {
     });
   }
 
-  private void logConnectionList(final String host, final TrackedConnectionList list) {
+  private void logConnectionList(final String host, final @Nullable TrackedConnectionList list) {
     if (list == null || list.isEmpty()) {
       return;
     }

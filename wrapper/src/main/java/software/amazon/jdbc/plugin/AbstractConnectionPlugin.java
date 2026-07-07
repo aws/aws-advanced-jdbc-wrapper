@@ -44,7 +44,7 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     return jdbcMethodFunc.call();
@@ -111,7 +111,7 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {}
 
   @Override
-  public List<Pair<String, Object>> getSnapshotState() {
+  public @Nullable List<Pair<String, Object>> getSnapshotState() {
     return null;
   }
 }

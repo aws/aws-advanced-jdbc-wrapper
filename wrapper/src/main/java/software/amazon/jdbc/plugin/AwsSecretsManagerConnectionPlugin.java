@@ -36,6 +36,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -110,14 +111,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final BiFunction<HostSpec, Region, SecretsManagerClient>
       secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
-  protected Secret secret;
+  protected @Nullable Secret secret;
   private final String secretUsername;
   private final String secretPassword;
   protected final long secretExpirationTime;
   protected final PluginService pluginService;
   protected final FullServicesContainer servicesContainer;
 
-  protected final TelemetryCounter fetchCredentialsCounter;
+  protected final @Nullable TelemetryCounter fetchCredentialsCounter;
 
   static {
     PropertyDefinition.registerPluginProperties(AwsSecretsManagerConnectionPlugin.class);
@@ -154,6 +155,9 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     );
   }
 
+  // resolveSecretExpirationTime is an overridable instance method invoked here during construction;
+  // it only reads its argument and does not touch not-yet-initialized state, so the call is safe.
+  @SuppressWarnings("method.invocation")
   AwsSecretsManagerConnectionPlugin(
       final FullServicesContainer servicesContainer,
       final Properties props,
@@ -195,7 +199,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (region == null) {
       final Matcher matcher = SECRETS_ARN_PATTERN.matcher(secretId);
       if (matcher.matches()) {
-        region = regionUtils.getRegionFromRegionString(matcher.group("region"));
+        final String regionFromArn = matcher.group("region");
+        if (regionFromArn != null) {
+          region = regionUtils.getRegionFromRegionString(regionFromArn);
+        }
       }
     }
 
@@ -206,8 +213,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
               new Object[] {REGION_PROPERTY.name}));
     }
 
-    this.secretUsername = AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_USERNAME_PROPERTY.getString(props);
-    this.secretPassword = AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_PASSWORD_PROPERTY.getString(props);
+    // Both properties are declared with non-null default values ("username"/"password"), so getString
+    // never returns null; the fallback keeps the fields non-null to satisfy the checker.
+    final String configuredSecretUsername =
+        AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_USERNAME_PROPERTY.getString(props);
+    this.secretUsername = configuredSecretUsername != null ? configuredSecretUsername : "username";
+    final String configuredSecretPassword =
+        AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_PASSWORD_PROPERTY.getString(props);
+    this.secretPassword = configuredSecretPassword != null ? configuredSecretPassword : "password";
     this.secretExpirationTime = resolveSecretExpirationTime(
         AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_EXPIRATION_SEC_PROPERTY.getInteger(props));
     this.secretKey = Pair.create(secretId, region.id());
@@ -368,15 +381,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
               new Object[] {exception.getMessage()}), exception);
     } catch (Exception exception) {
-      if (exception.getCause() != null && exception.getCause() instanceof URISyntaxException) {
+      final Throwable cause = exception.getCause();
+      if (cause != null && cause instanceof URISyntaxException) {
         LOGGER.log(
             Level.WARNING,
             exception,
             () -> Messages.get(
                 "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
-                new Object[] {exception.getCause().getMessage()}));
+                new Object[] {cause.getMessage()}));
         throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
-            new Object[] {exception.getCause().getMessage()}));
+            new Object[] {cause.getMessage()}));
       }
       LOGGER.log(
           Level.WARNING,
@@ -432,9 +446,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @param properties Properties to store credentials.
    */
   private void applySecretToProperties(final Properties properties) {
-    if (this.secret != null) {
-      PropertyDefinition.USER.set(properties, secret.getUsername());
-      PropertyDefinition.PASSWORD.set(properties, secret.getPassword());
+    final Secret currentSecret = this.secret;
+    if (currentSecret != null) {
+      PropertyDefinition.USER.set(properties, currentSecret.getUsername());
+      PropertyDefinition.PASSWORD.set(properties, currentSecret.getPassword());
     }
   }
 

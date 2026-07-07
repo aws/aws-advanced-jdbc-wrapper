@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A thread-safe doubly-linked list for tracking opened connections.
@@ -31,8 +32,8 @@ import java.util.function.Predicate;
 public class TrackedConnectionList {
 
   private final ReentrantLock lock = new ReentrantLock();
-  private Node head;
-  private Node tail;
+  private @Nullable Node head;
+  private @Nullable Node tail;
   private int size;
 
   /**
@@ -41,8 +42,8 @@ public class TrackedConnectionList {
   public static class Node {
     final WeakReference<Connection> connectionRef;
     final TrackedConnectionList ownerList;
-    Node prev;
-    Node next;
+    @Nullable Node prev;
+    @Nullable Node next;
     boolean removed;
 
     Node(final WeakReference<Connection> connectionRef, final TrackedConnectionList ownerList) {

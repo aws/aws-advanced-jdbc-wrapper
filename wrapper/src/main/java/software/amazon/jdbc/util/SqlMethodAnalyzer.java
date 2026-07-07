@@ -62,7 +62,7 @@ public class SqlMethodAnalyzer {
       )));
 
   public boolean doesOpenTransaction(final Connection conn, final String methodName,
-      final Object[] args) {
+      final @Nullable Object[] args) {
     if (!(EXECUTE_SQL_METHOD_NAMES.contains(methodName) && args != null && args.length >= 1)) {
       return false;
     }
@@ -109,7 +109,7 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean doesCloseTransaction(final Connection conn, final String methodName,
-      final Object[] args) {
+      final @Nullable Object[] args) {
     if (CLOSE_TRANSACTION_METHOD_NAMES.contains(methodName)) {
       return true;
     }
@@ -145,7 +145,7 @@ public class SqlMethodAnalyzer {
         || statement.startsWith("ABORT");
   }
 
-  public boolean isStatementSettingAutoCommit(final String methodName, final Object[] args) {
+  public boolean isStatementSettingAutoCommit(final String methodName, final @Nullable Object[] args) {
     if (args == null || args.length < 1) {
       return false;
     }
@@ -159,7 +159,7 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,
-      final Object[] jdbcMethodArgs) {
+      final @Nullable Object[] jdbcMethodArgs) {
     final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
         methodName, jdbcMethodArgs);
     if (!isStatementSettingAutoCommit && !JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName)) {
@@ -183,7 +183,7 @@ public class SqlMethodAnalyzer {
     return !oldAutoCommitVal && Boolean.TRUE.equals(newAutoCommitVal);
   }
 
-  public @Nullable Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
+  public @Nullable Boolean getAutoCommitValueFromSqlStatement(final @Nullable Object[] args) {
     if (args == null || args.length < 1) {
       return null;
     }

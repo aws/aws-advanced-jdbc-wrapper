@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -124,7 +125,7 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     final String sql = getQuery(methodInvokeOn, methodName, jdbcMethodArgs);
@@ -139,7 +140,8 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
     return jdbcMethodFunc.call();
   }
 
-  protected <T> String getQuery(final Object methodInvokeOn, final String methodName, final Object[] jdbcMethodArgs) {
+  protected <T> @Nullable String getQuery(
+      final Object methodInvokeOn, final String methodName, final @Nullable Object[] jdbcMethodArgs) {
 
     // Get query from method argument
     if (methodWithQueryArg.contains(methodName)
