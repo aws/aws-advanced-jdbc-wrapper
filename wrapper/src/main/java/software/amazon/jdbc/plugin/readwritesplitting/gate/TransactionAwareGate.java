@@ -18,11 +18,13 @@ package software.amazon.jdbc.plugin.readwritesplitting.gate;
 
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.logging.Logger;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.parser.RoutingHint;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
 import software.amazon.jdbc.plugin.readwritesplitting.signal.TargetRole;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * {@link SwitchGate} that pins the current connection at transaction boundaries.
@@ -40,6 +42,8 @@ import software.amazon.jdbc.plugin.readwritesplitting.signal.TargetRole;
  * which owns the role check; this gate only decides pinning.
  */
 public class TransactionAwareGate implements SwitchGate {
+
+  private static final Logger LOGGER = Logger.getLogger(TransactionAwareGate.class.getName());
 
   private final boolean honorKeepHint;
   private final boolean pinOnAutoCommitOff;
@@ -67,6 +71,14 @@ public class TransactionAwareGate implements SwitchGate {
               == RoutingHint.KEEP) {
         return false;
       }
+    }
+
+    // An active XA transaction branch pins the connection just like a local transaction: the
+    // physical session must not change until the transaction manager resolves the branch. This is
+    // tracked separately from isInTransaction() because XA branches run without BEGIN/COMMIT SQL.
+    if (ctx.pluginService().isXaTransactionActive()) {
+      LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.stayedOnConnectionForXaTransaction"));
+      return false;
     }
 
     if (ctx.pluginService().isInTransaction()) {

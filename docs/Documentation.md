@@ -3,6 +3,7 @@
 - [Getting Started](./GettingStarted.md)
 - [Using the AWS Advanced JDBC Wrapper](./using-the-jdbc-driver/UsingTheJdbcDriver.md)
   - [Data Sources](./using-the-jdbc-driver/DataSource.md)
+    - [XA DataSource (distributed / two-phase commit transactions)](./using-the-jdbc-driver/UsingXADataSource.md)
   - [Aurora Global Databases](./using-the-jdbc-driver/GlobalDatabases.md)
   - [Logging](./using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)
   - [Telemetry](./using-the-jdbc-driver/Telemetry.md)

@@ -127,6 +127,12 @@ dependencies {
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.1")
     testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
     testImplementation("com.github.jsqlparser:jsqlparser:4.9") // Required by sqlParser/autoReadWriteSplitting and kmsEncryption plugins
+    // XA transaction managers for XADataSource integration tests (both are exercised for compatibility).
+    testImplementation("org.jboss.narayana.jta:narayana-jta:5.11.4.Final") // 5.11.x is the last Java 8-compatible line
+    // Narayana declares jboss-logging as optional/provided; add it explicitly or jtaLogger fails to init.
+    testImplementation("org.jboss.logging:jboss-logging:3.4.3.Final")
+    testImplementation("com.atomikos:transactions-jta:5.0.9")
+    testImplementation("com.atomikos:transactions-jdbc:5.0.9")
 }
 
 repositories {

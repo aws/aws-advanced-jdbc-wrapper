@@ -196,6 +196,12 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Statement.execute", "commit;", true),
         Arguments.of("Statement.executeUpdate", "end", true),
         Arguments.of("Statement.executeUpdate", "abort;", true),
+        // Two-phase commit control statements.
+        Arguments.of("Statement.execute", "PREPARE TRANSACTION 'gid-1'", true),
+        Arguments.of("Statement.execute", "COMMIT PREPARED 'gid-1'", true),
+        Arguments.of("Statement.execute", "ROLLBACK PREPARED 'gid-1'", true),
+        // "PREPARE <name> AS ..." is a prepared statement, not transaction control.
+        Arguments.of("Statement.execute", "PREPARE myplan AS SELECT 1", false),
         Arguments.of("Statement.execute", "select 1", false),
         Arguments.of("Statement.close", null, false),
         Arguments.of("Statement.isClosed", null, false),

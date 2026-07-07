@@ -1,6 +1,8 @@
 # Connecting with a DataSource
 You can use the `DriverManager` class or a datasource to establish a new connection when using the AWS Advanced JDBC Wrapper. The AWS Advanced JDBC Wrapper has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java) that allows the AWS Advanced JDBC Wrapper to work with various driver-specific datasources.
 
+> **Distributed (XA) transactions:** to participate in XA / two-phase commit transactions coordinated by a JTA transaction manager, use the `javax.sql.XADataSource` entry point instead. See [Using the AWS Advanced JDBC Wrapper as an XADataSource](./UsingXADataSource.md).
+
 ## Using the AwsWrapperDataSource
 
 To establish a connection with the AwsWrapperDataSource, you must:

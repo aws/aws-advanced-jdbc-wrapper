@@ -17,18 +17,36 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
+import javax.sql.XAConnection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ConnectionInfo {
   private final Connection connection;
   private final boolean isPooled;
+  private final @Nullable XAConnection xaConnection;
 
   public ConnectionInfo(Connection connection, boolean isPooled) {
-    this.connection = connection;
-    this.isPooled = isPooled;
+    this(connection, isPooled, null);
   }
 
   public ConnectionInfo(Connection connection) {
-    this(connection, false);
+    this(connection, false, null);
+  }
+
+  /**
+   * Creates a {@link ConnectionInfo} that also carries the owning {@link XAConnection} for the XA
+   * datasource path. The {@code connection} is the logical connection obtained from
+   * {@code xaConnection.getConnection()}; {@code xaConnection} owns the physical session and the
+   * {@code XAResource}.
+   *
+   * @param connection   the (logical) physical connection handed to the wrapper.
+   * @param isPooled     whether the connection came from a pool.
+   * @param xaConnection the owning XA connection, or null on the non-XA path.
+   */
+  public ConnectionInfo(Connection connection, boolean isPooled, @Nullable XAConnection xaConnection) {
+    this.connection = connection;
+    this.isPooled = isPooled;
+    this.xaConnection = xaConnection;
   }
 
   public Connection getConnection() {
@@ -37,5 +55,15 @@ public class ConnectionInfo {
 
   public boolean isPooled() {
     return isPooled;
+  }
+
+  /**
+   * Returns the owning {@link XAConnection} when this info was produced on the XA datasource path,
+   * or null otherwise.
+   *
+   * @return the owning XA connection, or null.
+   */
+  public @Nullable XAConnection getXaConnection() {
+    return xaConnection;
   }
 }

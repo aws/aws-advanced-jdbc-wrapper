@@ -49,6 +49,7 @@ import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverMode;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
+import software.amazon.jdbc.plugin.failover.XaFailoverNotSupportedSQLException;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -358,6 +359,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
    * @throws SQLException if an error occurs
    */
   protected void failover() throws SQLException {
+    // Failover cannot be skipped (the current connection is broken) and cannot preserve an XA
+    // branch. Fail fast so the transaction manager rolls the branch back.
+    if (this.pluginService.isXaTransactionActive()) {
+      throw new XaFailoverNotSupportedSQLException();
+    }
+
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {
