@@ -84,6 +84,39 @@ The `/*@keep*/` hint is useful when you want to observe or operate on the curren
 > [!WARNING]
 > Routing hints are parsed from SQL comments. If your application builds SQL by concatenating user-supplied input, an attacker could inject a routing hint. Always use parameterized queries for user input so that hints cannot be injected through it.
 
+## Query-level load balancing
+
+By default, once the connection has switched to a reader it stays on that single reader for all subsequent read queries. Enabling query-level load balancing makes the plugin select a reader **per read query**, spreading reads across the available reader instances.
+
+These parameters control *when* a new reader is selected (per query vs. sticky) — they do not change *how* a reader is picked. Reader selection continues to use the configured [`readerHostSelectorStrategy`](../HostSelectionStrategies.md), and any supported strategy applies.
+
+| Parameter                     | Default | Description                                                                                                                                                 |
+|-------------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `queryLevelLoadBalancing`     | `false` | When `true`, a read query routed to a reader triggers a per-query reader selection (using `readerHostSelectorStrategy`) instead of reusing the single cached reader. |
+| `loadBalancingIncludeWriter`  | `false` | When `true` (and `queryLevelLoadBalancing` is enabled), the writer instance is also included in the pool of balancing candidates.                            |
+
+```java
+final Properties properties = new Properties();
+properties.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,autoReadWriteSplitting");
+properties.setProperty("queryLevelLoadBalancing", "true");
+// Reader selection uses readerHostSelectorStrategy; any supported strategy works (default: random).
+properties.setProperty("readerHostSelectorStrategy", "roundRobin");
+// Optional: also send some reads to the writer
+// properties.setProperty("loadBalancingIncludeWriter", "true");
+```
+
+Behavior notes:
+
+- Only queries that are already routed to a reader are balanced. Writes, `SELECT ... FOR UPDATE`, `/*@writer*/`-hinted, and `/*@keep*/`-hinted statements are unaffected.
+- Balancing is suppressed under the same conditions as normal routing: while a transaction is open or autocommit is disabled, the statement stays on the current connection. This preserves transactional guarantees.
+- This is a feature of the `autoReadWriteSplitting` plugin only. The `readWriteSplitting`, `srw`, and `gdbReadWriteSplitting` plugins are not affected by these parameters.
+
+> [!IMPORTANT]
+> Query-level load balancing can switch the physical connection on every read query. Enabling the [internal connection pool](./UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) is strongly recommended so that switching reuses pooled connections instead of opening a new physical connection per query. Without it, high query rates can cause significant connection churn.
+
+> [!NOTE]
+> Because balancing can move a read to a different reader between statements, do not rely on read-your-own-write consistency across separately balanced read queries. Use a transaction, `/*@keep*/`, or `/*@writer*/` when a sequence of statements must observe a consistent view.
+
 ## Transactions and autocommit
 
 A query is kept on the current connection (no re-routing) when either of the following is true:

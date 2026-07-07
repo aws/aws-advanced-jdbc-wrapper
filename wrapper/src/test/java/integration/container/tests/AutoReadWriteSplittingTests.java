@@ -17,7 +17,9 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.DatabaseEngineDeployment;
 import integration.TestEnvironmentFeatures;
@@ -34,7 +36,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.MethodOrderer;
@@ -73,6 +77,16 @@ public class AutoReadWriteSplittingTests {
     props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name,
         String.valueOf(TimeUnit.SECONDS.toMillis(10)));
     PropertyDefinition.PLUGINS.set(props, "sqlParser,autoReadWriteSplitting");
+    return props;
+  }
+
+  private Properties getBalancingProps(final boolean includeWriter) {
+    final Properties props = getProps();
+    props.setProperty("queryLevelLoadBalancing", "true");
+    props.setProperty("readerHostSelectorStrategy", "roundRobin");
+    if (includeWriter) {
+      props.setProperty("loadBalancingIncludeWriter", "true");
+    }
     return props;
   }
 
@@ -178,6 +192,99 @@ public class AutoReadWriteSplittingTests {
 
       conn.commit();
       conn.setAutoCommit(true);
+    }
+  }
+
+  /**
+   * With query-level load balancing enabled, consecutive read queries should rotate across
+   * multiple reader instances (roundRobin strategy). Requires at least two readers.
+   */
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 3)
+  public void test_queryLevelLoadBalancing_rotatesAcrossReaders() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+
+    try (final Connection conn = DriverManager.getConnection(url, getBalancingProps(false))) {
+      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
+
+      final Set<String> observed = new HashSet<>();
+      for (int i = 0; i < 8; i++) {
+        // Each routed SELECT triggers a per-query balancing switch before it runs.
+        try (Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1")) {
+          rs.next();
+        }
+        // queryInstanceId carries a /*@keep*/ hint, so it reports the current instance
+        // without perturbing routing.
+        observed.add(auroraUtil.queryInstanceId(conn));
+      }
+
+      assertTrue(observed.size() > 1,
+          "Query-level load balancing should rotate across multiple readers, but only saw: "
+              + observed);
+      assertFalse(observed.contains(writerInstanceId),
+          "Load balancing without loadBalancingIncludeWriter should not route reads to the writer");
+    }
+  }
+
+  /**
+   * With query-level load balancing and loadBalancingIncludeWriter enabled, the writer instance
+   * is also an eligible balancing candidate and should be reached over enough iterations.
+   */
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 3)
+  public void test_queryLevelLoadBalancing_includeWriter() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+
+    try (final Connection conn = DriverManager.getConnection(url, getBalancingProps(true))) {
+      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
+
+      final Set<String> observed = new HashSet<>();
+      for (int i = 0; i < 15; i++) {
+        try (Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1")) {
+          rs.next();
+        }
+        observed.add(auroraUtil.queryInstanceId(conn));
+      }
+
+      assertTrue(observed.contains(writerInstanceId),
+          "With loadBalancingIncludeWriter enabled, the writer should be used for some reads. "
+              + "Observed: " + observed);
+    }
+  }
+
+  /**
+   * Query-level load balancing must not switch connections inside a transaction: all statements
+   * in the transaction must run on a single instance.
+   */
+  @TestTemplate
+  public void test_queryLevelLoadBalancing_suppressedInTransaction() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+
+    try (final Connection conn = DriverManager.getConnection(url, getBalancingProps(false))) {
+      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
+
+      conn.setAutoCommit(false);
+      try {
+        final Set<String> observed = new HashSet<>();
+        for (int i = 0; i < 4; i++) {
+          try (Statement stmt = conn.createStatement();
+              ResultSet rs = stmt.executeQuery("SELECT 1")) {
+            rs.next();
+          }
+          observed.add(auroraUtil.queryInstanceId(conn));
+        }
+
+        assertEquals(1, observed.size(),
+            "Load balancing must not switch connections inside a transaction. Observed: "
+                + observed);
+        assertTrue(observed.contains(writerInstanceId),
+            "A transaction started with autocommit off should stay on the writer");
+      } finally {
+        conn.commit();
+        conn.setAutoCommit(true);
+      }
     }
   }
 }
