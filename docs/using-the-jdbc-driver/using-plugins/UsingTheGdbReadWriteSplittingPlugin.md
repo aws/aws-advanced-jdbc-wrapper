@@ -25,7 +25,7 @@ properties.setProperty(PropertyDefinition.PLUGINS.name, "gdbReadWriteSplitting")
 ```
 
 > [!WARNING]
-> Do not use the `readWriteSplitting`, `srw` and/or `gdbReadWriteSplitting` plugins (or their combination) at the same time for the same connection!
+> Use exactly one read/write splitting plugin per connection. Do not combine `gdbReadWriteSplitting` with any other read/write splitting plugin — `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `autoSimpleReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, or `gdbAutoSimpleReadWriteSplitting` — for the same connection. They are all read/write splitting plugins and will conflict.
 
 ## Using the GDB Read/Write Splitting Plugin against non-GDB clusters
 

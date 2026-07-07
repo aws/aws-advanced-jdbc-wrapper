@@ -12,7 +12,7 @@ The routing rules are:
 This plugin extends the Read/Write Splitting Plugin, so it inherits the same connection-switching, reader-selection, session-state-transfer, and internal-connection-pooling behavior described in the [Read/Write Splitting Plugin guide](./UsingTheReadWriteSplittingPlugin.md). This document focuses on the behavior that is specific to automatic routing.
 
 > [!WARNING]
-> Do not use the `autoReadWriteSplitting`, `readWriteSplitting`, `srw`, and/or `gdbReadWriteSplitting` plugins (or any combination of them) at the same time for the same connection. They are all read/write splitting plugins and will conflict.
+> Use exactly one read/write splitting plugin per connection. Do not combine `autoReadWriteSplitting` with any other read/write splitting plugin — `readWriteSplitting`, `srw`, `autoSimpleReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, or `gdbAutoSimpleReadWriteSplitting` — for the same connection. They are all read/write splitting plugins and will conflict.
 
 ## Loading the Automatic Read/Write Splitting Plugin
 
@@ -131,11 +131,15 @@ This is required because switching the underlying physical connection in the mid
 
 If you need a specific role for a transaction, establish it before the transaction begins — for example, issue a `/*@writer*/` or `/*@reader*/` statement (or call `setReadOnly`) before calling `setAutoCommit(false)`.
 
+## Query-level load balancing and statement rebinding
+
+Because this plugin treats every read statement as a routing point, it pairs naturally with query-level load balancing. Set `queryLevelLoadBalancing=true` to spread consecutive `SELECT`s across different readers (use `readerHostSelectorStrategy=roundRobin` for deterministic rotation). Statement rebinding (`allowStatementRecreationOnConnectionSwitch`, on by default) then re-creates a re-executed `PreparedStatement`/`CallableStatement` on the newly selected reader — replaying its recorded settings, bound parameters, and registered OUT parameters — so re-executes follow the rotation instead of staying pinned to the reader chosen at prepare time. Writes never rotate. See [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing) for the full description, defaults, and fallback behavior (stream/LOB parameters and pending batches are not rebindable).
+
 ## Limitations
 
 ### Statements are bound to a connection
 
-As with the Read/Write Splitting Plugin, a `Statement` or `ResultSet` is internally bound to the database connection that was active when it was created. If automatic routing switches the connection, statements created before the switch continue to use the previous connection. Create new `Statement`/`ResultSet` objects after a routing change. See [General plugin limitations](./UsingTheReadWriteSplittingPlugin.md#general-plugin-limitations) for more detail.
+As with the Read/Write Splitting Plugin, a `Statement` or `ResultSet` is internally bound to the database connection that was active when it was created. If automatic routing switches the connection, statements created before the switch continue to use the previous connection unless statement rebinding applies (see [Query-level load balancing and statement rebinding](#query-level-load-balancing-and-statement-rebinding)). Otherwise, create new `Statement`/`ResultSet` objects after a routing change. See [General plugin limitations](./UsingTheReadWriteSplittingPlugin.md#general-plugin-limitations) for more detail.
 
 ### Callable and unparseable statements
 

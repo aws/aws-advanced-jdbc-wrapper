@@ -16,6 +16,9 @@ The property is available since version 4.1.0 and applies to:
 
 - [GDB Failover Plugin](./UsingTheGdbFailoverPlugin.md)
 - [GDB Read/Write Splitting Plugin](./UsingTheGdbReadWriteSplittingPlugin.md)
+- [GDB Automatic Read/Write Splitting Plugin](./UsingTheGdbAutoReadWriteSplittingPlugin.md)
+- [GDB Simple Read/Write Splitting Plugin](./UsingTheGdbSimpleReadWriteSplittingPlugin.md)
+- [GDB Automatic Simple Read/Write Splitting Plugin](./UsingTheGdbAutoSimpleReadWriteSplittingPlugin.md)
 - [Aurora Initial Connection Strategy Plugin](./UsingTheAuroraInitialConnectionStrategyPlugin.md)
 - The Global Aurora topology monitor (used by the plugins above)
 

@@ -81,8 +81,8 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
-import software.amazon.jdbc.plugin.readwritesplitting.AbstractReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
+import software.amazon.jdbc.plugin.readwritesplitting.UnifiedReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -1095,7 +1095,7 @@ public class ReadWriteSplittingTests {
       assertEquals(originalWriterId, currentId);
 
       // Get the plugin to verify cached connections exist
-      final AbstractReadWriteSplittingPlugin plugin = conn.unwrap(AbstractReadWriteSplittingPlugin.class);
+      final UnifiedReadWriteSplittingPlugin plugin = conn.unwrap(UnifiedReadWriteSplittingPlugin.class);
       assertNotNull(plugin.getWriterConnection(), "Writer connection should be cached before failover");
       assertNotNull(plugin.getReaderConnection(), "Reader connection should be cached before failover");
 

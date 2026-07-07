@@ -28,6 +28,8 @@ To balance connections to instances more evenly, different selection strategies 
 These strategies are applicable when using the following plugins:
 - [Aurora Initial Connection Strategy Plugin](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
 - [Read/Write Splitting Connection Plugin](./using-plugins/UsingTheReadWriteSplittingPlugin.md)
+- [Automatic Read/Write Splitting Connection Plugin](./using-plugins/UsingTheAutoReadWriteSplittingPlugin.md)
 - [GDB Read/Write Splitting Connection Plugin](./using-plugins/UsingTheGdbReadWriteSplittingPlugin.md)
+- [GDB Automatic Read/Write Splitting Connection Plugin](./using-plugins/UsingTheGdbAutoReadWriteSplittingPlugin.md)
 - [GDB Failover Connection Plugin](./using-plugins/UsingTheGdbFailoverPlugin.md)
 - [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md)

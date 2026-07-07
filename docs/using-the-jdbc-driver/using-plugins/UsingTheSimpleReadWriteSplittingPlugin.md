@@ -21,7 +21,7 @@ properties.setProperty("srwReadEndpoint", "test-db.cluster-ro-XYZ.us-east-2.rds.
 ```
 
 > [!WARNING]
-> Do not use the `readWriteSplitting`, `srw` and/or `gdbReadWriteSplitting` plugins (or their combination) at the same time for the same connection!
+> Use exactly one read/write splitting plugin per connection. Do not combine `srw` with any other read/write splitting plugin — `readWriteSplitting`, `autoReadWriteSplitting`, `autoSimpleReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, or `gdbAutoSimpleReadWriteSplitting` — for the same connection. They are all read/write splitting plugins and will conflict.
 
 
 ## Simple Read/Write Splitting Plugin Parameters

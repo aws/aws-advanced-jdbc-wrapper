@@ -52,10 +52,14 @@ import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginF
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.AutoReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.AutoSimpleReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.GdbAutoReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.GdbAutoSimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.GdbSimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPluginFactory;
-import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
@@ -94,6 +98,10 @@ public class ConnectionPluginChainBuilder {
           put("autoReadWriteSplitting", new AutoReadWriteSplittingPluginFactory());
           put("srw", new SimpleReadWriteSplittingPluginFactory());
           put("gdbReadWriteSplitting", new GdbReadWriteSplittingPluginFactory());
+          put("gdbAutoReadWriteSplitting", new GdbAutoReadWriteSplittingPluginFactory());
+          put("autoSimpleReadWriteSplitting", new AutoSimpleReadWriteSplittingPluginFactory());
+          put("gdbSimpleReadWriteSplitting", new GdbSimpleReadWriteSplittingPluginFactory());
+          put("gdbAutoSimpleReadWriteSplitting", new GdbAutoSimpleReadWriteSplittingPluginFactory());
           put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
           put("driverMetaData", new DriverMetaDataConnectionPluginFactory());
           put("connectTime", new ConnectTimeConnectionPluginFactory());
@@ -131,6 +139,10 @@ public class ConnectionPluginChainBuilder {
           put(AutoReadWriteSplittingPluginFactory.class, 1150);
           put(SimpleReadWriteSplittingPluginFactory.class, 1200);
           put(GdbReadWriteSplittingPluginFactory.class, 1300);
+          put(GdbAutoReadWriteSplittingPluginFactory.class, 1310);
+          put(AutoSimpleReadWriteSplittingPluginFactory.class, 1320);
+          put(GdbSimpleReadWriteSplittingPluginFactory.class, 1330);
+          put(GdbAutoSimpleReadWriteSplittingPluginFactory.class, 1340);
           put(HostMonitoringConnectionPluginV1Factory.class, 1400);
           put(HostMonitoringConnectionPluginV2Factory.class, 1500);
           put(FastestResponseStrategyPluginFactory.class, 1600);

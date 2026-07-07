@@ -22,15 +22,35 @@ import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.Rebindable;
 import software.amazon.jdbc.util.WrapperUtils;
 
-public class StatementWrapper implements Statement {
+public class StatementWrapper implements Statement, Rebindable {
 
-  protected final Statement statement;
+  // The target is swappable so a plugin can rebind a bound plain Statement to a routed connection
+  // (see Rebindable). Terminal lambdas read this.statement lazily, so a swap before execution
+  // takes effect for that execution.
+  protected Statement statement;
   protected final ConnectionWrapper connectionWrapper;
   protected final ConnectionPluginManager pluginManager;
+
+  // Every configuration setter the application applies is recorded here so it can be replayed onto
+  // a re-created target during rebind, rather than read back from the previous target. A null value
+  // means the setter was never called, so the fresh statement keeps the driver default. The
+  // ResultSet type/concurrency/holdability are not setters (they are fixed at statement creation)
+  // and are carried over from the previous target at rebind time.
+  private @Nullable Integer recordedMaxFieldSize;
+  private @Nullable Integer recordedMaxRows;
+  private @Nullable Integer recordedQueryTimeout;
+  private @Nullable Integer recordedFetchDirection;
+  private @Nullable Integer recordedFetchSize;
+  private @Nullable Boolean recordedPoolable;
+  private @Nullable Boolean recordedEscapeProcessing;
+  private @Nullable Boolean recordedCloseOnCompletion;
+  private @Nullable String recordedCursorName;
 
   public StatementWrapper(
       @NonNull Statement statement,
@@ -43,7 +63,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public ResultSet executeQuery(String sql) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return WrapperUtils.executeWithPluginsWithRebindHandle(
         ResultSet.class,
         SQLException.class,
          this.connectionWrapper,
@@ -51,13 +71,82 @@ public class StatementWrapper implements Statement {
         this.statement,
         JdbcMethod.STATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
+        this,
         sql);
+  }
+
+  @Override
+  public Connection getBoundConnection() throws SQLException {
+    return this.statement.getConnection();
+  }
+
+  @Override
+  public void rebind(final Connection newConnection) throws SQLException {
+    final Statement old = this.statement;
+    final int resultSetType = old.getResultSetType();
+    final int resultSetConcurrency = old.getResultSetConcurrency();
+    int resultSetHoldability;
+    try {
+      resultSetHoldability = old.getResultSetHoldability();
+    } catch (final SQLException e) {
+      resultSetHoldability = newConnection.getHoldability();
+    }
+
+    final Statement fresh =
+        newConnection.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
+    try {
+      // Replay only the settings the application actually applied (recorded via the setters); a
+      // null recorder means the setting was never touched, so the fresh statement keeps the driver
+      // default rather than being forced to the previous target's implicit value.
+      if (this.recordedFetchSize != null) {
+        fresh.setFetchSize(this.recordedFetchSize);
+      }
+      if (this.recordedFetchDirection != null) {
+        fresh.setFetchDirection(this.recordedFetchDirection);
+      }
+      if (this.recordedMaxFieldSize != null) {
+        fresh.setMaxFieldSize(this.recordedMaxFieldSize);
+      }
+      if (this.recordedMaxRows != null) {
+        fresh.setMaxRows(this.recordedMaxRows);
+      }
+      if (this.recordedQueryTimeout != null) {
+        fresh.setQueryTimeout(this.recordedQueryTimeout);
+      }
+      if (this.recordedPoolable != null) {
+        fresh.setPoolable(this.recordedPoolable);
+      }
+      if (this.recordedEscapeProcessing != null) {
+        fresh.setEscapeProcessing(this.recordedEscapeProcessing);
+      }
+      if (this.recordedCursorName != null) {
+        fresh.setCursorName(this.recordedCursorName);
+      }
+      if (Boolean.TRUE.equals(this.recordedCloseOnCompletion)) {
+        fresh.closeOnCompletion();
+      }
+    } catch (final SQLException e) {
+      // On any failure transferring settings, keep the original target intact.
+      try {
+        fresh.close();
+      } catch (final SQLException ignore) {
+        // ignore
+      }
+      throw e;
+    }
+
+    this.statement = fresh;
+    try {
+      old.close();
+    } catch (final SQLException e) {
+      // best-effort close of the previous target
+    }
   }
 
   @Override
   public int executeUpdate(String sql) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_EXECUTEUPDATE)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.executeWithPluginsWithRebindHandle(
           int.class,
           SQLException.class,
           this.connectionWrapper,
@@ -65,6 +154,7 @@ public class StatementWrapper implements Statement {
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEUPDATE,
           () -> this.statement.executeUpdate(sql),
+          this,
           sql);
     } else {
       return this.statement.executeUpdate(sql);
@@ -158,6 +248,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setMaxFieldSize(int max) throws SQLException {
+    this.recordedMaxFieldSize = max;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETMAXFIELDSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -190,6 +281,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setMaxRows(int max) throws SQLException {
+    this.recordedMaxRows = max;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETMAXROWS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -206,6 +298,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setEscapeProcessing(boolean enable) throws SQLException {
+    this.recordedEscapeProcessing = enable;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETESCAPEPROCESSING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -238,6 +331,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setQueryTimeout(int seconds) throws SQLException {
+    this.recordedQueryTimeout = seconds;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETQUERYTIMEOUT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -300,6 +394,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setCursorName(String name) throws SQLException {
+    this.recordedCursorName = name;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETCURSORNAME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -317,7 +412,7 @@ public class StatementWrapper implements Statement {
   @Override
   public boolean execute(String sql) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_EXECUTE)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.executeWithPluginsWithRebindHandle(
           boolean.class,
           SQLException.class,
           this.connectionWrapper,
@@ -325,6 +420,7 @@ public class StatementWrapper implements Statement {
           this.statement,
           JdbcMethod.STATEMENT_EXECUTE,
           () -> this.statement.execute(sql),
+          this,
           sql);
     } else {
       return this.statement.execute(sql);
@@ -465,6 +561,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setFetchDirection(int direction) throws SQLException {
+    this.recordedFetchDirection = direction;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETFETCHDIRECTION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -497,6 +594,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void setFetchSize(int rows) throws SQLException {
+    this.recordedFetchSize = rows;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETFETCHSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -667,6 +765,7 @@ public class StatementWrapper implements Statement {
   @SuppressWarnings("SpellCheckingInspection")
   @Override
   public void setPoolable(boolean poolable) throws SQLException {
+    this.recordedPoolable = poolable;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETPOOLABLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -683,6 +782,7 @@ public class StatementWrapper implements Statement {
 
   @Override
   public void closeOnCompletion() throws SQLException {
+    this.recordedCloseOnCompletion = true;
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_CLOSEONCOMPLETION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,

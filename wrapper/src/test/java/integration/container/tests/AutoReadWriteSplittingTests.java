@@ -17,7 +17,6 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,7 +28,6 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -39,8 +37,7 @@ import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -48,6 +45,18 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 
+/**
+ * Integration tests for the SQL-driven {@code autoReadWriteSplitting} plugin.
+ *
+ * <p>This class both reuses the shared topology-based read/write splitting suite (by extending
+ * {@link ReadWriteSplittingTests} with an {@code autoReadWriteSplitting} configuration) and adds
+ * auto-specific tests that assert SQL-based routing behavior (routing hints, per-statement reader
+ * routing, transaction pinning, and query-level reader rotation). Routing on {@code setReadOnly} is
+ * still supported via the fallback signal, and the diagnostic {@code queryInstanceId} query carries
+ * a {@code /*@keep* /} hint so it does not trigger a switch. Base tests that execute un-hinted raw
+ * read SQL and expect it to stay on the current connection are disabled here, because SQL-based
+ * routing intentionally reroutes such reads.
+ */
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
@@ -63,31 +72,50 @@ import software.amazon.jdbc.PropertyDefinition;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
-@Order(27)
-public class AutoReadWriteSplittingTests {
+@Order(13)
+public class AutoReadWriteSplittingTests extends ReadWriteSplittingTests {
 
-  private static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  private static final Logger LOGGER =
-      Logger.getLogger(AutoReadWriteSplittingTests.class.getName());
-
-  private Properties getProps() {
-    final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name,
-        String.valueOf(TimeUnit.SECONDS.toMillis(3)));
-    props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name,
-        String.valueOf(TimeUnit.SECONDS.toMillis(10)));
+  @Override
+  protected Properties getProps() {
+    final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "sqlParser,autoReadWriteSplitting");
     return props;
   }
 
-  private Properties getBalancingProps(final boolean includeWriter) {
-    final Properties props = getProps();
-    props.setProperty("queryLevelLoadBalancing", "true");
-    props.setProperty("readerHostSelectorStrategy", "roundRobin");
-    if (includeWriter) {
-      props.setProperty("loadBalancingIncludeWriter", "true");
-    }
+  @Override
+  protected Properties getPropsWithFailover() {
+    final Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "failover,efm2,sqlParser,autoReadWriteSplitting");
     return props;
+  }
+
+  @TestTemplate
+  @Disabled("SQL routing reroutes 'START TRANSACTION READ ONLY' before the transaction is active, "
+      + "so this setReadOnly-oriented expectation does not apply to autoReadWriteSplitting.")
+  @Override
+  public void test_setReadOnlyFalseInReadOnlyTransaction() throws SQLException {
+  }
+
+  @TestTemplate
+  @Disabled("SQL routing may reroute the post-write SELECT to a reader (subject to replication lag), "
+      + "so this setReadOnly-oriented expectation does not apply to autoReadWriteSplitting.")
+  @Override
+  public void test_setReadOnlyTrueInTransaction() throws SQLException {
+  }
+
+  @TestTemplate
+  @Disabled("SQL routing reroutes the raw SELECT to a reader, changing the stale-statement semantics "
+      + "this test relies on; not applicable to autoReadWriteSplitting.")
+  @Override
+  public void test_executeWithOldConnection() throws SQLException {
+  }
+
+  @TestTemplate
+  @Disabled("With autocommit disabled the connection is pinned to preserve the transaction, so "
+      + "setReadOnly(false) does not switch back to the writer here; this setReadOnly-oriented "
+      + "expectation does not apply to autoReadWriteSplitting.")
+  @Override
+  public void test_setReadOnlyFalseInTransaction_setAutocommitFalse() throws SQLException {
   }
 
   @TestTemplate
@@ -171,16 +199,19 @@ public class AutoReadWriteSplittingTests {
   }
 
   @TestTemplate
-  public void test_transactionAlwaysUsesWriter() throws SQLException {
+  public void test_transactionOnWriterStaysOnWriter() throws SQLException {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {
+      // A fresh connection starts on the writer.
       final String writerInstanceId = auroraUtil.queryInstanceId(conn);
 
-      // Start a transaction
+      // Start a transaction on the writer.
       conn.setAutoCommit(false);
 
-      // SELECT inside transaction — should stay on writer
+      // A read inside the transaction stays pinned to the current (writer) connection instead of
+      // routing to a reader. This verifies transaction pinning, NOT that transactions must use the
+      // writer -- see test_transactionOnReaderStaysOnReader for a valid transaction on a reader.
       try (Statement stmt = conn.createStatement();
           ResultSet rs = stmt.executeQuery("SELECT 1")) {
         rs.next();
@@ -188,103 +219,85 @@ public class AutoReadWriteSplittingTests {
 
       final String currentInstanceId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerInstanceId, currentInstanceId,
-          "Queries inside a transaction should stay on writer");
+          "A transaction started on the writer should stay pinned to the writer");
 
       conn.commit();
       conn.setAutoCommit(true);
     }
   }
 
-  /**
-   * With query-level load balancing enabled, consecutive read queries should rotate across
-   * multiple reader instances (roundRobin strategy). Requires at least two readers.
-   */
   @TestTemplate
-  @EnableOnNumOfInstances(min = 3)
-  public void test_queryLevelLoadBalancing_rotatesAcrossReaders() throws SQLException {
+  public void test_transactionOnReaderStaysOnReader() throws SQLException {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
-    try (final Connection conn = DriverManager.getConnection(url, getBalancingProps(false))) {
+    try (final Connection conn = DriverManager.getConnection(url, getProps())) {
       final String writerInstanceId = auroraUtil.queryInstanceId(conn);
 
-      final Set<String> observed = new HashSet<>();
-      for (int i = 0; i < 8; i++) {
-        // Each routed SELECT triggers a per-query balancing switch before it runs.
-        try (Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT 1")) {
-          rs.next();
-        }
-        // queryInstanceId carries a /*@keep*/ hint, so it reports the current instance
-        // without perturbing routing.
-        observed.add(auroraUtil.queryInstanceId(conn));
-      }
+      // A transaction on a reader connection is perfectly valid. Establish a reader first.
+      conn.setReadOnly(true);
+      final String readerInstanceId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerInstanceId, readerInstanceId,
+          "setReadOnly(true) should route to a reader instance");
 
-      assertTrue(observed.size() > 1,
-          "Query-level load balancing should rotate across multiple readers, but only saw: "
-              + observed);
-      assertFalse(observed.contains(writerInstanceId),
-          "Load balancing without loadBalancingIncludeWriter should not route reads to the writer");
-    }
-  }
-
-  /**
-   * With query-level load balancing and loadBalancingIncludeWriter enabled, the writer instance
-   * is also an eligible balancing candidate and should be reached over enough iterations.
-   */
-  @TestTemplate
-  @EnableOnNumOfInstances(min = 3)
-  public void test_queryLevelLoadBalancing_includeWriter() throws SQLException {
-    final String url = ConnectionStringHelper.getWrapperUrl();
-
-    try (final Connection conn = DriverManager.getConnection(url, getBalancingProps(true))) {
-      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
-
-      final Set<String> observed = new HashSet<>();
-      for (int i = 0; i < 15; i++) {
-        try (Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT 1")) {
-          rs.next();
-        }
-        observed.add(auroraUtil.queryInstanceId(conn));
-      }
-
-      assertTrue(observed.contains(writerInstanceId),
-          "With loadBalancingIncludeWriter enabled, the writer should be used for some reads. "
-              + "Observed: " + observed);
-    }
-  }
-
-  /**
-   * Query-level load balancing must not switch connections inside a transaction: all statements
-   * in the transaction must run on a single instance.
-   */
-  @TestTemplate
-  public void test_queryLevelLoadBalancing_suppressedInTransaction() throws SQLException {
-    final String url = ConnectionStringHelper.getWrapperUrl();
-
-    try (final Connection conn = DriverManager.getConnection(url, getBalancingProps(false))) {
-      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
-
+      // Start a transaction on the reader.
       conn.setAutoCommit(false);
-      try {
-        final Set<String> observed = new HashSet<>();
-        for (int i = 0; i < 4; i++) {
-          try (Statement stmt = conn.createStatement();
-              ResultSet rs = stmt.executeQuery("SELECT 1")) {
-            rs.next();
-          }
-          observed.add(auroraUtil.queryInstanceId(conn));
-        }
 
-        assertEquals(1, observed.size(),
-            "Load balancing must not switch connections inside a transaction. Observed: "
-                + observed);
-        assertTrue(observed.contains(writerInstanceId),
-            "A transaction started with autocommit off should stay on the writer");
-      } finally {
-        conn.commit();
-        conn.setAutoCommit(true);
+      // A read inside the transaction stays pinned to the reader; being in a transaction must not
+      // force a switch to the writer.
+      try (Statement stmt = conn.createStatement();
+          ResultSet rs = stmt.executeQuery("SELECT 1")) {
+        rs.next();
       }
+
+      final String currentInstanceId = auroraUtil.queryInstanceId(conn);
+      assertEquals(readerInstanceId, currentInstanceId,
+          "A transaction on a reader connection should stay on that reader, not switch to the writer");
+
+      conn.commit();
+      conn.setAutoCommit(true);
+      conn.setReadOnly(false);
+    }
+  }
+
+  /**
+   * With query-level load balancing enabled, a PreparedStatement holding a plain read is expected
+   * to rotate reader-to-reader on each re-execution (statement recreation). This verifies that the
+   * re-execution path selects fresh readers rather than staying pinned to the reader chosen at
+   * prepare time. Requires at least three instances (one writer plus two readers) so that a
+   * rotation between distinct readers is observable.
+   */
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 3)
+  public void test_reExecutedPreparedStatementRotatesAcrossReaders() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+
+    final Properties props = getProps();
+    // Enable per-query reader balancing and pick a deterministic rotation strategy so successive
+    // re-executions of the same PreparedStatement visit different readers.
+    props.setProperty("queryLevelLoadBalancing", "true");
+    props.setProperty("readerHostSelectorStrategy", "roundRobin");
+
+    try (final Connection conn = DriverManager.getConnection(url, props)) {
+      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
+
+      // A plain instance-id SELECT (no routing hint) is classified as a read and routed to a
+      // reader. Re-executing the same PreparedStatement should rebind onto a fresh reader.
+      final Set<String> observedReaders = new HashSet<>();
+      try (PreparedStatement stmt = conn.prepareStatement(auroraUtil.getInstanceIdSql())) {
+        for (int i = 0; i < 6; i++) {
+          try (ResultSet rs = stmt.executeQuery()) {
+            assertTrue(rs.next(), "instance-id query returned no rows");
+            final String instanceId = rs.getString(1);
+            assertNotEquals(writerInstanceId, instanceId,
+                "a read PreparedStatement must never rotate onto the writer");
+            observedReaders.add(instanceId);
+          }
+        }
+      }
+
+      assertTrue(observedReaders.size() >= 2,
+          "re-executed PreparedStatement should rotate across at least two distinct readers, "
+              + "but only observed: " + observedReaders);
     }
   }
 }
