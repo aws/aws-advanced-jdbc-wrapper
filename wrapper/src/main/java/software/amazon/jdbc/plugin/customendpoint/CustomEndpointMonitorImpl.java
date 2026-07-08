@@ -137,6 +137,10 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                       builder.dbClusterEndpointIdentifier(this.endpointIdentifier).filters(customEndpointFilter));
 
           this.hasConnectionIssue.set(false);
+          // A fetch attempt has completed, so any pending refresh request has now been serviced. Clearing this here
+          // (rather than only when the info changes) prevents a still-set flag from turning the subsequent
+          // interruptible sleep into a busy loop of RDS API calls.
+          this.refreshRequired.set(false);
 
           List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
           if (endpoints.size() != 1) {
@@ -152,7 +156,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                     }
                 ));
 
-            this.sleep(this.refreshRateNano);
+            this.sleepIgnoringRefreshRequests(this.refreshRateNano);
             continue;
           }
 
@@ -203,13 +207,15 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
 
           if (ex.isThrottlingException()) {
             slowdownRefreshRate();
-            this.sleep(this.refreshRateNano);
+            // The backoff sleep must not be shortened by connection-driven refresh requests, otherwise the monitor
+            // would keep hammering the RDS API and never actually back off while it is being throttled.
+            this.sleepIgnoringRefreshRequests(this.refreshRateNano);
           } else if (ex.statusCode() == HttpStatusCode.UNAUTHORIZED || ex.statusCode() == HttpStatusCode.FORBIDDEN) {
             // User has no permissions to get custom endpoint details.
             // Reduce the refresh rate.
-            this.sleep(UNAUTHORIZED_SLEEP_NANO);
+            this.sleepIgnoringRefreshRequests(UNAUTHORIZED_SLEEP_NANO);
           } else {
-            this.sleep(this.refreshRateNano);
+            this.sleepIgnoringRefreshRequests(this.refreshRateNano);
           }
         } catch (SdkClientException ex) {
           LOGGER.log(Level.SEVERE,
@@ -222,7 +228,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
             this.refreshRequired.set(false);
             this.hasConnectionIssue.set(true);
           }
-          this.sleep(this.refreshRateNano);
+          this.sleepIgnoringRefreshRequests(this.refreshRateNano);
         } catch (Exception e) {
           // If the exception is not an InterruptedException, log it and continue monitoring.
           LOGGER.log(Level.SEVERE,
@@ -230,7 +236,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                   "CustomEndpointMonitorImpl.exception",
                   new Object[] {this.customEndpointHostSpec.getUrl()}), e);
 
-          this.sleep(this.refreshRateNano);
+          this.sleepIgnoringRefreshRequests(this.refreshRateNano);
         }
       }
     } catch (InterruptedException e) {
@@ -275,6 +281,29 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       synchronized (this.refreshRequired) {
         this.refreshRequired.wait(waitDurationMs);
       }
+    }
+  }
+
+  /**
+   * Sleeps for the given duration without being woken early by connection-driven refresh requests (see
+   * {@link #refreshRequired}). This is used on the error/backoff paths so that the throttling backoff, and other
+   * error delays, cannot be bypassed by incoming connections. If it could, the monitor would keep issuing RDS API
+   * calls as fast as connections arrive, defeating the built-in rate limiting and sustaining the throttling. The
+   * sleep still returns promptly when the monitor is stopped or the thread is interrupted.
+   *
+   * @param durationNano the time to sleep, in nanoseconds.
+   * @throws InterruptedException if the thread is interrupted while sleeping.
+   */
+  protected void sleepIgnoringRefreshRequests(long durationNano) throws InterruptedException {
+    long endNano = System.nanoTime() + durationNano;
+    while (!this.stop.get()) {
+      long remainingNano = endNano - System.nanoTime();
+      if (remainingNano <= 0) {
+        break;
+      }
+      // Poll the stop flag at least every 500ms so shutdown stays responsive, but never wake for refreshRequired.
+      long sleepMs = Math.min(500, Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNano)));
+      TimeUnit.MILLISECONDS.sleep(sleepMs);
     }
   }
 
