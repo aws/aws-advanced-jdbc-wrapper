@@ -46,6 +46,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
@@ -65,7 +66,7 @@ public class CacheConnection {
   private static final int DEFAULT_POOL_MIN_IDLE = 0;
   private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
-  private final FullServicesContainer servicesContainer;
+  private final @Nullable FullServicesContainer servicesContainer;
 
   private static final ResourceLock connectionInitializationLock = new ResourceLock();
   // Cache endpoint registry to hold connection pools for multi end points
@@ -147,41 +148,41 @@ public class CacheConnection {
           "Optional prefix for cache keys (max 10 characters). Enables multi-tenant cache isolation.");
 
   private final String cacheRwServerAddr; // read-write cache server
-  private final String cacheRoServerAddr; // read-only cache server
-  private MessageDigest msgHashDigest = null;
+  private final @Nullable String cacheRoServerAddr; // read-only cache server
+  private MessageDigest msgHashDigest;
   // Adding support for read and write connection pools to the remote cache server
   private volatile GenericObjectPool<BaseClient> readConnectionPool;
   private volatile GenericObjectPool<BaseClient> writeConnectionPool;
 
   private final boolean useSSL;
-  private final byte[] cacheTlsCaCertBytes;
+  private final byte @Nullable [] cacheTlsCaCertBytes;
   private final boolean iamAuthEnabled;
-  private final String cacheIamRegion;
-  private final String cacheUsername;
-  private final String cacheName;
-  private final String cachePassword;
+  private final @Nullable String cacheIamRegion;
+  private final @Nullable String cacheUsername;
+  private final @Nullable String cacheName;
+  private final @Nullable String cachePassword;
   private final Duration cacheConnectionTimeout;
   private final int cacheConnectionPoolSize;
   private final boolean failWhenCacheDown;
-  private final TelemetryFactory telemetryFactory;
+  private final @Nullable TelemetryFactory telemetryFactory;
   private final long inFlightWriteSizeLimitBytes;
   private final boolean healthCheckInHealthyState;
-  private final String cacheKeyPrefix;
+  private final @Nullable String cacheKeyPrefix;
   private volatile boolean cacheMonitorRegistered = false;
-  private volatile Boolean isClusterMode = null; // null = not yet detected, true = CME, false = CMD
+  private volatile @Nullable Boolean isClusterMode = null; // null = not yet detected, true = CME, false = CMD
 
   static {
     PropertyDefinition.registerPluginProperties(CacheConnection.class);
   }
 
-  public CacheConnection(final Properties properties, TelemetryFactory telemetryFactory,
-      FullServicesContainer servicesContainer) {
+  public CacheConnection(final Properties properties, @Nullable TelemetryFactory telemetryFactory,
+      @Nullable FullServicesContainer servicesContainer) {
     this.telemetryFactory = telemetryFactory;
     this.servicesContainer = servicesContainer;
     this.inFlightWriteSizeLimitBytes = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(properties);
     this.healthCheckInHealthyState = CacheMonitor.CACHE_HEALTH_CHECK_IN_HEALTHY_STATE.getBoolean(properties);
 
-    this.cacheRwServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
+    final String rwServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
     this.cacheRoServerAddr = CACHE_RO_ENDPOINT_ADDR.getString(properties);
     this.useSSL = Boolean.parseBoolean(CACHE_USE_SSL.getString(properties));
     String certPath = CACHE_TLS_CA_CERT_PATH.getString(properties);
@@ -229,9 +230,10 @@ public class CacheConnection {
     if (!this.iamAuthEnabled && !hasTraditionalAuth) {
       LOGGER.warning(Messages.get("CacheConnection.noAuthenticationConfigured"));
     }
-    if (this.cacheRwServerAddr == null) {
+    if (rwServerAddr == null) {
       throw new IllegalArgumentException(Messages.get("CacheConnection.endpointRequired"));
     }
+    this.cacheRwServerAddr = rwServerAddr;
     String[] defaultCacheServerHostAndPort = getHostnameAndPort(this.cacheRwServerAddr);
     if (this.iamAuthEnabled) {
       if (this.cacheUsername == null || defaultCacheServerHostAndPort[0] == null || this.cacheName == null) {
@@ -440,8 +442,10 @@ public class CacheConnection {
    */
   protected static BaseClientConfiguration buildClientConfigurationStatic(
       String hostname, int port, boolean useSSL, Duration connectionTimeout,
-      boolean iamAuthEnabled, String cacheIamRegion, String cacheName, String cacheUsername,
-      String cachePassword, Boolean isRead, Boolean isClusterMode, byte[] caCert) {
+      boolean iamAuthEnabled, @Nullable String cacheIamRegion, @Nullable String cacheName,
+      @Nullable String cacheUsername,
+      @Nullable String cachePassword, Boolean isRead, @Nullable Boolean isClusterMode,
+      byte @Nullable [] caCert) {
 
     NodeAddress address = buildNodeAddress(hostname, port);
     ServerCredentials credentials = buildServerCredentials(
@@ -514,9 +518,13 @@ public class CacheConnection {
   }
 
   // Builds ServerCredentials for IAM or password-based authentication.
-  private static ServerCredentials buildServerCredentials(
-      boolean iamAuthEnabled, String cacheIamRegion, String cacheName,
-      String cacheUsername, String cachePassword) {
+  // "argument": the Glide credential/config builders (clusterName/region/username) accept null
+  // values at runtime; the checker conservatively treats the unannotated library parameters as
+  // non-null, so passing the optional (possibly-null) auth fields is suppressed here.
+  @SuppressWarnings("argument")
+  private static @Nullable ServerCredentials buildServerCredentials(
+      boolean iamAuthEnabled, @Nullable String cacheIamRegion, @Nullable String cacheName,
+      @Nullable String cacheUsername, @Nullable String cachePassword) {
 
     if (iamAuthEnabled) {
       IamAuthConfig iamConfig = IamAuthConfig.builder()
@@ -553,9 +561,10 @@ public class CacheConnection {
    * This is a static helper that abstracts Lettuce-specific logic for CacheMonitor.
    * Returns an interface to hide implementation details.
    */
-  static CachePingConnection createPingConnection(String hostname, int port, boolean useSSL,
+  static @Nullable CachePingConnection createPingConnection(String hostname, int port, boolean useSSL,
       Duration connectionTimeout, boolean iamAuthEnabled,
-      String cacheIamRegion, String cacheName, String cacheUsername, String cachePassword) {
+      @Nullable String cacheIamRegion, @Nullable String cacheName, @Nullable String cacheUsername,
+      @Nullable String cachePassword) {
     try {
       byte[] caCert = endpointCaCertRegistry.get(hostname + ":" + port);
       // Creating GlideClient (use standalone for ping - works for both)
@@ -593,7 +602,7 @@ public class CacheConnection {
     return finalKey;
   }
 
-  public byte[] readFromCache(String key) throws SQLException {
+  public byte @Nullable [] readFromCache(String key) throws SQLException {
     // Check cluster state before attempting read
     CacheMonitor.HealthState state = getClusterHealthStateFromCacheMonitor();
     if (!shouldProceedWithOperation(state)) {
@@ -726,7 +735,7 @@ public class CacheConnection {
     pool.returnObject(connection);
   }
 
-  private String[] getHostnameAndPort(String serverAddr) {
+  private static String[] getHostnameAndPort(String serverAddr) {
     return serverAddr.split(":");
   }
 

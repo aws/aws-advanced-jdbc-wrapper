@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -59,17 +60,17 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
 
   protected static final Map<String, ResultSet> dataCache = new ConcurrentHashMap<>();
 
-  protected final String dataCacheTriggerCondition;
+  protected final @Nullable String dataCacheTriggerCondition;
 
   static {
     PropertyDefinition.registerPluginProperties(DataLocalCacheConnectionPlugin.class);
   }
 
   private final TelemetryFactory telemetryFactory;
-  private final TelemetryCounter hitCounter;
-  private final TelemetryCounter missCounter;
-  private final TelemetryCounter totalCallsCounter;
-  private final TelemetryGauge cacheSizeGauge;
+  private final @Nullable TelemetryCounter hitCounter;
+  private final @Nullable TelemetryCounter missCounter;
+  private final @Nullable TelemetryCounter totalCallsCounter;
+  private final @Nullable TelemetryGauge cacheSizeGauge;
 
   public DataLocalCacheConnectionPlugin(final PluginService pluginService, final Properties props) {
     this.telemetryFactory = pluginService.getTelemetryFactory();
@@ -91,13 +92,16 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
+  // "return": the final result is produced by the underlying JDBC call (possibly null) and
+  // returned via Class.cast; the generic return type T cannot be annotated @Nullable.
+  @SuppressWarnings("return")
   public <T, E extends Exception> T execute(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     if (StringUtils.isNullOrEmpty(this.dataCacheTriggerCondition) || resultClass != ResultSet.class) {
@@ -138,22 +142,28 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
 
     result = (ResultSet) jdbcMethodFunc.call();
 
+    // needToCache is only set to true above after sql was confirmed non-null and matched the
+    // trigger condition, so the null guards below never skip caching in practice; they satisfy
+    // the nullness checker for the possibly-null JDBC result and the sql cache key.
     if (needToCache) {
-      final ResultSet cachedResultSet;
-      try {
-        cachedResultSet = new CachedResultSet(result);
-        dataCache.put(sql, cachedResultSet);
-        cachedResultSet.beforeFirst();
-        return resultClass.cast(cachedResultSet);
-      } catch (final SQLException ex) {
-        // ignore exception
+      final ResultSet dbResult = result;
+      if (dbResult != null && sql != null) {
+        final ResultSet cachedResultSet;
+        try {
+          cachedResultSet = new CachedResultSet(dbResult);
+          dataCache.put(sql, cachedResultSet);
+          cachedResultSet.beforeFirst();
+          return resultClass.cast(cachedResultSet);
+        } catch (final SQLException ex) {
+          // ignore exception
+        }
       }
     }
 
     return resultClass.cast(result);
   }
 
-  protected String getQuery(final Object[] jdbcMethodArgs) {
+  protected @Nullable String getQuery(final @Nullable Object[] jdbcMethodArgs) {
     // Get query from method argument
     if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
       return jdbcMethodArgs[0].toString();

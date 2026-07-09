@@ -68,11 +68,11 @@ import software.amazon.jdbc.util.WrapperUtils;
 public class CachedResultSet implements ResultSet {
 
   public static class CachedRow {
-    private final Object[] rowData;
+    private final @Nullable Object[] rowData;
     final byte[] @Nullable [] rawData;
 
     public CachedRow(int numColumns) {
-      rowData = new Object[numColumns];
+      rowData = new @Nullable Object[numColumns];
       rawData = new byte[numColumns][];
     }
 
@@ -82,7 +82,7 @@ public class CachedResultSet implements ResultSet {
       }
     }
 
-    public void put(final int columnIndex, final Object columnValue) throws SQLException {
+    public void put(final int columnIndex, final @Nullable Object columnValue) throws SQLException {
       checkColumnIndex(columnIndex);
       rowData[columnIndex - 1] = columnValue;
     }
@@ -92,7 +92,7 @@ public class CachedResultSet implements ResultSet {
       rawData[columnIndex - 1] = rawColumnValue;
     }
 
-    public Object get(final int columnIndex) throws SQLException {
+    public @Nullable Object get(final int columnIndex) throws SQLException {
       checkColumnIndex(columnIndex);
       // De-serialize the data object from raw bytes if needed.
       if (rowData[columnIndex - 1] == null && rawData[columnIndex - 1] != null) {
@@ -363,7 +363,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public String getString(final int columnIndex) throws SQLException {
+  public @Nullable String getString(final int columnIndex) throws SQLException {
     Object value = checkAndGetColumnValue(columnIndex);
     if (value == null) {
       return null;
@@ -372,7 +372,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public String getString(final String columnLabel) throws SQLException {
+  public @Nullable String getString(final String columnLabel) throws SQLException {
     return getString(checkAndGetColumnIndex(columnLabel));
   }
 
@@ -518,7 +518,9 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   @Deprecated
-  @SuppressWarnings("deprecation")
+  // "return": delegates to the possibly-null int-index getBigDecimal; the deprecated
+  // getBigDecimal(String, int) contract is annotated non-null in the JDBC stubs.
+  @SuppressWarnings({"deprecation", "return"})
   public BigDecimal getBigDecimal(final String columnLabel, final int scale) throws SQLException {
     return getBigDecimal(checkAndGetColumnIndex(columnLabel), scale);
   }
@@ -526,7 +528,7 @@ public class CachedResultSet implements ResultSet {
   @Override
   @Deprecated
   @SuppressWarnings("deprecation")
-  public BigDecimal getBigDecimal(final int columnIndex, final int scale) throws SQLException {
+  public @Nullable BigDecimal getBigDecimal(final int columnIndex, final int scale) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
       return null;
@@ -541,7 +543,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public BigDecimal getBigDecimal(final int columnIndex) throws SQLException {
+  public @Nullable BigDecimal getBigDecimal(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
       return null;
@@ -556,12 +558,12 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public BigDecimal getBigDecimal(final String columnLabel) throws SQLException {
+  public @Nullable BigDecimal getBigDecimal(final String columnLabel) throws SQLException {
     return getBigDecimal(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public byte[] getBytes(final int columnIndex) throws SQLException {
+  public byte @Nullable [] getBytes(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
       return null;
@@ -574,11 +576,12 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public byte[] getBytes(final String columnLabel) throws SQLException {
+  public byte @Nullable [] getBytes(final String columnLabel) throws SQLException {
     return getBytes(checkAndGetColumnIndex(columnLabel));
   }
 
-  private Date convertToDate(Object dateObj, Calendar cal) throws SQLException {
+  private @Nullable Date convertToDate(final @Nullable Object dateObj, final @Nullable Calendar cal)
+      throws SQLException {
     if (dateObj == null) {
       return null;
     }
@@ -621,27 +624,28 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public Date getDate(final int columnIndex) throws SQLException {
+  public @Nullable Date getDate(final int columnIndex) throws SQLException {
     // The value cached is the string representation of epoch time in milliseconds
     return convertToDate(checkAndGetColumnValue(columnIndex), null);
   }
 
   @Override
-  public Date getDate(final String columnLabel) throws SQLException {
+  public @Nullable Date getDate(final String columnLabel) throws SQLException {
     return getDate(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public Date getDate(final int columnIndex, final Calendar cal) throws SQLException {
+  public @Nullable Date getDate(final int columnIndex, final @Nullable Calendar cal) throws SQLException {
     return convertToDate(checkAndGetColumnValue(columnIndex), cal);
   }
 
   @Override
-  public Date getDate(final String columnLabel, final Calendar cal) throws SQLException {
+  public @Nullable Date getDate(final String columnLabel, final @Nullable Calendar cal) throws SQLException {
     return getDate(checkAndGetColumnIndex(columnLabel), cal);
   }
 
-  private Time convertToTime(Object timeObj, Calendar cal) throws SQLException {
+  private @Nullable Time convertToTime(final @Nullable Object timeObj, final @Nullable Calendar cal)
+      throws SQLException {
     if (timeObj == null) {
       return null;
     }
@@ -698,26 +702,27 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public Time getTime(final int columnIndex) throws SQLException {
+  public @Nullable Time getTime(final int columnIndex) throws SQLException {
     return convertToTime(checkAndGetColumnValue(columnIndex), null);
   }
 
   @Override
-  public Time getTime(final String columnLabel) throws SQLException {
+  public @Nullable Time getTime(final String columnLabel) throws SQLException {
     return getTime(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public Time getTime(final int columnIndex, final Calendar cal) throws SQLException {
+  public @Nullable Time getTime(final int columnIndex, final @Nullable Calendar cal) throws SQLException {
     return convertToTime(checkAndGetColumnValue(columnIndex), cal);
   }
 
   @Override
-  public Time getTime(final String columnLabel, final Calendar cal) throws SQLException {
+  public @Nullable Time getTime(final String columnLabel, final @Nullable Calendar cal) throws SQLException {
     return getTime(checkAndGetColumnIndex(columnLabel), cal);
   }
 
-  private Timestamp convertToTimestamp(Object timestampObj, Calendar calendar) {
+  private @Nullable Timestamp convertToTimestamp(final @Nullable Object timestampObj,
+      final @Nullable Calendar calendar) {
     if (timestampObj == null) {
       return null;
     }
@@ -756,22 +761,23 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public Timestamp getTimestamp(final int columnIndex) throws SQLException {
+  public @Nullable Timestamp getTimestamp(final int columnIndex) throws SQLException {
     return convertToTimestamp(checkAndGetColumnValue(columnIndex), null);
   }
 
   @Override
-  public Timestamp getTimestamp(final String columnLabel) throws SQLException {
+  public @Nullable Timestamp getTimestamp(final String columnLabel) throws SQLException {
     return getTimestamp(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public Timestamp getTimestamp(final int columnIndex, final Calendar cal) throws SQLException {
+  public @Nullable Timestamp getTimestamp(final int columnIndex, final @Nullable Calendar cal) throws SQLException {
     return convertToTimestamp(checkAndGetColumnValue(columnIndex), cal);
   }
 
   @Override
-  public Timestamp getTimestamp(final String columnLabel, final Calendar cal) throws SQLException {
+  public @Nullable Timestamp getTimestamp(final String columnLabel, final @Nullable Calendar cal)
+      throws SQLException {
     return getTimestamp(checkAndGetColumnIndex(columnLabel), cal);
   }
 
@@ -810,7 +816,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public SQLWarning getWarnings() throws SQLException {
+  public @Nullable SQLWarning getWarnings() throws SQLException {
     return null;
   }
 
@@ -836,13 +842,13 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public Object getObject(final int columnIndex) throws SQLException {
+  public @Nullable Object getObject(final int columnIndex) throws SQLException {
     checkCurrentRow();
     return checkAndGetColumnValue(columnIndex);
   }
 
   @Override
-  public Object getObject(final String columnLabel) throws SQLException {
+  public @Nullable Object getObject(final String columnLabel) throws SQLException {
     checkCurrentRow();
     return checkAndGetColumnValue(checkAndGetColumnIndex(columnLabel));
   }
@@ -860,17 +866,23 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  // "return": the cached column value may be null; the generic return type T cannot be annotated
+  // @Nullable, so Class.cast of a possibly-null value is suppressed here.
+  @SuppressWarnings("return")
   public <T> T getObject(final int columnIndex, final Class<T> type) throws SQLException {
     return type.cast(getObject(columnIndex));
   }
 
   @Override
+  // "return": the cached column value may be null; the generic return type T cannot be annotated
+  // @Nullable, so Class.cast of a possibly-null value is suppressed here.
+  @SuppressWarnings("return")
   public <T> T getObject(final String columnLabel, final Class<T> type) throws SQLException {
     return type.cast(getObject(columnLabel));
   }
 
   // Check the column index passed in is proper, and return the value of the column from the current row
-  private Object checkAndGetColumnValue(final int columnIndex) throws SQLException {
+  private @Nullable Object checkAndGetColumnValue(final int columnIndex) throws SQLException {
     if (columnIndex == 0 || columnIndex > this.columnNames.size()) {
       throw new SQLException(Messages.get("CachedResultSet.columnOutOfBounds"));
     }
@@ -1131,182 +1143,182 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateBigDecimal(final int columnIndex, final BigDecimal x) throws SQLException {
+  public void updateBigDecimal(final int columnIndex, final @Nullable BigDecimal x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBigDecimal(final String columnLabel, final BigDecimal x) throws SQLException {
+  public void updateBigDecimal(final String columnLabel, final @Nullable BigDecimal x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateString(final int columnIndex, final String x) throws SQLException {
+  public void updateString(final int columnIndex, final @Nullable String x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateString(final String columnLabel, final String x) throws SQLException {
+  public void updateString(final String columnLabel, final @Nullable String x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBytes(final int columnIndex, final byte[] x) throws SQLException {
+  public void updateBytes(final int columnIndex, final byte @Nullable [] x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBytes(final String columnLabel, final byte[] x) throws SQLException {
+  public void updateBytes(final String columnLabel, final byte @Nullable [] x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateDate(final int columnIndex, final Date x) throws SQLException {
+  public void updateDate(final int columnIndex, final @Nullable Date x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateDate(final String columnLabel, final Date x) throws SQLException {
+  public void updateDate(final String columnLabel, final @Nullable Date x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateTime(final int columnIndex, final Time x) throws SQLException {
+  public void updateTime(final int columnIndex, final @Nullable Time x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateTime(final String columnLabel, final Time x) throws SQLException {
+  public void updateTime(final String columnLabel, final @Nullable Time x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateTimestamp(final int columnIndex, final Timestamp x) throws SQLException {
+  public void updateTimestamp(final int columnIndex, final @Nullable Timestamp x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateTimestamp(final String columnLabel, final Timestamp x) throws SQLException {
+  public void updateTimestamp(final String columnLabel, final @Nullable Timestamp x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateAsciiStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
+  public void updateAsciiStream(final int columnIndex, final @Nullable InputStream x, final int length) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateAsciiStream(final String columnLabel, final InputStream x, final int length)
+  public void updateAsciiStream(final String columnLabel, final @Nullable InputStream x, final int length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateAsciiStream(final int columnIndex, final InputStream x, final long length)
+  public void updateAsciiStream(final int columnIndex, final @Nullable InputStream x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateAsciiStream(final String columnLabel, final InputStream x, final long length)
+  public void updateAsciiStream(final String columnLabel, final @Nullable InputStream x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateAsciiStream(final int columnIndex, final InputStream x) throws SQLException {
+  public void updateAsciiStream(final int columnIndex, final @Nullable InputStream x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateAsciiStream(final String columnLabel, final InputStream x) throws SQLException {
+  public void updateAsciiStream(final String columnLabel, final @Nullable InputStream x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBinaryStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
+  public void updateBinaryStream(final int columnIndex, final @Nullable InputStream x, final int length) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBinaryStream(final int columnIndex, final InputStream x, final long length)
+  public void updateBinaryStream(final int columnIndex, final @Nullable InputStream x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBinaryStream(final String columnLabel, final InputStream x, final int length)
+  public void updateBinaryStream(final String columnLabel, final @Nullable InputStream x, final int length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBinaryStream(final String columnLabel, final InputStream x, final long length)
+  public void updateBinaryStream(final String columnLabel, final @Nullable InputStream x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBinaryStream(final String columnLabel, final InputStream x) throws SQLException {
+  public void updateBinaryStream(final String columnLabel, final @Nullable InputStream x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBinaryStream(final int columnIndex, final InputStream x) throws SQLException {
+  public void updateBinaryStream(final int columnIndex, final @Nullable InputStream x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateCharacterStream(final int columnIndex, final Reader x, final int length) throws SQLException {
+  public void updateCharacterStream(final int columnIndex, final @Nullable Reader x, final int length) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateCharacterStream(final int columnIndex, final Reader x, final long length)
+  public void updateCharacterStream(final int columnIndex, final @Nullable Reader x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateCharacterStream(final String columnLabel, final Reader reader, final long length)
+  public void updateCharacterStream(final String columnLabel, final @Nullable Reader reader, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateCharacterStream(final String columnLabel, final Reader reader, final int length)
+  public void updateCharacterStream(final String columnLabel, final @Nullable Reader reader, final int length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateCharacterStream(final int columnIndex, final Reader x) throws SQLException {
+  public void updateCharacterStream(final int columnIndex, final @Nullable Reader x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateCharacterStream(final String columnLabel, final Reader reader) throws SQLException {
+  public void updateCharacterStream(final String columnLabel, final @Nullable Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateObject(final int columnIndex, final Object x, final int scaleOrLength) throws SQLException {
+  public void updateObject(final int columnIndex, final @Nullable Object x, final int scaleOrLength) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateObject(final int columnIndex, final Object x) throws SQLException {
+  public void updateObject(final int columnIndex, final @Nullable Object x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateObject(final String columnLabel, final Object x, final int scaleOrLength)
+  public void updateObject(final String columnLabel, final @Nullable Object x, final int scaleOrLength)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateObject(final String columnLabel, final Object x) throws SQLException {
+  public void updateObject(final String columnLabel, final @Nullable Object x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1391,7 +1403,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public URL getURL(final int columnIndex) throws SQLException {
+  public @Nullable URL getURL(final int columnIndex) throws SQLException {
     Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
       return null;
@@ -1407,96 +1419,96 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public URL getURL(final String columnLabel) throws SQLException {
+  public @Nullable URL getURL(final String columnLabel) throws SQLException {
     return getURL(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public void updateRef(final int columnIndex, final Ref x) throws SQLException {
+  public void updateRef(final int columnIndex, final @Nullable Ref x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateRef(final String columnLabel, final Ref x) throws SQLException {
+  public void updateRef(final String columnLabel, final @Nullable Ref x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBlob(final int columnIndex, final Blob x) throws SQLException {
+  public void updateBlob(final int columnIndex, final @Nullable Blob x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBlob(final String columnLabel, final Blob x) throws SQLException {
+  public void updateBlob(final String columnLabel, final @Nullable Blob x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBlob(final int columnIndex, final InputStream inputStream, final long length)
+  public void updateBlob(final int columnIndex, final @Nullable InputStream inputStream, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBlob(final String columnLabel, final InputStream inputStream, final long length)
+  public void updateBlob(final String columnLabel, final @Nullable InputStream inputStream, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBlob(final int columnIndex, final InputStream inputStream) throws SQLException {
+  public void updateBlob(final int columnIndex, final @Nullable InputStream inputStream) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateBlob(final String columnLabel, final InputStream inputStream) throws SQLException {
+  public void updateBlob(final String columnLabel, final @Nullable InputStream inputStream) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateClob(final int columnIndex, final Clob x) throws SQLException {
+  public void updateClob(final int columnIndex, final @Nullable Clob x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateClob(final String columnLabel, final Clob x) throws SQLException {
+  public void updateClob(final String columnLabel, final @Nullable Clob x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateClob(final int columnIndex, final Reader reader, final long length)
+  public void updateClob(final int columnIndex, final @Nullable Reader reader, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateClob(final String columnLabel, final Reader reader, final long length)
+  public void updateClob(final String columnLabel, final @Nullable Reader reader, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateClob(final int columnIndex, final Reader reader) throws SQLException {
+  public void updateClob(final int columnIndex, final @Nullable Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateClob(final String columnLabel, final Reader reader) throws SQLException {
+  public void updateClob(final String columnLabel, final @Nullable Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateArray(final int columnIndex, final Array x) throws SQLException {
+  public void updateArray(final int columnIndex, final @Nullable Array x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateArray(final String columnLabel, final Array x) throws SQLException {
+  public void updateArray(final String columnLabel, final @Nullable Array x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public RowId getRowId(final int columnIndex) throws SQLException {
+  public @Nullable RowId getRowId(final int columnIndex) throws SQLException {
     Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
       return null;
@@ -1508,17 +1520,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public RowId getRowId(final String columnLabel) throws SQLException {
+  public @Nullable RowId getRowId(final String columnLabel) throws SQLException {
     return getRowId(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public void updateRowId(final int columnIndex, final RowId x) throws SQLException {
+  public void updateRowId(final int columnIndex, final @Nullable RowId x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateRowId(final String columnLabel, final RowId x) throws SQLException {
+  public void updateRowId(final String columnLabel, final @Nullable RowId x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1534,47 +1546,47 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   @SuppressWarnings({"checkstyle:MethodName", "checkstyle:ParameterName"})
-  public void updateNString(final int columnIndex, final String nString) throws SQLException {
+  public void updateNString(final int columnIndex, final @Nullable String nString) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
   @SuppressWarnings({"checkstyle:MethodName", "checkstyle:ParameterName"})
-  public void updateNString(final String columnLabel, final String nString) throws SQLException {
+  public void updateNString(final String columnLabel, final @Nullable String nString) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
   @SuppressWarnings({"checkstyle:MethodName", "checkstyle:ParameterName"})
-  public void updateNClob(final int columnIndex, final NClob nClob) throws SQLException {
+  public void updateNClob(final int columnIndex, final @Nullable NClob nClob) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
   @SuppressWarnings({"checkstyle:MethodName", "checkstyle:ParameterName"})
-  public void updateNClob(final String columnLabel, final NClob nClob) throws SQLException {
+  public void updateNClob(final String columnLabel, final @Nullable NClob nClob) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNClob(final int columnIndex, final Reader reader, final long length)
+  public void updateNClob(final int columnIndex, final @Nullable Reader reader, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNClob(final String columnLabel, final Reader reader, final long length)
+  public void updateNClob(final String columnLabel, final @Nullable Reader reader, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNClob(final int columnIndex, final Reader reader) throws SQLException {
+  public void updateNClob(final int columnIndex, final @Nullable Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNClob(final String columnLabel, final Reader reader) throws SQLException {
+  public void updateNClob(final String columnLabel, final @Nullable Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1590,7 +1602,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public SQLXML getSQLXML(final int columnIndex) throws SQLException {
+  public @Nullable SQLXML getSQLXML(final int columnIndex) throws SQLException {
     Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) {
       return null;
@@ -1602,27 +1614,27 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public SQLXML getSQLXML(final String columnLabel) throws SQLException {
+  public @Nullable SQLXML getSQLXML(final String columnLabel) throws SQLException {
     return getSQLXML(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
-  public void updateSQLXML(final int columnIndex, final SQLXML xmlObject) throws SQLException {
+  public void updateSQLXML(final int columnIndex, final @Nullable SQLXML xmlObject) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateSQLXML(final String columnLabel, final SQLXML xmlObject) throws SQLException {
+  public void updateSQLXML(final String columnLabel, final @Nullable SQLXML xmlObject) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public String getNString(final int columnIndex) throws SQLException {
+  public @Nullable String getNString(final int columnIndex) throws SQLException {
     return getString(columnIndex);
   }
 
   @Override
-  public String getNString(final String columnLabel) throws SQLException {
+  public @Nullable String getNString(final String columnLabel) throws SQLException {
     return getString(columnLabel);
   }
 
@@ -1637,24 +1649,24 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateNCharacterStream(final int columnIndex, final Reader x, final long length)
+  public void updateNCharacterStream(final int columnIndex, final @Nullable Reader x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNCharacterStream(final String columnLabel, final Reader reader, final long length)
+  public void updateNCharacterStream(final String columnLabel, final @Nullable Reader reader, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNCharacterStream(final int columnIndex, final Reader x) throws SQLException {
+  public void updateNCharacterStream(final int columnIndex, final @Nullable Reader x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void updateNCharacterStream(final String columnLabel, final Reader reader) throws SQLException {
+  public void updateNCharacterStream(final String columnLabel, final @Nullable Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
