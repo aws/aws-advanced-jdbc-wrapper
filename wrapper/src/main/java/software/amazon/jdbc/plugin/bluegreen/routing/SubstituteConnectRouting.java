@@ -47,11 +47,11 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   protected static final RdsUtils RDS_UTILS = new RdsUtils();
 
   protected final HostSpec substituteHostSpec;
-  protected final List<HostSpec> iamHosts;
-  protected final IamSuccessfulConnectFunc iamSuccessfulConnectNotify;
+  protected final @Nullable List<HostSpec> iamHosts;
+  protected final @Nullable IamSuccessfulConnectFunc iamSuccessfulConnectNotify;
 
   public SubstituteConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role,
-      @NonNull final HostSpec substituteHostSpec, @Nullable final List<HostSpec> iamHosts,
+      final @NonNull HostSpec substituteHostSpec, final @Nullable List<HostSpec> iamHosts,
       @Nullable IamSuccessfulConnectFunc iamSuccessfulConnectNotify) {
     super(hostAndPort, role);
     this.substituteHostSpec = substituteHostSpec;
@@ -60,7 +60,8 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   }
 
   @Override
-  public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
+  public @Nullable Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props,
+      boolean isInitialConnection,
       boolean useForceConnect, JdbcCallable<Connection, SQLException> connectFunc,
       StorageService storageService, PluginService pluginService)
       throws SQLException {

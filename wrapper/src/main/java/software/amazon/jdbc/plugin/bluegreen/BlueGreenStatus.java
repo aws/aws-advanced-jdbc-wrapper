@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
@@ -44,7 +45,7 @@ public class BlueGreenStatus {
   // all known host names; host with no port
   private final Map<String, BlueGreenRole> roleByHost = new ConcurrentHashMap<>();
 
-  private final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
+  private final Map<String, Pair<HostSpec, @Nullable HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
 
 
   public BlueGreenStatus(final String bgdId, final BlueGreenPhase phase) {
@@ -57,7 +58,7 @@ public class BlueGreenStatus {
       final List<ConnectRouting> connectRouting,
       final List<ExecuteRouting> executeRouting,
       final Map<String, BlueGreenRole> roleByHost,
-      final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes) {
+      final Map<String, Pair<HostSpec, @Nullable HostSpec>> correspondingNodes) {
 
     this.bgdId = bgdId;
     this.currentPhase = phase;
@@ -83,11 +84,11 @@ public class BlueGreenStatus {
     return this.roleByHost;
   }
 
-  public Map<String, Pair<HostSpec, HostSpec>> getCorrespondingNodes() {
+  public Map<String, Pair<HostSpec, @Nullable HostSpec>> getCorrespondingNodes() {
     return this.correspondingNodes;
   }
 
-  public BlueGreenRole getRole(HostSpec hostSpec) {
+  public @Nullable BlueGreenRole getRole(HostSpec hostSpec) {
     return this.roleByHost.get(hostSpec.getHost().toLowerCase());
   }
 

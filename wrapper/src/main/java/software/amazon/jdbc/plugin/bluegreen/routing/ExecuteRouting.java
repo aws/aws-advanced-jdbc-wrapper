@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.bluegreen.routing;
 import java.util.Optional;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -36,7 +37,7 @@ public interface ExecuteRouting {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs,
+      final @Nullable Object[] jdbcMethodArgs,
       final StorageService storageService,
       final PluginService pluginService,
       final Properties props) throws E;

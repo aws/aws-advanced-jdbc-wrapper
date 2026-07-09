@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -44,7 +45,7 @@ public enum BlueGreenRole {
     return value;
   }
 
-  public static BlueGreenRole parseRole(final String value, final String version) {
+  public static BlueGreenRole parseRole(final @Nullable String value, final String version) {
     if ("1.0".equals(version)) {
       if (StringUtils.isNullOrEmpty(value)) {
         throw new IllegalArgumentException(Messages.get("bgd.unknownRole", new Object[] {value}));

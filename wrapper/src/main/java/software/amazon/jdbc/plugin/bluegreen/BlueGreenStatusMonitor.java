@@ -80,7 +80,7 @@ public class BlueGreenStatusMonitor {
   protected final String bgdId;
   protected final Properties props;
   protected final BlueGreenRole role;
-  protected final OnBlueGreenStatusChange onBlueGreenStatusChangeFunc;
+  protected final @Nullable OnBlueGreenStatusChange onBlueGreenStatusChangeFunc;
 
   // Status check interval time in millis for each BlueGreenIntervalRate.
   protected final Map<BlueGreenIntervalRate, Long> statusCheckIntervalMap;
@@ -103,7 +103,7 @@ public class BlueGreenStatusMonitor {
   protected final AtomicBoolean useIpAddress = new AtomicBoolean(false);
   protected final Object sleepWaitObj = new Object();
 
-  protected HostListProvider hostListProvider = null;
+  protected @Nullable HostListProvider hostListProvider = null;
   protected List<HostSpec> startTopology = new ArrayList<>();
   protected final AtomicReference<List<HostSpec>> currentTopology = new AtomicReference<>(new ArrayList<>());
   protected Map<String, Optional<String>> startIpAddressesByHostMap = new ConcurrentHashMap<>();
@@ -115,21 +115,25 @@ public class BlueGreenStatusMonitor {
   // Track all endpoints in startTopology and check whether they are removed (i.e. could not be resolved ayt DNS).
   protected boolean allStartTopologyEndpointsRemoved = false;
   protected boolean allTopologyChanged = false;
-  protected BlueGreenPhase currentPhase = BlueGreenPhase.NOT_CREATED;
+  protected @Nullable BlueGreenPhase currentPhase = BlueGreenPhase.NOT_CREATED;
   protected Set<String> hostNames = ConcurrentHashMap.newKeySet(); // No port
 
   protected String version = "1.0";
   protected int port = -1;
 
   protected AtomicConnection connection;
-  protected final AtomicReference<HostSpec> connectionHostSpec = new AtomicReference<>(null);
-  protected final AtomicReference<String> connectedIpAddress = new AtomicReference<>(null);
+  protected final AtomicReference<@Nullable HostSpec> connectionHostSpec = new AtomicReference<>(null);
+  protected final AtomicReference<@Nullable String> connectedIpAddress = new AtomicReference<>(null);
   protected final AtomicBoolean connectionHostSpecCorrect = new AtomicBoolean(false);
   protected final AtomicBoolean panicMode = new AtomicBoolean(true);
-  protected Future<Void> openConnectionFuture = null;
+  protected @Nullable Future<Void> openConnectionFuture = null;
 
-  protected final AtomicReference<PreparedStatement> checkStatusStatement = new AtomicReference<>(null);
+  protected final AtomicReference<@Nullable PreparedStatement> checkStatusStatement = new AtomicReference<>(null);
 
+  // AtomicConnection registers 'this' as a GC cleanup referent only; it does not access any
+  // not-yet-initialized state during construction, so passing the under-initialization receiver
+  // is safe. The checker cannot see this, hence the localized suppression.
+  @SuppressWarnings({"argument", "assignment"})
   public BlueGreenStatusMonitor(
       final @NonNull BlueGreenRole role,
       final @NonNull String bgdId,
@@ -346,7 +350,9 @@ public class BlueGreenStatusMonitor {
 
   protected void collectTopology() throws SQLException {
 
-    if (this.hostListProvider == null) {
+    // Capture the field into a local so the null-guard narrowing survives subsequent calls.
+    final HostListProvider hostListProviderCopy = this.hostListProvider;
+    if (hostListProviderCopy == null) {
       return;
     }
 
@@ -356,7 +362,13 @@ public class BlueGreenStatusMonitor {
     }
 
     try {
-      this.currentTopology.set(this.hostListProvider.forceRefresh());
+      final List<HostSpec> refreshedTopology = hostListProviderCopy.forceRefresh();
+      // forceRefresh() may return null; retain the previously collected topology in that case
+      // rather than overwriting it with null (a null topology would later fail an unguarded
+      // isEmpty()/stream() check). On the normal path forceRefresh() returns a list.
+      if (refreshedTopology != null) {
+        this.currentTopology.set(refreshedTopology);
+      }
     } catch (TimeoutException e) {
       LOGGER.finest(() -> Messages.get("bgd.forceRefreshTimeout"));
       return;
@@ -420,12 +432,14 @@ public class BlueGreenStatusMonitor {
 
       try (ResultSet resultSet = this.executeCheckStatusStatement(conn)) {
         while (resultSet.next()) {
-          String version = resultSet.getString("version");
-          if (!knownVersions.contains(version)) {
-            final String versionCopy = version;
+          final String rawVersion = resultSet.getString("version");
+          final String version;
+          if (rawVersion != null && knownVersions.contains(rawVersion)) {
+            version = rawVersion;
+          } else {
             version = latestKnownVersion;
             LOGGER.warning(() -> Messages.get("bgd.usesVersion",
-                    new Object[] {this.role, versionCopy, latestKnownVersion}));
+                    new Object[] {this.role, rawVersion, latestKnownVersion}));
           }
 
           final String endpoint = resultSet.getString("endpoint");
@@ -437,7 +451,12 @@ public class BlueGreenStatusMonitor {
             continue;
           }
 
-          statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
+          // 'endpoint' is read from the RDS blue/green status view's endpoint column, which is
+          // NOT NULL; the checker treats ResultSet.getString as @Nullable, so the constructor
+          // argument is suppressed here rather than changing behavior.
+          @SuppressWarnings("argument")
+          final StatusInfo statusInfo = new StatusInfo(version, endpoint, port, phase, role);
+          statusEntries.add(statusInfo);
         }
       }
 
@@ -546,7 +565,7 @@ public class BlueGreenStatusMonitor {
     }
   }
 
-  protected boolean isConnectionClosed(Connection conn) {
+  protected boolean isConnectionClosed(@Nullable Connection conn) {
     try {
       return conn == null || conn.isClosed();
     } catch (SQLException ex) {
@@ -561,12 +580,13 @@ public class BlueGreenStatusMonitor {
       return;
     }
 
-    if (this.openConnectionFuture != null) {
-      if (this.openConnectionFuture.isDone()) {
+    final Future<Void> openConnectionFutureCopy = this.openConnectionFuture;
+    if (openConnectionFutureCopy != null) {
+      if (openConnectionFutureCopy.isDone()) {
         if (!this.panicMode.get()) {
           return; // Connection should be open by now.
         }
-      } else if (!this.openConnectionFuture.isCancelled()) {
+      } else if (!openConnectionFutureCopy.isCancelled()) {
         // Opening a new connection is in progress. Let's wait.
         return;
       } else {
@@ -588,6 +608,12 @@ public class BlueGreenStatusMonitor {
 
       HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
       String connectedIpAddressCopy = this.connectedIpAddress.get();
+
+      if (connectionHostSpecCopy == null) {
+        // Unreachable: connectionHostSpec was just set to the non-null initialHostSpec above and
+        // is only ever set to non-null values. Guard defensively to satisfy the null checker.
+        return null;
+      }
 
       try {
 
@@ -675,8 +701,8 @@ public class BlueGreenStatusMonitor {
     // Each task gets its own AtomicConnection to hold its result. AtomicConnection's
     // LazyCleaner guarantees that any connection left in it will be closed when the
     // AtomicConnection becomes unreachable — eliminating leak risk for late completions.
-    final AtomicReference<String> winnerIp = new AtomicReference<>(null);
-    final AtomicReference<AtomicConnection> winnerHolder = new AtomicReference<>(null);
+    final AtomicReference<@Nullable String> winnerIp = new AtomicReference<>(null);
+    final AtomicReference<@Nullable AtomicConnection> winnerHolder = new AtomicReference<>(null);
     // Latch signals when either a connection succeeds or all tasks complete.
     final CountDownLatch resultReady = new CountDownLatch(1);
     final AtomicInteger completedCount = new AtomicInteger(0);

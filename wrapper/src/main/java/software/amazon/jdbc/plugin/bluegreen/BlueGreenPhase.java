@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.HashMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -49,7 +50,7 @@ public enum BlueGreenPhase {
     this.activeSwitchoverOrCompleted = activeSwitchoverOrCompleted;
   }
 
-  public static BlueGreenPhase parsePhase(final String value, final String version) {
+  public static BlueGreenPhase parsePhase(final @Nullable String value, final String version) {
     if (StringUtils.isNullOrEmpty(value)) {
       return BlueGreenPhase.NOT_CREATED;
     }
