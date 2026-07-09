@@ -770,14 +770,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         return;
       }
 
-      final Connection conn = failoverResult.getNewConnection();
-      if (conn == null) {
-        // A connected writer result always carries a non-null connection, so this is unreachable on
-        // normal paths; it mirrors the failure handling above for null-safety.
-        throwFailoverFailedException(Messages.get("Failover.unableToConnectToWriter"));
-        return;
-      }
-      if (isInitialConnection) {
+      final @Nullable Connection conn = failoverResult.getNewConnection();
+      // A connected writer result carries a non-null connection on all normal paths; the null
+      // guards below preserve the original behavior (which passed the connection straight through)
+      // without adding a failure path, and simply avoid passing null to the non-null-typed callees.
+      if (isInitialConnection && conn != null) {
         this.pluginService.updateDialect(conn);
       }
 
@@ -792,7 +789,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         return;
       }
 
-      this.pluginService.setCurrentConnection(conn, writerHostSpec);
+      if (conn != null) {
+        this.pluginService.setCurrentConnection(conn, writerHostSpec);
+      }
 
       LOGGER.fine(
           () -> Messages.get(
