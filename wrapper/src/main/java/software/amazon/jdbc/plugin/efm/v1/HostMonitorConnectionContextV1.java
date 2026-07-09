@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
@@ -38,7 +39,7 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
   private static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
 
-  private TelemetryCounter abortedConnectionsCounter;
+  private @Nullable TelemetryCounter abortedConnectionsCounter;
 
   private long failureDetectionIntervalMillis;
   private long failureDetectionTimeMillis;
@@ -56,7 +57,7 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
       final long failureDetectionTimeMillis,
       final long failureDetectionIntervalMillis,
       final long failureDetectionCount,
-      TelemetryCounter abortedConnectionsCounter) {
+      final @Nullable TelemetryCounter abortedConnectionsCounter) {
     this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
     this.nodeUnhealthy.set(false);
     this.activeContext = true;
@@ -120,12 +121,12 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
   }
 
   public void abortConnection() {
-    final WeakReference<Connection> connRef = this.connectionToAbortRef.get();
+    final @Nullable WeakReference<Connection> connRef = this.connectionToAbortRef.get();
     if (connRef == null || !this.activeContext) {
       return;
     }
 
-    final Connection connectionToAbort = connRef.get();
+    final @Nullable Connection connectionToAbort = connRef.get();
     if (connectionToAbort == null) {
       return;
     }

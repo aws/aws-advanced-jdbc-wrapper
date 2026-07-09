@@ -24,7 +24,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public abstract class HostMonitorConnectionContext implements ConnectionContext {
 
-  protected final AtomicReference<WeakReference<Connection>> connectionToAbortRef = new AtomicReference<>(null);
+  protected final AtomicReference<@Nullable WeakReference<Connection>> connectionToAbortRef =
+      new AtomicReference<>(null);
   protected final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
 
   public boolean isNodeUnhealthy() {
@@ -40,13 +41,13 @@ public abstract class HostMonitorConnectionContext implements ConnectionContext 
   }
 
   public @Nullable Connection getConnection() {
-    WeakReference<Connection> copy = this.connectionToAbortRef.get();
+    final @Nullable WeakReference<Connection> copy = this.connectionToAbortRef.get();
     return copy == null ? null : copy.get();
   }
 
   public boolean isActive() {
-    WeakReference<Connection> copy = this.connectionToAbortRef.get();
-    final Connection conn = copy == null ? null : copy.get();
+    final @Nullable WeakReference<Connection> copy = this.connectionToAbortRef.get();
+    final @Nullable Connection conn = copy == null ? null : copy.get();
     return conn != null;
   }
 

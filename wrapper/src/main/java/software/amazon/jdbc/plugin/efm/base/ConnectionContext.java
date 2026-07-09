@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.efm.base;
 
 import java.sql.Connection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Interface for connection context that manages connection state and health monitoring.
@@ -54,7 +55,7 @@ public interface ConnectionContext {
    *
    * @return the connection, or null if not available
    */
-  Connection getConnection();
+  @Nullable Connection getConnection();
 
   /**
    * Check if this context is currently active.

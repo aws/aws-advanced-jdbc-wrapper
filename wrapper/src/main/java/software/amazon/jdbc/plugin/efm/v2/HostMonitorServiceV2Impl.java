@@ -23,12 +23,14 @@ import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBaseP
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
@@ -43,6 +45,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StateSnapshotProvider;
+import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -66,7 +69,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
   protected final ConnectionContextService connectionContextService;
   protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
-  protected final TelemetryCounter abortedConnectionsCounter;
+  protected final @Nullable TelemetryCounter abortedConnectionsCounter;
   protected final int failureDetectionTimeMillis;
   protected final int failureDetectionIntervalMillis;
   protected final int failureDetectionCount;
@@ -93,7 +96,9 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
         HostMonitorV2Impl.class,
         TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
         TimeUnit.MINUTES.toNanos(3),
-        null,
+        // No error responses configured: an empty set is equivalent to the previous null argument
+        // (MonitorServiceImpl only acts when the set contains RECREATE), and keeps the non-null contract.
+        EnumSet.noneOf(MonitorErrorResponse.class),
         null);
   }
 

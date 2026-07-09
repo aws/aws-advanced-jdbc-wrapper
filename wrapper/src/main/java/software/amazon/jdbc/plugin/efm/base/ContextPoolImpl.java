@@ -35,7 +35,7 @@ public class ContextPoolImpl implements ContextPool {
   private final boolean lazyInitialization;
   private final ReentrantLock lock = new ReentrantLock();
   private volatile boolean initialized = false;
-  private final TelemetryGauge poolSizeGauge;
+  private final @Nullable TelemetryGauge poolSizeGauge;
 
   public ContextPoolImpl(int maxIdleCount, Supplier<ConnectionContext> contextSupplier) {
     this(maxIdleCount, false, contextSupplier, NULL_TELEMETRY_FACTORY);
