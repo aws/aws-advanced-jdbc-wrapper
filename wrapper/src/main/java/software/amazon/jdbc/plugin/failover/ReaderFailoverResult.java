@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.failover;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 /**
@@ -26,23 +27,23 @@ import software.amazon.jdbc.HostSpec;
 
 public class ReaderFailoverResult {
 
-  private final Connection newConnection;
+  private final @Nullable Connection newConnection;
   private final boolean isConnected;
-  private final SQLException exception;
-  private final HostSpec newHost;
+  private final @Nullable SQLException exception;
+  private final @Nullable HostSpec newHost;
 
   public ReaderFailoverResult(
-      final Connection newConnection,
-      final HostSpec newHost,
+      final @Nullable Connection newConnection,
+      final @Nullable HostSpec newHost,
       final boolean isConnected) {
     this(newConnection, newHost, isConnected, null);
   }
 
   public ReaderFailoverResult(
-      final Connection newConnection,
-      final HostSpec newHost,
+      final @Nullable Connection newConnection,
+      final @Nullable HostSpec newHost,
       final boolean isConnected,
-      final SQLException exception) {
+      final @Nullable SQLException exception) {
     this.newConnection = newConnection;
     this.newHost = newHost;
     this.isConnected = isConnected;
@@ -54,7 +55,7 @@ public class ReaderFailoverResult {
    *
    * @return {@link Connection} New connection to a host. Returns null if no connection is established.
    */
-  public Connection getConnection() {
+  public @Nullable Connection getConnection() {
     return newConnection;
   }
 
@@ -63,7 +64,7 @@ public class ReaderFailoverResult {
    *
    * @return Newly connected host. Returns null if no connection is established.
    */
-  public HostSpec getHost() {
+  public @Nullable HostSpec getHost() {
     return this.newHost;
   }
 
@@ -81,7 +82,7 @@ public class ReaderFailoverResult {
    *
    * @return a {@link SQLException}.
    */
-  public SQLException getException() {
+  public @Nullable SQLException getException() {
     return exception;
   }
 }

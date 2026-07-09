@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 
@@ -38,7 +39,7 @@ public interface ReaderFailoverHandler {
    * @return {@link ReaderFailoverResult} The results of this process.
    * @throws SQLException indicating whether the failover attempt was successful.
    */
-  ReaderFailoverResult failover(List<HostSpec> hosts, HostSpec currentHost) throws SQLException;
+  ReaderFailoverResult failover(List<HostSpec> hosts, @Nullable HostSpec currentHost) throws SQLException;
 
   /**
    * Called to get any available reader connection. If no reader is available then result of process

@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
@@ -127,7 +128,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   @Override
-  public ReaderFailoverResult failover(final List<HostSpec> hosts, final HostSpec currentHost)
+  public ReaderFailoverResult failover(final List<HostSpec> hosts, final @Nullable HostSpec currentHost)
       throws SQLException {
     if (Utils.isNullOrEmpty(hosts)) {
       LOGGER.fine(() -> Messages.get("ClusterAwareReaderFailoverHandler.invalidTopology", new Object[] {"failover"}));
@@ -142,7 +143,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
   private Future<ReaderFailoverResult> submitInternalFailoverTask(
       final List<HostSpec> hosts,
-      final HostSpec currentHost,
+      final @Nullable HostSpec currentHost,
       final ExecutorService executor) {
     final Future<ReaderFailoverResult> future = executor.submit(() -> {
       ReaderFailoverResult result;
@@ -192,7 +193,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  protected ReaderFailoverResult failoverInternal(final List<HostSpec> hosts, final HostSpec currentHost)
+  protected ReaderFailoverResult failoverInternal(final List<HostSpec> hosts, final @Nullable HostSpec currentHost)
       throws SQLException {
     if (currentHost != null) {
       this.pluginService.setAvailability(currentHost, HostAvailability.NOT_AVAILABLE);
@@ -227,7 +228,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     // Since the writer instance may change during failover, the original writer is likely now a reader. We will include
     // it and then verify the role once connected if using "strict-reader".
     if (writerHost != null || numOfReaders == 0) {
-      hostsByPriority.add(writerHost);
+      // When numOfReaders == 0 with a non-empty topology, every host is a writer, so writerHost is
+      // guaranteed non-null here; the inner null-check preserves behavior while satisfying null-safety.
+      if (writerHost != null) {
+        hostsByPriority.add(writerHost);
+      }
     }
     hostsByPriority.addAll(downHostList);
 

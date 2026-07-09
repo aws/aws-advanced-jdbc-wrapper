@@ -82,18 +82,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected FailoverMode failoverMode;
+  protected @Nullable FailoverMode failoverMode;
   private boolean telemetryFailoverAdditionalTopTraceSetting;
 
   private final AtomicBoolean closedExplicitly = new AtomicBoolean(false);
-  protected String closedReason = null;
+  protected @Nullable String closedReason = null;
   private final RdsUtils rdsHelper;
-  protected WriterFailoverHandler writerFailoverHandler = null;
-  protected ReaderFailoverHandler readerFailoverHandler = null;
-  private Throwable lastExceptionDealtWith = null;
+  protected @Nullable WriterFailoverHandler writerFailoverHandler = null;
+  protected @Nullable ReaderFailoverHandler readerFailoverHandler = null;
+  private @Nullable Throwable lastExceptionDealtWith = null;
   private PluginManagerService pluginManagerService;
   private boolean isInTransaction = false;
-  private RdsUrlType rdsUrlType = null;
+  private @Nullable RdsUrlType rdsUrlType = null;
   private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
   private Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier;
@@ -154,12 +154,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           "skipFailoverOnInterruptedThread", "false",
           "Enable to skip failover if the current thread is interrupted.");
 
-  private final TelemetryCounter failoverWriterTriggeredCounter;
-  private final TelemetryCounter failoverWriterSuccessCounter;
-  private final TelemetryCounter failoverWriterFailedCounter;
-  private final TelemetryCounter failoverReaderTriggeredCounter;
-  private final TelemetryCounter failoverReaderSuccessCounter;
-  private final TelemetryCounter failoverReaderFailedCounter;
+  private final @Nullable TelemetryCounter failoverWriterTriggeredCounter;
+  private final @Nullable TelemetryCounter failoverWriterSuccessCounter;
+  private final @Nullable TelemetryCounter failoverWriterFailedCounter;
+  private final @Nullable TelemetryCounter failoverReaderTriggeredCounter;
+  private final @Nullable TelemetryCounter failoverReaderSuccessCounter;
+  private final @Nullable TelemetryCounter failoverReaderFailedCounter;
 
   private boolean skipFailoverOnInterruptedThread;
 
@@ -171,6 +171,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     this(servicesContainer, properties, new RdsUtils());
   }
 
+  // initSettings() only reads/writes this plugin's own fields during construction; calling it on the
+  // partially-initialized receiver is safe here.
+  @SuppressWarnings("method.invocation")
   FailoverConnectionPlugin(
       final FullServicesContainer servicesContainer,
       final Properties properties,
@@ -224,6 +227,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     return subscribedMethods;
   }
 
+  // The `return result` at the end is only reached when jdbcMethodFunc.call() succeeded; the exception
+  // handlers (dealWithIllegalStateException/dealWithOriginalException) always throw. The checker cannot
+  // see that guarantee, so the possibly-null `result` return is suppressed here. This mirrors
+  // AbstractConnectionPlugin.execute, which returns jdbcMethodFunc.call() directly (also possibly null).
+  @SuppressWarnings("return")
   @Override
   public <T, E extends Exception> T execute(
       final Class<T> resultClass,
@@ -231,7 +239,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     try {
@@ -300,14 +308,22 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
                 this.failoverMode == FailoverMode.STRICT_READER),
-        () ->
-            new ClusterAwareWriterFailoverHandler(
-                this.servicesContainer,
-                this.readerFailoverHandler,
-                this.properties,
-                this.failoverTimeoutMsSetting,
-                this.failoverClusterTopologyRefreshRateMsSetting,
-                this.failoverWriterReconnectIntervalMsSetting));
+        () -> {
+          // failoverWriter() always initializes readerFailoverHandler before invoking this supplier,
+          // so this guard is unreachable on normal paths; it captures the field for null-safety.
+          final ReaderFailoverHandler readerFailoverHandler = this.readerFailoverHandler;
+          if (readerFailoverHandler == null) {
+            throw new IllegalStateException(
+                Messages.get("Failover.readerFailoverHandlerNotInitialized"));
+          }
+          return new ClusterAwareWriterFailoverHandler(
+              this.servicesContainer,
+              readerFailoverHandler,
+              this.properties,
+              this.failoverTimeoutMsSetting,
+              this.failoverClusterTopologyRefreshRateMsSetting,
+              this.failoverWriterReconnectIntervalMsSetting);
+        });
   }
 
   void initHostProvider(
@@ -506,10 +522,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   }
 
   private <E extends Exception> void dealWithOriginalException(
-      final Throwable originalException,
-      final Throwable wrapperException,
+      final @Nullable Throwable originalException,
+      final @Nullable Throwable wrapperException,
       final Class<E> exceptionClass) throws E {
-    Throwable exceptionToThrow = wrapperException;
+    @Nullable Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
       LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
       this.servicesContainer.getImportantEventService().registerEvent(
@@ -535,6 +551,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
 
     if (exceptionToThrow instanceof Error) {
       throw (Error) exceptionToThrow;
+    }
+
+    if (exceptionToThrow == null) {
+      // Unreachable on current call paths: callers always supply a non-null original or wrapper
+      // exception, so exceptionToThrow is non-null here. Guard added for null-safety only.
+      return;
     }
 
     throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, exceptionToThrow);
@@ -565,7 +587,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
    * @param isInitialConnection The flag that indicates whether it is an initial connection
    * @throws SQLException if an error occurs
    */
-  protected void failover(@Nullable final HostSpec failedHost, boolean isInitialConnection) throws SQLException {
+  protected void failover(final @Nullable HostSpec failedHost, boolean isInitialConnection) throws SQLException {
     if (failedHost != null) {
       this.pluginService.setAvailability(failedHost, HostAvailability.NOT_AVAILABLE);
     }
@@ -577,7 +599,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     }
   }
 
-  protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
+  protected void failoverReader(final @Nullable HostSpec failedHostSpec) throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
@@ -591,6 +613,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       }
       this.readerFailoverHandler = this.readerFailoverHandlerSupplier.get();
     }
+    final ReaderFailoverHandler readerFailoverHandler = this.readerFailoverHandler;
 
     final long failoverStartNano = System.nanoTime();
 
@@ -605,14 +628,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       }
 
       final ReaderFailoverResult result =
-          this.readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+          readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
       if (result != null) {
         final SQLException exception = result.getException();
         if (exception != null) {
           throw exception;
         }
 
-        updateHostAvailability(this.readerFailoverHandler.getHostAvailabilityMap());
+        updateHostAvailability(readerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (result == null || !result.isConnected()) {
@@ -620,7 +643,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         return;
       }
 
-      this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
+      final Connection newConnection = result.getConnection();
+      final HostSpec newHost = result.getHost();
+      if (newConnection == null || newHost == null) {
+        // A connected reader result always carries a non-null connection and host, so this is
+        // unreachable on normal paths; it mirrors the failure handling above for null-safety.
+        throwFailoverFailedException(Messages.get("Failover.unableToConnectToReader"));
+        return;
+      }
+      this.pluginService.setCurrentConnection(newConnection, newHost);
       updateTopology(true);
 
       LOGGER.info(
@@ -706,6 +737,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       }
       this.writerFailoverHandler = this.writerFailoverHandlerSupplier.get();
     }
+    final WriterFailoverHandler writerFailoverHandler = this.writerFailoverHandler;
 
     long failoverStartTimeNano = System.nanoTime();
 
@@ -715,7 +747,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           () -> Messages.get("Failover.startWriterFailover"));
 
       final WriterFailoverResult failoverResult =
-          this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
+          writerFailoverHandler.failover(this.pluginService.getAllHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
@@ -728,8 +760,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         return;
       }
 
-      List<HostSpec> hosts = failoverResult.getTopology();
-      final HostSpec writerHostSpec = Utils.getWriter(hosts);
+      final @Nullable List<HostSpec> hosts = failoverResult.getTopology();
+      final HostSpec writerHostSpec = hosts == null ? null : Utils.getWriter(hosts);
       if (writerHostSpec == null) {
         throwFailoverFailedException(
             Messages.get(
@@ -738,13 +770,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         return;
       }
 
-      Connection conn = failoverResult.getNewConnection();
+      final Connection conn = failoverResult.getNewConnection();
+      if (conn == null) {
+        // A connected writer result always carries a non-null connection, so this is unreachable on
+        // normal paths; it mirrors the failure handling above for null-safety.
+        throwFailoverFailedException(Messages.get("Failover.unableToConnectToWriter"));
+        return;
+      }
       if (isInitialConnection) {
         this.pluginService.updateDialect(conn);
       }
 
       this.pluginService.forceRefreshHostList();
-      updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
+      updateHostAvailability(writerFailoverHandler.getHostAvailabilityMap());
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
@@ -844,10 +882,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     }
 
     if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
-      try {
-        connectTo(Utils.getWriter(this.pluginService.getAllHosts()));
-      } catch (final SQLException e) {
-        failover(Utils.getWriter(this.pluginService.getAllHosts()), false);
+      final HostSpec writerHost = Utils.getWriter(this.pluginService.getAllHosts());
+      if (writerHost != null) {
+        try {
+          connectTo(writerHost);
+        } catch (final SQLException e) {
+          failover(writerHost, false);
+        }
+      } else {
+        // No writer host is known; initiate failover directly, mirroring the catch path. On normal
+        // paths a writer host is present, so this branch is unreachable.
+        failover(null, false);
       }
     } else {
       failover(this.pluginService.getCurrentHostSpec(), false);
@@ -962,11 +1007,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
         this.failoverClusterTopologyRefreshRateMsSetting));
     state.add(Pair.create("failoverWriterReconnectIntervalMsSetting", this.failoverWriterReconnectIntervalMsSetting));
     state.add(Pair.create("failoverReaderConnectTimeoutMsSetting", this.failoverReaderConnectTimeoutMsSetting));
-    state.add(Pair.create("failoverMode", this.failoverMode != null ? this.failoverMode.toString() : null));
+    state.add(Pair.create("failoverMode", this.failoverMode != null ? this.failoverMode.toString() : "null"));
     state.add(Pair.create("closedExplicitly", this.closedExplicitly.get()));
-    state.add(Pair.create("closedReason", this.closedReason));
+    state.add(Pair.create("closedReason", this.closedReason != null ? this.closedReason : "null"));
     state.add(Pair.create("isInTransaction", this.isInTransaction));
-    state.add(Pair.create("rdsUrlType", this.rdsUrlType != null ? this.rdsUrlType.toString() : null));
+    state.add(Pair.create("rdsUrlType", this.rdsUrlType != null ? this.rdsUrlType.toString() : "null"));
     state.add(Pair.create("skipFailoverOnInterruptedThread", this.skipFailoverOnInterruptedThread));
     return state;
   }
