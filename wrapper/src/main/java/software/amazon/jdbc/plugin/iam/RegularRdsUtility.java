@@ -17,13 +17,14 @@
 package software.amazon.jdbc.plugin.iam;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsUtilities;
 
 public class RegularRdsUtility implements IamTokenUtility {
 
-  private RdsUtilities utilities = null;
+  private @Nullable RdsUtilities utilities = null;
 
   public RegularRdsUtility() {}
 
@@ -40,13 +41,15 @@ public class RegularRdsUtility implements IamTokenUtility {
       final int port,
       final @NonNull String username) {
 
-    if (this.utilities == null) {
-      this.utilities = RdsUtilities.builder()
+    RdsUtilities localUtilities = this.utilities;
+    if (localUtilities == null) {
+      localUtilities = RdsUtilities.builder()
           .credentialsProvider(credentialsProvider)
           .region(region)
           .build();
+      this.utilities = localUtilities;
     }
-    return this.utilities.generateAuthenticationToken((builder) ->
+    return localUtilities.generateAuthenticationToken((builder) ->
         builder
             .hostname(hostname)
             .port(port)

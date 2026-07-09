@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
@@ -86,8 +87,8 @@ public class FederatedAuthPlugin extends BaseSamlAuthPlugin {
     PropertyDefinition.registerPluginProperties(FederatedAuthPlugin.class);
   }
 
-  private final TelemetryGauge cacheSizeGauge;
-  private final TelemetryCounter fetchTokenCounter;
+  private final @Nullable TelemetryGauge cacheSizeGauge;
+  private final @Nullable TelemetryCounter fetchTokenCounter;
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -122,12 +123,12 @@ public class FederatedAuthPlugin extends BaseSamlAuthPlugin {
 
 
   @Override
-  String getDbUserProperty(Properties props) {
+  @Nullable String getDbUserProperty(Properties props) {
     return DB_USER.getString(props);
   }
 
   @Override
-  String getIamHostProperty(Properties props) {
+  @Nullable String getIamHostProperty(Properties props) {
     return IAM_HOST.getString(props);
   }
 

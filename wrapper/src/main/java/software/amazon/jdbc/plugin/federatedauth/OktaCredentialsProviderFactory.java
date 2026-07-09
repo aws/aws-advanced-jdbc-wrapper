@@ -33,6 +33,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import software.amazon.jdbc.PluginService;
@@ -52,7 +53,7 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Supplier<CloseableHttpClient> httpClientSupplier;
-  private TelemetryContext telemetryContext;
+  private @Nullable TelemetryContext telemetryContext;
 
   protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -104,14 +105,16 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
     } catch (final IOException e) {
       LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
-      if (this.telemetryContext != null) {
-        this.telemetryContext.setSuccess(false);
-        this.telemetryContext.setException(e);
+      final TelemetryContext context = this.telemetryContext;
+      if (context != null) {
+        context.setSuccess(false);
+        context.setException(e);
       }
       throw new SQLException(e);
     } finally {
-      if (this.telemetryContext != null) {
-        this.telemetryContext.closeContext();
+      final TelemetryContext context = this.telemetryContext;
+      if (context != null) {
+        context.closeContext();
       }
     }
   }

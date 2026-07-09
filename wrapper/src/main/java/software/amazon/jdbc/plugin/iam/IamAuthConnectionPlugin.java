@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -97,8 +98,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
   }
 
   private final TelemetryFactory telemetryFactory;
-  private final TelemetryGauge cacheSizeGauge;
-  private final TelemetryCounter fetchTokenCounter;
+  private final @Nullable TelemetryGauge cacheSizeGauge;
+  private final @Nullable TelemetryCounter fetchTokenCounter;
 
   private final IamTokenUtility iamTokenUtility;
 
@@ -143,11 +144,13 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
 
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+    final String user = PropertyDefinition.USER.getString(props);
+    if (StringUtils.isNullOrEmpty(user)) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
 
-    if (StringUtils.isNullOrEmpty(IAM_TOKEN_PROPERTY_NAME.getString(props))) {
+    final String iamTokenPropertyName = IAM_TOKEN_PROPERTY_NAME.getString(props);
+    if (StringUtils.isNullOrEmpty(iamTokenPropertyName)) {
       throw new SQLException(IAM_TOKEN_PROPERTY_NAME.name + " is null or empty.");
     }
 
@@ -169,19 +172,22 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
     final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
 
     final String cacheKey = IamAuthUtils.getCacheKey(
-        PropertyDefinition.USER.getString(props),
+        user,
         host.getHost(),
         port,
         region);
     final TokenInfo tokenInfo = this.servicesContainer.getStorageService().get(TokenInfo.class, cacheKey);
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
-    if (isCachedToken && tokenExpirationSec > 0) {
+    // The extra tokenInfo != null check is always true when isCachedToken is true; it lets the
+    // checker narrow tokenInfo to non-null for the capture below.
+    if (isCachedToken && tokenExpirationSec > 0 && tokenInfo != null) {
+      final TokenInfo cachedTokenInfo = tokenInfo;
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
-              new Object[] {tokenInfo.getToken()}));
-      props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), tokenInfo.getToken());
+              new Object[] {cachedTokenInfo.getToken()}));
+      props.setProperty(iamTokenPropertyName, cachedTokenInfo.getToken());
     } else {
       final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
       if (this.fetchTokenCounter != null) {
@@ -190,7 +196,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       final String token = IamAuthUtils.generateAuthenticationToken(
           iamTokenUtility,
           pluginService,
-          PropertyDefinition.USER.getString(props),
+          user,
           host.getHost(),
           port,
           region,
@@ -200,7 +206,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
 
-      props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), token);
+      props.setProperty(iamTokenPropertyName, token);
       this.servicesContainer.getStorageService().set(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
@@ -230,7 +236,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       final String token = IamAuthUtils.generateAuthenticationToken(
           iamTokenUtility,
           pluginService,
-          PropertyDefinition.USER.getString(props),
+          user,
           host.getHost(),
           port,
           region,
@@ -239,7 +245,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
-      props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), token);
+      props.setProperty(iamTokenPropertyName, token);
       this.servicesContainer.getStorageService().set(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
@@ -271,7 +277,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
   }
 
   @Override
-  public List<Pair<String, Object>> getSnapshotState() {
+  public @Nullable List<Pair<String, Object>> getSnapshotState() {
     return null;
   }
 }

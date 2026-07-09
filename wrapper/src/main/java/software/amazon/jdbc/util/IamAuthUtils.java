@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util;
 
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
@@ -34,7 +35,7 @@ public class IamAuthUtils {
   private static final Logger LOGGER = Logger.getLogger(IamAuthUtils.class.getName());
   private static final String TELEMETRY_FETCH_TOKEN = "fetch authentication token";
 
-  public static HostSpec getIamHost(final String iamHost, final HostSpec hostSpec) {
+  public static HostSpec getIamHost(final @Nullable String iamHost, final HostSpec hostSpec) {
     if (!StringUtils.isNullOrEmpty(iamHost)) {
       return new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy()).copyFrom(hostSpec).host(iamHost).build();
     }
@@ -52,7 +53,7 @@ public class IamAuthUtils {
   }
 
   public static String getCacheKey(
-      final String user,
+      final @Nullable String user,
       final String hostname,
       final int port,
       final Region region) {

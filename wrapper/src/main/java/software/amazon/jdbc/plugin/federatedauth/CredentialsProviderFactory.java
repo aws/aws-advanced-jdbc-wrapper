@@ -19,10 +19,11 @@ package software.amazon.jdbc.plugin.federatedauth;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 
 public interface CredentialsProviderFactory {
-  AwsCredentialsProvider getAwsCredentialsProvider(String host, Region region, final @NonNull Properties props) throws
-      SQLException;
+  AwsCredentialsProvider getAwsCredentialsProvider(String host, final @Nullable Region region,
+      final @NonNull Properties props) throws SQLException;
 }
