@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
@@ -64,6 +65,9 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final AtomicInteger responseTime = new AtomicInteger(Integer.MAX_VALUE);
+  // getCurrentTime() is overridable only for testing and simply returns a timestamp with no dependency on
+  // subclass state, so invoking it during field initialization is safe.
+  @SuppressWarnings("method.invocation")
   private final AtomicLong checkTimestamp = new AtomicLong(this.getCurrentTime());
 
   private final @NonNull Properties props;
@@ -72,10 +76,14 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
   private final @NonNull FullServicesContainer servicesContainer;
 
   private final TelemetryFactory telemetryFactory;
-  private final TelemetryGauge responseTimeMsGauge;
+  private final @Nullable TelemetryGauge responseTimeMsGauge;
 
   private AtomicConnection monitoringConn;
 
+  // The monitor publishes itself to the AtomicConnection it owns (this-publication), which the checker flags
+  // as passing/assigning a not-yet-fully-initialized 'this'. This is safe here because AtomicConnection only
+  // stores the reference. Nullable telemetry/property values assigned in this constructor are guarded elsewhere.
+  @SuppressWarnings({"argument", "assignment"})
   public NodeResponseTimeMonitor(
       final @NonNull FullServicesContainer servicesContainer,
       final @NonNull HostSpec hostSpec,
@@ -120,8 +128,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     return this.responseTime.get();
   }
 
-  @NonNull
-  public HostSpec getHostSpec() {
+  public @NonNull HostSpec getHostSpec() {
     return this.hostSpec;
   }
 
@@ -245,7 +252,11 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     }
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider contract
+  // types them as Pair<String, Object> (non-null Object). Widening that interface is out of scope, so the
+  // nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     PropertyUtils.addSnapshotState(state, "monitoringConnProperties", this.monitoringConnProperties);

@@ -26,6 +26,7 @@ import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
@@ -71,7 +72,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   protected int refreshRateBackoffFactor;
   protected final StorageService storageService;
 
-  private final TelemetryCounter infoChangedCounter;
+  private final @Nullable TelemetryCounter infoChangedCounter;
 
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
@@ -346,7 +347,11 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     customEndpointInfoCache.clear();
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider contract
+  // types them as Pair<String, Object> (non-null Object). Widening that interface is out of scope, so the
+  // nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     state.add(Pair.create("refreshRequired", this.refreshRequired.get()));

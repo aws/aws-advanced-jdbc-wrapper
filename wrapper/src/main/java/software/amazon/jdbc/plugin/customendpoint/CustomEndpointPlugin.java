@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -109,7 +110,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements St
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
   protected final Set<String> subscribedMethods;
-  protected final TelemetryCounter waitForInfoCounter;
+  protected final @Nullable TelemetryCounter waitForInfoCounter;
   protected final boolean shouldWaitForInfo;
   protected final int waitOnCachedInfoDurationMs;
   protected final int idleMonitorExpirationMs;
@@ -195,21 +196,24 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements St
         Messages.get(
             "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[] {hostSpec.getUrl()}));
 
-    this.customEndpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
-    if (StringUtils.isNullOrEmpty(customEndpointId)) {
+    final String endpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
+    if (StringUtils.isNullOrEmpty(endpointId)) {
       throw new SQLException(
           Messages.get(
               "CustomEndpointPlugin.errorParsingEndpointIdentifier",
               new Object[] {customEndpointHostSpec.getHost()}));
     }
+    this.customEndpointId = endpointId;
 
-    this.region = regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
-    if (this.region == null) {
+    final Region resolvedRegion =
+        regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
+    if (resolvedRegion == null) {
       throw new SQLException(
           Messages.get(
               "CustomEndpointPlugin.unableToDetermineRegion",
               new Object[] {REGION_PROPERTY.name}));
     }
+    this.region = resolvedRegion;
 
     CustomEndpointMonitor monitor = createMonitorIfAbsent(props);
 
@@ -319,7 +323,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements St
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
     if (this.customEndpointHostSpec == null) {
       return jdbcMethodFunc.call();
@@ -338,7 +342,11 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements St
     return jdbcMethodFunc.call();
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider contract
+  // types them as Pair<String, Object> (non-null Object). Widening that interface is out of scope, so the
+  // nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     state.add(Pair.create("shouldWaitForInfo", this.shouldWaitForInfo));

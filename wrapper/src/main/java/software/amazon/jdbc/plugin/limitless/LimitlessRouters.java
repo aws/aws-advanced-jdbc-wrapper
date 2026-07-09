@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.limitless;
 import java.util.List;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 public class LimitlessRouters {
@@ -38,7 +39,7 @@ public class LimitlessRouters {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

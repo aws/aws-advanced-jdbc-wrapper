@@ -98,7 +98,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     // On statement close: remove cached parse result. CallableStatement extends

@@ -127,13 +127,13 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
+  public @Nullable HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
     return this.getHostSpecByStrategy(this.pluginService.getHosts(), role, strategy);
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
+  public @Nullable HostSpec getHostSpecByStrategy(
       final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
 
