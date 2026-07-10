@@ -78,6 +78,10 @@ public class LightRdsUtility implements IamTokenUtility {
 
     final Instant expirationTime = Instant.now(this.clock).plus(EXPIRATION_DURATION);
 
+    // CompletableFutureUtils.joinLikeSync's type parameter is @NonNull-bounded; the wildcard
+    // captured from resolveIdentity() cannot be proven @NonNull by the checker (an SDK generics
+    // inference limitation), so the type-argument warning is suppressed here.
+    @SuppressWarnings("type.argument")
     final AwsCredentials credentials = CredentialUtils.toCredentials(
         CompletableFutureUtils.joinLikeSync(credentialsProvider.resolveIdentity()));
 

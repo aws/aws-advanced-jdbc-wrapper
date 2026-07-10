@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
@@ -71,8 +72,8 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
   protected final TelemetryFactory telemetryFactory;
 
   protected RegionUtils regionUtils;
-  protected TelemetryGauge cacheSizeGauge;
-  protected TelemetryCounter fetchTokenCounter;
+  protected @Nullable TelemetryGauge cacheSizeGauge;
+  protected @Nullable TelemetryCounter fetchTokenCounter;
 
   BaseSamlAuthPlugin(
       final FullServicesContainer servicesContainer,
@@ -153,12 +154,15 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
 
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
-    if (isCachedToken) {
+    // The extra tokenInfo != null check is always true when isCachedToken is true; it lets the
+    // checker narrow tokenInfo to non-null for the capture below.
+    if (isCachedToken && tokenInfo != null) {
+      final TokenInfo cachedTokenInfo = tokenInfo;
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
-              new Object[] {tokenInfo.getToken()}));
-      PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
+              new Object[] {cachedTokenInfo.getToken()}));
+      PropertyDefinition.PASSWORD.set(props, cachedTokenInfo.getToken());
     } else {
       updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost(), credentialsProvider);
     }
@@ -189,7 +193,7 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
       final Region region,
       final String cacheKey,
       final String host,
-      AwsCredentialsProvider credentialsProvider)
+      @Nullable AwsCredentialsProvider credentialsProvider)
       throws SQLException {
     final int tokenExpirationSec = this.getIamTokenExpiration(props);
     final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
@@ -206,10 +210,14 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
     if (this.fetchTokenCounter != null) {
       this.fetchTokenCounter.inc();
     }
+    final @Nullable String dbUser = this.getDbUserProperty(props);
+    // IamAuthUtils.generateAuthenticationToken requires a non-null user; dbUser may only be null
+    // when misconfigured, matching prior behavior where token generation would then fail.
+    @SuppressWarnings("argument")
     final String token = IamAuthUtils.generateAuthenticationToken(
         this.iamTokenUtility,
         this.pluginService,
-        this.getDbUserProperty(props),
+        dbUser,
         host,
         port,
         region,
@@ -231,9 +239,9 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
   // Abstract methods to retrieve configuration parameters instead of moving them to this class.
   // This is to preserve backwards compatibility.
 
-  abstract String getDbUserProperty(Properties props);
+  abstract @Nullable String getDbUserProperty(Properties props);
 
-  abstract String getIamHostProperty(Properties props);
+  abstract @Nullable String getIamHostProperty(Properties props);
 
   abstract int getIamPortProperty(Properties props);
 

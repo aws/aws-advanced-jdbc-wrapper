@@ -38,6 +38,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -55,7 +56,7 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Supplier<CloseableHttpClient> httpClientSupplier;
-  private TelemetryContext telemetryContext;
+  private @Nullable TelemetryContext telemetryContext;
 
   public AdfsCredentialsProviderFactory(final PluginService pluginService,
       final Supplier<CloseableHttpClient> httpClientSupplier) {
@@ -86,17 +87,25 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       }
 
       // return SAML Response value
-      return matcher.group(FederatedAuthPlugin.SAML_RESPONSE_PATTERN_GROUP);
+      final String samlResponse = matcher.group(FederatedAuthPlugin.SAML_RESPONSE_PATTERN_GROUP);
+      // The named group is mandatory in the pattern and matched (find() returned true above), so
+      // this is always non-null; the guard preserves the existing failure semantics otherwise.
+      if (samlResponse == null) {
+        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.failedLogin", new Object[] {content}));
+      }
+      return samlResponse;
     } catch (final IOException e) {
       LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
-      if (this.telemetryContext != null) {
-        this.telemetryContext.setSuccess(false);
-        this.telemetryContext.setException(e);
+      final TelemetryContext context = this.telemetryContext;
+      if (context != null) {
+        context.setSuccess(false);
+        context.setException(e);
       }
       throw new SQLException(e);
     } finally {
-      if (this.telemetryContext != null) {
-        this.telemetryContext.closeContext();
+      final TelemetryContext context = this.telemetryContext;
+      if (context != null) {
+        context.closeContext();
       }
     }
   }
@@ -159,6 +168,10 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
     final Matcher inputTagMatcher = INPUT_TAG_PATTERN.matcher(body);
     while (inputTagMatcher.find()) {
       final String tag = inputTagMatcher.group(0);
+      // group(0) is the full match and is always non-null after a successful find().
+      if (tag == null) {
+        continue;
+      }
       final String tagNameLower = getValueByKey(tag, "name").toLowerCase();
       if (!tagNameLower.isEmpty() && distinctInputTags.add(tagNameLower)) {
         inputTags.add(tag);
@@ -171,7 +184,11 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
     final Pattern keyValuePattern = Pattern.compile("(" + Pattern.quote(key) + ")\\s*=\\s*\"(.*?)\"");
     final Matcher keyValueMatcher = keyValuePattern.matcher(input);
     if (keyValueMatcher.find()) {
-      return escapeHtmlEntity(keyValueMatcher.group(2));
+      final String value = keyValueMatcher.group(2);
+      // Capture group 2 always participates when find() succeeds; guard for the checker.
+      if (value != null) {
+        return escapeHtmlEntity(value);
+      }
     }
     return "";
   }
@@ -219,14 +236,23 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       final String nameLower = name.toLowerCase();
 
       if (nameLower.contains("username")) {
-        parameters.add(new BasicNameValuePair(name, FederatedAuthPlugin.IDP_USERNAME.getString(props)));
+        final @Nullable String idpUsername = FederatedAuthPlugin.IDP_USERNAME.getString(props);
+        // BasicNameValuePair's value is @NonNull in the stub but accepts null; passing it through
+        // unchanged preserves prior behavior.
+        @SuppressWarnings("argument")
+        final BasicNameValuePair usernamePair = new BasicNameValuePair(name, idpUsername);
+        parameters.add(usernamePair);
       } else if (nameLower.contains("authmethod")) {
         if (!value.isEmpty()) {
           parameters.add(new BasicNameValuePair(name, value));
         }
       } else if (nameLower.contains("password")) {
-        parameters
-            .add(new BasicNameValuePair(name, FederatedAuthPlugin.IDP_PASSWORD.getString(props)));
+        final @Nullable String idpPassword = FederatedAuthPlugin.IDP_PASSWORD.getString(props);
+        // BasicNameValuePair's value is @NonNull in the stub but accepts null; passing it through
+        // unchanged preserves prior behavior.
+        @SuppressWarnings("argument")
+        final BasicNameValuePair passwordPair = new BasicNameValuePair(name, idpPassword);
+        parameters.add(passwordPair);
       } else if (!name.isEmpty()) {
         parameters.add(new BasicNameValuePair(name, value));
       }
@@ -234,10 +260,15 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
     return parameters;
   }
 
-  private String getFormActionFromHtmlBody(final String body) {
+  private @Nullable String getFormActionFromHtmlBody(final String body) {
     final Matcher m = FORM_ACTION_PATTERN.matcher(body);
     if (m.find()) {
-      return escapeHtmlEntity(m.group(1));
+      final String action = m.group(1);
+      // Capture group 1 is mandatory in the pattern and matched when find() succeeds; guard for
+      // the checker.
+      if (action != null) {
+        return escapeHtmlEntity(action);
+      }
     }
     return null;
   }

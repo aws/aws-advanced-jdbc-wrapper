@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -30,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -83,7 +83,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected final TelemetryFactory telemetryFactory;
   protected final RdsUtils rdsUtils = new RdsUtils();
 
-  protected BlueGreenStatus bgStatus = null;
+  protected @Nullable BlueGreenStatus bgStatus = null;
   protected String bgdId;
   protected String clusterId;
 
@@ -109,7 +109,12 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     this.props = props;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.providerSupplier = providerSupplier;
-    this.bgdId = Objects.requireNonNull(BGD_ID.getString(this.props)).trim().toLowerCase();
+    final String bgdIdValue = BGD_ID.getString(this.props);
+    // BGD_ID declares a non-null default ("1"), so getString never returns null here; if it ever
+    // were null, trim() would throw NPE, preserving the prior Objects.requireNonNull behavior.
+    @SuppressWarnings("dereference.of.nullable")
+    final String normalizedBgdId = bgdIdValue.trim().toLowerCase();
+    this.bgdId = normalizedBgdId;
 
     final HashSet<String> methods = new HashSet<>();
     // We should NOT subscribe to "forceConnect" pipeline since it's used by
@@ -168,11 +173,13 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
       this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
-      if (this.bgStatus == null) {
+      // Capture the field into a local so the null-guard narrowing survives subsequent calls.
+      BlueGreenStatus status = this.bgStatus;
+      if (status == null) {
         return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
       }
 
-      BlueGreenRole hostRole = this.bgStatus.getRole(hostSpec);
+      final BlueGreenRole hostRole = status.getRole(hostSpec);
 
       if (hostRole == null) {
         // Connection to a host that isn't participating in BG switchover.
@@ -180,7 +187,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       Connection conn = null;
-      ConnectRouting routing = this.bgStatus.getConnectRouting().stream()
+      ConnectRouting routing = status.getConnectRouting().stream()
           .filter(r -> r.isMatch(hostSpec, hostRole))
           .findFirst()
           .orElse(null);
@@ -204,12 +211,13 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
         if (conn == null) {
 
           this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
-          if (this.bgStatus == null) {
+          status = this.bgStatus;
+          if (status == null) {
             this.endTimeNano.set(this.getNanoTime());
             return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
           }
 
-          routing = this.bgStatus.getConnectRouting().stream()
+          routing = status.getConnectRouting().stream()
               .filter(r -> r.isMatch(hostSpec, hostRole))
               .findFirst()
               .orElse(null);
@@ -257,7 +265,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     this.resetRoutingTimeNano();
@@ -271,12 +279,14 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
       this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
-      if (this.bgStatus == null) {
+      // Capture the field into a local so the null-guard narrowing survives subsequent calls.
+      BlueGreenStatus status = this.bgStatus;
+      if (status == null) {
         return jdbcMethodFunc.call();
       }
 
       final HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
-      BlueGreenRole hostRole = this.bgStatus.getRole(currentHostSpec);
+      final BlueGreenRole hostRole = status.getRole(currentHostSpec);
 
       if (hostRole == null) {
         // Connection to a host that isn't participating in BG switchover.
@@ -284,7 +294,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       Optional<T> result = Optional.empty();
-      ExecuteRouting routing = this.bgStatus.getExecuteRouting().stream()
+      ExecuteRouting routing = status.getExecuteRouting().stream()
           .filter(r -> r.isMatch(currentHostSpec, hostRole))
           .findFirst()
           .orElse(null);
@@ -311,12 +321,13 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
         if (!result.isPresent()) {
 
           this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
-          if (this.bgStatus == null) {
+          status = this.bgStatus;
+          if (status == null) {
             this.endTimeNano.set(this.getNanoTime());
             return jdbcMethodFunc.call();
           }
 
-          routing = this.bgStatus.getExecuteRouting().stream()
+          routing = status.getExecuteRouting().stream()
               .filter(r -> r.isMatch(currentHostSpec, hostRole))
               .findFirst()
               .orElse(null);

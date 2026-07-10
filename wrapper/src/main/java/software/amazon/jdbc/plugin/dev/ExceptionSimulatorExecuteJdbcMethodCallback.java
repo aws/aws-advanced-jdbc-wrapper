@@ -16,11 +16,13 @@
 
 package software.amazon.jdbc.plugin.dev;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public interface ExceptionSimulatorExecuteJdbcMethodCallback {
   <T, E extends Exception> Throwable getExceptionToRaise(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final String methodName,
-      final Object[] jdbcMethodArgs
+      final @Nullable Object[] jdbcMethodArgs
   );
 }

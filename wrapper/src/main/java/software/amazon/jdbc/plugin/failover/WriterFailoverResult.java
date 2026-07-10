@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 /**
@@ -28,16 +29,16 @@ public class WriterFailoverResult {
 
   private final boolean isConnected;
   private final boolean isNewHost;
-  private final List<HostSpec> topology;
-  private final Connection newConnection;
+  private final @Nullable List<HostSpec> topology;
+  private final @Nullable Connection newConnection;
   private final String taskName;
-  private final SQLException exception;
+  private final @Nullable SQLException exception;
 
   public WriterFailoverResult(
       final boolean isConnected,
       final boolean isNewHost,
-      final List<HostSpec> topology,
-      final Connection newConnection,
+      final @Nullable List<HostSpec> topology,
+      final @Nullable Connection newConnection,
       final String taskName) {
     this(isConnected, isNewHost, topology, newConnection, taskName, null);
   }
@@ -45,10 +46,10 @@ public class WriterFailoverResult {
   public WriterFailoverResult(
       final boolean isConnected,
       final boolean isNewHost,
-      final List<HostSpec> topology,
-      final Connection newConnection,
+      final @Nullable List<HostSpec> topology,
+      final @Nullable Connection newConnection,
       final String taskName,
-      final SQLException exception) {
+      final @Nullable SQLException exception) {
     this.isConnected = isConnected;
     this.isNewHost = isNewHost;
     this.topology = topology;
@@ -82,7 +83,7 @@ public class WriterFailoverResult {
    * @return List of hosts that represent the latest topology. Returns null if no connection is
    *     established.
    */
-  public List<HostSpec> getTopology() {
+  public @Nullable List<HostSpec> getTopology() {
     return this.topology;
   }
 
@@ -92,7 +93,7 @@ public class WriterFailoverResult {
    * @return {@link Connection} New connection to a host. Returns null if the failover procedure was
    *     unsuccessful.
    */
-  public Connection getNewConnection() {
+  public @Nullable Connection getNewConnection() {
     return this.newConnection;
   }
 
@@ -110,7 +111,7 @@ public class WriterFailoverResult {
    *
    * @return a {@link SQLException}.
    */
-  public SQLException getException() {
+  public @Nullable SQLException getException() {
     return exception;
   }
 }

@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -50,11 +51,11 @@ public class AuroraStaleDnsHelper {
 
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
-  private final TelemetryCounter staleDNSDetectedCounter;
+  private final @Nullable TelemetryCounter staleDNSDetectedCounter;
 
   private final RdsUtils rdsUtils = new RdsUtils();
 
-  private HostSpec writerHostSpec = null;
+  private @Nullable HostSpec writerHostSpec = null;
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraStaleDnsHelper.class);
@@ -66,7 +67,7 @@ public class AuroraStaleDnsHelper {
     this.staleDNSDetectedCounter = this.telemetryFactory.createCounter("staleDNS.stale.detected");
   }
 
-  public Connection getVerifiedConnection(
+  public @Nullable Connection getVerifiedConnection(
       final boolean isInitialConnection,
       final HostListProviderService hostListProviderService,
       final HostSpec hostSpec,
@@ -144,7 +145,8 @@ public class AuroraStaleDnsHelper {
     LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerHostSpec",
         new Object[]{this.writerHostSpec}));
 
-    if (this.writerHostSpec == null) {
+    final HostSpec writerHost = this.writerHostSpec;
+    if (writerHost == null) {
       return conn;
     }
 
@@ -152,24 +154,24 @@ public class AuroraStaleDnsHelper {
       // Reconnect to writer host if current connection is reader.
 
       LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
-          new Object[]{this.writerHostSpec}));
+          new Object[]{writerHost}));
       if (this.staleDNSDetectedCounter != null) {
         staleDNSDetectedCounter.inc();
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsHostAndPort(allowedHosts, this.writerHostSpec.getHostAndPort())) {
+      if (!Utils.containsHostAndPort(allowedHosts, writerHost.getHostAndPort())) {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
-                    this.writerHostSpec.getHostAndPort(),
+                    writerHost.getHostAndPort(),
                     LogUtils.logTopology(allowedHosts, "")})
         );
       }
 
-      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
+      final Connection writerConn = this.pluginService.connect(writerHost, props);
       if (isInitialConnection) {
-        hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);
+        hostListProviderService.setInitialConnectionHostSpec(writerHost);
       }
 
       if (conn != null) {
@@ -186,13 +188,14 @@ public class AuroraStaleDnsHelper {
   }
 
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
-    if (this.writerHostSpec == null) {
+    final HostSpec writerHost = this.writerHostSpec;
+    if (writerHost == null) {
       return;
     }
 
     for (final Map.Entry<String, EnumSet<NodeChangeOptions>> entry : changes.entrySet()) {
       LOGGER.finest(() -> String.format("[%s]: %s", entry.getKey(), entry.getValue()));
-      if (entry.getKey().equals(this.writerHostSpec.getUrl())
+      if (entry.getKey().equals(writerHost.getUrl())
           && entry.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER)) {
         LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.reset"));
         this.writerHostSpec = null;

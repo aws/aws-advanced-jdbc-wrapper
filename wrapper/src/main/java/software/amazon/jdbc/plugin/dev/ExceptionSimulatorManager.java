@@ -16,10 +16,12 @@
 
 package software.amazon.jdbc.plugin.dev;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public class ExceptionSimulatorManager {
 
-  static Throwable nextException;
-  static ExceptionSimulatorConnectCallback connectCallback;
+  static @Nullable Throwable nextException;
+  static @Nullable ExceptionSimulatorConnectCallback connectCallback;
 
   public static void raiseExceptionOnNextConnect(final Throwable throwable) {
     nextException = throwable;

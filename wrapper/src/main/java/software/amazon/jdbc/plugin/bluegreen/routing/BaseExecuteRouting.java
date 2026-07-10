@@ -29,8 +29,8 @@ import software.amazon.jdbc.util.storage.StorageService;
 
 public abstract class BaseExecuteRouting extends BaseRouting implements ExecuteRouting {
 
-  protected final String hostAndPort;
-  protected BlueGreenRole role;
+  protected final @Nullable String hostAndPort;
+  protected @Nullable BlueGreenRole role;
 
   public BaseExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
     this.hostAndPort = hostAndPort == null ? null : hostAndPort.toLowerCase();
@@ -52,7 +52,7 @@ public abstract class BaseExecuteRouting extends BaseRouting implements ExecuteR
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs,
+      final @Nullable Object[] jdbcMethodArgs,
       final StorageService storageService,
       final PluginService pluginService,
       final Properties props) throws E;

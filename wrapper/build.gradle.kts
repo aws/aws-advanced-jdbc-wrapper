@@ -326,8 +326,11 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (part 11) the targetdriverdialect and dialect packages,
         // (part 12) the hostlistprovider package,
         // (part 13) the remaining top-level software.amazon.jdbc classes, and
-        // (part 14) the top-level classes of the plugin package (the plugin sub-package
-        // families remain out of scope for follow-on parts).
+        // (part 14) the top-level classes of the plugin package, and
+        // (part 15) the plugin sub-package families cache, bluegreen, failover, gdbfailover,
+        // efm, federatedauth, iam, limitless, customendpoint, strategy, dev, staledns and
+        // sqlparser (the encryption, readwritesplitting, srw and failover2 families remain
+        // out of scope for follow-on parts).
         // No end-anchor: matching an outer class also covers its nested classes (and, for
         // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*). The
         // "plugin\.[A-Z]\w*" entry matches only classes directly in the plugin package
@@ -342,6 +345,13 @@ if (project.hasProperty("enableCheckerFramework")) {
                 + "|targetdriverdialect\\.\\w+|dialect\\.\\w+"
                 + "|hostlistprovider\\.\\w+"
                 + "|plugin\\.[A-Z]\\w*"
+                + "|plugin\\.cache\\.\\w+|plugin\\.bluegreen\\.\\w+"
+                + "|plugin\\.failover\\.\\w+|plugin\\.gdbfailover\\.\\w+"
+                + "|plugin\\.efm\\.\\w+|plugin\\.federatedauth\\.\\w+"
+                + "|plugin\\.iam\\.\\w+|plugin\\.limitless\\.\\w+"
+                + "|plugin\\.customendpoint\\.\\w+|plugin\\.strategy\\.\\w+"
+                + "|plugin\\.dev\\.\\w+|plugin\\.staledns\\.\\w+"
+                + "|plugin\\.sqlparser\\.\\w+"
                 + "|[A-Z]\\w*)",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",

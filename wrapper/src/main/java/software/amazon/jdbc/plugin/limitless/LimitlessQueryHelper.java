@@ -92,6 +92,10 @@ public class LimitlessQueryHelper {
     return hosts;
   }
 
+  // resultSet column 1 is the Limitless router endpoint hostname, which the router discovery query always
+  // returns as a non-null value; HostSpecBuilder.host() requires a non-null argument. Suppress the nullable
+  // result-set value here rather than altering the query contract.
+  @SuppressWarnings("argument")
   protected HostSpec createHost(final ResultSet resultSet, final int hostPortToMap) throws SQLException {
     final String hostName = resultSet.getString(1);
     final float cpu = resultSet.getFloat(2);

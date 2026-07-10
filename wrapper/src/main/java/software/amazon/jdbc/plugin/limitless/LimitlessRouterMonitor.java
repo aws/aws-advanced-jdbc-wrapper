@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
@@ -53,7 +54,7 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
   protected final @NonNull Properties props;
   protected final @NonNull LimitlessQueryHelper queryHelper;
   protected final @NonNull TelemetryFactory telemetryFactory;
-  protected Connection monitoringConn = null;
+  protected @Nullable Connection monitoringConn = null;
 
   public LimitlessRouterMonitor(
       final @NonNull FullServicesContainer servicesContainer,
@@ -72,9 +73,12 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
             p -> {
-              this.props.put(
-                  p.substring(MONITORING_PROPERTY_PREFIX.length()),
-                  this.props.getProperty(p));
+              final String value = this.props.getProperty(p);
+              if (value != null) {
+                this.props.put(
+                    p.substring(MONITORING_PROPERTY_PREFIX.length()),
+                    value);
+              }
               this.props.remove(p);
             });
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
@@ -86,8 +90,9 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
   @Override
   public void close() {
     try {
-      if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
-        this.monitoringConn.close();
+      final Connection conn = this.monitoringConn;
+      if (conn != null && !conn.isClosed()) {
+        conn.close();
       }
     } catch (final SQLException ex) {
       // ignore
@@ -112,12 +117,13 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
 
         try {
           this.openConnection();
-          if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+          final Connection conn = this.monitoringConn;
+          if (conn == null || conn.isClosed()) {
             continue;
           }
 
           List<HostSpec> newLimitlessRouters =
-              queryHelper.queryForLimitlessRouters(this.monitoringConn, this.hostSpec.getPort());
+              queryHelper.queryForLimitlessRouters(conn, this.hostSpec.getPort());
           this.storageService.set(this.limitlessRouterCacheKey, new LimitlessRouters(newLimitlessRouters));
           LOGGER.finest(LogUtils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
           TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
@@ -151,8 +157,9 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
     } finally {
       this.stop.set(true);
       try {
-        if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
-          this.monitoringConn.close();
+        final Connection conn = this.monitoringConn;
+        if (conn != null && !conn.isClosed()) {
+          conn.close();
         }
       } catch (final SQLException ex) {
         // ignore
@@ -175,9 +182,10 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
             new Object[] {this.monitoringConn}));
       }
     } catch (SQLException ex) {
-      if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
+      final Connection conn = this.monitoringConn;
+      if (conn != null && !conn.isClosed()) {
         try {
-          this.monitoringConn.close();
+          conn.close();
         } catch (Exception e) {
           // ignore
         }
@@ -187,7 +195,11 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
     }
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider contract
+  // types them as Pair<String, Object> (non-null Object). Widening that interface is out of scope, so the
+  // nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     state.add(Pair.create("hostSpec", this.hostSpec != null ? this.hostSpec.toString() : null));

@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.federatedauth;
 
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
@@ -85,12 +86,12 @@ public class OktaAuthPlugin extends BaseSamlAuthPlugin {
   }
 
   @Override
-  String getDbUserProperty(Properties props) {
+  @Nullable String getDbUserProperty(Properties props) {
     return DB_USER.getString(props);
   }
 
   @Override
-  String getIamHostProperty(Properties props) {
+  @Nullable String getIamHostProperty(Properties props) {
     return IAM_HOST.getString(props);
   }
 

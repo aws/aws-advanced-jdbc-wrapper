@@ -88,7 +88,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   protected GlobalDbFailoverMode inactiveHomeFailoverMode;
 
   protected String homeRegion;
-  protected Set<String> accessibleRegions;
+  protected @Nullable Set<String> accessibleRegions;
 
   public GlobalDbFailoverConnectionPlugin(final FullServicesContainer servicesContainer,
       Properties properties) {
@@ -104,16 +104,18 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
     this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
 
-    this.homeRegion = FAILOVER_HOME_REGION.getString(properties);
-    if (StringUtils.isNullOrEmpty(this.homeRegion)) {
+    String resolvedHomeRegion = FAILOVER_HOME_REGION.getString(properties);
+    if (StringUtils.isNullOrEmpty(resolvedHomeRegion)) {
       if (!this.rdsUrlType.hasRegion()) {
         throw new SQLException(Messages.get("GlobalDbFailoverConnectionPlugin.missingHomeRegion"));
       }
-      this.homeRegion = this.rdsHelper.getRdsRegion(initialHostSpec.getHost());
-      if (StringUtils.isNullOrEmpty(this.homeRegion)) {
+      resolvedHomeRegion = this.rdsHelper.getRdsRegion(initialHostSpec.getHost());
+      if (StringUtils.isNullOrEmpty(resolvedHomeRegion)) {
         throw new SQLException(Messages.get("GlobalDbFailoverConnectionPlugin.missingHomeRegion"));
       }
     }
+    // resolvedHomeRegion is guaranteed non-null here (StringUtils.isNullOrEmpty carries @EnsuresNonNullIf).
+    this.homeRegion = resolvedHomeRegion;
 
     LOGGER.finer(
         () -> Messages.get(
@@ -129,39 +131,40 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
               new Object[]{"gdbAccessibleRegions", parsedRegions}));
     }
 
-    if (this.accessibleRegions != null
-        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase(Locale.ROOT))) {
+    if (parsedRegions != null
+        && !parsedRegions.contains(this.homeRegion.toLowerCase(Locale.ROOT))) {
       throw new SQLException(Messages.get(
           "GlobalDbFailoverConnectionPlugin.homeRegionNotInAccessibleRegions",
           new Object[]{this.homeRegion, this.accessibleRegions}));
     }
 
-    this.activeHomeFailoverMode = GlobalDbFailoverMode.fromValue(
+    GlobalDbFailoverMode resolvedActiveMode = GlobalDbFailoverMode.fromValue(
         ACTIVE_HOME_FAILOVER_MODE.getString(this.properties));
-    this.inactiveHomeFailoverMode = GlobalDbFailoverMode.fromValue(
+    if (resolvedActiveMode == null) {
+      switch (this.rdsUrlType) {
+        case RDS_WRITER_CLUSTER:
+        case RDS_GLOBAL_WRITER_CLUSTER:
+          resolvedActiveMode = GlobalDbFailoverMode.STRICT_WRITER;
+          break;
+        default:
+          resolvedActiveMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
+      }
+    }
+    this.activeHomeFailoverMode = resolvedActiveMode;
+
+    GlobalDbFailoverMode resolvedInactiveMode = GlobalDbFailoverMode.fromValue(
         INACTIVE_HOME_FAILOVER_MODE.getString(this.properties));
-
-    if (this.activeHomeFailoverMode == null) {
+    if (resolvedInactiveMode == null) {
       switch (this.rdsUrlType) {
         case RDS_WRITER_CLUSTER:
         case RDS_GLOBAL_WRITER_CLUSTER:
-          this.activeHomeFailoverMode = GlobalDbFailoverMode.STRICT_WRITER;
+          resolvedInactiveMode = GlobalDbFailoverMode.STRICT_WRITER;
           break;
         default:
-          this.activeHomeFailoverMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
+          resolvedInactiveMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
       }
     }
-
-    if (this.inactiveHomeFailoverMode == null) {
-      switch (this.rdsUrlType) {
-        case RDS_WRITER_CLUSTER:
-        case RDS_GLOBAL_WRITER_CLUSTER:
-          this.inactiveHomeFailoverMode = GlobalDbFailoverMode.STRICT_WRITER;
-          break;
-        default:
-          this.inactiveHomeFailoverMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
-      }
-    }
+    this.inactiveHomeFailoverMode = resolvedInactiveMode;
 
     LOGGER.finer(
         () -> Messages.get(
@@ -253,8 +256,11 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         case STRICT_HOME_READER:
           this.failoverToAllowedHost(
               () -> this.pluginService.getHosts().stream()
-                  .filter(x -> x.getRole() == HostRole.READER
-                      && this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion))
+                  .filter(x -> {
+                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                    return x.getRole() == HostRole.READER
+                        && region != null && region.equalsIgnoreCase(this.homeRegion);
+                  })
                   .filter(this::isInAccessibleRegion)
                   .collect(Collectors.toSet()),
               HostRole.READER,
@@ -263,8 +269,11 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         case STRICT_OUT_OF_HOME_READER:
           this.failoverToAllowedHost(
               () -> this.pluginService.getHosts().stream()
-                  .filter(x -> x.getRole() == HostRole.READER
-                      && !this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion))
+                  .filter(x -> {
+                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                    return x.getRole() == HostRole.READER
+                        && region != null && !region.equalsIgnoreCase(this.homeRegion);
+                  })
                   .filter(this::isInAccessibleRegion)
                   .collect(Collectors.toSet()),
               HostRole.READER,
@@ -282,9 +291,12 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         case HOME_READER_OR_WRITER:
           this.failoverToAllowedHost(
               () -> this.pluginService.getHosts().stream()
-                  .filter(x -> x.getRole() == HostRole.WRITER
-                      || (x.getRole() == HostRole.READER
-                          && this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion)))
+                  .filter(x -> {
+                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                    return x.getRole() == HostRole.WRITER
+                        || (x.getRole() == HostRole.READER
+                            && region != null && region.equalsIgnoreCase(this.homeRegion));
+                  })
                   .filter(this::isInAccessibleRegion)
                   .collect(Collectors.toSet()),
               null,
@@ -293,9 +305,12 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         case OUT_OF_HOME_READER_OR_WRITER:
           this.failoverToAllowedHost(
               () -> this.pluginService.getHosts().stream()
-                  .filter(x -> x.getRole() == HostRole.WRITER
-                      || (x.getRole() == HostRole.READER
-                      && !this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion)))
+                  .filter(x -> {
+                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                    return x.getRole() == HostRole.WRITER
+                        || (x.getRole() == HostRole.READER
+                            && region != null && !region.equalsIgnoreCase(this.homeRegion));
+                  })
                   .filter(this::isInAccessibleRegion)
                   .collect(Collectors.toSet()),
               null,
@@ -353,11 +368,12 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
    * @return true if the host is in an accessible region or if no region restriction is set
    */
   protected boolean isInAccessibleRegion(final HostSpec host) {
-    if (this.accessibleRegions == null) {
+    final Set<String> regions = this.accessibleRegions;
+    if (regions == null) {
       return true;
     }
     final String region = this.rdsHelper.getRdsRegion(host.getHost());
-    return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
+    return region != null && regions.contains(region.toLowerCase(Locale.ROOT));
   }
 
   protected void failoverToWriter(final HostSpec writerCandidate, final long failoverEndNano)

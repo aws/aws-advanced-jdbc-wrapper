@@ -57,7 +57,7 @@ public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnec
   }
 
   @Override
-  public Connection apply(
+  public @Nullable Connection apply(
       ConnectionPlugin plugin,
       HostSpec hostSpec,
       Properties props,
@@ -74,7 +74,7 @@ public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnec
         TelemetryTraceLevel.NESTED);
 
     BlueGreenStatus bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
-    Pair<HostSpec, HostSpec> correspondingPair = bgStatus == null
+    Pair<HostSpec, @Nullable HostSpec> correspondingPair = bgStatus == null
         ? null
         : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
 

@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -87,9 +88,9 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   protected @NonNull Properties properties;
   protected final @NonNull Supplier<HostMonitorService> monitorServiceSupplier;
   protected final @NonNull PluginService pluginService;
-  protected HostMonitorService monitorService;
+  protected @Nullable HostMonitorService monitorService;
   protected final RdsUtils rdsHelper;
-  protected HostSpec monitoringHostSpec;
+  protected @Nullable HostSpec monitoringHostSpec;
   protected final boolean isEnabled;
 
   static {
@@ -143,14 +144,16 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     if (!this.isEnabled || !this.subscribedMethods.contains(methodName)) {
       return jdbcMethodFunc.call();
     }
 
-    initMonitorService();
+    // initMonitorService() lazily creates and caches the monitor service; capture the non-null
+    // result in a local so its nullness survives the dereferences below.
+    final HostMonitorService monitorService = initMonitorService();
 
     T result;
     ConnectionContext monitorContext = null;
@@ -163,7 +166,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
               new Object[] {methodName}));
 
       try {
-        monitorContext = this.monitorService.startMonitoring(
+        monitorContext = monitorService.startMonitoring(
             this.pluginService.getCurrentConnection(), // abort this connection if needed
             monitoringHostSpec,
             this.properties);
@@ -176,7 +179,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     } finally {
       if (monitorContext != null) {
         final boolean isUnhealthy = monitorContext.isNodeUnhealthy();
-        this.monitorService.stopMonitoring(monitorContext);
+        monitorService.stopMonitoring(monitorContext);
         if (isUnhealthy) {
           this.pluginService.setAvailability(monitoringHostSpec, HostAvailability.NOT_AVAILABLE);
         }
@@ -191,10 +194,13 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     return result;
   }
 
-  protected void initMonitorService() {
-    if (this.monitorService == null) {
-      this.monitorService = this.monitorServiceSupplier.get();
+  protected HostMonitorService initMonitorService() {
+    HostMonitorService service = this.monitorService;
+    if (service == null) {
+      service = this.monitorServiceSupplier.get();
+      this.monitorService = service;
     }
+    return service;
   }
 
   /**
@@ -233,9 +239,8 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     final Connection conn = connectFunc.call();
 
     if (conn != null) {
-      HostSpec connectionHostSpec = this.pluginService.getRoutedHostSpec() != null
-          ? this.pluginService.getRoutedHostSpec()
-          : hostSpec;
+      final HostSpec routedHostSpec = this.pluginService.getRoutedHostSpec();
+      final HostSpec connectionHostSpec = routedHostSpec != null ? routedHostSpec : hostSpec;
       final RdsUrlType type = this.rdsHelper.identifyRdsType(connectionHostSpec.getHost());
       if (type.isRdsCluster()) {
         final HostSpec identifiedHostSpec = this.pluginService.identifyConnection(conn, connectionHostSpec);
@@ -249,10 +254,15 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
   }
 
   public HostSpec getMonitoringHostSpec() {
-    if (this.monitoringHostSpec == null) {
-      this.monitoringHostSpec = this.pluginService.getRoutedHostSpec() != null
-          ? this.pluginService.getRoutedHostSpec()
+    // Capture the field into a local so the non-null value survives the intervening service calls
+    // (getMonitoringHostSpec may be invoked concurrently with methods that reset the field).
+    HostSpec monitoringHostSpec = this.monitoringHostSpec;
+    if (monitoringHostSpec == null) {
+      final HostSpec routedHostSpec = this.pluginService.getRoutedHostSpec();
+      monitoringHostSpec = routedHostSpec != null
+          ? routedHostSpec
           : this.pluginService.getCurrentHostSpec();
+      this.monitoringHostSpec = monitoringHostSpec;
       final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(monitoringHostSpec.getHost());
 
       try {
@@ -263,8 +273,9 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
               this.pluginService.getCurrentConnection(), this.pluginService.getCurrentHostSpec());
           if (identifiedHostSpec != null) {
             // Update identified HostSpec for the current connection
-            this.monitoringHostSpec = identifiedHostSpec;
-            this.pluginService.setCurrentConnection(this.pluginService.getCurrentConnection(), this.monitoringHostSpec);
+            monitoringHostSpec = identifiedHostSpec;
+            this.monitoringHostSpec = monitoringHostSpec;
+            this.pluginService.setCurrentConnection(this.pluginService.getCurrentConnection(), monitoringHostSpec);
           }
         }
       } catch (SQLException e) {
@@ -273,10 +284,14 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
         throw new RuntimeException(e);
       }
     }
-    return this.monitoringHostSpec;
+    return monitoringHostSpec;
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider
+  // contract types them as Pair<String, Object> (non-null Object). Widening that interface across
+  // all implementers is out of scope, so the nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     PropertyUtils.addSnapshotState(state, "properties", this.properties);

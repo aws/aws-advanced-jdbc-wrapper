@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -87,11 +88,11 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private final int maxCacheableQuerySize;
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
-  private final TelemetryCounter cacheHitCounter;
-  private final TelemetryCounter cacheMissCounter;
-  private final TelemetryCounter totalQueryCounter;
-  private final TelemetryCounter malformedHintCounter;
-  private final TelemetryCounter cacheBypassCounter;
+  private final @Nullable TelemetryCounter cacheHitCounter;
+  private final @Nullable TelemetryCounter cacheMissCounter;
+  private final @Nullable TelemetryCounter totalQueryCounter;
+  private final @Nullable TelemetryCounter malformedHintCounter;
+  private final @Nullable TelemetryCounter cacheBypassCounter;
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -124,11 +125,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         properties,
         this.telemetryFactory,
         servicesContainer);
-    this.dbUserName = PropertyDefinition.USER.getString(properties);
     // Default to empty username if not specified.
-    if (this.dbUserName == null) {
-      this.dbUserName = "";
-    }
+    final String configuredUser = PropertyDefinition.USER.getString(properties);
+    this.dbUserName = (configuredUser == null) ? "" : configuredUser;
   }
 
   // Used for unit testing purposes only
@@ -141,7 +140,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     return subscribedMethods;
   }
 
-  private String getCacheQueryKey(String query) {
+  private @Nullable String getCacheQueryKey(@Nullable String query) {
     // Check some basic session states. The important ones for caching include (but not limited to):
     //  schema name, username which can affect the query result from the DB in addition to the query string
     try {
@@ -178,8 +177,14 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           new Object[] {driverProtocol, dbProductName, dbProductVersion,
               finalCatalogName, finalSchemaName, dbUserName, driverName, driverVersion}));
 
-      // The cache key contains the schema name, username, and the query string
-      String[] words = {catalogName, schemaName, dbUserName, query};
+      // The cache key contains the schema name, username, and the query string. The catalog,
+      // schema, and query values may legitimately be null; they are rendered as the text "null"
+      // (identical to String.join's own handling of null elements), preserving previous behavior.
+      final String[] words = {
+          catalogName == null ? "null" : catalogName,
+          schemaName == null ? "null" : schemaName,
+          dbUserName,
+          query == null ? "null" : query};
       return String.join("_", words);
     } catch (SQLException e) {
       LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.errorGettingSessionState"), e);
@@ -187,7 +192,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
   }
 
-  private ResultSet fetchResultSetFromCache(String queryStr) throws SQLException {
+  private @Nullable ResultSet fetchResultSetFromCache(@Nullable String queryStr) throws SQLException {
     String cacheQueryKey = getCacheQueryKey(queryStr);
     if (cacheQueryKey == null) {
       return null; // Treat this as a cache miss
@@ -210,7 +215,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
    * The ResultSet object passed in would be consumed to create a CacheResultSet object. It is returned
    * for consumer consumption.
    */
-  private ResultSet cacheResultSet(String queryStr, ResultSet rs, int expiry) throws SQLException {
+  private ResultSet cacheResultSet(@Nullable String queryStr, ResultSet rs, int expiry) throws SQLException {
     // Write the resultSet into the cache as a single key
     String cacheQueryKey = getCacheQueryKey(queryStr);
     if (cacheQueryKey == null) {
@@ -234,7 +239,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
    * @return TTL in seconds to cache the query.
    *     null if the query is not cacheable.
    */
-  protected Integer getTtlForQuery(String queryHint) {
+  protected @Nullable Integer getTtlForQuery(@Nullable String queryHint) {
     // Empty query is not cacheable
     if (StringUtils.isNullOrEmpty(queryHint)) {
       return null;
@@ -310,13 +315,16 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   }
 
   @Override
+  // "return": the final result is produced by the underlying JDBC call (possibly null) and
+  // returned via Class.cast; the generic return type T cannot be annotated @Nullable.
+  @SuppressWarnings("return")
   public <T, E extends Exception> T execute(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     if (resultClass != ResultSet.class) {
@@ -409,27 +417,34 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     if (isInTransaction && (configuredQueryTtl != null)) {
       needToCache = true;
     }
+    // needToCache implies configuredQueryTtl is non-null (set only on the cacheable paths above),
+    // and result is the non-null ResultSet returned by the JDBC call; the guards below satisfy the
+    // nullness checker without changing behavior on the reachable paths.
     if (needToCache) {
-      try {
-        result = cacheResultSet(mainQuery, result, configuredQueryTtl);
-      } catch (final SQLException ex) {
-        // Log and re-throw exception
-        LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.sqlExceptionWhenCaching"), ex);
-        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+      final ResultSet dbResult = result;
+      final Integer ttl = configuredQueryTtl;
+      if (dbResult != null && ttl != null) {
+        try {
+          result = cacheResultSet(mainQuery, dbResult, ttl);
+        } catch (final SQLException ex) {
+          // Log and re-throw exception
+          LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.sqlExceptionWhenCaching"), ex);
+          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+        }
       }
     }
 
     return resultClass.cast(result);
   }
 
-  private void incrCounter(TelemetryCounter counter) {
+  private void incrCounter(@Nullable TelemetryCounter counter) {
     if (counter == null) {
       return;
     }
     counter.inc();
   }
 
-  protected String getQuery(final Object methodInvokeOn, final Object[] jdbcMethodArgs) {
+  protected @Nullable String getQuery(final Object methodInvokeOn, final @Nullable Object[] jdbcMethodArgs) {
     // Get query from method argument
     if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
       return jdbcMethodArgs[0].toString().trim();

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -72,6 +73,10 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
     return subscribedMethods;
   }
 
+  // The helper intentionally returns null as a stale-DNS retry signal (see AuroraStaleDnsHelper);
+  // downstream failover plugins that wrap this helper handle a null connection. The ConnectionPlugin
+  // interface types connect() as non-null, so the propagated null is suppressed here.
+  @SuppressWarnings("return")
   @Override
   public Connection connect(
       final String driverProtocol,
@@ -102,7 +107,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     try {

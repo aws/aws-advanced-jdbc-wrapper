@@ -37,13 +37,14 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
   private boolean freed;
-  private String data;
+  private @Nullable String data;
 
   public CachedSQLXML(String data) {
     this.data = data;
@@ -66,6 +67,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
   }
 
   @Override
+  // "return": returns null when the backing XML data has been freed/absent, preserving prior
+  // behavior; the SQLXML.getBinaryStream contract is annotated non-null.
+  @SuppressWarnings("return")
   public InputStream getBinaryStream() throws SQLException {
     checkFreed();
     if (this.data == null) {
@@ -80,6 +84,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
   }
 
   @Override
+  // "return": returns null when the backing XML data has been freed/absent, preserving prior
+  // behavior; the SQLXML.getCharacterStream contract is annotated non-null.
+  @SuppressWarnings("return")
   public Reader getCharacterStream() throws SQLException {
     checkFreed();
     if (this.data == null) {
@@ -94,6 +101,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
   }
 
   @Override
+  // "return": returns null when the backing XML data has been freed/absent, preserving prior
+  // behavior; the SQLXML.getString contract is annotated non-null.
+  @SuppressWarnings("return")
   public String getString() throws SQLException {
     checkFreed();
     return this.data;
@@ -105,30 +115,33 @@ public class CachedSQLXML implements SQLXML, Serializable {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
+  // "return": getSource legitimately returns null when the backing data has been freed/absent;
+  // the generic return type T cannot be annotated @Nullable, so the null return is suppressed.
+  @SuppressWarnings({"unchecked", "return"})
   public <T extends Source> T getSource(Class<T> sourceClass) throws SQLException {
     checkFreed();
-    if (this.data == null) {
+    final String xmlData = this.data;
+    if (xmlData == null) {
       return null;
     }
 
     try {
       if (sourceClass == null || DOMSource.class.equals(sourceClass)) {
         DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        return (T) new DOMSource(builder.parse(new InputSource(new StringReader(data))));
+        return (T) new DOMSource(builder.parse(new InputSource(new StringReader(xmlData))));
       }
 
       if (SAXSource.class.equals(sourceClass)) {
         XMLReader reader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
-        return sourceClass.cast(new SAXSource(reader, new InputSource(new StringReader(data))));
+        return sourceClass.cast(new SAXSource(reader, new InputSource(new StringReader(xmlData))));
       }
 
       if (StreamSource.class.equals(sourceClass)) {
-        return sourceClass.cast(new StreamSource(new StringReader(data)));
+        return sourceClass.cast(new StreamSource(new StringReader(xmlData)));
       }
 
       if (StAXSource.class.equals(sourceClass)) {
-        XMLStreamReader xsr = XMLInputFactory.newFactory().createXMLStreamReader(new StringReader(data));
+        XMLStreamReader xsr = XMLInputFactory.newFactory().createXMLStreamReader(new StringReader(xmlData));
         return sourceClass.cast(new StAXSource(xsr));
       }
       throw new SQLException(Messages.get("CachedSQLXML.unsupportedSourceClass", new Object[]{sourceClass.getName()}));

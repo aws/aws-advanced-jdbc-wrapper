@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -52,7 +53,7 @@ public class CacheMonitor extends AbstractMonitor {
   private static final Logger LOGGER = Logger.getLogger(CacheMonitor.class.getName());
 
   // Singleton instance
-  private static volatile CacheMonitor instance;
+  private static volatile @Nullable CacheMonitor instance;
   private static final Object INSTANCE_LOCK = new Object();
 
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
@@ -78,12 +79,12 @@ public class CacheMonitor extends AbstractMonitor {
   private final boolean healthCheckInHealthyState;
 
   // Telemetry
-  private static TelemetryCounter stateTransitionCounter;
-  private static TelemetryCounter healthCheckSuccessCounter;
-  private static TelemetryCounter healthCheckFailureCounter;
-  private static TelemetryCounter errorCounter;
-  private static TelemetryGauge consecutiveSuccessGauge;
-  private static TelemetryGauge consecutiveFailureGauge;
+  private static @Nullable TelemetryCounter stateTransitionCounter;
+  private static @Nullable TelemetryCounter healthCheckSuccessCounter;
+  private static @Nullable TelemetryCounter healthCheckFailureCounter;
+  private static @Nullable TelemetryCounter errorCounter;
+  private static @Nullable TelemetryGauge consecutiveSuccessGauge;
+  private static @Nullable TelemetryGauge consecutiveFailureGauge;
 
   /**
    * Enum representing the health state of a cache cluster or endpoint.
@@ -108,7 +109,7 @@ public class CacheMonitor extends AbstractMonitor {
    */
   static class ClusterHealthState {
     final String rwEndpoint;
-    final String roEndpoint;  // Null if no separate RO endpoint
+    final @Nullable String roEndpoint;  // Null if no separate RO endpoint
 
     // Separate health states for RW and RO endpoints
     volatile HealthState rwHealthState;
@@ -126,20 +127,21 @@ public class CacheMonitor extends AbstractMonitor {
     final AtomicLong inFlightWriteSizeBytes;
 
     // Ping connections - one for RW, one for RO if different
-    volatile CachePingConnection rwPingConnection;
-    volatile CachePingConnection roPingConnection;  // Null if no separate RO endpoint
+    volatile @Nullable CachePingConnection rwPingConnection;
+    volatile @Nullable CachePingConnection roPingConnection;  // Null if no separate RO endpoint
 
     // Configuration for creating ping connections
     final boolean useSSL;
     final Duration cacheConnectionTimeout;
     final boolean iamAuthEnabled;
-    final String cacheIamRegion;
-    final String cacheName;
-    final String cacheUsername;
-    final String cachePassword;
+    final @Nullable String cacheIamRegion;
+    final @Nullable String cacheName;
+    final @Nullable String cacheUsername;
+    final @Nullable String cachePassword;
 
-    ClusterHealthState(String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
-        boolean iamAuthEnabled, String cacheIamRegion, String cacheName, String cacheUsername, String cachePassword) {
+    ClusterHealthState(String rwEndpoint, @Nullable String roEndpoint, boolean useSSL,
+        Duration cacheConnectionTimeout, boolean iamAuthEnabled, @Nullable String cacheIamRegion,
+        @Nullable String cacheName, @Nullable String cacheUsername, @Nullable String cachePassword) {
       this.rwEndpoint = rwEndpoint;
       // If roEndpoint equals rwEndpoint, treat it as null
       this.roEndpoint = (roEndpoint != null && roEndpoint.equals(rwEndpoint)) ? null : roEndpoint;
@@ -167,7 +169,7 @@ public class CacheMonitor extends AbstractMonitor {
       return generateClusterKey(rwEndpoint, roEndpoint);
     }
 
-    static String generateClusterKey(String rwEndpoint, String roEndpoint) {
+    static String generateClusterKey(String rwEndpoint, @Nullable String roEndpoint) {
       String normalizedRo = (roEndpoint != null && roEndpoint.equals(rwEndpoint)) ? null : roEndpoint;
       return normalizedRo == null ? rwEndpoint + "|" : rwEndpoint + "|" + normalizedRo;
     }
@@ -175,7 +177,8 @@ public class CacheMonitor extends AbstractMonitor {
     /**
      * Transition health state for a specific endpoint.
      */
-    void transitionToState(HealthState newState, boolean isRw, String triggerReason, TelemetryCounter counter) {
+    void transitionToState(HealthState newState, boolean isRw, String triggerReason,
+        @Nullable TelemetryCounter counter) {
       String endpoint = isRw ? rwEndpoint : roEndpoint;
       HealthState oldState = isRw ? rwHealthState : roHealthState;
 
@@ -223,22 +226,33 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
-      boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
-      String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
-      boolean iamAuthEnabled, String cacheIamRegion, String cacheName, String cacheUsername,
-      String cachePassword, boolean createPingConnection, boolean startMonitorThread) {
+      boolean healthCheckInHealthyState, @Nullable TelemetryFactory telemetryFactory,
+      String rwEndpoint, @Nullable String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
+      boolean iamAuthEnabled, @Nullable String cacheIamRegion, @Nullable String cacheName,
+      @Nullable String cacheUsername,
+      @Nullable String cachePassword, boolean createPingConnection, boolean startMonitorThread) {
     if (getCluster(rwEndpoint, roEndpoint) != null) {
       return; // if cluster has already been registered
     }
-    if (instance == null) {
+    CacheMonitor monitorInstance = instance;
+    if (monitorInstance == null) {
       synchronized (INSTANCE_LOCK) {
-        if (instance == null) {
-          instance = new CacheMonitor(inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory);
+        monitorInstance = instance;
+        if (monitorInstance == null) {
+          monitorInstance = new CacheMonitor(inFlightWriteSizeLimitBytes, healthCheckInHealthyState,
+              telemetryFactory);
+          instance = monitorInstance;
           LOGGER.info(Messages.get("CacheMonitor.createdInstance",
               new Object[] {telemetryFactory != null ? "with" : "without"}));
         }
       }
     }
+    // The double-checked locking above always leaves monitorInstance non-null; this guard is
+    // unreachable and only present to give the nullness checker a non-null local to work with.
+    if (monitorInstance == null) {
+      return;
+    }
+    final CacheMonitor readyInstance = monitorInstance;
     ClusterHealthState clusterState = new ClusterHealthState(rwEndpoint, roEndpoint, useSSL, cacheConnectionTimeout,
         iamAuthEnabled, cacheIamRegion, cacheName, cacheUsername, cachePassword);
     ClusterHealthState existingCluster = clusterStates.putIfAbsent(clusterState.getClusterKey(), clusterState);
@@ -246,7 +260,7 @@ public class CacheMonitor extends AbstractMonitor {
       LOGGER.info(() -> Messages.get("CacheMonitor.registeredCluster",
           new Object[] {clusterState.getClusterKey()}));
       if (createPingConnection) {
-        instance.createInitialPingConnections(clusterState);
+        readyInstance.createInitialPingConnections(clusterState);
       }
     }
     // Start monitor thread via MonitorService (replaces startMonitoring())
@@ -257,7 +271,7 @@ public class CacheMonitor extends AbstractMonitor {
             "VALKEY_CACHE_HEALTH_CHECK_MONITOR_SINGLETON",
             servicesContainer,
             new Properties(),
-            (container) -> instance // Return existing instance
+            (container) -> readyInstance // Return existing instance
         );
       } catch (SQLException e) {
         LOGGER.log(Level.WARNING, Messages.get("CacheMonitor.failedToStartMonitor"), e);
@@ -266,10 +280,10 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
-      boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
-      String rwEndpoint, String roEndpoint, boolean useSSL,
-      Duration cacheConnectionTimeout, boolean iamAuthEnabled, String cacheIamRegion,
-      String cacheName, String cacheUsername, String cachePassword) {
+      boolean healthCheckInHealthyState, @Nullable TelemetryFactory telemetryFactory,
+      String rwEndpoint, @Nullable String roEndpoint, boolean useSSL,
+      Duration cacheConnectionTimeout, boolean iamAuthEnabled, @Nullable String cacheIamRegion,
+      @Nullable String cacheName, @Nullable String cacheUsername, @Nullable String cachePassword) {
     registerCluster(servicesContainer, inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
         rwEndpoint, roEndpoint, useSSL,
         cacheConnectionTimeout, iamAuthEnabled,
@@ -277,7 +291,7 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   protected CacheMonitor(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState,
-      TelemetryFactory telemetryFactory) {
+      @Nullable TelemetryFactory telemetryFactory) {
     super(30); // 30 seconds termination timeout
     this.inFlightWriteSizeLimitBytes = inFlightWriteSizeLimitBytes;
     this.healthCheckInHealthyState = healthCheckInHealthyState;
@@ -317,18 +331,24 @@ public class CacheMonitor extends AbstractMonitor {
     cluster.roPingConnection = roConnection;
   }
 
-  private CachePingConnection createPingConnection(ClusterHealthState cluster, boolean isReadOnly) {
-    String[] hostPort = isReadOnly ? cluster.roEndpoint.split(":") : cluster.rwEndpoint.split(":");
+  private @Nullable CachePingConnection createPingConnection(ClusterHealthState cluster, boolean isReadOnly) {
+    // createPingConnection(cluster, true) is only invoked when roEndpoint is non-null; the guard
+    // below preserves that behavior while satisfying the nullness checker.
+    final String endpoint = isReadOnly ? cluster.roEndpoint : cluster.rwEndpoint;
+    if (endpoint == null) {
+      return null;
+    }
+    String[] hostPort = endpoint.split(":");
     return CacheConnection.createPingConnection(hostPort[0], Integer.parseInt(hostPort[1]),
         cluster.useSSL, cluster.cacheConnectionTimeout, cluster.iamAuthEnabled,
         cluster.cacheIamRegion, cluster.cacheName, cluster.cacheUsername, cluster.cachePassword);
   }
 
-  private static ClusterHealthState getCluster(String rwEndpoint, String roEndpoint) {
+  private static @Nullable ClusterHealthState getCluster(String rwEndpoint, @Nullable String roEndpoint) {
     return clusterStates.get(ClusterHealthState.generateClusterKey(rwEndpoint, roEndpoint));
   }
 
-  protected static HealthState getClusterState(String rwEndpoint, String roEndpoint) {
+  protected static HealthState getClusterState(String rwEndpoint, @Nullable String roEndpoint) {
     if (instance == null) {
       return HealthState.HEALTHY;
     }
@@ -385,7 +405,7 @@ public class CacheMonitor extends AbstractMonitor {
     return category != ErrorCategory.DATA;
   }
 
-  protected static void reportError(String rwEndpoint, String roEndpoint, boolean isRw,
+  protected static void reportError(String rwEndpoint, @Nullable String roEndpoint, boolean isRw,
       Throwable error, String operation) {
     ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
     if (cluster == null) {
@@ -413,7 +433,7 @@ public class CacheMonitor extends AbstractMonitor {
     }
   }
 
-  private void incrementInFlightSize(String rwEndpoint, String roEndpoint, long bytes) {
+  private void incrementInFlightSize(String rwEndpoint, @Nullable String roEndpoint, long bytes) {
     ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
     if (cluster != null) {
       long newSize = cluster.inFlightWriteSizeBytes.addAndGet(bytes);
@@ -427,20 +447,20 @@ public class CacheMonitor extends AbstractMonitor {
     }
   }
 
-  private void decrementInFlightSize(String rwEndpoint, String roEndpoint, long bytes) {
+  private void decrementInFlightSize(String rwEndpoint, @Nullable String roEndpoint, long bytes) {
     ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
     if (cluster != null) {
       cluster.inFlightWriteSizeBytes.updateAndGet(x -> Math.max(0, x - bytes));
     }
   }
 
-  protected static void incrementInFlightSizeStatic(String rwEndpoint, String roEndpoint, long bytes) {
+  protected static void incrementInFlightSizeStatic(String rwEndpoint, @Nullable String roEndpoint, long bytes) {
     if (instance != null) {
       instance.incrementInFlightSize(rwEndpoint, roEndpoint, bytes);
     }
   }
 
-  protected static void decrementInFlightSizeStatic(String rwEndpoint, String roEndpoint, long bytes) {
+  protected static void decrementInFlightSizeStatic(String rwEndpoint, @Nullable String roEndpoint, long bytes) {
     if (instance != null) {
       instance.decrementInFlightSize(rwEndpoint, roEndpoint, bytes);
     }

@@ -143,15 +143,17 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
         props,
         conn,
         connectFunc,
-        null,
+        Collections.emptyList(),
         this);
     this.limitlessRouterService.establishConnection(context);
 
-    if (context.getConnection() != null) {
-      if (context.getConnectionHostSpec() != null) {
-        this.pluginService.setRoutedHostSpec(context.getConnectionHostSpec());
+    final Connection resultConnection = context.getConnection();
+    if (resultConnection != null) {
+      final HostSpec routedHostSpec = context.getConnectionHostSpec();
+      if (routedHostSpec != null) {
+        this.pluginService.setRoutedHostSpec(routedHostSpec);
       }
-      return context.getConnection();
+      return resultConnection;
     }
     throw new SQLException(Messages.get(
         "LimitlessConnectionPlugin.failedToConnectToHost",

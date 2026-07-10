@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
@@ -89,7 +90,7 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
   private final AtomicLong failureCount = new AtomicLong(0);
   private final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
 
-  protected final TelemetryCounter abortedConnectionsCounter;
+  protected final @Nullable TelemetryCounter abortedConnectionsCounter;
 
   public HostMonitorV2Impl(
       final @NonNull FullServicesContainer servicesContainer,
@@ -98,7 +99,7 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
-      final TelemetryCounter abortedConnectionsCounter) {
+      final @Nullable TelemetryCounter abortedConnectionsCounter) {
     this(servicesContainer, hostSpec, properties, failureDetectionTimeMillis, failureDetectionIntervalMillis,
         failureDetectionCount, abortedConnectionsCounter, TERMINATION_TIMEOUT_SEC, MONITORING_THREAD_NAME_PREFIX);
   }
@@ -118,6 +119,10 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
    * @param terminationTimeoutSec     The monitor termination timeout in seconds.
    * @param threadName                The monitoring thread name
    */
+  // AtomicConnection registers 'this' as a GC cleanup referent only; it does not access any
+  // not-yet-initialized state during construction, so passing the under-initialization receiver
+  // is safe. The checker cannot see this, hence the localized suppression.
+  @SuppressWarnings({"argument", "assignment"})
   public HostMonitorV2Impl(
       final @NonNull FullServicesContainer servicesContainer,
       final @NonNull HostSpec hostSpec,
@@ -125,7 +130,7 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
-      final TelemetryCounter abortedConnectionsCounter,
+      final @Nullable TelemetryCounter abortedConnectionsCounter,
       final long terminationTimeoutSec,
       final String threadName) {
     super(terminationTimeoutSec, ExecutorFactory.newFixedThreadPool(2, threadName));
@@ -145,9 +150,12 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
             p -> {
-              this.monitoringProperties.put(
-                  p.substring(MONITORING_PROPERTY_PREFIX.length()),
-                  this.properties.getProperty(p));
+              final String value = this.properties.getProperty(p);
+              if (value != null) {
+                this.monitoringProperties.put(
+                    p.substring(MONITORING_PROPERTY_PREFIX.length()),
+                    value);
+              }
               this.monitoringProperties.remove(p);
             });
   }
@@ -451,7 +459,11 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
     }
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider
+  // contract types them as Pair<String, Object> (non-null Object). Widening that interface across
+  // all implementers is out of scope, so the nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     state.add(Pair.create("hostSpec", this.hostSpec != null ? this.hostSpec.toString() : null));

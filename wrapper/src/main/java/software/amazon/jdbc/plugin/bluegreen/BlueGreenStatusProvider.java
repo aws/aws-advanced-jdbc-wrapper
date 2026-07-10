@@ -95,20 +95,20 @@ public class BlueGreenStatusProvider {
 
   protected final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
 
-  protected final BlueGreenStatusMonitor[] monitors = { null, null };
+  protected final @Nullable BlueGreenStatusMonitor[] monitors = { null, null };
   protected int[] interimStatusHashes = { 0, 0 };
   protected int lastContextHash = 0;
-  protected BlueGreenInterimStatus[] interimStatuses = { null, null };
+  protected @Nullable BlueGreenInterimStatus[] interimStatuses = { null, null };
   protected final Map<String, Optional<String>> hostIpAddresses = new ConcurrentHashMap<>();
 
   // The second parameter of Pair is null when no corresponding node is found.
-  protected final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
+  protected final Map<String, Pair<HostSpec, @Nullable HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
 
   // all known host names; host with no port
   protected final Map<String, BlueGreenRole> roleByHost = new ConcurrentHashMap<>();
   protected final Map<String, Set<String>> iamHostSuccessfulConnects = new ConcurrentHashMap<>();
   protected final Map<String, Instant> greenNodeChangeNameTimes = new ConcurrentHashMap<>();
-  protected BlueGreenStatus summaryStatus = null;
+  protected @Nullable BlueGreenStatus summaryStatus = null;
   protected BlueGreenPhase latestStatusPhase = BlueGreenPhase.NOT_CREATED;
 
   protected boolean rollback = false;
@@ -133,10 +133,14 @@ public class BlueGreenStatusProvider {
   protected final String clusterId;
   protected Map<String, PhaseTimeInfo> phaseTimeNano = new ConcurrentHashMap<>();
   protected final RdsUtils rdsUtils = new RdsUtils();
-  protected OpenedConnectionTracker tracker = null;
+  protected @Nullable OpenedConnectionTracker tracker = null;
   protected final boolean dropBlueConnectionsSetting;
   protected boolean blueConnectionsDropped = false;
 
+  // initMonitoring() creates and starts the monitor threads; it only reads fields assigned earlier
+  // in this constructor and publishes 'this' as a status-change callback that fires after
+  // construction completes. Calling it during construction is safe; the checker cannot see this.
+  @SuppressWarnings("method.invocation")
   public BlueGreenStatusProvider(
       final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
@@ -196,6 +200,9 @@ public class BlueGreenStatusProvider {
     targetMonitor.start();
   }
 
+  // The key 'p' comes from stringPropertyNames(), so getProperty(p) is non-null; only the stub
+  // types Properties.put's value @NonNull.
+  @SuppressWarnings("argument")
   protected Properties getMonitoringProperties() {
     final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.props);
     this.props.stringPropertyNames().stream()
@@ -282,27 +289,33 @@ public class BlueGreenStatusProvider {
       LOGGER.finest(() -> Messages.get("bgd.rollback", new Object[] {this.bgdId}));
     }
 
-    if (interimStatus.blueGreenPhase == null) {
+    final BlueGreenPhase phase = interimStatus.blueGreenPhase;
+    if (phase == null) {
       return;
     }
 
     // Do not allow status moves backward (unless it's rollback).
     // That could be caused by updating blue/green nodes delays.
     if (!this.rollback) {
-      if (interimStatus.blueGreenPhase.getValue() >= this.latestStatusPhase.getValue()) {
-        this.latestStatusPhase = interimStatus.blueGreenPhase;
+      if (phase.getValue() >= this.latestStatusPhase.getValue()) {
+        this.latestStatusPhase = phase;
       }
     } else {
-      if (interimStatus.blueGreenPhase.getValue() < this.latestStatusPhase.getValue()) {
-        this.latestStatusPhase = interimStatus.blueGreenPhase;
+      if (phase.getValue() < this.latestStatusPhase.getValue()) {
+        this.latestStatusPhase = phase;
       }
     }
   }
 
   protected void updateStatusCache() {
     final BlueGreenStatus latestStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
-    this.storageService.set(this.bgdId, this.summaryStatus);
-    this.storePhaseTime(this.summaryStatus.getCurrentPhase());
+    // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs; capture
+    // into a local and guard so the checker can prove non-null across the storageService call.
+    final BlueGreenStatus summary = this.summaryStatus;
+    if (summary != null) {
+      this.storageService.set(this.bgdId, summary);
+      this.storePhaseTime(summary.getCurrentPhase());
+    }
 
     // Notify all waiting threads that status is updated.
     // Those waiting threads are waiting on an existing status so we need to notify on it.
@@ -398,9 +411,17 @@ public class BlueGreenStatusProvider {
         final String customClusterName = this.rdsUtils.getRdsClusterId(blueHost);
         if (customClusterName != null) {
           greenHosts.stream()
-              .filter(x -> this.rdsUtils.isRdsCustomClusterDns(x)
-                  && customClusterName.equals(
-                      this.rdsUtils.removeGreenInstancePrefix(this.rdsUtils.getRdsClusterId(x))))
+              .filter(x -> {
+                if (!this.rdsUtils.isRdsCustomClusterDns(x)) {
+                  return false;
+                }
+                // getRdsClusterId is @Nullable; capture and guard before passing to
+                // removeGreenInstancePrefix (whose parameter is @NonNull). A null id can never
+                // equal the non-null customClusterName, so the guard preserves behavior.
+                final String greenClusterId = this.rdsUtils.getRdsClusterId(x);
+                return greenClusterId != null
+                    && customClusterName.equals(this.rdsUtils.removeGreenInstancePrefix(greenClusterId));
+              })
               .findFirst()
               .ifPresent(y -> this.correspondingNodes.putIfAbsent(blueHost,
                   Pair.create(
@@ -470,9 +491,21 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updateMonitors() {
-    switch (this.summaryStatus.getCurrentPhase()) {
+    // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs; capture
+    // into a local so the checker can prove non-null across the calls below.
+    final BlueGreenStatus summary = this.summaryStatus;
+    if (summary == null) {
+      return;
+    }
+
+    // 'monitors' elements are nullable (reset to null on completion); filter(Objects::nonNull)
+    // removes them at runtime, and the in-lambda guard makes that provable to the checker.
+    switch (summary.getCurrentPhase()) {
       case NOT_CREATED:
         Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
+          if (x == null) {
+            return;
+          }
           x.setIntervalRate(BlueGreenIntervalRate.BASELINE);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
@@ -481,6 +514,9 @@ public class BlueGreenStatusProvider {
         break;
       case CREATED:
         Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
+          if (x == null) {
+            return;
+          }
           x.setIntervalRate(BlueGreenIntervalRate.INCREASED);
           x.setCollectIpAddresses(true);
           x.setCollectTopology(true);
@@ -494,6 +530,9 @@ public class BlueGreenStatusProvider {
       case IN_PROGRESS:
       case POST:
         Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
+          if (x == null) {
+            return;
+          }
           x.setIntervalRate(BlueGreenIntervalRate.HIGH);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
@@ -502,6 +541,9 @@ public class BlueGreenStatusProvider {
         break;
       case COMPLETED:
         Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
+          if (x == null) {
+            return;
+          }
           x.setIntervalRate(BlueGreenIntervalRate.BASELINE);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
@@ -511,7 +553,7 @@ public class BlueGreenStatusProvider {
         break;
       default:
         throw new UnsupportedOperationException(Messages.get("bgd.unknownPhase",
-            new Object[] {this.bgdId, this.summaryStatus.getCurrentPhase()}));
+            new Object[] {this.bgdId, summary.getCurrentPhase()}));
     }
   }
 
@@ -539,7 +581,12 @@ public class BlueGreenStatusProvider {
   protected void resetMonitors(final AtomicBoolean monitorResetCompleted, final String eventName) {
     if (monitorResetCompleted.compareAndSet(false, true)) {
 
-      final Set<String> blueEndpoints = this.summaryStatus.getRoleByHost().entrySet().stream()
+      // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs.
+      final BlueGreenStatus summary = this.summaryStatus;
+      if (summary == null) {
+        return;
+      }
+      final Set<String> blueEndpoints = summary.getRoleByHost().entrySet().stream()
           .filter(x -> x.getValue() == BlueGreenRole.SOURCE)
           .map(Entry::getKey)
           .collect(Collectors.toSet());
@@ -551,7 +598,9 @@ public class BlueGreenStatusProvider {
   }
 
   protected void dropBlueConnections() {
-    if (!this.dropBlueConnectionsSetting || this.blueConnectionsDropped || this.tracker == null) {
+    // Capture the field into a final local so its non-null narrowing survives into the lambda.
+    final OpenedConnectionTracker trackerCopy = this.tracker;
+    if (!this.dropBlueConnectionsSetting || this.blueConnectionsDropped || trackerCopy == null) {
       return;
     }
 
@@ -561,7 +610,7 @@ public class BlueGreenStatusProvider {
     }
 
     try {
-      sourceInterimStatus.startTopology.forEach(x -> this.tracker.invalidateAllConnections(x));
+      sourceInterimStatus.startTopology.forEach(x -> trackerCopy.invalidateAllConnections(x));
       this.phaseTimeNano.putIfAbsent("Blue connections dropped",
           new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
     } catch (Exception ex) {
@@ -638,7 +687,7 @@ public class BlueGreenStatusProvider {
     for (Map.Entry<String, BlueGreenRole> entry : this.roleByHost.entrySet()) {
       String host = entry.getKey();
       BlueGreenRole role = entry.getValue();
-      Pair<HostSpec, HostSpec> nodePair = this.correspondingNodes.get(host);
+      Pair<HostSpec, @Nullable HostSpec> nodePair = this.correspondingNodes.get(host);
       if (role != BlueGreenRole.SOURCE || nodePair == null) {
         continue;
       }
@@ -844,7 +893,7 @@ public class BlueGreenStatusProvider {
             final String blueHost = x.getKey();
             final boolean isBlueHostInstance = rdsUtils.isRdsInstance(blueHost);
 
-            Pair<HostSpec, HostSpec> nodePair = this.correspondingNodes.get(x.getKey());
+            Pair<HostSpec, @Nullable HostSpec> nodePair = this.correspondingNodes.get(x.getKey());
             HostSpec blueHostSpec = nodePair == null ? null : nodePair.getValue1();
             HostSpec greenHostSpec = nodePair == null ? null : nodePair.getValue2();
 
@@ -1077,9 +1126,12 @@ public class BlueGreenStatusProvider {
   }
 
   protected void logSwitchoverFinalSummary() {
-    final boolean switchoverCompleted =
-        (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED)
-        || (this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.CREATED);
+    // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs; a null
+    // value yields switchoverCompleted=false, matching the prior no-op-on-absent-status behavior.
+    final BlueGreenStatus summary = this.summaryStatus;
+    final boolean switchoverCompleted = summary != null
+        && ((!this.rollback && summary.getCurrentPhase() == BlueGreenPhase.COMPLETED)
+        || (this.rollback && summary.getCurrentPhase() == BlueGreenPhase.CREATED));
 
     final boolean hasActiveSwitchoverPhases = this.phaseTimeNano.entrySet().stream()
         .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchoverOrCompleted());
@@ -1137,9 +1189,12 @@ public class BlueGreenStatusProvider {
   }
 
   protected void resetContextWhenCompleted() {
-    final boolean switchoverCompleted =
-        (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED)
-        || (this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.CREATED);
+    // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs; a null
+    // value yields switchoverCompleted=false, matching the prior no-op-on-absent-status behavior.
+    final BlueGreenStatus summary = this.summaryStatus;
+    final boolean switchoverCompleted = summary != null
+        && ((!this.rollback && summary.getCurrentPhase() == BlueGreenPhase.COMPLETED)
+        || (this.rollback && summary.getCurrentPhase() == BlueGreenPhase.CREATED));
 
     final boolean hasActiveSwitchoverPhases = this.phaseTimeNano.entrySet().stream()
         .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchoverOrCompleted());
@@ -1224,26 +1279,31 @@ public class BlueGreenStatusProvider {
   }
 
   protected void logCurrentContext() {
+    // Capture into a local so the null-guard narrowing survives the getCurrentPhase() calls below.
+    final BlueGreenStatus summary = this.summaryStatus;
     if (!LOGGER.isLoggable(Level.FINEST)) {
       // We can skip this log message if FINEST level is in effect
       // and more detailed message is going to be printed few lines below.
       //noinspection ConstantValue
       LOGGER.fine(() -> String.format("[bgdId: '%s'] BG status: %s",
           this.bgdId,
-          this.summaryStatus == null || this.summaryStatus.getCurrentPhase() == null
+          summary == null || summary.getCurrentPhase() == null
               ? "<null>"
-              : this.summaryStatus.getCurrentPhase()));
+              : summary.getCurrentPhase()));
     }
 
     LOGGER.finest(() -> String.format("[bgdId: '%s'] Summary status:\n%s",
         this.bgdId,
-        this.summaryStatus == null ? "<null>" : this.summaryStatus.toString()));
+        summary == null ? "<null>" : summary.toString()));
 
     LOGGER.finest(() -> "Corresponding nodes:\n"
         + this.correspondingNodes.entrySet().stream()
-        .map(x -> String.format("   %s -> %s",
-            x.getKey(),
-            x.getValue().getValue2() == null ? "<null>" : x.getValue().getValue2().getHostAndPort()))
+        .map(x -> {
+          final HostSpec green = x.getValue().getValue2();
+          return String.format("   %s -> %s",
+              x.getKey(),
+              green == null ? "<null>" : green.getHostAndPort());
+        })
         .collect(Collectors.joining("\n")));
 
     LOGGER.finest(() -> "Phase times:\n"

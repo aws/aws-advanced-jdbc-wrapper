@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.bluegreen.routing;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -29,7 +30,7 @@ import software.amazon.jdbc.util.storage.StorageService;
 public interface ConnectRouting {
   boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole);
 
-  Connection apply(
+  @Nullable Connection apply(
       ConnectionPlugin plugin,
       HostSpec hostSpec,
       Properties props,

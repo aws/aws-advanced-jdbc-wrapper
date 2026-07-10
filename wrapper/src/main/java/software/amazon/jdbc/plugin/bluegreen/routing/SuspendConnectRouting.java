@@ -54,7 +54,7 @@ public class SuspendConnectRouting extends BaseConnectRouting {
   }
 
   @Override
-  public Connection apply(
+  public @Nullable Connection apply(
       ConnectionPlugin plugin,
       HostSpec hostSpec,
       Properties props,

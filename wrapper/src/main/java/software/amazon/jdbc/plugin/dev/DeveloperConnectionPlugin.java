@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
@@ -40,9 +41,9 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList(ALL_METHODS)));
 
-  private String nextMethodName;
-  private Throwable nextException;
-  private ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback;
+  private @Nullable String nextMethodName;
+  private @Nullable Throwable nextException;
+  private @Nullable ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback;
 
   public DeveloperConnectionPlugin() { }
 
@@ -79,7 +80,7 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     this.raiseExceptionIfNeeded(
@@ -95,7 +96,7 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final String methodName,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     if (this.nextException != null) {
@@ -195,7 +196,7 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
     if (throwable instanceof RuntimeException) {
       ExceptionSimulatorManager.nextException = null;
       LOGGER.finest(() -> String.format("Raise an exception %s while opening a new connection.",
-          ExceptionSimulatorManager.nextException.getClass().getName()));
+          throwable.getClass().getName()));
       throw (RuntimeException) throwable;
     } else {
       SQLException resulException = WrapperUtils.wrapExceptionIfNeeded(SQLException.class, throwable);

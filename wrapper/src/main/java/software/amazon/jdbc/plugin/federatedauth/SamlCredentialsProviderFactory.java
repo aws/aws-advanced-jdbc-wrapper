@@ -22,6 +22,7 @@ import static software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin.IAM_
 import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -33,16 +34,22 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest;
 public abstract class SamlCredentialsProviderFactory implements CredentialsProviderFactory {
 
   @Override
-  public AwsCredentialsProvider getAwsCredentialsProvider(final String host, final Region region,
+  public AwsCredentialsProvider getAwsCredentialsProvider(final String host, final @Nullable Region region,
       final @NonNull Properties props)
       throws SQLException {
 
     final String samlAssertion = getSamlAssertion(props);
 
+    final @Nullable String roleArn = IAM_ROLE_ARN.getString(props);
+    final @Nullable String principalArn = IAM_IDP_ARN.getString(props);
+    // AssumeRoleWithSamlRequest's builder types roleArn/principalArn as @NonNull, but these
+    // properties may be null; passing them through unchanged preserves prior behavior (the STS
+    // request validates them downstream).
+    @SuppressWarnings("argument")
     final AssumeRoleWithSamlRequest assumeRoleWithSamlRequest =  AssumeRoleWithSamlRequest.builder()
         .samlAssertion(samlAssertion)
-        .roleArn(IAM_ROLE_ARN.getString(props))
-        .principalArn(IAM_IDP_ARN.getString(props))
+        .roleArn(roleArn)
+        .principalArn(principalArn)
         .build();
 
     final StsClientBuilder builder = StsClient.builder()

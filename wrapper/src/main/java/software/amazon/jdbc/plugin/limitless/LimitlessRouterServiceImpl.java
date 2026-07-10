@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -167,7 +168,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   protected List<HostSpec> getLimitlessRouters(final String clusterId) {
     LimitlessRouters routers = this.servicesContainer.getStorageService().get(LimitlessRouters.class, clusterId);
-    return routers == null ? null : routers.getHosts();
+    // Return an empty list rather than null when no routers are cached. All callers gate on
+    // Utils.isNullOrEmpty(...), which treats null and empty identically, so behavior is unchanged.
+    return routers == null ? Collections.emptyList() : routers.getHosts();
   }
 
   private void retryConnectWithLeastLoadedRouters(
@@ -289,6 +292,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       if (context.getConnection() == null || context.getConnection().isClosed()) {
         context.setConnection(context.getConnectFunc().call());
       }
+      // The block above ensures the context holds an open connection, so getConnection() is non-null here.
+      @SuppressWarnings("argument")
       final List<HostSpec> newRouterList =
           this.queryHelper.queryForLimitlessRouters(context.getConnection(), context.getHostSpec().getPort());
 

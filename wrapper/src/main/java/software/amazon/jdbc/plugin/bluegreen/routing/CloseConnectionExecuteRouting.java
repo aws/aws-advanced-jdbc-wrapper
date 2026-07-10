@@ -46,7 +46,7 @@ public class CloseConnectionExecuteRouting extends BaseExecuteRouting {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs,
+      final @Nullable Object[] jdbcMethodArgs,
       final StorageService storageService,
       final PluginService pluginService,
       final Properties props) throws E {

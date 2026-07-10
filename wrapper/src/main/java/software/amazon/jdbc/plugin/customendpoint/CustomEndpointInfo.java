@@ -168,7 +168,7 @@ public class CustomEndpointInfo {
    * @return the static members of the custom endpoint, or null if the custom endpoint member list type is an exclusion
    *     list.
    */
-  public Set<String> getStaticMembers() {
+  public @Nullable Set<String> getStaticMembers() {
     return STATIC_LIST.equals(this.memberListType) ? this.members : null;
   }
 
@@ -179,12 +179,12 @@ public class CustomEndpointInfo {
    * @return the excluded members of the custom endpoint, or null if the custom endpoint member list type is a static
    *     list.
    */
-  public Set<String> getExcludedMembers() {
+  public @Nullable Set<String> getExcludedMembers() {
     return EXCLUSION_LIST.equals(this.memberListType) ? this.members : null;
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

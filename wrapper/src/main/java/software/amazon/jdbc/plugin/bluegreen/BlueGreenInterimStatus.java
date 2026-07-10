@@ -22,12 +22,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.StringUtils;
 
 public class BlueGreenInterimStatus {
-  public BlueGreenPhase blueGreenPhase;
+  public @Nullable BlueGreenPhase blueGreenPhase;
   public String version;
   public int port;
   public List<HostSpec> startTopology;
@@ -40,7 +41,7 @@ public class BlueGreenInterimStatus {
   public boolean allTopologyChanged;
 
   public BlueGreenInterimStatus(
-      final BlueGreenPhase blueGreenPhase,
+      final @Nullable BlueGreenPhase blueGreenPhase,
       final String version,
       final int port,
       final List<HostSpec> startTopology,
