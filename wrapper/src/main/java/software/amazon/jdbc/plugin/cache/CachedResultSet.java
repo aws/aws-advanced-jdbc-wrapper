@@ -1271,7 +1271,9 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateCharacterStream(final int columnIndex, final @Nullable Reader x, final int length) throws SQLException {
+  public void updateCharacterStream(final int columnIndex, final @Nullable Reader x, final int length)
+
+      throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1304,7 +1306,8 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateObject(final int columnIndex, final @Nullable Object x, final int scaleOrLength) throws SQLException {
+  public void updateObject(final int columnIndex, final @Nullable Object x, final int scaleOrLength)
+      throws SQLException {
     throw new UnsupportedOperationException();
   }
 
