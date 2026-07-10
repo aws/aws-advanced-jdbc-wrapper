@@ -282,6 +282,8 @@ App must call `connection.setReadOnly(true)` (or use `@Transactional(readOnly = 
 > **Why the internal pool here:** without it, every `setReadOnly()` flip risks opening a new physical connection to the target host — a transactional app that toggles read-only mode per request will churn connections and can exhaust per-instance limits. The internal pool keeps per-instance pools keyed by `clusterId`, so role flips are cheap reuses. The `leastConnections` reader strategy also requires it.
 >
 > **Why no `auroraConnectionTracker`:** the wrapper's internal pool already tracks per-instance connections by `clusterId` and invalidates them on role changes. `auroraConnectionTracker` is for *external* pools (HikariCP-as-application-pool, Tomcat JDBC, etc.) that don't know about Aurora topology.
+>
+> **On double-pooling:** this recipe turns on the wrapper's *internal* pool. Under Spring Boot the *external* HikariCP is the default application pool, so leaving both enabled stacks the two. That combination works but is untested and not officially recommended (see §14.2). For a Spring app, prefer a single pooling layer: disable the external pool (via `spring.datasource.type`) and rely on the internal pool, or drop `connectionPoolType` and rely on the external pool.
 
 ### 3.6b Two datasources (writer pool + reader pool) — Aurora MySQL + HikariCP
 
@@ -1515,7 +1517,7 @@ Pool-specific options use the `cp-` prefix and map to `com.zaxxer.hikari.HikariC
 - **Single-cluster apps with HikariCP already wrapping the data source** — usually unnecessary. The external pool already gives connection reuse. The internal pool is most useful when the wrapper itself needs to maintain pools across multiple targets (i.e., R/W splitting).
 - **Multiple clusters in one app** — the internal pool keys by `clusterId`, so each cluster gets its own pool, much like external Hikari instances would.
 
-**Stacking the internal pool with an external pool (HikariCP):** allowed and common. The external Hikari acts as the application-facing pool; the internal pool sits underneath the wrapper to handle per-instance connection reuse for R/W splitting. Don't worry about double-pooling: the internal pool only spawns physical connections to specific instances, not to the cluster endpoint, so there is no overlap.
+**Stacking the internal pool with an external pool (HikariCP):** possible, but not officially recommended. The two pools don't overlap — they save time in different ways. The external Hikari (application-facing) avoids re-initializing wrapper connections (loading plugins, setting up internal monitors); the internal pool avoids re-establishing a physical connection to a specific database instance (it only spawns connections to specific instances, not to the cluster endpoint). However, this combination has **not** been tested by the development team, and we're not aware of anyone running it, so it can't be officially recommended — it will work, but use it with caution. This aligns with the Read/Write Splitting Plugin guidance (`using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md`), which recommends enabling either internal or external connection pooling, but not both at once.
 
 ### 14.3 Tomcat JDBC, c3p0, DBCP2
 
