@@ -1203,7 +1203,8 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(final int columnIndex, final @Nullable InputStream x, final int length) throws SQLException {
+  public void updateAsciiStream(final int columnIndex, final @Nullable InputStream x, final int length)
+      throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1236,7 +1237,8 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateBinaryStream(final int columnIndex, final @Nullable InputStream x, final int length) throws SQLException {
+  public void updateBinaryStream(final int columnIndex, final @Nullable InputStream x, final int length)
+      throws SQLException {
     throw new UnsupportedOperationException();
   }
 
