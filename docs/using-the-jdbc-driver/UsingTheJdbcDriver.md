@@ -342,7 +342,7 @@ To use a snapshot build in your project, check the following examples. More info
   <dependency>
     <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-    <version>4.1.1-SNAPSHOT</version>
+    <version>4.2.1-SNAPSHOT</version>
   </dependency>
 </dependencies>
 
@@ -364,7 +364,7 @@ To use a snapshot build in your project, check the following examples. More info
 #### As a Gradle dependency
 ```gradle
 dependencies {
-    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.1.1-SNAPSHOT")
+    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.2.1-SNAPSHOT")
 }
 
 repositories {
