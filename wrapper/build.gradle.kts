@@ -124,7 +124,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-pool2:2.13.1")
     testImplementation("org.jsoup:jsoup:1.22.2")
     testImplementation("de.vandermeer:asciitable:0.3.2")
-    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.0")
+    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.1")
     testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
     testImplementation("com.github.jsqlparser:jsqlparser:4.9") // Required by sqlParser/autoReadWriteSplitting and kmsEncryption plugins
 }
