@@ -79,6 +79,14 @@ public class ServiceUtility {
     servicesContainer.setPluginService(pluginService);
     servicesContainer.setPluginManagerService(pluginService);
 
+    // Set the configuration profile on the container before creating the host list provider and refreshing the host
+    // list. When a dialect is supplied via the configuration profile, isDialectConfirmed() is true immediately, so
+    // refreshHostList() below can eagerly create and cache the topology monitor. The monitor's minimal service
+    // container inherits its plugin list from this container's configuration profile; if the profile is not yet set
+    // at that point, the monitor silently falls back to the default plugin list (dropping profile-only plugins such
+    // as iam) and its connections fail authentication once the cached IAM token expires.
+    servicesContainer.setConfigurationProfile(configurationProfile);
+
     pluginManager.initPlugins(servicesContainer, configurationProfile);
     final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProviderSupplier();
     if (supplier != null) {
@@ -91,7 +99,6 @@ public class ServiceUtility {
     // if it doesn't exist. Plugins may require this information even before connecting.
     pluginService.refreshHostList();
 
-    servicesContainer.setConfigurationProfile(configurationProfile);
     return servicesContainer;
   }
 

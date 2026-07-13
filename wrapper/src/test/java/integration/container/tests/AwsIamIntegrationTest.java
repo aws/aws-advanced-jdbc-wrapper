@@ -19,6 +19,8 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
@@ -27,6 +29,7 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnTestFeature;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -34,7 +37,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,15 +53,23 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsUtilities;
 import software.amazon.awssdk.services.rds.TestDefaultRdsUtilities;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.iam.LightRdsUtility;
 import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
+import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -255,6 +268,88 @@ public class AwsIamIntegrationTest {
 
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isValid(10));
+    }
+  }
+
+  /**
+   * Regression test for <a href="https://github.com/aws/aws-advanced-jdbc-wrapper/issues/2020">issue #2020</a>
+   * (reopening <a href="https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1800">issue #1800</a>).
+   *
+   * <p>When the plugin list is configured via a class-based {@link ConfigurationProfileBuilder#withPluginFactories}
+   * profile rather than the {@code wrapperPlugins} string, the cluster topology monitor must inherit the profile's
+   * plugins — including the IAM authentication plugin. Otherwise the monitor falls back to the default plugin list
+   * (which does not contain {@code iam}) and its own connections to cluster instances cannot authenticate against an
+   * IAM-only database, so topology monitoring silently dies.
+   *
+   * <p>A dialect is supplied explicitly ({@code wrapperDialect}) so the dialect is confirmed immediately. This causes
+   * the topology monitor to be created eagerly during connection setup — the exact timing that previously dropped the
+   * configuration profile in {@code ServiceUtility.createStandardServiceContainer}. It mirrors Global Aurora (GDB)
+   * deployments, whose dialect is confirmed up front and where this bug was reported.
+   *
+   * <p>The database is connected to with IAM only (no password). Forcing a verified topology refresh drives the
+   * monitor into panic mode, where it opens its own connections to cluster instances using its plugin chain. That can
+   * only succeed if the monitor inherited the profile's IAM plugin.
+   */
+  @TestTemplate
+  @DisableOnTestDriver(TestDriver.MARIADB)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  void test_AwsIam_TopologyMonitorInheritsProfilePlugins() throws SQLException {
+    final DatabaseEngine engine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    final String auroraDialectCode =
+        engine == DatabaseEngine.MYSQL ? DialectCodes.AURORA_MYSQL : DialectCodes.AURORA_PG;
+
+    final String profileName = "issue2020IamTopologyProfile";
+    // Configure the plugins programmatically (class factories), NOT via the wrapperPlugins string. The list
+    // intentionally omits initialConnection so the initial connection succeeds regardless of topology state,
+    // isolating the assertion to the topology monitor's own connections.
+    ConfigurationProfileBuilder.get()
+        .withName(profileName)
+        .withPluginFactories(Arrays.<Class<? extends ConnectionPluginFactory>>asList(
+            IamAuthConnectionPluginFactory.class,
+            AuroraConnectionTrackerPluginFactory.class,
+            software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class))
+        .buildAndSet();
+
+    try {
+      final Properties props = ConnectionStringHelper.getDefaultProperties();
+      // Class-based profile only: ensure no wrapperPlugins string is present so that, if the monitor were to fall
+      // back to the string/default plugin path (the bug), it would not pick up iam.
+      props.remove(PropertyDefinition.PLUGINS.name);
+      props.setProperty(PropertyDefinition.PROFILE_NAME.name, profileName);
+      // Confirm the dialect up front so the topology monitor is created during connection setup (as with GDB).
+      props.setProperty(DialectManager.DIALECT.name, auroraDialectCode);
+      props.setProperty(
+          IamAuthConnectionPlugin.IAM_REGION.name,
+          TestEnvironment.getCurrent().getInfo().getRegion());
+      props.setProperty(
+          PropertyDefinition.USER.name, TestEnvironment.getCurrent().getInfo().getIamUsername());
+      // IAM-only authentication: no password. The topology monitor can only connect if it has the iam plugin.
+      props.setProperty(PropertyDefinition.PASSWORD.name, "");
+      props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
+
+      try (final Connection conn =
+          DriverManager.getConnection(ConnectionStringHelper.getWrapperClusterEndpointUrl(), props)) {
+        assertTrue(conn.isValid(10));
+
+        final PluginService pluginService = conn.unwrap(PluginService.class);
+
+        // Force a verified topology refresh. This drives the cluster topology monitor into panic mode, where it opens
+        // fresh connections to cluster instances through its own plugin chain. On an IAM-only database with no
+        // password this only succeeds if the monitor inherited the profile's IAM plugin. With the bug, the monitor
+        // uses the default plugin list (no iam), cannot authenticate, and the refresh times out and returns false.
+        final boolean refreshed = pluginService.forceRefreshHostList(true, TimeUnit.SECONDS.toMillis(60));
+
+        assertTrue(
+            refreshed,
+            "The cluster topology monitor failed to refresh topology on an IAM-only database. This indicates the "
+                + "monitor did not inherit the IAM plugin from the class-based ConfigurationProfile and fell back to "
+                + "the default plugin list.");
+        assertTrue(
+            pluginService.getAllHosts().size() >= 1,
+            "Expected the topology monitor to have discovered at least one cluster host.");
+      }
+    } finally {
+      DriverConfigurationProfiles.remove(profileName);
     }
   }
 
