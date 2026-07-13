@@ -3,6 +3,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [4.2.0] - 2026-07-13
+
+### :magic_wand: Added
+- Added automatic read/write splitting driven by SQL parsing via the new `autoReadWriteSplitting` and `sqlParser` plugins, which route statements to a reader or writer based on the parsed SQL ([PR #1995](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1995)).
+- Added query-level load balancing for the `autoReadWriteSplitting` plugin so read traffic can be distributed across readers on a per-query basis ([PR #2009](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2009)).
+- Added the `awsSecretsManager2` plugin, which uses a stale-while-revalidate caching strategy to serve credentials from cache while refreshing them in the background ([PR #1985](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1985)).
+- Added `lowestLoadByCpu` and `lowestLoadByLag` host selection strategy variants that default to CPU-dominant and lag-dominant weighting respectively ([PR #1997](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1997)).
+
+### :bug: Fixed
+- Fixed the configuration profile not being propagated to eagerly-created topology monitors, which could leave those monitors without profile-configured plugins ([Issue #2020](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/2020), [PR #2021](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2021)).
+- Fixed the custom endpoint monitor's throttling backoff being bypassed ([PR #2014](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2014)).
+- Fixed an NPE caused by a check-then-act race in `ImportantEventService#removeExpiredEvents` ([PR #1987](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1987)).
+
+### :crab: Changed
+- Adopted the Checker Framework `NullnessChecker` across the codebase to improve null-safety ([PR #1981](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1981), [PR #1998](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1998), [PR #1999](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1999), [PR #2007](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2007), [PR #2008](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2008), [PR #2010](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2010), [PR #2015](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2015), [PR #2018](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2018)).
+- Dependency updates, including PostgreSQL JDBC driver 42.7.13, Hibernate ORM 7.4.4.Final, Jackson (2.22.0 and 3.2.0), Kotlin 2.4.0, c3p0 0.14.1, Gradle Shadow plugin 8.3.11, and various GitHub Actions bumps ([PR #2012](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2012), [PR #2006](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2006), [PR #2013](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2013), [PR #2005](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2005), [PR #2000](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2000), [PR #1991](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1991), [PR #1988](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1988), [PR #1994](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1994), [PR #1990](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1990), [PR #2001](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2001), [PR #2003](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2003), [PR #2004](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2004), [PR #2002](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2002), [PR #1993](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1993), [PR #1992](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1992)).
+- Documentation: 
+  - clarified internal and external connection pool stacking guidance ([PR #2019](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2019)) 
+  - documented the MariaDB driver Aurora pipelining caveat ([PR #1984](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1984)) 
+  - clarified setting wrapper properties via JDBC URL parameters ([PR #1983](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1983)) 
+  - added examples for specifying driver properties ([PR #1982](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1982)).
+
 ## [4.1.0] - 2026-06-17
 
 ### :magic_wand: Added
