@@ -115,7 +115,7 @@ dependencies {
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.18")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.1")
-    testImplementation("tools.jackson.core:jackson-databind:3.2.0") // Required for java17 multi-release classes under Java 17+
+    testImplementation("tools.jackson.core:jackson-databind:3.2.1") // Required for java17 multi-release classes under Java 17+
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.0")
     testImplementation("io.opentelemetry:opentelemetry-api:$openTelemetryVersion")
     testImplementation("io.opentelemetry:opentelemetry-sdk:$openTelemetryVersion")
@@ -229,7 +229,7 @@ tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
 dependencies {
     add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
-    add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.2.0")
+    add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.2.1")
     add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.5.Final")
