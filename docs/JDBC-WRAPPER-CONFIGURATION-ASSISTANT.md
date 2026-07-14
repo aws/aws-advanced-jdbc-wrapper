@@ -109,32 +109,30 @@ Each track lists the questions to ask **in order**, the decision they drive, and
 
 ### 2.3 Track C — Read/write splitting
 
-There are eight read/write splitting codes, and users routinely pick the wrong one because they reason about code names instead of behavior. **Do not ask the user which plugin they want.** Ask about the behavior they need, one decision at a time, then map the answers to a code with the §5.12a matrix. State the code you landed on and *why*, so the user can correct a wrong assumption.
+There are four read/write splitting codes, and users routinely pick the wrong one because they reason about code names instead of behavior. **Do not ask the user which plugin they want.** Ask about the behavior they need, one decision at a time, then map the answers to a code with the §5.12a table. State the code you landed on and *why*, so the user can correct a wrong assumption.
 
 **Behavior questions (ask in order; group for expert users):**
 
 1. **One datasource, or separate reader/writer pools?** Does a single datasource need to serve both reads and writes, or do you already run separate writer and reader datasources?
    - *Separate pools* → **no read/write splitting plugin.** Give each datasource its own endpoint and `failoverMode` (`strict-writer` / `strict-reader`); reader-endpoint DNS already balances readers. Stop here (see §3.6b).
    - *One datasource* → continue.
-2. **Who should decide reader vs writer — the driver or the app?**
-   - *The driver, per statement, by inspecting SQL* (`SELECT` → reader, writes → writer) → an **`auto*`** code. Also load `sqlParser` before it and add the `jsqlparser` dependency. Best when you can't or don't want to change application code.
-   - *The application, by signalling read intent* via `setReadOnly(true)` or Spring `@Transactional(readOnly=true)` → a **"manual"** code.
-3. **How are reader/writer hosts discovered?**
-   - *From cluster topology* (Aurora cluster or RDS Multi-AZ DB cluster) → a **topology** code.
-   - *From two fixed endpoints* you provide (community DB, RDS Proxy, custom routing; no topology) → an **`srw*`/simple** code (needs `srwReadEndpoint` + `srwWriteEndpoint`). Not for RDS Single-AZ.
-4. **Aurora Global Database?** Do you need home-region-aware routing across regions (constrain connections to a home region, optionally Global Write Forwarding)?
-   - *Yes* → add the **`gdb*`** prefix.
-   - *No* → single-region code.
+2. **How are reader/writer hosts discovered?**
+   - *From cluster topology* (Aurora cluster or RDS Multi-AZ DB cluster) → `readWriteSplitting` (or `autoReadWriteSplitting`, see the next question).
+   - *From two fixed endpoints* you provide (community DB, RDS Proxy, custom routing; no topology) → `srw` (needs `srwReadEndpoint` + `srwWriteEndpoint`). Not for RDS Single-AZ.
+   - *Aurora Global Database, home-region aware* (constrain connections to a home region, optionally Global Write Forwarding) → `gdbReadWriteSplitting`.
+3. **Who should decide reader vs writer — the app or the driver?** *(Automatic SQL-based routing is only available on the single-region topology path today.)*
+   - *The application, by signalling read intent* via `setReadOnly(true)` or Spring `@Transactional(readOnly=true)` → the code from the previous answer (`readWriteSplitting`, `srw`, or `gdbReadWriteSplitting`). This is the only mode for `srw` and `gdbReadWriteSplitting`.
+   - *The driver, per statement, by inspecting SQL* (`SELECT` → reader, writes → writer) → `autoReadWriteSplitting` (topology only). Load `sqlParser` before it and add the `jsqlparser` dependency. Best when you can't or don't want to change application code.
 
-   → Answers 2–4 select the exact code from the §5.12a matrix. Confirm it back to the user.
+   → Confirm the chosen code back to the user (see the §5.12a table).
 
-5. **Reader load balancing — how should reads be spread across readers?** This is where most read/write-splitting tuning lives, so ask all four parts (they apply to whichever code you picked; see §5.12c and §17.3a):
-   1. **Sticky reader or fresh reader per query?** Default is *sticky*: the connection picks one reader when it enters a read-only phase and reuses it. Set `queryLevelLoadBalancing=true` for *per-query* balancing — a fresh reader is chosen on each read-routing decision. Per-query spreads load more evenly but rotates connections more and reduces per-reader cache locality. (With `auto*` codes, each `SELECT` is a routing point, so reads rotate per query; with manual codes, a routing decision happens on each `setReadOnly(true)`.)
+4. **Reader load balancing — how should reads be spread across readers?** This is where most read/write-splitting tuning lives, so ask all four parts (they apply to whichever code you picked; see §5.12b and §17.3a):
+   1. **Sticky reader or fresh reader per query?** Default is *sticky*: the connection picks one reader when it enters a read-only phase and reuses it. Set `queryLevelLoadBalancing=true` for *per-query* balancing — a fresh reader is chosen on each read-routing decision. Per-query spreads load more evenly but rotates connections more and reduces per-reader cache locality. (With `autoReadWriteSplitting`, each `SELECT` is a routing point, so reads rotate per query; with the manual codes, a routing decision happens on each `setReadOnly(true)`.)
    2. **Which reader gets picked?** `readerHostSelectorStrategy`: `random` (default), `roundRobin` (deterministic rotation — pair with per-query balancing), `leastConnections` (requires the internal pool), `weightedRandom`, or `fastestResponse` (requires the `fastestResponseStrategy` plugin). See §7 / §17.5.
    3. **Should the writer also serve balanced reads?** `loadBalancingIncludeWriter=true` adds the writer to the reader-balancing pool (only meaningful with per-query balancing). Default is readers-only.
-   4. **Re-executed prepared statements:** with per-query balancing, `allowStatementRecreationOnConnectionSwitch` (on by default) re-creates a re-executed `PreparedStatement`/`CallableStatement` on the newly chosen reader so it follows the rotation. Mention the stream/LOB/pending-batch fallback (§5.12c). Only suggest turning it off if the user reports a problem with statement re-creation.
-6. **Internal connection pool?** Strongly recommended with R/W splitting plugins. Without it, every `setReadOnly()` flip (or automatic switch) can open a fresh physical connection to the target host, so an app that changes read/write role frequently churns connections heavily and may run into per-instance limits. The wrapper's internal pool keeps a per-instance pool keyed by `clusterId`, so switches become cheap. Also required for the `leastConnections` reader strategy. (Default to recommending `connectionPoolType=hikari` unless the user has a strong reason against it.)
-7. **Custom or non-RDS endpoint?** (drives the `verifyInitialConnectionRole` warning)
+   4. **Re-executed prepared statements:** with per-query balancing, `allowStatementRecreationOnConnectionSwitch` (on by default) re-creates a re-executed `PreparedStatement`/`CallableStatement` on the newly chosen reader so it follows the rotation. Mention the stream/LOB/pending-batch fallback (§5.12b). Only suggest turning it off if the user reports a problem with statement re-creation.
+5. **Internal connection pool?** Strongly recommended with R/W splitting plugins. Without it, every `setReadOnly()` flip (or automatic switch) can open a fresh physical connection to the target host, so an app that changes read/write role frequently churns connections heavily and may run into per-instance limits. The wrapper's internal pool keeps a per-instance pool keyed by `clusterId`, so switches become cheap. Also required for the `leastConnections` reader strategy. (Default to recommending `connectionPoolType=hikari` unless the user has a strong reason against it.)
+6. **Custom or non-RDS endpoint?** (drives the `verifyInitialConnectionRole` warning)
 
 ### 2.4 Track D — Performance tuning
 
@@ -516,10 +514,6 @@ The auto-sort weights (lower = earlier in the chain):
 | 1150 | `autoReadWriteSplitting` |
 | 1200 | `srw` (Simple R/W splitting) |
 | 1300 | `gdbReadWriteSplitting` |
-| 1310 | `gdbAutoReadWriteSplitting` |
-| 1320 | `autoSimpleReadWriteSplitting` |
-| 1330 | `gdbSimpleReadWriteSplitting` |
-| 1340 | `gdbAutoSimpleReadWriteSplitting` |
 | 1400 | `efm` (v1) |
 | 1500 | `efm2` |
 | 1600 | `fastestResponseStrategy` |
@@ -541,7 +535,7 @@ Never use these together:
 - `failover2` + `gdbFailover`
 - `efm` + `efm2`
 - `iam` + `awsSecretsManager` + `federatedAuth` + `okta` (pick one auth plugin)
-- Any two read/write splitting plugins together — pick **exactly one** of: `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `autoSimpleReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, `gdbAutoSimpleReadWriteSplitting`
+- Any two read/write splitting plugins together — pick **exactly one** of: `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `gdbReadWriteSplitting`
 - `initialConnection` + `srw`
 - `initialConnection` + `connectTime`
 - `initialConnection` + `auroraStaleDns`
@@ -835,9 +829,9 @@ Routing can be overridden per statement with SQL comment hints: `/*@reader*/`, `
 
 | Name | Default | Description |
 |---|---|---|
-| `queryLevelLoadBalancing` | `false` | Pick a fresh reader on **each** read-routing decision within an established read-only phase, instead of reusing one sticky reader. See §5.12c. |
+| `queryLevelLoadBalancing` | `false` | Pick a fresh reader on **each** read-routing decision within an established read-only phase, instead of reusing one sticky reader. See §5.12b. |
 | `loadBalancingIncludeWriter` | `false` | When `queryLevelLoadBalancing` is on, also treat the writer as an eligible target in the reader-balancing pool. |
-| `allowStatementRecreationOnConnectionSwitch` | `true` | When SQL routing selects a different connection for an already-created `Statement`/`PreparedStatement`/`CallableStatement`, re-create it on the routed connection so the query actually runs there. Set to `false` to opt out (falling back to a one-time reuse warning). See §5.12c. |
+| `allowStatementRecreationOnConnectionSwitch` | `true` | When SQL routing selects a different connection for an already-created `Statement`/`PreparedStatement`/`CallableStatement`, re-create it on the routed connection so the query actually runs there. Set to `false` to opt out (falling back to a one-time reuse warning). See §5.12b. |
 
 See [UsingTheAutoReadWriteSplittingPlugin.md](./using-the-jdbc-driver/using-plugins/UsingTheAutoReadWriteSplittingPlugin.md) for full details.
 
@@ -881,48 +875,37 @@ Like `readWriteSplitting` but home-region aware. Use only with Aurora Global Dat
 
 ### 5.12a The read/write splitting plugin family — pick one code
 
-All read/write splitting plugins share the same core (reader selection, session-state transfer, internal-pool reuse, query-level load balancing, statement rebinding) and differ only along two axes:
+There are four read/write splitting codes. They share the same core (reader selection, session-state transfer, internal-pool reuse, query-level load balancing, statement rebinding) and differ along two axes:
 
-- **How a read is detected** — either the app toggles `Connection.setReadOnly(true/false)` (manual), or the `sqlParser` plugin classifies each statement automatically (`auto*` codes route `SELECT` to a reader, DML/DDL to the writer).
-- **How reader/writer hosts are discovered** — either from the cluster **topology** (Aurora / RDS Multi-AZ DB cluster), or from **two fixed endpoints** you supply (`srw*` "simple" codes, for community DBs, RDS Proxy, or custom routing). A `gdb*` prefix adds Aurora Global Database home-region awareness.
+- **How a read is detected** — either the app toggles `Connection.setReadOnly(true/false)` (manual), or the `sqlParser` plugin classifies each statement automatically (`SELECT` → reader, DML/DDL → writer).
+- **How reader/writer hosts are discovered** — from the cluster **topology** (Aurora / RDS Multi-AZ DB cluster), from **two fixed endpoints** you supply (the `srw` "simple" code, for community DBs, RDS Proxy, or custom routing), or from **Aurora Global Database topology** with home-region awareness.
 
-| | `setReadOnly()` (manual) | SQL parsing (automatic) |
-|---|---|---|
-| **Topology (Aurora / RDS MAZ)** | `readWriteSplitting` | `autoReadWriteSplitting` |
-| **Simple (two endpoints)** | `srw` | `autoSimpleReadWriteSplitting` |
-| **GDB topology** | `gdbReadWriteSplitting` | `gdbAutoReadWriteSplitting` |
-| **GDB simple** | `gdbSimpleReadWriteSplitting` | `gdbAutoSimpleReadWriteSplitting` |
+| Code | Read detection | Host discovery | Use when |
+|---|---|---|---|
+| `readWriteSplitting` | manual (`setReadOnly()`) | cluster topology (Aurora / RDS Multi-AZ DB cluster) | one datasource, app signals read intent, single-region cluster |
+| `autoReadWriteSplitting` | automatic (SQL parsing) | cluster topology | same, but you can't/won't change app code to call `setReadOnly()` |
+| `srw` | manual (`setReadOnly()`) | two fixed endpoints (`srwReadEndpoint` + `srwWriteEndpoint`) | no Aurora topology — community DBs, RDS Proxy, custom routing |
+| `gdbReadWriteSplitting` | manual (`setReadOnly()`) | Aurora Global Database topology, home-region aware | Aurora Global Database with region-constrained routing / GWF |
+
+> **Automatic (SQL-parsing) routing exists only on the single-region topology path (`autoReadWriteSplitting`).** There is no automatic variant of `srw` or `gdbReadWriteSplitting`, and there is no "simple GDB" code — those route on `setReadOnly()`.
 
 Rules that hold for the whole family:
 
 - Load exactly **one** of these codes (see §4.4). They are mutually exclusive.
-- Every `auto*` code requires the `sqlParser` plugin earlier in the chain and the `com.github.jsqlparser:jsqlparser` dependency on the classpath.
-- Every `srw*`/simple code requires the two endpoint properties (`srwReadEndpoint`, `srwWriteEndpoint`); the topology codes discover hosts instead.
-- Every `gdb*` code accepts the GDB home-region parameters from §5.12 and should only be used with Aurora Global Database.
+- `autoReadWriteSplitting` requires the `sqlParser` plugin earlier in the chain and the `com.github.jsqlparser:jsqlparser` dependency on the classpath.
+- `srw` requires the two endpoint properties (`srwReadEndpoint`, `srwWriteEndpoint`); the topology codes discover hosts instead.
+- `gdbReadWriteSplitting` accepts the GDB home-region parameters from §5.12 and should only be used with Aurora Global Database.
 - The internal connection pool (`connectionPoolType=hikari` or `c3p0`) is strongly recommended for all of them.
 
-The `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters (§5.12c) apply to every code in this family.
+The `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters (§5.12b) apply to every code in this family.
 
-### 5.12b `autoSimpleReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, `gdbAutoSimpleReadWriteSplitting`
-
-These are the remaining cells of the matrix in §5.12a — the same core behavior with a different combination of read-detection and host-discovery:
-
-- **`autoSimpleReadWriteSplitting`** — SQL-parsing automatic routing over two fixed endpoints (no topology). Combine when you want `SELECT`-vs-write routing but the deployment has no Aurora topology (community DBs, RDS Proxy, custom routing). Requires `sqlParser` + the simple endpoint parameters (`srwReadEndpoint`, `srwWriteEndpoint`).
-- **`gdbAutoReadWriteSplitting`** — SQL-parsing automatic routing over Aurora Global Database topology, home-region aware. Requires `sqlParser`; accepts the GDB parameters from §5.12.
-- **`gdbSimpleReadWriteSplitting`** — `setReadOnly()`-driven routing over two fixed endpoints with GDB home-region awareness. Requires the simple endpoint parameters; accepts the GDB parameters.
-- **`gdbAutoSimpleReadWriteSplitting`** — SQL-parsing automatic routing over two fixed endpoints with GDB home-region awareness. Requires `sqlParser` + the simple endpoint parameters; accepts the GDB parameters.
-
-Parameters are the union of the relevant base plugins: `readerHostSelectorStrategy`/`verifyInitialConnectionRole` (topology codes), `srwReadEndpoint`/`srwWriteEndpoint`/`verifyNewSrwConnections`/`srwConnectRetryTimeoutMs`/`srwConnectRetryIntervalMs`/`verifyInitialConnectionType` (simple codes), the GDB parameters from §5.12 (`gdb*` codes), and the family-wide parameters in §5.12c.
-
-Each code has a dedicated page: [`autoSimpleReadWriteSplitting`](./using-the-jdbc-driver/using-plugins/UsingTheAutoSimpleReadWriteSplittingPlugin.md), [`gdbAutoReadWriteSplitting`](./using-the-jdbc-driver/using-plugins/UsingTheGdbAutoReadWriteSplittingPlugin.md), [`gdbSimpleReadWriteSplitting`](./using-the-jdbc-driver/using-plugins/UsingTheGdbSimpleReadWriteSplittingPlugin.md), and [`gdbAutoSimpleReadWriteSplitting`](./using-the-jdbc-driver/using-plugins/UsingTheGdbAutoSimpleReadWriteSplittingPlugin.md).
-
-### 5.12c Family-wide parameters: query-level load balancing and statement rebinding
+### 5.12b Family-wide parameters: query-level load balancing and statement rebinding
 
 These parameters are defined on the shared read/write splitting core, so they work with **any** code from §5.12a.
 
 | Name | Default | Description |
 |---|---|---|
-| `queryLevelLoadBalancing` | `false` | By default the plugin picks one reader when the connection enters a read-only phase and stays on it (a "sticky" reader). With this enabled, it re-selects a reader on **each** read-routing decision, spreading reads across the cluster at query granularity. With automatic (`auto*`) routing this means consecutive `SELECT`s can land on different readers; with `setReadOnly()` routing each read decision within the read-only phase re-balances. Reader selection still honors `readerHostSelectorStrategy` (use `roundRobin` for deterministic rotation). |
+| `queryLevelLoadBalancing` | `false` | By default the plugin picks one reader when the connection enters a read-only phase and stays on it (a "sticky" reader). With this enabled, it re-selects a reader on **each** read-routing decision, spreading reads across the cluster at query granularity. With `autoReadWriteSplitting` this means consecutive `SELECT`s can land on different readers; with `setReadOnly()` routing each read decision within the read-only phase re-balances. Reader selection still honors `readerHostSelectorStrategy` (use `roundRobin` for deterministic rotation). |
 | `loadBalancingIncludeWriter` | `false` | Only meaningful when `queryLevelLoadBalancing=true`. Adds the writer to the pool of nodes eligible to serve balanced reads. Leave off if you want reads to stay strictly on readers. |
 | `allowStatementRecreationOnConnectionSwitch` | `true` | When a read-routing decision moves execution to a different physical connection, the already-created statement object must be re-created on the new connection or the query would run on the wrong node. With this enabled (default) the plugin re-creates the statement — including recorded settings (fetch size, cursor name, etc.) and, for `PreparedStatement`/`CallableStatement`, bound parameters and registered OUT parameters — on the routed connection. A statement cannot be rebound if it carries a stream/`Reader`/LOB parameter or has a pending batch; in that case the plugin keeps the current connection and logs a one-time reuse warning. Set to `false` to disable rebinding entirely. |
 
@@ -1404,7 +1387,7 @@ These combinations are **forbidden**:
 | `awsSecretsManager` + `federatedAuth` | Same. |
 | `awsSecretsManager` + `okta` | Same. |
 | `federatedAuth` + `okta` | Same. |
-| Any two of `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `autoSimpleReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, `gdbAutoSimpleReadWriteSplitting` | Two RW splitters — pick exactly one (see §5.12a). |
+| Any two of `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `gdbReadWriteSplitting` | Two RW splitters — pick exactly one (see §5.12a). |
 | `auroraStaleDns` + `initialConnection` | `initialConnection` supersedes. |
 | `auroraStaleDns` + `srw` | Per `CompatibilityCrossPlugins.md`: `auroraStaleDns` only operates on Aurora cluster writer endpoints; `srw` is a two-endpoint splitter that doesn't use Aurora topology. |
 | `auroraStaleDns` + `gdbReadWriteSplitting` | Per `CompatibilityCrossPlugins.md`: `auroraStaleDns` is single-cluster Aurora; GDB R/W splitting is multi-region. |
@@ -1429,8 +1412,8 @@ These combinations are **forbidden**:
 | `gdbFailover` | yes | yes | yes | no | no | no |
 | `iam`, `awsSecretsManager`, `federatedAuth`, `okta` | yes | yes | yes | yes | yes | no |
 | `auroraStaleDns` | yes | yes | yes | no | no | no |
-| `readWriteSplitting`, `autoReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting` | yes | yes | yes | no | no | no |
-| `srw`, `autoSimpleReadWriteSplitting`, `gdbSimpleReadWriteSplitting`, `gdbAutoSimpleReadWriteSplitting` | yes | yes | yes | yes | no | yes (with `verifyNewSrwConnections=false`) |
+| `readWriteSplitting`, `autoReadWriteSplitting`, `gdbReadWriteSplitting` | yes | yes | yes | no | no | no |
+| `srw` | yes | yes | yes | yes | no | yes (with `verifyNewSrwConnections=false`) |
 | `auroraConnectionTracker` | yes | yes | yes | no | no | no |
 | `connectTime` | yes | yes | yes | yes | yes | yes |
 | `fastestResponseStrategy` | yes | yes | yes | no | no | no |
@@ -1956,21 +1939,20 @@ How will the app use writer vs readers?
    │
    └─ Step 2 — how are reader/writer hosts discovered? (combine with Step 1)
       ├─ Aurora / RDS Multi-AZ DB Cluster topology
-      │     ├─ manual → `readWriteSplitting`      auto → `autoReadWriteSplitting`
+      │     └─ manual → `readWriteSplitting`      auto → `autoReadWriteSplitting`
       ├─ Two fixed endpoints (community DB, RDS Proxy, custom routing)
-      │     ├─ manual → `srw`                     auto → `autoSimpleReadWriteSplitting`
-      │     └─ (both need `srwReadEndpoint` + `srwWriteEndpoint`)
-      ├─ Aurora Global Database topology, home-region aware
-      │     ├─ manual → `gdbReadWriteSplitting`    auto → `gdbAutoReadWriteSplitting`
-      └─ Aurora Global Database + two fixed endpoints
-            ├─ manual → `gdbSimpleReadWriteSplitting`  auto → `gdbAutoSimpleReadWriteSplitting`
+      │     └─ `srw` (manual only; needs `srwReadEndpoint` + `srwWriteEndpoint`)
+      └─ Aurora Global Database topology, home-region aware
+            └─ `gdbReadWriteSplitting` (manual only)
 ```
 
-See the full matrix and per-code notes in §5.12a–§5.12b.
+> Automatic SQL-based routing is only available on the single-region topology path (`autoReadWriteSplitting`). `srw` and `gdbReadWriteSplitting` route on `setReadOnly()` only.
+
+See the table and per-code notes in §5.12a.
 
 In all "one datasource" cases, also enable the wrapper internal pool (`connectionPoolType=hikari`) — see §14.2.
 
-**Spreading reads across readers:** if you want each read to rotate across readers instead of sticking to one, add `queryLevelLoadBalancing=true` (works with any code above; pair with `readerHostSelectorStrategy=roundRobin` for deterministic rotation). Statement rebinding (`allowStatementRecreationOnConnectionSwitch`, on by default) makes re-executing the same `PreparedStatement`/`CallableStatement` follow the rotation. See §5.12c and §17.3a.
+**Spreading reads across readers:** if you want each read to rotate across readers instead of sticking to one, add `queryLevelLoadBalancing=true` (works with any code above; pair with `readerHostSelectorStrategy=roundRobin` for deterministic rotation). Statement rebinding (`allowStatementRecreationOnConnectionSwitch`, on by default) makes re-executing the same `PreparedStatement`/`CallableStatement` follow the rotation. See §5.12b and §17.3a.
 
 ### 17.3a Choosing reader load balancing behavior
 
