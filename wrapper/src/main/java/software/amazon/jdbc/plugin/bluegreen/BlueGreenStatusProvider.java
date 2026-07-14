@@ -118,6 +118,9 @@ public class BlueGreenStatusProvider {
   protected AtomicBoolean monitorResetOnInProgressCompleted = new AtomicBoolean(false);
   protected AtomicBoolean monitorResetOnTopologyCompleted = new AtomicBoolean(false);
   protected final AtomicBoolean allGreenNodesChangedName = new AtomicBoolean(false);
+  // Tracks whether the pre-switchover "green topology recognized" readiness event has already
+  // been logged for the current deployment, so it is emitted at most once per deployment cycle.
+  protected final AtomicBoolean greenTopologyRecognizedLogged = new AtomicBoolean(false);
   protected long postStatusEndTimeNano = 0;
   protected final ResourceLock processStatusLock = new ResourceLock();
 
@@ -268,6 +271,10 @@ public class BlueGreenStatusProvider {
       this.updateStatusCache();
       this.logCurrentContext();
 
+      // Log a one-time readiness event once the target green topology has been recognized,
+      // so operators can confirm per-instance readiness before starting a manual switchover.
+      this.logGreenTopologyRecognized();
+
       // Log final switchover results.
       this.logSwitchoverFinalSummary();
 
@@ -308,7 +315,7 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updateStatusCache() {
-    final BlueGreenStatus latestStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
+    final BlueGreenStatus latestCachedStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
     // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs; capture
     // into a local and guard so the checker can prove non-null across the storageService call.
     final BlueGreenStatus summary = this.summaryStatus;
@@ -319,10 +326,10 @@ public class BlueGreenStatusProvider {
 
     // Notify all waiting threads that status is updated.
     // Those waiting threads are waiting on an existing status so we need to notify on it.
-    if (latestStatus != null) {
+    if (latestCachedStatus != null) {
       //noinspection SynchronizationOnLocalVariableOrMethodParameter
-      synchronized (latestStatus) {
-        latestStatus.notifyAll();
+      synchronized (latestCachedStatus) {
+        latestCachedStatus.notifyAll();
       }
     }
   }
@@ -1231,6 +1238,7 @@ public class BlueGreenStatusProvider {
       this.greenNodeChangeNameTimes.clear();
       this.monitorResetOnInProgressCompleted.set(false);
       this.monitorResetOnTopologyCompleted.set(false);
+      this.greenTopologyRecognizedLogged.set(false);
       this.blueConnectionsDropped = false;
 
       this.initMonitoring();
@@ -1331,6 +1339,84 @@ public class BlueGreenStatusProvider {
         this.greenDnsRemoved,
         this.allGreenNodesChangedName.get(),
         this.greenTopologyChanged));
+  }
+
+  /**
+   * Emits a concise, operationally useful readiness event once the plugin has recognized the
+   * target green topology for the configured {@code bgdId}. Readiness means both the source and
+   * target interim statuses are available and the blue-to-green corresponding node map has been
+   * populated. The event is logged at most once per deployment cycle (reset by
+   * {@link #resetContextWhenCompleted()}) so operators can confirm per-instance readiness before
+   * initiating a manual switchover, without producing hot-path log spam.
+   */
+  protected void logGreenTopologyRecognized() {
+    if (!LOGGER.isLoggable(Level.INFO)) {
+      // The readiness event is only ever emitted at INFO. Skip the readiness computation, the
+      // corresponding-node mapping build, and the once-per-cycle flag entirely when INFO is off.
+      return;
+    }
+
+    final BlueGreenInterimStatus sourceInterimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+    final BlueGreenInterimStatus targetInterimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+
+    final boolean ready = sourceInterimStatus != null
+        && targetInterimStatus != null
+        && !this.correspondingNodes.isEmpty();
+
+    if (!ready || !this.greenTopologyRecognizedLogged.compareAndSet(false, true)) {
+      // Either the target green topology is not recognized yet, or the readiness event has
+      // already been logged for the current deployment cycle.
+      return;
+    }
+
+    final int sourceHostCount = Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
+        ? 0 : sourceInterimStatus.hostNames.size();
+    final int targetHostCount = Utils.isNullOrEmpty(targetInterimStatus.hostNames)
+        ? 0 : targetInterimStatus.hostNames.size();
+    final long correspondingNodeCount = this.correspondingNodes.values().stream()
+        .filter(x -> x.getValue2() != null)
+        .count();
+
+    // Build the blue -> green corresponding host mapping rows, sorted by blue host for stable,
+    // grep-friendly output.
+    final List<String> mappingRows = this.correspondingNodes.entrySet().stream()
+        .sorted(Entry.comparingByKey())
+        .map(x -> {
+          final HostSpec green = x.getValue().getValue2();
+          return String.format("   %s -> %s",
+              x.getKey(),
+              green == null ? "<null>" : green.getHostAndPort());
+        })
+        .collect(Collectors.toList());
+
+    final String title = Messages.get("bgd.greenTopologyRecognized.title", new Object[] {this.bgdId});
+    final String summary = Messages.get("bgd.greenTopologyRecognized.summary",
+        new Object[] {
+            this.latestStatusPhase,
+            String.valueOf(sourceHostCount),
+            String.valueOf(targetHostCount),
+            String.valueOf(correspondingNodeCount),
+            String.valueOf(ready)});
+    final String mappingHeader = "   " + Messages.get("bgd.greenTopologyRecognized.mappingHeader");
+
+    // Size the divider to the widest line so the block lines up like the switchover summary.
+    final int minDividerLength = 60;
+    int maxLineLength = Math.max(minDividerLength, Math.max(summary.length() + 3, mappingHeader.length()));
+    for (String row : mappingRows) {
+      maxLineLength = Math.max(maxLineLength, row.length());
+    }
+    final String divider = new String(new char[maxLineLength]).replace('\0', '-');
+
+    final String logMessage = title + "\n"
+        + divider + "\n"
+        + "   " + summary + "\n"
+        + divider + "\n"
+        + mappingHeader + "\n"
+        + divider + "\n"
+        + String.join("\n", mappingRows) + "\n"
+        + divider;
+
+    LOGGER.info(logMessage);
   }
 
   public static class PhaseTimeInfo {
