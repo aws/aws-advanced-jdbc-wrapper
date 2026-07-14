@@ -126,11 +126,10 @@ There are four read/write splitting codes, and users routinely pick the wrong on
 
    → Confirm the chosen code back to the user (see the §5.12a table).
 
-4. **Reader load balancing — how should reads be spread across readers?** This is where most read/write-splitting tuning lives, so ask all four parts (they apply to whichever code you picked; see §5.12b and §17.3a):
-   1. **Sticky reader or fresh reader per query?** Default is *sticky*: the connection picks one reader when it enters a read-only phase and reuses it. Set `queryLevelLoadBalancing=true` for *per-query* balancing — a fresh reader is chosen on each read-routing decision. Per-query spreads load more evenly but rotates connections more and reduces per-reader cache locality. (With `autoReadWriteSplitting`, each `SELECT` is a routing point, so reads rotate per query; with the manual codes, a routing decision happens on each `setReadOnly(true)`.)
-   2. **Which reader gets picked?** `readerHostSelectorStrategy`: `random` (default), `roundRobin` (deterministic rotation — pair with per-query balancing), `leastConnections` (requires the internal pool), `weightedRandom`, or `fastestResponse` (requires the `fastestResponseStrategy` plugin). See §7 / §17.5.
-   3. **Should the writer also serve balanced reads?** `loadBalancingIncludeWriter=true` adds the writer to the reader-balancing pool (only meaningful with per-query balancing). Default is readers-only.
-   4. **Re-executed prepared statements:** with per-query balancing, `allowStatementRecreationOnConnectionSwitch` (on by default) re-creates a re-executed `PreparedStatement`/`CallableStatement` on the newly chosen reader so it follows the rotation. Mention the stream/LOB/pending-batch fallback (§5.12b). Only suggest turning it off if the user reports a problem with statement re-creation.
+4. **Reader load balancing — how should reads be spread across readers?** (see §5.12b and §17.3a):
+   1. **Which reader gets picked?** `readerHostSelectorStrategy`: `random` (default), `roundRobin` (deterministic rotation), `leastConnections` (requires the internal pool), `weightedRandom`, or `fastestResponse` (requires the `fastestResponseStrategy` plugin). Applies to whichever code selects a reader. See §7 / §17.5.
+   2. **(`autoReadWriteSplitting` only) Sticky reader or fresh reader per query?** Default is *sticky*: one reader is chosen when the connection enters a read-only phase and reused. Set `queryLevelLoadBalancing=true` for *per-query* balancing — a fresh reader is chosen on each read query. Per-query spreads load more evenly but rotates connections more and reduces per-reader cache locality. Not available on `readWriteSplitting`, `srw`, or `gdbReadWriteSplitting`.
+   3. **(`autoReadWriteSplitting` only) Should the writer also serve balanced reads?** `loadBalancingIncludeWriter=true` adds the writer to the reader-balancing pool (only meaningful with per-query balancing). Default is readers-only.
 5. **Internal connection pool?** Strongly recommended with R/W splitting plugins. Without it, every `setReadOnly()` flip (or automatic switch) can open a fresh physical connection to the target host, so an app that changes read/write role frequently churns connections heavily and may run into per-instance limits. The wrapper's internal pool keeps a per-instance pool keyed by `clusterId`, so switches become cheap. Also required for the `leastConnections` reader strategy. (Default to recommending `connectionPoolType=hikari` unless the user has a strong reason against it.)
 6. **Custom or non-RDS endpoint?** (drives the `verifyInitialConnectionRole` warning)
 
@@ -831,7 +830,8 @@ Routing can be overridden per statement with SQL comment hints: `/*@reader*/`, `
 |---|---|---|
 | `queryLevelLoadBalancing` | `false` | Pick a fresh reader on **each** read-routing decision within an established read-only phase, instead of reusing one sticky reader. See §5.12b. |
 | `loadBalancingIncludeWriter` | `false` | When `queryLevelLoadBalancing` is on, also treat the writer as an eligible target in the reader-balancing pool. |
-| `allowStatementRecreationOnConnectionSwitch` | `true` | When SQL routing selects a different connection for an already-created `Statement`/`PreparedStatement`/`CallableStatement`, re-create it on the routed connection so the query actually runs there. Set to `false` to opt out (falling back to a one-time reuse warning). See §5.12b. |
+
+> Per-query balancing only switches the connection **between** statements (never mid-transaction — routing is pinned while a transaction is open or autocommit is off). There is no statement re-creation: the connection vacated by a switch is kept open one more query so any `Statement`/`ResultSet` created before the switch finishes on its original reader, while subsequent statements use the newly selected reader. See §5.12b.
 
 See [UsingTheAutoReadWriteSplittingPlugin.md](./using-the-jdbc-driver/using-plugins/UsingTheAutoReadWriteSplittingPlugin.md) for full details.
 
@@ -875,7 +875,7 @@ Like `readWriteSplitting` but home-region aware. Use only with Aurora Global Dat
 
 ### 5.12a The read/write splitting plugin family — pick one code
 
-There are four read/write splitting codes. They share the same core (reader selection, session-state transfer, internal-pool reuse, query-level load balancing, statement rebinding) and differ along two axes:
+There are four read/write splitting codes. They share the same core (reader selection, session-state transfer, internal-pool reuse) and differ along two axes:
 
 - **How a read is detected** — either the app toggles `Connection.setReadOnly(true/false)` (manual), or the `sqlParser` plugin classifies each statement automatically (`SELECT` → reader, DML/DDL → writer).
 - **How reader/writer hosts are discovered** — from the cluster **topology** (Aurora / RDS Multi-AZ DB cluster), from **two fixed endpoints** you supply (the `srw` "simple" code, for community DBs, RDS Proxy, or custom routing), or from **Aurora Global Database topology** with home-region awareness.
@@ -897,19 +897,18 @@ Rules that hold for the whole family:
 - `gdbReadWriteSplitting` accepts the GDB home-region parameters from §5.12 and should only be used with Aurora Global Database.
 - The internal connection pool (`connectionPoolType=hikari` or `c3p0`) is strongly recommended for all of them.
 
-The `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters (§5.12b) apply to every code in this family.
+Per-query reader load balancing (`queryLevelLoadBalancing` / `loadBalancingIncludeWriter`) is available **only** on `autoReadWriteSplitting` — see §5.12b. `readerHostSelectorStrategy` (§7) applies to whichever code selects a reader.
 
-### 5.12b Family-wide parameters: query-level load balancing and statement rebinding
+### 5.12b Per-query reader load balancing (`autoReadWriteSplitting`)
 
-These parameters are defined on the shared read/write splitting core, so they work with **any** code from §5.12a.
+These parameters are defined on `autoReadWriteSplitting` only. `readWriteSplitting`, `srw`, and `gdbReadWriteSplitting` do not read them.
 
 | Name | Default | Description |
 |---|---|---|
-| `queryLevelLoadBalancing` | `false` | By default the plugin picks one reader when the connection enters a read-only phase and stays on it (a "sticky" reader). With this enabled, it re-selects a reader on **each** read-routing decision, spreading reads across the cluster at query granularity. With `autoReadWriteSplitting` this means consecutive `SELECT`s can land on different readers; with `setReadOnly()` routing each read decision within the read-only phase re-balances. Reader selection still honors `readerHostSelectorStrategy` (use `roundRobin` for deterministic rotation). |
+| `queryLevelLoadBalancing` | `false` | By default the plugin picks one reader when the connection enters a read-only phase and stays on it (a "sticky" reader). With this enabled, it re-selects a reader on **each** read query, so consecutive `SELECT`s can land on different readers. Reader selection still honors `readerHostSelectorStrategy` (use `roundRobin` for deterministic rotation). Routing is pinned while a transaction is open or autocommit is off, so balancing only happens between statements. |
 | `loadBalancingIncludeWriter` | `false` | Only meaningful when `queryLevelLoadBalancing=true`. Adds the writer to the pool of nodes eligible to serve balanced reads. Leave off if you want reads to stay strictly on readers. |
-| `allowStatementRecreationOnConnectionSwitch` | `true` | When a read-routing decision moves execution to a different physical connection, the already-created statement object must be re-created on the new connection or the query would run on the wrong node. With this enabled (default) the plugin re-creates the statement — including recorded settings (fetch size, cursor name, etc.) and, for `PreparedStatement`/`CallableStatement`, bound parameters and registered OUT parameters — on the routed connection. A statement cannot be rebound if it carries a stream/`Reader`/LOB parameter or has a pending batch; in that case the plugin keeps the current connection and logs a one-time reuse warning. Set to `false` to disable rebinding entirely. |
 
-**How these interact.** `queryLevelLoadBalancing` is what makes reader-to-reader rotation *happen*; `allowStatementRecreationOnConnectionSwitch` is what makes a rotation *safe* for a statement that was created before the routing decision. With `queryLevelLoadBalancing=true` and the default `allowStatementRecreationOnConnectionSwitch=true`, re-executing the same read `PreparedStatement` rotates it onto a fresh reader each time (parameters and settings are replayed automatically). Writes never rotate — role is fixed at prepare time — and a statement with a streamed parameter or an open batch falls back to the current connection.
+**How a switch is handled.** When per-query balancing selects a different reader, the plugin switches the current connection to it (reusing a pooled connection when the internal pool is enabled, otherwise opening one). There is **no statement re-creation and no parameter replay** — the wrapper has no such feature. A `Statement`/`ResultSet` already created keeps running on the connection it was created on, because the plugin defers closing the vacated connection until the *next* balancing switch (one query later). Writes are never balanced: while a transaction is open or autocommit is off, the connection is pinned.
 
 ### 5.13 `auroraConnectionTracker` — Track Aurora connections
 
@@ -1952,29 +1951,22 @@ See the table and per-code notes in §5.12a.
 
 In all "one datasource" cases, also enable the wrapper internal pool (`connectionPoolType=hikari`) — see §14.2.
 
-**Spreading reads across readers:** if you want each read to rotate across readers instead of sticking to one, add `queryLevelLoadBalancing=true` (works with any code above; pair with `readerHostSelectorStrategy=roundRobin` for deterministic rotation). Statement rebinding (`allowStatementRecreationOnConnectionSwitch`, on by default) makes re-executing the same `PreparedStatement`/`CallableStatement` follow the rotation. See §5.12b and §17.3a.
+**Spreading reads across readers:** if you want each read to rotate across readers instead of sticking to one, add `queryLevelLoadBalancing=true` (**`autoReadWriteSplitting` only**; pair with `readerHostSelectorStrategy=roundRobin` for deterministic rotation). See §5.12b and §17.3a.
 
 ### 17.3a Choosing reader load balancing behavior
 
-Picking the read/write splitting *code* only decides how reads are detected and how hosts are discovered. How reads are *distributed across readers* is a separate set of choices that applies to every code. Walk these once the code is chosen:
+Picking the read/write splitting *code* only decides how reads are detected and how hosts are discovered. How reads are *distributed across readers* is a separate set of choices. `readerHostSelectorStrategy` applies to whichever code selects a reader; per-query balancing (`queryLevelLoadBalancing` / `loadBalancingIncludeWriter`) is `autoReadWriteSplitting`-only. Walk these once the code is chosen:
 
 ```
-Do you want reads spread across multiple readers within one read-only phase?
-├─ No — one reader is fine for a read-only phase (default; best cache locality, fewest connection switches)
-│     └─ Leave `queryLevelLoadBalancing=false` (default). A single reader is chosen per read-only phase.
-│        Still choose HOW that reader is picked → `readerHostSelectorStrategy` (see below).
-└─ Yes — rotate readers (better spread for many small reads / long-lived connections)
-      ├─ Set `queryLevelLoadBalancing=true`
-      │     • auto* codes: each SELECT re-selects a reader.
-      │     • manual codes: each setReadOnly(true) re-selects a reader.
+Using autoReadWriteSplitting? Do you want reads spread across multiple readers within one read-only phase?
+├─ No / not autoReadWriteSplitting — one reader per read-only phase (default; best cache locality, fewest switches)
+│     └─ Leave `queryLevelLoadBalancing=false` (default). Still choose HOW that reader is picked → `readerHostSelectorStrategy` (below).
+└─ Yes (autoReadWriteSplitting) — rotate readers (better spread for many small reads / long-lived connections)
+      ├─ Set `queryLevelLoadBalancing=true` — each read query re-selects a reader (switch happens between statements, never mid-transaction).
       ├─ Want deterministic, even rotation? → `readerHostSelectorStrategy=roundRobin`
-      ├─ Should the writer also take balanced reads? → `loadBalancingIncludeWriter=true` (default false, readers only)
-      └─ Re-executing the same PreparedStatement/CallableStatement should follow the rotation?
-            • Yes (default) → keep `allowStatementRecreationOnConnectionSwitch=true`
-              (stream/LOB params or a pending batch can't rebind → stays on current reader, logs once)
-            • No → `allowStatementRecreationOnConnectionSwitch=false` (reused statements stay on their original reader)
+      └─ Should the writer also take balanced reads? → `loadBalancingIncludeWriter=true` (default false, readers only)
 
-Which reader to pick (`readerHostSelectorStrategy`, applies with or without query-level balancing):
+Which reader to pick (`readerHostSelectorStrategy`, applies whenever a reader is selected):
 ├─ Even/deterministic rotation → `roundRobin`
 ├─ Balance by open connection count → `leastConnections` (requires the internal connection pool)
 ├─ Lowest measured latency → `fastestResponse` (requires the `fastestResponseStrategy` plugin)
@@ -1985,7 +1977,7 @@ Which reader to pick (`readerHostSelectorStrategy`, applies with or without quer
 Rules of thumb:
 - **Few long transactions, cache-sensitive reads** → keep it sticky (`queryLevelLoadBalancing=false`).
 - **Many short read queries on long-lived pooled connections, hot reader problem** → per-query balancing with `roundRobin`.
-- **Simple/`srw*` codes** balance between the two configured endpoints, not across topology; `readerHostSelectorStrategy` and topology-based strategies (`leastConnections`, `fastestResponse`) don't apply there — reader spread comes from the read endpoint's own DNS/proxy balancing.
+- **The `srw` code** balances between the two configured endpoints, not across topology; `readerHostSelectorStrategy` and topology-based strategies (`leastConnections`, `fastestResponse`) don't apply there — reader spread comes from the read endpoint's own DNS/proxy balancing.
 
 ### 17.4 Choosing the auth plugin
 
