@@ -309,12 +309,85 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
         LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand",
             new Object[] {methodName}));
         this.closeIdleConnections();
+      } else if (this.prepareBrokenReaderRecovery(methodName, e)) {
+        // The reused (sticky) reader connection was silently dropped. A network exception on send
+        // means the failed operation never reached the server, so it is safe to re-run it once on
+        // the writer, to which we have transparently switched and re-created the statement.
+        return jdbcMethodFunc.call();
       } else {
         LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.exceptionWhileExecutingCommand",
             new Object[] {methodName}));
       }
       throw e;
     }
+  }
+
+  /**
+   * Attempts transparent recovery when a re-executed statement fails because the reused (sticky)
+   * reader connection was silently dropped. Some drivers do not surface a dropped socket via
+   * {@link Connection#isClosed()}, so the plugin cannot detect a dead reader when it reuses the
+   * cached connection at switch time; instead the failure is detected here. Because a network
+   * exception on send means the operation never reached the server, it is safe to re-run it once on
+   * the writer.
+   *
+   * <p>Returns {@code true} only after switching the current connection to a usable writer and
+   * re-creating the failed statement there, so the caller can retry the JDBC call. Returns
+   * {@code false} when recovery does not apply or is not possible, in which case the original
+   * exception is propagated unchanged. Recovery is intentionally limited to statement-execute
+   * methods that can be re-created, outside a transaction, and only when the failure occurred on
+   * the cached reader we are currently pinned to.
+   */
+  private boolean prepareBrokenReaderRecovery(final String methodName, final Exception e) {
+    if (!this.allowStatementRecreationOnConnectionSwitch
+        || this.pluginService.isInTransaction()
+        || (!PLAIN_STATEMENT_EXECUTE_METHODS.contains(methodName)
+            && !PREPARED_CALLABLE_EXECUTE_METHODS.contains(methodName))) {
+      return false;
+    }
+
+    if (!this.pluginService.isNetworkException(e, this.pluginService.getTargetDriverDialect())) {
+      return false;
+    }
+
+    // Only recover a reused (sticky) reader connection: the failure must be on the cached reader we
+    // are currently pinned to, not on the writer or a freshly selected reader.
+    final Connection cachedReader = this.readerCacheItem == null ? null : this.readerCacheItem.get(true);
+    if (cachedReader == null || this.pluginService.getCurrentConnection() != cachedReader) {
+      return false;
+    }
+
+    final PluginCallContext callContext = this.pluginService.getCallContext();
+    final Rebindable rebindHandle = callContext == null ? null : callContext.getRebindHandle();
+    if (rebindHandle == null || !rebindHandle.canRebind()) {
+      return false;
+    }
+
+    try {
+      this.switchToWriter();
+    } catch (final SQLException writerException) {
+      // The writer is also unreachable; nothing to fall back to. Propagate the original failure.
+      return false;
+    }
+
+    final Connection writer = this.pluginService.getCurrentConnection();
+    if (writer == null || writer == cachedReader
+        || !this.helpers.roleClassifier.isWriter(this.pluginService.getCurrentHostSpec())) {
+      return false;
+    }
+
+    try {
+      rebindHandle.rebind(writer);
+    } catch (final SQLException rebindException) {
+      return false;
+    }
+
+    // Drop the dead reader from the cache so the next read-routing decision selects a fresh reader.
+    this.closeReaderConnectionIfIdle();
+
+    final HostSpec writerHost = this.pluginService.getCurrentHostSpec();
+    LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.recoveredFromBrokenReaderConnection",
+        new Object[] {writerHost == null ? "" : writerHost.getHostAndPort(), e.getMessage()}));
+    return true;
   }
 
   private void performSwitch(final String methodName, final TargetRole desired) throws SQLException {

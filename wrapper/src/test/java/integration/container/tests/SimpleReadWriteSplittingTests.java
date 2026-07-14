@@ -224,5 +224,16 @@ public class SimpleReadWriteSplittingTests extends ReadWriteSplittingTests {
   public void test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter() throws SQLException {
     // Not applicable: srw routes to the configured read/write endpoints, not per-instance topology.
   }
+
+  @TestTemplate
+  @Disabled("Not applicable to SimpleReadWriteSplitting: it always connects to the configured read "
+      + "endpoint, so it cannot select a 'different reader' after a promoted-reader failover. With "
+      + "no role verification the read endpoint may transiently resolve (stale DNS) to the promoted "
+      + "writer. This is a topology-failover expectation that does not map to the endpoint model.")
+  @Override
+  public void test_cachedReaderPromotedToWriter_switchesToDifferentReader()
+      throws SQLException, InterruptedException {
+    // Not applicable: srw has a single fixed read endpoint and no per-instance reader selection.
+  }
 }
 
