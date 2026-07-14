@@ -336,6 +336,30 @@ public class StatementRebindingTest {
   }
 
   @Test
+  void networkFailureOnReusedReader_withFailoverPlugin_defersToFailover() throws SQLException {
+    final AutoReadWriteSplittingPlugin plugin = pluginPinnedToReader();
+
+    // A failover plugin owns connection-failure recovery, so the reused-reader recovery must not
+    // pre-empt it: the network exception propagates so failover can handle it, with no writer
+    // switch and no retry here.
+    mockBoundStatementOn(readerConn);
+    when(pluginService.isNetworkException(any(), any())).thenReturn(true);
+    when(pluginService.isPluginInUse(
+        software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.class)).thenReturn(true);
+    final SQLException netEx = new SQLException("I/O error sending to backend", "08006");
+    when(sqlFunc.call()).thenThrow(netEx);
+
+    final SQLException thrown = assertThrows(SQLException.class, () -> plugin.execute(
+        ResultSet.class, SQLException.class, boundStatement, EXECUTE_QUERY, sqlFunc,
+        new Object[] {"select 1"}));
+
+    assertEquals(netEx, thrown);
+    verify(pluginService, never()).setCurrentConnection(eq(writerConn), any(HostSpec.class));
+    verify(rebindHandle, never()).rebind(writerConn);
+    verify(sqlFunc, times(1)).call();
+  }
+
+  @Test
   void reusedBoundStatement_withoutHandle_warnsOnlyOnce() throws SQLException {
     mockBoundStatementOn(writerConn);
     setSql(QueryType.SELECT);

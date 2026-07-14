@@ -43,6 +43,7 @@ import software.amazon.jdbc.Rebindable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.LoadBalancingPolicy;
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.PerQueryBalancedReaderPolicy;
@@ -345,6 +346,14 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       return false;
     }
 
+    if (this.isFailoverPluginInUse()) {
+      // A failover plugin is configured and owns connection-failure recovery (it re-establishes
+      // the connection and surfaces a FailoverSuccessSQLException so the application can react to
+      // the lost session state). Do not pre-empt it by silently recovering the read here; let the
+      // original exception propagate up to the failover plugin.
+      return false;
+    }
+
     if (!this.pluginService.isNetworkException(e, this.pluginService.getTargetDriverDialect())) {
       return false;
     }
@@ -388,6 +397,17 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.recoveredFromBrokenReaderConnection",
         new Object[] {writerHost == null ? "" : writerHost.getHostAndPort(), e.getMessage()}));
     return true;
+  }
+
+  /**
+   * Returns whether any failover plugin is present in the chain. When one is, it owns recovery from
+   * connection failures, so the reused-reader recovery in {@link #prepareBrokenReaderRecovery}
+   * defers to it. Covers the topology failover plugin (which also backs the global-database
+   * failover plugin via inheritance) and the failover2 plugin.
+   */
+  private boolean isFailoverPluginInUse() {
+    return this.pluginService.isPluginInUse(FailoverConnectionPlugin.class)
+        || this.pluginService.isPluginInUse(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class);
   }
 
   private void performSwitch(final String methodName, final TargetRole desired) throws SQLException {
