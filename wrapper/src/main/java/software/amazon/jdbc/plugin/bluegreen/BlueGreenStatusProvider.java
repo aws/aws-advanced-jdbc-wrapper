@@ -1359,8 +1359,16 @@ public class BlueGreenStatusProvider {
     final BlueGreenInterimStatus sourceInterimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
     final BlueGreenInterimStatus targetInterimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
 
+    // Readiness requires that both the source and target monitors have collected their topology
+    // and host names, and that the blue-to-green corresponding node map has been built. Checking
+    // only correspondingNodes is not enough: that map can be partially populated from host names
+    // alone (see updateCorrespondingNodes()) before the target monitor has fetched its topology.
     final boolean ready = sourceInterimStatus != null
         && targetInterimStatus != null
+        && !Utils.isNullOrEmpty(sourceInterimStatus.startTopology)
+        && !Utils.isNullOrEmpty(targetInterimStatus.startTopology)
+        && !Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
+        && !Utils.isNullOrEmpty(targetInterimStatus.hostNames)
         && !this.correspondingNodes.isEmpty();
 
     if (!ready || !this.greenTopologyRecognizedLogged.compareAndSet(false, true)) {
@@ -1377,46 +1385,84 @@ public class BlueGreenStatusProvider {
         .filter(x -> x.getValue2() != null)
         .count();
 
-    // Build the blue -> green corresponding host mapping rows, sorted by blue host for stable,
-    // grep-friendly output.
-    final List<String> mappingRows = this.correspondingNodes.entrySet().stream()
+    // Collect the blue-node -> green-node pairs, sorted by blue host for stable, grep-friendly
+    // output. Each pair is [blue node, green node].
+    final List<String[]> mappingPairs = this.correspondingNodes.entrySet().stream()
         .sorted(Entry.comparingByKey())
         .map(x -> {
           final HostSpec green = x.getValue().getValue2();
-          return String.format("   %s -> %s",
-              x.getKey(),
-              green == null ? "<null>" : green.getHostAndPort());
+          return new String[] {x.getKey(), green == null ? "<null>" : green.getHostAndPort()};
         })
         .collect(Collectors.toList());
 
+    // Collect the node -> IP address pairs, sorted by host for stable output.
+    final List<String[]> ipMapPairs = this.hostIpAddresses.entrySet().stream()
+        .sorted(Entry.comparingByKey())
+        .map(x -> new String[] {
+            x.getKey(),
+            x.getValue() == null ? "<null>" : x.getValue().orElse("<null>")})
+        .collect(Collectors.toList());
+
+    // Render each table as two aligned columns; pad the left column to its widest value.
+    final List<String> mappingRows = formatTwoColumnRows(mappingPairs);
+    final List<String> ipMapRows = formatTwoColumnRows(ipMapPairs);
+
     final String title = Messages.get("bgd.greenTopologyRecognized.title", new Object[] {this.bgdId});
-    final String summary = Messages.get("bgd.greenTopologyRecognized.summary",
-        new Object[] {
-            this.latestStatusPhase,
-            String.valueOf(sourceHostCount),
-            String.valueOf(targetHostCount),
-            String.valueOf(correspondingNodeCount),
-            String.valueOf(ready)});
-    final String mappingHeader = "   " + Messages.get("bgd.greenTopologyRecognized.mappingHeader");
+
+    // Render the summary as label -> value rows using the same two-column alignment as the tables.
+    final List<String> summaryRows = formatTwoColumnRows(Arrays.asList(
+        new String[] {Messages.get("bgd.greenTopologyRecognized.labelPhase"),
+            String.valueOf(this.latestStatusPhase)},
+        new String[] {Messages.get("bgd.greenTopologyRecognized.labelSourceHosts"),
+            String.valueOf(sourceHostCount)},
+        new String[] {Messages.get("bgd.greenTopologyRecognized.labelTargetHosts"),
+            String.valueOf(targetHostCount)},
+        new String[] {Messages.get("bgd.greenTopologyRecognized.labelCorrespondingNodes"),
+            String.valueOf(correspondingNodeCount)},
+        new String[] {Messages.get("bgd.greenTopologyRecognized.labelReady"),
+            String.valueOf(ready)}));
 
     // Size the divider to the widest line so the block lines up like the switchover summary.
     final int minDividerLength = 60;
-    int maxLineLength = Math.max(minDividerLength, Math.max(summary.length() + 3, mappingHeader.length()));
+    int maxLineLength = minDividerLength;
+    for (String row : summaryRows) {
+      maxLineLength = Math.max(maxLineLength, row.length());
+    }
     for (String row : mappingRows) {
+      maxLineLength = Math.max(maxLineLength, row.length());
+    }
+    for (String row : ipMapRows) {
       maxLineLength = Math.max(maxLineLength, row.length());
     }
     final String divider = new String(new char[maxLineLength]).replace('\0', '-');
 
     final String logMessage = title + "\n"
         + divider + "\n"
-        + "   " + summary + "\n"
-        + divider + "\n"
-        + mappingHeader + "\n"
+        + String.join("\n", summaryRows) + "\n"
         + divider + "\n"
         + String.join("\n", mappingRows) + "\n"
+        + divider + "\n"
+        + String.join("\n", ipMapRows) + "\n"
         + divider;
 
     LOGGER.info(logMessage);
+  }
+
+  /**
+   * Formats a list of two-element rows into aligned, indented columns. The left column is padded
+   * to the width of its widest value so the right column starts at the same offset on every row.
+   *
+   * @param rows the rows to format, each as a {@code [left, right]} pair.
+   * @return the formatted, indented row strings.
+   */
+  protected static List<String> formatTwoColumnRows(final List<String[]> rows) {
+    final int leftColumnWidth = rows.stream()
+        .mapToInt(x -> x[0].length())
+        .max()
+        .orElse(0);
+    return rows.stream()
+        .map(x -> String.format("   %-" + leftColumnWidth + "s    %s", x[0], x[1]))
+        .collect(Collectors.toList());
   }
 
   public static class PhaseTimeInfo {
