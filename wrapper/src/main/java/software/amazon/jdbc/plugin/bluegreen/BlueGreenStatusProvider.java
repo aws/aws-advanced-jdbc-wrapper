@@ -1410,17 +1410,14 @@ public class BlueGreenStatusProvider {
     final String title = Messages.get("bgd.greenTopologyRecognized.title", new Object[] {this.bgdId});
 
     // Render the summary as label -> value rows using the same two-column alignment as the tables.
+    // These are structural field identifiers (not localizable prose), so they are kept inline
+    // rather than in the resource bundle.
     final List<String> summaryRows = formatTwoColumnRows(Arrays.asList(
-        new String[] {Messages.get("bgd.greenTopologyRecognized.labelPhase"),
-            String.valueOf(this.latestStatusPhase)},
-        new String[] {Messages.get("bgd.greenTopologyRecognized.labelSourceHosts"),
-            String.valueOf(sourceHostCount)},
-        new String[] {Messages.get("bgd.greenTopologyRecognized.labelTargetHosts"),
-            String.valueOf(targetHostCount)},
-        new String[] {Messages.get("bgd.greenTopologyRecognized.labelCorrespondingNodes"),
-            String.valueOf(correspondingNodeCount)},
-        new String[] {Messages.get("bgd.greenTopologyRecognized.labelReady"),
-            String.valueOf(ready)}));
+        new String[] {"phase", String.valueOf(this.latestStatusPhase)},
+        new String[] {"sourceHosts", String.valueOf(sourceHostCount)},
+        new String[] {"targetHosts", String.valueOf(targetHostCount)},
+        new String[] {"correspondingNodes", String.valueOf(correspondingNodeCount)},
+        new String[] {"ready", String.valueOf(ready)}));
 
     // Size the divider to the widest line so the block lines up like the switchover summary.
     final int minDividerLength = 60;
