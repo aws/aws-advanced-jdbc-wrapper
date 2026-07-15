@@ -118,6 +118,9 @@ public class BlueGreenStatusProvider {
   protected AtomicBoolean monitorResetOnInProgressCompleted = new AtomicBoolean(false);
   protected AtomicBoolean monitorResetOnTopologyCompleted = new AtomicBoolean(false);
   protected final AtomicBoolean allGreenNodesChangedName = new AtomicBoolean(false);
+  // Tracks whether the pre-switchover "green topology recognized" readiness event has already
+  // been logged for the current deployment, so it is emitted at most once per deployment cycle.
+  protected final AtomicBoolean greenTopologyRecognizedLogged = new AtomicBoolean(false);
   protected long postStatusEndTimeNano = 0;
   protected final ResourceLock processStatusLock = new ResourceLock();
 
@@ -268,6 +271,10 @@ public class BlueGreenStatusProvider {
       this.updateStatusCache();
       this.logCurrentContext();
 
+      // Log a one-time readiness event once the target green topology has been recognized,
+      // so operators can confirm per-instance readiness before starting a manual switchover.
+      this.logGreenTopologyRecognized();
+
       // Log final switchover results.
       this.logSwitchoverFinalSummary();
 
@@ -308,7 +315,7 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updateStatusCache() {
-    final BlueGreenStatus latestStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
+    final BlueGreenStatus latestCachedStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
     // summaryStatus is assigned a non-null value by updateSummaryStatus() before this runs; capture
     // into a local and guard so the checker can prove non-null across the storageService call.
     final BlueGreenStatus summary = this.summaryStatus;
@@ -319,10 +326,10 @@ public class BlueGreenStatusProvider {
 
     // Notify all waiting threads that status is updated.
     // Those waiting threads are waiting on an existing status so we need to notify on it.
-    if (latestStatus != null) {
+    if (latestCachedStatus != null) {
       //noinspection SynchronizationOnLocalVariableOrMethodParameter
-      synchronized (latestStatus) {
-        latestStatus.notifyAll();
+      synchronized (latestCachedStatus) {
+        latestCachedStatus.notifyAll();
       }
     }
   }
@@ -1231,6 +1238,7 @@ public class BlueGreenStatusProvider {
       this.greenNodeChangeNameTimes.clear();
       this.monitorResetOnInProgressCompleted.set(false);
       this.monitorResetOnTopologyCompleted.set(false);
+      this.greenTopologyRecognizedLogged.set(false);
       this.blueConnectionsDropped = false;
 
       this.initMonitoring();
@@ -1331,6 +1339,127 @@ public class BlueGreenStatusProvider {
         this.greenDnsRemoved,
         this.allGreenNodesChangedName.get(),
         this.greenTopologyChanged));
+  }
+
+  /**
+   * Emits a concise, operationally useful readiness event once the plugin has recognized the
+   * target green topology for the configured {@code bgdId}. Readiness means both the source and
+   * target interim statuses are available and the blue-to-green corresponding node map has been
+   * populated. The event is logged at most once per deployment cycle (reset by
+   * {@link #resetContextWhenCompleted()}) so operators can confirm per-instance readiness before
+   * initiating a manual switchover, without producing hot-path log spam.
+   */
+  protected void logGreenTopologyRecognized() {
+    if (!LOGGER.isLoggable(Level.INFO)) {
+      // The readiness event is only ever emitted at INFO. Skip the readiness computation, the
+      // corresponding-node mapping build, and the once-per-cycle flag entirely when INFO is off.
+      return;
+    }
+
+    final BlueGreenInterimStatus sourceInterimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+    final BlueGreenInterimStatus targetInterimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+
+    // Readiness requires that both the source and target monitors have collected their topology
+    // and host names, and that the blue-to-green corresponding node map has been built. Checking
+    // only correspondingNodes is not enough: that map can be partially populated from host names
+    // alone (see updateCorrespondingNodes()) before the target monitor has fetched its topology.
+    final boolean ready = sourceInterimStatus != null
+        && targetInterimStatus != null
+        && !Utils.isNullOrEmpty(sourceInterimStatus.startTopology)
+        && !Utils.isNullOrEmpty(targetInterimStatus.startTopology)
+        && !Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
+        && !Utils.isNullOrEmpty(targetInterimStatus.hostNames)
+        && !this.correspondingNodes.isEmpty();
+
+    if (!ready || !this.greenTopologyRecognizedLogged.compareAndSet(false, true)) {
+      // Either the target green topology is not recognized yet, or the readiness event has
+      // already been logged for the current deployment cycle.
+      return;
+    }
+
+    final int sourceHostCount = Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
+        ? 0 : sourceInterimStatus.hostNames.size();
+    final int targetHostCount = Utils.isNullOrEmpty(targetInterimStatus.hostNames)
+        ? 0 : targetInterimStatus.hostNames.size();
+    final long correspondingNodeCount = this.correspondingNodes.values().stream()
+        .filter(x -> x.getValue2() != null)
+        .count();
+
+    // Collect the blue-node -> green-node pairs, sorted by blue host for stable, grep-friendly
+    // output. Each pair is [blue node, green node].
+    final List<String[]> mappingPairs = this.correspondingNodes.entrySet().stream()
+        .sorted(Entry.comparingByKey())
+        .map(x -> {
+          final HostSpec green = x.getValue().getValue2();
+          return new String[] {x.getKey(), green == null ? "<null>" : green.getHostAndPort()};
+        })
+        .collect(Collectors.toList());
+
+    // Collect the node -> IP address pairs, sorted by host for stable output.
+    final List<String[]> ipMapPairs = this.hostIpAddresses.entrySet().stream()
+        .sorted(Entry.comparingByKey())
+        .map(x -> new String[] {
+            x.getKey(),
+            x.getValue() == null ? "<null>" : x.getValue().orElse("<null>")})
+        .collect(Collectors.toList());
+
+    // Render each table as two aligned columns; pad the left column to its widest value.
+    final List<String> mappingRows = formatTwoColumnRows(mappingPairs);
+    final List<String> ipMapRows = formatTwoColumnRows(ipMapPairs);
+
+    final String title = Messages.get("bgd.greenTopologyRecognized.title", new Object[] {this.bgdId});
+
+    // Render the summary as label -> value rows using the same two-column alignment as the tables.
+    // These are structural field identifiers (not localizable prose), so they are kept inline
+    // rather than in the resource bundle.
+    final List<String> summaryRows = formatTwoColumnRows(Arrays.asList(
+        new String[] {"phase", String.valueOf(this.latestStatusPhase)},
+        new String[] {"sourceHosts", String.valueOf(sourceHostCount)},
+        new String[] {"targetHosts", String.valueOf(targetHostCount)},
+        new String[] {"correspondingNodes", String.valueOf(correspondingNodeCount)},
+        new String[] {"ready", String.valueOf(ready)}));
+
+    // Size the divider to the widest line so the block lines up like the switchover summary.
+    final int minDividerLength = 60;
+    int maxLineLength = minDividerLength;
+    for (String row : summaryRows) {
+      maxLineLength = Math.max(maxLineLength, row.length());
+    }
+    for (String row : mappingRows) {
+      maxLineLength = Math.max(maxLineLength, row.length());
+    }
+    for (String row : ipMapRows) {
+      maxLineLength = Math.max(maxLineLength, row.length());
+    }
+    final String divider = new String(new char[maxLineLength]).replace('\0', '-');
+
+    final String logMessage = title + "\n"
+        + divider + "\n"
+        + String.join("\n", summaryRows) + "\n"
+        + divider + "\n"
+        + String.join("\n", mappingRows) + "\n"
+        + divider + "\n"
+        + String.join("\n", ipMapRows) + "\n"
+        + divider;
+
+    LOGGER.info(logMessage);
+  }
+
+  /**
+   * Formats a list of two-element rows into aligned, indented columns. The left column is padded
+   * to the width of its widest value so the right column starts at the same offset on every row.
+   *
+   * @param rows the rows to format, each as a {@code [left, right]} pair.
+   * @return the formatted, indented row strings.
+   */
+  protected static List<String> formatTwoColumnRows(final List<String[]> rows) {
+    final int leftColumnWidth = rows.stream()
+        .mapToInt(x -> x[0].length())
+        .max()
+        .orElse(0);
+    return rows.stream()
+        .map(x -> String.format("   %-" + leftColumnWidth + "s    %s", x[0], x[1]))
+        .collect(Collectors.toList());
   }
 
   public static class PhaseTimeInfo {
