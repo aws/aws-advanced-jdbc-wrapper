@@ -244,8 +244,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
-    if (role == null || HostRole.UNKNOWN.equals(role)) {
-      // Users must request either a writer or a reader role.
+    if (HostRole.UNKNOWN.equals(role)) {
+      // A null role means "any role" and is supported; UNKNOWN is not a valid selection filter.
       return false;
     }
 
@@ -264,8 +264,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   public @Nullable HostSpec getHostSpecByStrategy(
       final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException {
-    if (role == null || HostRole.UNKNOWN.equals(role)) {
-      // Users must request either a writer or a reader role.
+    if (HostRole.UNKNOWN.equals(role)) {
+      // A null role means "any role" and is supported; UNKNOWN is not a valid selection filter.
       return null;
     }
 

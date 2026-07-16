@@ -17,10 +17,14 @@
 package software.amazon.jdbc.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -46,6 +50,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionInfo;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
@@ -134,6 +139,44 @@ class DefaultConnectionPluginTest {
     plugin.connect("anyProtocol", mockHostSpec, new Properties(), true, mockConnectFunction);
     verify(connectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any(), any());
     verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), anyString(), any(), any());
+  }
+
+  @Test
+  void testGetHostSpecByStrategy_nullRole_delegatesToProvider() throws SQLException {
+    // A null role means "any role is acceptable" (e.g. reader-or-writer failover, or
+    // load balancing that includes the writer). It must be forwarded to the selector.
+    final List<HostSpec> hosts = Collections.singletonList(mockHostSpec);
+    when(mockConnectionProviderManager.getHostSpecByStrategy(any(), isNull(), eq("random"), any()))
+        .thenReturn(mockHostSpec);
+
+    final HostSpec result = plugin.getHostSpecByStrategy(hosts, null, "random");
+
+    assertEquals(mockHostSpec, result);
+    verify(mockConnectionProviderManager).getHostSpecByStrategy(any(), isNull(), eq("random"), any());
+  }
+
+  @Test
+  void testGetHostSpecByStrategy_unknownRole_returnsNullWithoutDelegating() throws SQLException {
+    final List<HostSpec> hosts = Collections.singletonList(mockHostSpec);
+
+    final HostSpec result = plugin.getHostSpecByStrategy(hosts, HostRole.UNKNOWN, "random");
+
+    assertNull(result);
+    verify(mockConnectionProviderManager, never()).getHostSpecByStrategy(any(), any(), anyString(), any());
+  }
+
+  @Test
+  void testAcceptsStrategy_nullRole_delegatesToProvider() {
+    when(mockConnectionProviderManager.acceptsStrategy(isNull(), eq("random"))).thenReturn(true);
+
+    assertTrue(plugin.acceptsStrategy(null, "random"));
+    verify(mockConnectionProviderManager).acceptsStrategy(isNull(), eq("random"));
+  }
+
+  @Test
+  void testAcceptsStrategy_unknownRole_returnsFalseWithoutDelegating() {
+    assertFalse(plugin.acceptsStrategy(HostRole.UNKNOWN, "random"));
+    verify(mockConnectionProviderManager, never()).acceptsStrategy(any(), anyString());
   }
 
   private static Stream<Arguments> multiStatementQueries() {
