@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -123,14 +122,10 @@ public class RetryUtil {
         while (!remainingAllowedHosts.isEmpty() && System.nanoTime() < retryEndNano) {
           HostSpec candidateHost = null;
           try {
-            candidateHost = verifyRole == null
-                // Any role is acceptable. Strategy-based selection requires an explicit
-                // reader/writer role, so pick directly from the already-filtered allowed set.
-                ? selectAnyHost(remainingAllowedHosts)
-                : pluginService.getHostSpecByStrategy(
-                    new ArrayList<>(remainingAllowedHosts),
-                    verifyRole,
-                    strategy);
+            candidateHost = pluginService.getHostSpecByStrategy(
+                new ArrayList<>(remainingAllowedHosts),
+                verifyRole,
+                strategy);
           } catch (SQLException ex) {
             // Strategy can't get a host according to requested conditions.
             // Do nothing
@@ -184,24 +179,6 @@ public class RetryUtil {
         }
       }
     }
-  }
-
-  /**
-   * Selects an arbitrary host from the allowed set. Used when any role is acceptable
-   * ({@code verifyRole == null}), since strategy-based selection via
-   * {@link PluginService#getHostSpecByStrategy} requires an explicit reader or writer role.
-   * The allowed set is already filtered by the caller, and the caller removes hosts that fail to
-   * connect and retries, so a simple random pick spreads attempts across the eligible hosts.
-   *
-   * @param allowedHosts the eligible hosts to choose from
-   * @return a randomly chosen host, or {@code null} if the set is empty
-   */
-  protected @Nullable HostSpec selectAnyHost(final Set<HostSpec> allowedHosts) {
-    if (allowedHosts.isEmpty()) {
-      return null;
-    }
-    final List<HostSpec> candidates = new ArrayList<>(allowedHosts);
-    return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
   }
 
   protected void shortDelay() {
