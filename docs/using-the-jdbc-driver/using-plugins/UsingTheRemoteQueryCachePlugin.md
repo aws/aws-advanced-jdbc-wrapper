@@ -369,5 +369,10 @@ public void main(String status) {
 ## Security Considerations
 The Remote Query Cache Plugin uses Java deserialization to reconstruct cached query results from the cache server. Since cache data is treated as untrusted input, deserialization is restricted to a set of known-safe types. If your query results contain third-party types (e.g. from database extensions like PGVector), you must register them via `Driver.skipWrappingForType()` or `Driver.skipWrappingForPackage()` to allow deserialization. Ensure that any registered classes have safe deserialization behavior and cannot be used as part of a gadget chain attack. See [Enable Third Party Classes and Packages](../UsingTheJdbcDriver.md#enable-third-party-classes-and-packages) for details.
 
+### XML Columns
+XML values retrieved from a cached result set are exposed as `java.sql.SQLXML`. When you obtain a source via `SQLXML.getSource(DOMSource.class)`, `getSource(SAXSource.class)`, or `getSource(StAXSource.class)`, the driver parses the XML with DTDs and external entity resolution disabled, following the [OWASP XML External Entity Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html).
+
+`SQLXML.getSource(StreamSource.class)` returns the XML unparsed; parsing is performed by the caller. Consistent with the `java.sql.SQLXML` contract, an application that consumes a `StreamSource` is responsible for configuring its own parser or transformer securely. If you do not require a raw stream, prefer `DOMSource`, `SAXSource`, or `StAXSource`, which the driver parses securely on your behalf.
+
 ## Other Example Programs
 [DatabaseConnectionWithCacheExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/DatabaseConnectionWithCacheExample.java) demonstrates how to enable and configure Remote Query Cache Plugin with the AWS Advanced JDBC Wrapper.
