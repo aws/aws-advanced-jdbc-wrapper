@@ -26,9 +26,11 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.SQLXML;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamReader;
@@ -44,12 +46,30 @@ import org.xml.sax.XMLReader;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
+  // Controls whether getSource(StreamSource.class) is permitted for XML retrieved from the cache.
+  // Because a StreamSource returns the XML unparsed and the driver cannot control how the caller
+  // subsequently parses it, this path is disabled by default. Users can opt in to the previous
+  // passthrough behavior via the remoteQueryCachePlugin.allowStreamSourceFromCache property.
+  private static final AtomicBoolean ALLOW_STREAM_SOURCE_FROM_CACHE = new AtomicBoolean(false);
+
   private boolean freed;
   private @Nullable String data;
 
   public CachedSQLXML(String data) {
     this.data = data;
     this.freed = false;
+  }
+
+  /**
+   * Configures whether {@link #getSource(Class)} accepts {@link StreamSource} as a source type.
+   * Set by the Remote Query Cache Plugin from the
+   * {@code remoteQueryCachePlugin.allowStreamSourceFromCache} property at plugin initialization.
+   *
+   * @param allow {@code true} to allow returning an unparsed {@code StreamSource}; {@code false}
+   *     (the default) to throw {@link SQLException} for {@code StreamSource} requests
+   */
+  public static void setAllowStreamSourceFromCache(boolean allow) {
+    ALLOW_STREAM_SOURCE_FROM_CACHE.set(allow);
   }
 
   @Override
@@ -123,9 +143,13 @@ public class CachedSQLXML implements SQLXML, Serializable {
    * <a href="https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html">OWASP
    * XML External Entity Prevention Cheat Sheet</a>.
    *
-   * <p>For {@link StreamSource}, the XML is not parsed here; the returned source wraps the raw XML
-   * and is parsed later by the caller. As with the {@link SQLXML} contract in general, the consumer
-   * of a {@code StreamSource} is responsible for configuring its own parser or transformer securely.
+   * <p>{@link StreamSource} is disabled by default. Because a {@code StreamSource} returns the XML
+   * unparsed and the driver cannot control how the caller subsequently parses it, requesting one
+   * from a cached {@code SQLXML} throws {@link SQLException}. Callers that require this behavior
+   * can opt in by setting the plugin property
+   * {@code remoteQueryCachePlugin.allowStreamSourceFromCache=true}, in which case the consumer of
+   * the returned {@code StreamSource} is responsible for configuring its own parser or transformer
+   * securely (for example, by disabling DTDs and external entities).
    *
    * @param sourceClass the class of the {@code Source} to return, or {@code null} for the default
    *     ({@code DOMSource})
@@ -155,6 +179,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
         dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
         dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
         dbf.setXIncludeAware(false);
         dbf.setExpandEntityReferences(false);
         DocumentBuilder builder = dbf.newDocumentBuilder();
@@ -168,11 +193,17 @@ public class CachedSQLXML implements SQLXML, Serializable {
         spf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
         spf.setFeature("http://xml.org/sax/features/external-general-entities", false);
         spf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        XMLReader reader = spf.newSAXParser().getXMLReader();
+        SAXParser parser = spf.newSAXParser();
+        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        XMLReader reader = parser.getXMLReader();
         return sourceClass.cast(new SAXSource(reader, new InputSource(new StringReader(xmlData))));
       }
 
       if (StreamSource.class.equals(sourceClass)) {
+        if (!ALLOW_STREAM_SOURCE_FROM_CACHE.get()) {
+          throw new SQLException(Messages.get("CachedSQLXML.streamSourceDisabled"));
+        }
         return sourceClass.cast(new StreamSource(new StringReader(xmlData)));
       }
 

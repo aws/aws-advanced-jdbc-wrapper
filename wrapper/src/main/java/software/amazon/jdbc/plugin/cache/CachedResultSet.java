@@ -61,6 +61,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -111,6 +112,24 @@ public class CachedResultSet implements ResultSet {
     }
   }
 
+  // Controls whether java.net.URL is deserialized from cache data. URL is not deserialized by
+  // default because its equality/hash semantics involve network resolution, which is not
+  // appropriate for values reconstructed from untrusted input. Users can opt in via the
+  // remoteQueryCachePlugin.allowUrlFromCache plugin property.
+  private static final AtomicBoolean ALLOW_URL_FROM_CACHE = new AtomicBoolean(false);
+
+  /**
+   * Configures whether {@code java.net.URL} may be deserialized from cache data. Set by the
+   * Remote Query Cache Plugin from the {@code remoteQueryCachePlugin.allowUrlFromCache} property
+   * at plugin initialization.
+   *
+   * @param allow {@code true} to allow {@code java.net.URL} to be reconstructed from the cache;
+   *     {@code false} (the default) to reject it during deserialization
+   */
+  public static void setAllowUrlFromCache(boolean allow) {
+    ALLOW_URL_FROM_CACHE.set(allow);
+  }
+
   /**
    * A restricted ObjectInputStream that only allows deserialization of known-safe classes.
    * This prevents Remote Code Execution via cache poisoning attacks where an attacker
@@ -134,7 +153,10 @@ public class CachedResultSet implements ResultSet {
       allowed.add("java.lang.Boolean");
       allowed.add("java.lang.Character");
       allowed.add("java.util.UUID");
-      allowed.add("java.net.URL");
+      // java.net.URL is intentionally NOT in this default allowlist because its equality/hash
+      // semantics involve network resolution, which is not appropriate for values reconstructed
+      // from an untrusted cache. Prefer java.net.URI. URL deserialization can be re-enabled via
+      // the remoteQueryCachePlugin.allowUrlFromCache plugin property (see ALLOW_URL_FROM_CACHE).
       allowed.add("java.net.URI");
       // Package-private JVM serialization proxy for java.time types; cannot be referenced by class literal
       allowed.add("java.time.Ser");
@@ -195,6 +217,16 @@ public class CachedResultSet implements ResultSet {
           return cls;
         }
       }
+      // java.net.URL is guarded by a dedicated opt-in toggle because it is present in the
+      // default skipWrappingForClasses set for wrapper-proxying reasons that are unrelated to
+      // deserialization. When the toggle is off, we do not treat URL as an allowed type here.
+      if ("java.net.URL".equals(className)) {
+        if (ALLOW_URL_FROM_CACHE.get()) {
+          return super.resolveClass(desc);
+        }
+        throw new ClassNotFoundException(
+            Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));
+      }
       // Allow user-registered third-party classes and packages (via Driver.skipWrappingForType
       // or Driver.skipWrappingForPackage). See security note in UsingTheJdbcDriver.md.
       if (WrapperUtils.skipWrappingForClasses.stream().anyMatch(c -> c.getName().equals(className))
@@ -203,6 +235,16 @@ public class CachedResultSet implements ResultSet {
       }
       throw new ClassNotFoundException(
           Messages.get("CachedResultSet.blockedDeserialization", new Object[]{className}));
+    }
+
+    // Dynamic proxies are not a data type produced by any driver's ResultSet.getObject(), so they
+    // are not deserialized from cached results.
+    @Override
+    protected Class<?> resolveProxyClass(String[] interfaces)
+        throws IOException, ClassNotFoundException {
+      throw new ClassNotFoundException(
+          Messages.get("CachedResultSet.blockedDeserialization",
+              new Object[]{"java.lang.reflect.Proxy"}));
     }
   }
 

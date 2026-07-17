@@ -162,12 +162,19 @@ public class CachedSQLXMLTest {
     xmlReader.setContentHandler(new XmlReaderContentHandler());
     xmlReader.parse(src.getInputSource());
 
-    // Streams source
-    StreamSource xmlSource = sqlxml.getSource(StreamSource.class);
-    DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-    Document doc = db.parse(new InputSource(xmlSource.getReader()));
-    doc.getDocumentElement().normalize();
-    validateSimpleDocument(doc);
+    // Stream source is disabled by default; verify it throws, then enable it and verify the
+    // opt-in passthrough behavior still works.
+    assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
+    CachedSQLXML.setAllowStreamSourceFromCache(true);
+    try {
+      StreamSource xmlSource = sqlxml.getSource(StreamSource.class);
+      DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+      Document doc = db.parse(new InputSource(xmlSource.getReader()));
+      doc.getDocumentElement().normalize();
+      validateSimpleDocument(doc);
+    } finally {
+      CachedSQLXML.setAllowStreamSourceFromCache(false);
+    }
 
     // StAX Source
     StAXSource staxSource = sqlxml.getSource(StAXSource.class);
@@ -190,5 +197,52 @@ public class CachedSQLXMLTest {
 
     // Invalid source class
     assertThrows(SQLException.class, () -> sqlxml.getSource(Source.class));
+  }
+
+  // XML value used to verify that DOCTYPE declarations are rejected across all parser branches.
+  private static final String XML_WITH_DOCTYPE =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          + "<!DOCTYPE root [\n"
+          + "  <!ENTITY xxe SYSTEM \"file:///etc/hostname\">\n"
+          + "]>\n"
+          + "<root>&xxe;</root>";
+
+  @Test
+  void test_getSource_DOMSource_rejectsDoctype() {
+    SQLXML sqlxml = new CachedSQLXML(XML_WITH_DOCTYPE);
+    assertThrows(SQLException.class, () -> sqlxml.getSource(DOMSource.class));
+    // Default source class (null) also routes to DOMSource.
+    assertThrows(SQLException.class, () -> sqlxml.getSource(null));
+  }
+
+  @Test
+  void test_getSource_SAXSource_rejectsDoctype() throws Exception {
+    SQLXML sqlxml = new CachedSQLXML(XML_WITH_DOCTYPE);
+    // SAX parses lazily; obtaining the source succeeds, but pumping the reader must throw.
+    SAXSource src = sqlxml.getSource(SAXSource.class);
+    XMLReader reader = src.getXMLReader();
+    reader.setContentHandler(new DefaultHandler());
+    assertThrows(Exception.class, () -> reader.parse(src.getInputSource()));
+  }
+
+  @Test
+  void test_getSource_StAXSource_rejectsDoctype() throws Exception {
+    SQLXML sqlxml = new CachedSQLXML(XML_WITH_DOCTYPE);
+    // StAX is also lazy; iterating the stream reader must throw.
+    StAXSource staxSource = sqlxml.getSource(StAXSource.class);
+    XMLStreamReader streamReader = staxSource.getXMLStreamReader();
+    assertThrows(Exception.class, () -> {
+      while (streamReader.hasNext()) {
+        streamReader.next();
+      }
+    });
+  }
+
+  @Test
+  void test_getSource_StreamSource_disabledByDefault() {
+    SQLXML sqlxml = new CachedSQLXML("<root/>");
+    // Flag is false by default; explicit reset guards against leakage from other tests.
+    CachedSQLXML.setAllowStreamSourceFromCache(false);
+    assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
   }
 }
