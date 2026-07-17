@@ -1138,13 +1138,13 @@ public class CachedResultSetTest {
     CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
     row.putRaw(1, urlBytes);
 
-    CachedResultSet.setAllowUrlFromCache(true);
+    CachedResultSet.setCacheAllowUrl(true);
     try {
       Object result = row.get(1);
       assertNotNull(result);
       assertTrue(result instanceof URL);
     } finally {
-      CachedResultSet.setAllowUrlFromCache(false);
+      CachedResultSet.setCacheAllowUrl(false);
     }
   }
 

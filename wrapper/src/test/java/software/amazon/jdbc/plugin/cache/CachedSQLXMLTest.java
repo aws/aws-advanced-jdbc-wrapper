@@ -165,7 +165,7 @@ public class CachedSQLXMLTest {
     // Stream source is disabled by default; verify it throws, then enable it and verify the
     // opt-in passthrough behavior still works.
     assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
-    CachedSQLXML.setAllowStreamSourceFromCache(true);
+    CachedSQLXML.setCacheAllowStreamSource(true);
     try {
       StreamSource xmlSource = sqlxml.getSource(StreamSource.class);
       DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -173,7 +173,7 @@ public class CachedSQLXMLTest {
       doc.getDocumentElement().normalize();
       validateSimpleDocument(doc);
     } finally {
-      CachedSQLXML.setAllowStreamSourceFromCache(false);
+      CachedSQLXML.setCacheAllowStreamSource(false);
     }
 
     // StAX Source
@@ -242,7 +242,7 @@ public class CachedSQLXMLTest {
   void test_getSource_StreamSource_disabledByDefault() {
     SQLXML sqlxml = new CachedSQLXML("<root/>");
     // Flag is false by default; explicit reset guards against leakage from other tests.
-    CachedSQLXML.setAllowStreamSourceFromCache(false);
+    CachedSQLXML.setCacheAllowStreamSource(false);
     assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
   }
 }

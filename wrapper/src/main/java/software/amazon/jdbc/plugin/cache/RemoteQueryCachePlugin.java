@@ -81,9 +81,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           "16384",
           "The max query size for remote caching");
 
-  private static final AwsWrapperProperty ALLOW_STREAM_SOURCE_FROM_CACHE =
+  private static final AwsWrapperProperty CACHE_ALLOW_STREAM_SOURCE =
       new AwsWrapperProperty(
-          "remoteQueryCachePlugin.allowStreamSourceFromCache",
+          "cacheAllowStreamSource",
           "false",
           "When true, allows SQLXML.getSource(StreamSource.class) on XML values retrieved from "
               + "the cache to return the raw XML unparsed. Disabled by default because the driver "
@@ -91,9 +91,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
               + "such calls throw SQLException. Prefer DOMSource, SAXSource, or StAXSource, which "
               + "the driver parses with DTDs and external entities disabled.");
 
-  private static final AwsWrapperProperty ALLOW_URL_FROM_CACHE =
+  private static final AwsWrapperProperty CACHE_ALLOW_URL =
       new AwsWrapperProperty(
-          "remoteQueryCachePlugin.allowUrlFromCache",
+          "cacheAllowUrl",
           "false",
           "When true, allows java.net.URL values to be reconstructed from the cache. Disabled by "
               + "default because URL equality and hashing involve network resolution, which is "
@@ -140,8 +140,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     this.malformedHintCounter = telemetryFactory.createCounter("remoteQueryCache.cache.malformedHints");
     this.cacheBypassCounter = telemetryFactory.createCounter("remoteQueryCache.cache.bypass");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
-    CachedSQLXML.setAllowStreamSourceFromCache(ALLOW_STREAM_SOURCE_FROM_CACHE.getBoolean(properties));
-    CachedResultSet.setAllowUrlFromCache(ALLOW_URL_FROM_CACHE.getBoolean(properties));
+    CachedSQLXML.setCacheAllowStreamSource(CACHE_ALLOW_STREAM_SOURCE.getBoolean(properties));
+    CachedResultSet.setCacheAllowUrl(CACHE_ALLOW_URL.getBoolean(properties));
     this.cacheConnection = new CacheConnection(
         properties,
         this.telemetryFactory,

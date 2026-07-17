@@ -55,8 +55,8 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 | `failWhenCacheDown`                | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
 | `cacheInFlightWriteSizeLimitBytes` | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
 | `cacheHealthCheckInHealthyState`   | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
-| `remoteQueryCachePlugin.allowStreamSourceFromCache` | Boolean | No | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below. | `false` |
-| `remoteQueryCachePlugin.allowUrlFromCache` | Boolean | No | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below. | `false` |
+| `cacheAllowStreamSource` | Boolean | No | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below. | `false` |
+| `cacheAllowUrl` | Boolean | No | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below. | `false` |
 
 
 ## Overall Design
@@ -376,12 +376,12 @@ XML values retrieved from a cached result set are exposed as `java.sql.SQLXML`. 
 
 `SQLXML.getSource(StreamSource.class)` is **disabled by default**. Because a `StreamSource` returns the XML unparsed, the driver cannot control how the value is subsequently parsed downstream, so this path is not permitted for XML retrieved from the cache. Calling `getSource(StreamSource.class)` on a cached `SQLXML` value throws `SQLException` with the message `StreamSource is not allowed for XML values retrieved from cached results...`.
 
-**How to fix:** prefer `DOMSource`, `SAXSource`, or `StAXSource`, which the driver parses securely on your behalf. If your application specifically requires a `StreamSource`, set the plugin property `remoteQueryCachePlugin.allowStreamSourceFromCache=true` to restore the previous passthrough behavior; in that case the consumer of the returned `StreamSource` is responsible for configuring its own parser or transformer securely.
+**How to fix:** prefer `DOMSource`, `SAXSource`, or `StAXSource`, which the driver parses securely on your behalf. If your application specifically requires a `StreamSource`, set the plugin property `cacheAllowStreamSource=true` to restore the previous passthrough behavior; in that case the consumer of the returned `StreamSource` is responsible for configuring its own parser or transformer securely.
 
 ### URL Columns
 `java.net.URL` is **not deserialized from the cache by default**. Attempting to read a cached value of type `java.net.URL` throws `SQLException` with the message `Deserialization of class [java.net.URL] is not allowed...`.
 
-**How to fix:** prefer `java.net.URI` where possible, which has value-based equality and does not perform network resolution. If your application specifically requires `java.net.URL` and you accept the risk that cached URL values participate in DNS resolution when compared or hashed, set the plugin property `remoteQueryCachePlugin.allowUrlFromCache=true` to opt in.
+**How to fix:** prefer `java.net.URI` where possible, which has value-based equality and does not perform network resolution. If your application specifically requires `java.net.URL` and you accept the risk that cached URL values participate in DNS resolution when compared or hashed, set the plugin property `cacheAllowUrl=true` to opt in.
 
 ## Other Example Programs
 [DatabaseConnectionWithCacheExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/DatabaseConnectionWithCacheExample.java) demonstrates how to enable and configure Remote Query Cache Plugin with the AWS Advanced JDBC Wrapper.

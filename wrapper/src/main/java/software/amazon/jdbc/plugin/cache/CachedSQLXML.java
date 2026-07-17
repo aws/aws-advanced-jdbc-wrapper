@@ -49,8 +49,8 @@ public class CachedSQLXML implements SQLXML, Serializable {
   // Controls whether getSource(StreamSource.class) is permitted for XML retrieved from the cache.
   // Because a StreamSource returns the XML unparsed and the driver cannot control how the caller
   // subsequently parses it, this path is disabled by default. Users can opt in to the previous
-  // passthrough behavior via the remoteQueryCachePlugin.allowStreamSourceFromCache property.
-  private static final AtomicBoolean ALLOW_STREAM_SOURCE_FROM_CACHE = new AtomicBoolean(false);
+  // passthrough behavior via the cacheAllowStreamSource property.
+  private static final AtomicBoolean CACHE_ALLOW_STREAM_SOURCE = new AtomicBoolean(false);
 
   private boolean freed;
   private @Nullable String data;
@@ -63,13 +63,13 @@ public class CachedSQLXML implements SQLXML, Serializable {
   /**
    * Configures whether {@link #getSource(Class)} accepts {@link StreamSource} as a source type.
    * Set by the Remote Query Cache Plugin from the
-   * {@code remoteQueryCachePlugin.allowStreamSourceFromCache} property at plugin initialization.
+   * {@code cacheAllowStreamSource} property at plugin initialization.
    *
    * @param allow {@code true} to allow returning an unparsed {@code StreamSource}; {@code false}
    *     (the default) to throw {@link SQLException} for {@code StreamSource} requests
    */
-  public static void setAllowStreamSourceFromCache(boolean allow) {
-    ALLOW_STREAM_SOURCE_FROM_CACHE.set(allow);
+  public static void setCacheAllowStreamSource(boolean allow) {
+    CACHE_ALLOW_STREAM_SOURCE.set(allow);
   }
 
   @Override
@@ -147,7 +147,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
    * unparsed and the driver cannot control how the caller subsequently parses it, requesting one
    * from a cached {@code SQLXML} throws {@link SQLException}. Callers that require this behavior
    * can opt in by setting the plugin property
-   * {@code remoteQueryCachePlugin.allowStreamSourceFromCache=true}, in which case the consumer of
+   * {@code cacheAllowStreamSource=true}, in which case the consumer of
    * the returned {@code StreamSource} is responsible for configuring its own parser or transformer
    * securely (for example, by disabling DTDs and external entities).
    *
@@ -201,7 +201,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
       }
 
       if (StreamSource.class.equals(sourceClass)) {
-        if (!ALLOW_STREAM_SOURCE_FROM_CACHE.get()) {
+        if (!CACHE_ALLOW_STREAM_SOURCE.get()) {
           throw new SQLException(Messages.get("CachedSQLXML.streamSourceDisabled"));
         }
         return sourceClass.cast(new StreamSource(new StringReader(xmlData)));

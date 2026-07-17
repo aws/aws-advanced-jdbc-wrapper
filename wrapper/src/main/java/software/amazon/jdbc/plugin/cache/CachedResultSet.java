@@ -115,19 +115,19 @@ public class CachedResultSet implements ResultSet {
   // Controls whether java.net.URL is deserialized from cache data. URL is not deserialized by
   // default because its equality/hash semantics involve network resolution, which is not
   // appropriate for values reconstructed from untrusted input. Users can opt in via the
-  // remoteQueryCachePlugin.allowUrlFromCache plugin property.
-  private static final AtomicBoolean ALLOW_URL_FROM_CACHE = new AtomicBoolean(false);
+  // cacheAllowUrl plugin property.
+  private static final AtomicBoolean CACHE_ALLOW_URL = new AtomicBoolean(false);
 
   /**
    * Configures whether {@code java.net.URL} may be deserialized from cache data. Set by the
-   * Remote Query Cache Plugin from the {@code remoteQueryCachePlugin.allowUrlFromCache} property
+   * Remote Query Cache Plugin from the {@code cacheAllowUrl} property
    * at plugin initialization.
    *
    * @param allow {@code true} to allow {@code java.net.URL} to be reconstructed from the cache;
    *     {@code false} (the default) to reject it during deserialization
    */
-  public static void setAllowUrlFromCache(boolean allow) {
-    ALLOW_URL_FROM_CACHE.set(allow);
+  public static void setCacheAllowUrl(boolean allow) {
+    CACHE_ALLOW_URL.set(allow);
   }
 
   /**
@@ -156,7 +156,7 @@ public class CachedResultSet implements ResultSet {
       // java.net.URL is intentionally NOT in this default allowlist because its equality/hash
       // semantics involve network resolution, which is not appropriate for values reconstructed
       // from an untrusted cache. Prefer java.net.URI. URL deserialization can be re-enabled via
-      // the remoteQueryCachePlugin.allowUrlFromCache plugin property (see ALLOW_URL_FROM_CACHE).
+      // the cacheAllowUrl plugin property (see CACHE_ALLOW_URL).
       allowed.add("java.net.URI");
       // Package-private JVM serialization proxy for java.time types; cannot be referenced by class literal
       allowed.add("java.time.Ser");
@@ -221,7 +221,7 @@ public class CachedResultSet implements ResultSet {
       // default skipWrappingForClasses set for wrapper-proxying reasons that are unrelated to
       // deserialization. When the toggle is off, we do not treat URL as an allowed type here.
       if ("java.net.URL".equals(className)) {
-        if (ALLOW_URL_FROM_CACHE.get()) {
+        if (CACHE_ALLOW_URL.get()) {
           return super.resolveClass(desc);
         }
         throw new ClassNotFoundException(
