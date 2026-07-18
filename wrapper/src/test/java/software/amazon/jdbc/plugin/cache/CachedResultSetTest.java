@@ -1122,8 +1122,8 @@ public class CachedResultSetTest {
   }
 
   /**
-   * Verifies that opting in via the allowUrlFromCache toggle restores URL deserialization, so
-   * users with a legitimate need for URL columns retain an escape hatch.
+   * Verifies that opting in via a per-connection CacheDeserializationConfig restores URL
+   * deserialization, so users with a legitimate need for URL columns retain an escape hatch.
    */
   @Test
   public void testUrlDeserializationAllowedWhenFlagEnabled() throws Exception {
@@ -1135,17 +1135,13 @@ public class CachedResultSetTest {
       urlBytes = baos.toByteArray();
     }
 
-    CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+    CachedResultSet.CachedRow row =
+        new CachedResultSet.CachedRow(1, new CacheDeserializationConfig(true, false));
     row.putRaw(1, urlBytes);
 
-    CachedResultSet.setCacheAllowUrl(true);
-    try {
-      Object result = row.get(1);
-      assertNotNull(result);
-      assertTrue(result instanceof URL);
-    } finally {
-      CachedResultSet.setCacheAllowUrl(false);
-    }
+    Object result = row.get(1);
+    assertNotNull(result);
+    assertTrue(result instanceof URL);
   }
 
   /**

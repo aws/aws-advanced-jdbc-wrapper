@@ -26,7 +26,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.SQLXML;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -46,14 +45,17 @@ import org.xml.sax.XMLReader;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
-  // Controls whether getSource(StreamSource.class) is permitted for XML retrieved from the cache.
-  // Because a StreamSource returns the XML unparsed and the driver cannot control how the caller
-  // subsequently parses it, this path is disabled by default. Users can opt in to the previous
-  // passthrough behavior via the cacheAllowStreamSource property.
-  private static final AtomicBoolean CACHE_ALLOW_STREAM_SOURCE = new AtomicBoolean(false);
+  private static final long serialVersionUID = 1L;
 
   private boolean freed;
   private @Nullable String data;
+
+  // Per-connection configuration used by getSource(...) to decide whether StreamSource is
+  // permitted. Marked transient so that a serialized CachedSQLXML in the cache cannot supply
+  // its own config: after readObject() the field is null, and CachedRow.get() injects the
+  // real per-connection config before any caller can consult it. Any code path that reaches
+  // getSource() without an injected config falls back to CacheDeserializationConfig.STRICT.
+  private transient @Nullable CacheDeserializationConfig config;
 
   public CachedSQLXML(String data) {
     this.data = data;
@@ -61,15 +63,19 @@ public class CachedSQLXML implements SQLXML, Serializable {
   }
 
   /**
-   * Configures whether {@link #getSource(Class)} accepts {@link StreamSource} as a source type.
-   * Set by the Remote Query Cache Plugin from the
-   * {@code cacheAllowStreamSource} property at plugin initialization.
+   * Injects the per-connection deserialization configuration. Called by {@link CachedResultSet}
+   * immediately after this instance is either constructed from a live {@link SQLXML} or
+   * reconstructed from cache bytes, so that {@link #getSource(Class)} sees the correct opt-in
+   * state for the owning connection.
    *
-   * @param allow {@code true} to allow returning an unparsed {@code StreamSource}; {@code false}
-   *     (the default) to throw {@link SQLException} for {@code StreamSource} requests
+   * @param config the per-connection deserialization configuration to apply
    */
-  public static void setCacheAllowStreamSource(boolean allow) {
-    CACHE_ALLOW_STREAM_SOURCE.set(allow);
+  void setDeserializationConfig(CacheDeserializationConfig config) {
+    this.config = config;
+  }
+
+  private CacheDeserializationConfig effectiveConfig() {
+    return this.config != null ? this.config : CacheDeserializationConfig.STRICT;
   }
 
   @Override
@@ -201,7 +207,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
       }
 
       if (StreamSource.class.equals(sourceClass)) {
-        if (!CACHE_ALLOW_STREAM_SOURCE.get()) {
+        if (!effectiveConfig().isAllowStreamSource()) {
           throw new SQLException(Messages.get("CachedSQLXML.streamSourceDisabled"));
         }
         return sourceClass.cast(new StreamSource(new StringReader(xmlData)));

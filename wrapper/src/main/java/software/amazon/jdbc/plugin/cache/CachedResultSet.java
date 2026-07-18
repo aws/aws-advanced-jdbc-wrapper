@@ -61,7 +61,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -71,10 +70,16 @@ public class CachedResultSet implements ResultSet {
   public static class CachedRow {
     private final @Nullable Object[] rowData;
     final byte[] @Nullable [] rawData;
+    private final CacheDeserializationConfig config;
 
     public CachedRow(int numColumns) {
+      this(numColumns, CacheDeserializationConfig.STRICT);
+    }
+
+    CachedRow(int numColumns, CacheDeserializationConfig config) {
       rowData = new @Nullable Object[numColumns];
       rawData = new byte[numColumns][];
+      this.config = config;
     }
 
     private void checkColumnIndex(final int columnIndex) throws SQLException {
@@ -98,8 +103,15 @@ public class CachedResultSet implements ResultSet {
       // De-serialize the data object from raw bytes if needed.
       if (rowData[columnIndex - 1] == null && rawData[columnIndex - 1] != null) {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(rawData[columnIndex - 1]);
-             ObjectInputStream ois = new SafeObjectInputStream(bis)) {
-          rowData[columnIndex - 1] = ois.readObject();
+             ObjectInputStream ois = new SafeObjectInputStream(bis, this.config)) {
+          Object inflated = ois.readObject();
+          // Inject the per-connection config so getSource(...) sees the correct opt-in state.
+          // The field on CachedSQLXML is transient, so any value present in the cache bytes
+          // was already reset to the safe default during readObject().
+          if (inflated instanceof CachedSQLXML) {
+            ((CachedSQLXML) inflated).setDeserializationConfig(this.config);
+          }
+          rowData[columnIndex - 1] = inflated;
           rawData[columnIndex - 1] = null;
         } catch (ClassNotFoundException e) {
           throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserialize", new Object[]{columnIndex}),
@@ -112,28 +124,14 @@ public class CachedResultSet implements ResultSet {
     }
   }
 
-  // Controls whether java.net.URL is deserialized from cache data. URL is not deserialized by
-  // default because its equality/hash semantics involve network resolution, which is not
-  // appropriate for values reconstructed from untrusted input. Users can opt in via the
-  // cacheAllowUrl plugin property.
-  private static final AtomicBoolean CACHE_ALLOW_URL = new AtomicBoolean(false);
-
-  /**
-   * Configures whether {@code java.net.URL} may be deserialized from cache data. Set by the
-   * Remote Query Cache Plugin from the {@code cacheAllowUrl} property
-   * at plugin initialization.
-   *
-   * @param allow {@code true} to allow {@code java.net.URL} to be reconstructed from the cache;
-   *     {@code false} (the default) to reject it during deserialization
-   */
-  public static void setCacheAllowUrl(boolean allow) {
-    CACHE_ALLOW_URL.set(allow);
-  }
-
   /**
    * A restricted ObjectInputStream that only allows deserialization of known-safe classes.
    * This prevents Remote Code Execution via cache poisoning attacks where an attacker
    * injects malicious serialized objects (gadget chains) into the remote cache.
+   *
+   * <p>Per-connection opt-in choices (for example, whether {@code java.net.URL} may be
+   * reconstructed) are carried in a {@link CacheDeserializationConfig} passed by the caller,
+   * so one connection's configuration cannot leak into another.
    *
    */
   private static class SafeObjectInputStream extends ObjectInputStream {
@@ -155,8 +153,8 @@ public class CachedResultSet implements ResultSet {
       allowed.add("java.util.UUID");
       // java.net.URL is intentionally NOT in this default allowlist because its equality/hash
       // semantics involve network resolution, which is not appropriate for values reconstructed
-      // from an untrusted cache. Prefer java.net.URI. URL deserialization can be re-enabled via
-      // the cacheAllowUrl plugin property (see CACHE_ALLOW_URL).
+      // from an untrusted cache. Prefer java.net.URI. URL deserialization can be re-enabled
+      // per-connection via the cacheAllowUrl plugin property.
       allowed.add("java.net.URI");
       // Package-private JVM serialization proxy for java.time types; cannot be referenced by class literal
       allowed.add("java.time.Ser");
@@ -186,8 +184,11 @@ public class CachedResultSet implements ResultSet {
       ALLOWED_CLASSES = Collections.unmodifiableSet(allowed);
     }
 
-    SafeObjectInputStream(InputStream in) throws IOException {
+    private final CacheDeserializationConfig config;
+
+    SafeObjectInputStream(InputStream in, CacheDeserializationConfig config) throws IOException {
       super(in);
+      this.config = config;
     }
 
     @Override
@@ -217,11 +218,11 @@ public class CachedResultSet implements ResultSet {
           return cls;
         }
       }
-      // java.net.URL is guarded by a dedicated opt-in toggle because it is present in the
-      // default skipWrappingForClasses set for wrapper-proxying reasons that are unrelated to
-      // deserialization. When the toggle is off, we do not treat URL as an allowed type here.
+      // java.net.URL is guarded by a per-connection opt-in because it is present in the default
+      // skipWrappingForClasses set for wrapper-proxying reasons that are unrelated to
+      // deserialization. When the connection has not opted in, we do not treat URL as allowed here.
       if ("java.net.URL".equals(className)) {
-        if (CACHE_ALLOW_URL.get()) {
+        if (this.config.isAllowUrl()) {
           return super.resolveClass(desc);
         }
         throw new ClassNotFoundException(
@@ -264,6 +265,11 @@ public class CachedResultSet implements ResultSet {
    * @throws SQLException if an error occurs while reading the ResultSet metadata or rows
    */
   public CachedResultSet(final ResultSet resultSet) throws SQLException {
+    this(resultSet, CacheDeserializationConfig.STRICT);
+  }
+
+  public CachedResultSet(final ResultSet resultSet, final CacheDeserializationConfig config)
+      throws SQLException {
     ResultSetMetaData srcMetadata = resultSet.getMetaData();
     final int numColumns = srcMetadata.getColumnCount();
     CachedResultSetMetaData.Field[] fields = new CachedResultSetMetaData.Field[numColumns];
@@ -277,12 +283,14 @@ public class CachedResultSet implements ResultSet {
       this.columnNames.put(srcMetadata.getColumnLabel(i), i);
     }
     while (resultSet.next()) {
-      final CachedRow row = new CachedRow(numColumns);
+      final CachedRow row = new CachedRow(numColumns, config);
       for (int i = 1; i <= numColumns; ++i) {
         Object rowObj = resultSet.getObject(i);
         // For SQLXML object, convert into CachedSQLXML object that is serializable
         if (rowObj instanceof SQLXML) {
-          rowObj = new CachedSQLXML(((SQLXML) rowObj).getString());
+          CachedSQLXML wrapped = new CachedSQLXML(((SQLXML) rowObj).getString());
+          wrapped.setDeserializationConfig(config);
+          rowObj = wrapped;
         }
         row.put(i, rowObj);
       }
@@ -345,15 +353,29 @@ public class CachedResultSet implements ResultSet {
    * @throws SQLException if deserialization fails
    */
   public static ResultSet deserializeFromByteArray(byte[] data) throws SQLException {
+    return deserializeFromByteArray(data, CacheDeserializationConfig.STRICT);
+  }
+
+  /**
+   * Form a ResultSet from the raw data from the cache server, using the supplied per-connection
+   * configuration to decide what types are permitted during deserialization.
+   *
+   * @param data the serialized byte array to deserialize
+   * @param config the per-connection deserialization configuration to apply
+   * @return a ResultSet reconstructed from the byte array
+   * @throws SQLException if deserialization fails
+   */
+  public static ResultSet deserializeFromByteArray(byte[] data, CacheDeserializationConfig config)
+      throws SQLException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
-         ObjectInputStream ois = new SafeObjectInputStream(bis)) {
+         ObjectInputStream ois = new SafeObjectInputStream(bis, config)) {
       CachedResultSetMetaData metadata = (CachedResultSetMetaData) ois.readObject();
       int numRows = ois.readInt();
       int numColumns = metadata.getColumnCount();
       ArrayList<CachedRow> resultRows = new ArrayList<>(numRows);
       for (int i = 0; i < numRows; i++) {
         // Store the raw bytes for each column object in CachedRow
-        final CachedRow row = new CachedRow(numColumns);
+        final CachedRow row = new CachedRow(numColumns, config);
         for (int j = 0; j < numColumns; j++) {
           int nextObjSize = ois.readInt(); // The size of the next serialized object in its raw bytes form
           byte[] objData = new byte[nextObjSize];

@@ -162,19 +162,16 @@ public class CachedSQLXMLTest {
     xmlReader.setContentHandler(new XmlReaderContentHandler());
     xmlReader.parse(src.getInputSource());
 
-    // Stream source is disabled by default; verify it throws, then enable it and verify the
-    // opt-in passthrough behavior still works.
+    // Stream source is disabled by default; verify it throws, then inject an opt-in config
+    // on a fresh instance and verify the passthrough behavior still works.
     assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
-    CachedSQLXML.setCacheAllowStreamSource(true);
-    try {
-      StreamSource xmlSource = sqlxml.getSource(StreamSource.class);
-      DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-      Document doc = db.parse(new InputSource(xmlSource.getReader()));
-      doc.getDocumentElement().normalize();
-      validateSimpleDocument(doc);
-    } finally {
-      CachedSQLXML.setCacheAllowStreamSource(false);
-    }
+    CachedSQLXML optedInXml = new CachedSQLXML(xml);
+    optedInXml.setDeserializationConfig(new CacheDeserializationConfig(false, true));
+    StreamSource xmlSource = optedInXml.getSource(StreamSource.class);
+    DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+    Document doc = db.parse(new InputSource(xmlSource.getReader()));
+    doc.getDocumentElement().normalize();
+    validateSimpleDocument(doc);
 
     // StAX Source
     StAXSource staxSource = sqlxml.getSource(StAXSource.class);
@@ -240,9 +237,8 @@ public class CachedSQLXMLTest {
 
   @Test
   void test_getSource_StreamSource_disabledByDefault() {
+    // A CachedSQLXML with no injected config falls back to STRICT, so StreamSource is rejected.
     SQLXML sqlxml = new CachedSQLXML("<root/>");
-    // Flag is false by default; explicit reset guards against leakage from other tests.
-    CachedSQLXML.setCacheAllowStreamSource(false);
     assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
   }
 }

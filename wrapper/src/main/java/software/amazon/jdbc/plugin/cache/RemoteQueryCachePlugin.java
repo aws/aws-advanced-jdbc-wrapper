@@ -105,6 +105,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   }
 
   private final int maxCacheableQuerySize;
+  private final CacheDeserializationConfig deserializationConfig;
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final @Nullable TelemetryCounter cacheHitCounter;
@@ -140,8 +141,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     this.malformedHintCounter = telemetryFactory.createCounter("remoteQueryCache.cache.malformedHints");
     this.cacheBypassCounter = telemetryFactory.createCounter("remoteQueryCache.cache.bypass");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
-    CachedSQLXML.setCacheAllowStreamSource(CACHE_ALLOW_STREAM_SOURCE.getBoolean(properties));
-    CachedResultSet.setCacheAllowUrl(CACHE_ALLOW_URL.getBoolean(properties));
+    this.deserializationConfig = new CacheDeserializationConfig(
+        CACHE_ALLOW_URL.getBoolean(properties),
+        CACHE_ALLOW_STREAM_SOURCE.getBoolean(properties));
     this.cacheConnection = new CacheConnection(
         properties,
         this.telemetryFactory,
@@ -224,7 +226,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
     // Convert result into ResultSet
     try {
-      return CachedResultSet.deserializeFromByteArray(cachedResult);
+      return CachedResultSet.deserializeFromByteArray(cachedResult, this.deserializationConfig);
     } catch (Exception e) {
       LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.errorDeserializingCachedResult"), e);
       return null; // Treat this as a cache miss
@@ -243,7 +245,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       return rs; // Treat this condition as un-cacheable
     }
     try {
-      CachedResultSet crs = new CachedResultSet(rs);
+      CachedResultSet crs = new CachedResultSet(rs, this.deserializationConfig);
       byte[] jsonString = crs.serializeIntoByteArray();
       cacheConnection.writeToCache(cacheQueryKey, jsonString, expiry);
       crs.beforeFirst();
