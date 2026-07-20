@@ -565,10 +565,11 @@ This is the authoritative per-plugin reference. Every parameter, default, and be
 
 Detects writer/reader failover events and reconnects the JDBC connection to the new writer (or another reader) so the application can resume work. Uses topology probing.
 
-- **Compatible with:** Aurora clusters (MySQL, PG), Aurora Global, RDS Multi-AZ DB Clusters. Endpoints: cluster writer/reader/custom, instance, RDS Proxy. With special config: IP, custom domain.
+- **Compatible with:** Aurora clusters (MySQL, PG), Aurora Global, RDS Multi-AZ DB Clusters. Endpoints: cluster writer/reader/custom, instance, RDS Proxy. With special config: IP, custom domain / CNAME.
 - **Not compatible with:** Single-AZ RDS, community DBs, Limitless shard groups.
 - **Mutually exclusive with:** `failover` (v1), `gdbFailover`, `limitless`.
 - **Common pairings:** `auroraConnectionTracker`, `efm2`, `initialConnection`.
+- :warning: **CNAME / custom domain endpoints require `clusterInstanceHostPattern` (and `clusterId`).** When you connect through a host the driver can't recognize as an RDS endpoint (an IP, or a CNAME / Route 53 alias to a cluster endpoint), it cannot derive per-instance endpoints from the topology. Without `clusterInstanceHostPattern` it builds unresolvable instance hostnames (the bare `?` template), so topology discovery never succeeds — on affected versions failover blocks until `failoverTimeoutMs` while holding the borrowed connection (which can drain a connection pool) and then fails with `The request to discover the new topology timed out or was unsuccessful`. See §16.3.
 
 **Parameters** (all optional):
 
@@ -1876,6 +1877,7 @@ logging.level.software.amazon.jdbc=trace
 | `NoClassDefFoundError` for SAML libs at runtime | `federatedAuth` / `okta` plugin without bundle JAR or explicit deps | Use `aws-advanced-jdbc-wrapper-X.Y.Z-bundle-federated-auth.jar` or add the SAML/HTTP client deps |
 | `auroraConnectionTracker` causes errors on a non-Aurora DB | The plugin assumes Aurora topology | Remove `auroraConnectionTracker` for non-Aurora DBs |
 | Custom domain (CNAME) fails topology resolution | Wrapper can't infer cluster from custom domain | Set `clusterId` AND `clusterInstanceHostPattern` (e.g., `?.XYZ.us-east-1.rds.amazonaws.com`) |
+| Intermittent ~60s stalls under concurrent load when connecting via a custom Route 53 CNAME / non-RDS host with `failover2`+`efm2`; Hikari leak detection fires; connections marked broken with `SQLSTATE(08001)`; log shows `The request to discover the new topology timed out or was unsuccessful`; repeated bursts drain the pool → `Could not open JDBC Connection for transaction`. Worked on 3.x, regressed on 4.x. (GitHub #2035) | Connection host is a CNAME the driver can't recognize as an RDS endpoint and `clusterInstanceHostPattern` is not set → the bare `?` instance template yields **unresolvable** per-instance hostnames (e.g. `myinstance` with no domain). `failover2`'s topology monitor treats the resulting `UnknownHostException`/`08xxx` as "expected during failover" and retries silently until `failoverTimeoutMs` while the borrowed connection is held; no DNS error is logged at INFO/WARN. | Set `clusterInstanceHostPattern` (e.g. `?.XYZ.<region>.rds.amazonaws.com`) **and** `clusterId`. Removing `failover2`/`efm2` also avoids it. On fixed versions the driver warns at startup for non-RDS hosts without `clusterInstanceHostPattern` and fails fast with a clear configuration error instead of blocking. |
 | Open Liberty doesn't recover after failover | Failover SQL states not recognized as stale-connection | Add `identifyException` mappings for `08S02` and `08007` (see §15.4) |
 | Unexpected behavior in Vert.x or other reactive contexts | Wrapper may not skip-wrap classes you depend on | Add the relevant package to `skipWrappingForPackages` |
 
