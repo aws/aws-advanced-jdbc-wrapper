@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
@@ -92,6 +93,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   protected final Object topologyUpdated = new Object();
   protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);
   protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
+
+  // Set when a node monitor detects that a DB instance endpoint cannot be resolved because of a
+  // configuration problem (non-RDS connection host with no clusterInstanceHostPattern). This is a
+  // permanent, non-recoverable condition, so it is surfaced to any thread waiting for a topology
+  // update instead of letting them block until the failover timeout expires.
+  protected final AtomicReference<@Nullable SQLException> fatalError = new AtomicReference<>(null);
 
   protected final ResourceLock nodeExecutorLock = new ResourceLock();
   protected final AtomicBoolean nodeThreadsStop = new AtomicBoolean(false);
@@ -217,7 +224,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     }
   }
 
-  protected @Nullable List<HostSpec> waitForTopologyUpdate(final long timeoutMs) throws TimeoutException {
+  protected @Nullable List<HostSpec> waitForTopologyUpdate(final long timeoutMs)
+      throws TimeoutException, SQLException {
+    // If a node monitor already detected a non-recoverable configuration error, fail fast.
+    this.throwIfFatalError();
+
     @Nullable List<HostSpec> currentHosts = getStoredHosts();
     @Nullable List<HostSpec> latestHosts;
 
@@ -238,6 +249,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     // Note: we are checking reference equality instead of value equality. We will break out of the loop if there is a
     // new entry in the topology cache, even if the value of the hosts in latestHosts is the same as currentHosts.
     while ((currentHosts == (latestHosts = getStoredHosts()) && System.nanoTime() < end)) {
+      // A node monitor may record a fatal configuration error while we wait; surface it immediately.
+      this.throwIfFatalError();
       try {
         synchronized (this.topologyUpdated) {
           this.topologyUpdated.wait(1000);
@@ -249,12 +262,67 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       }
     }
 
+    this.throwIfFatalError();
+
     if (System.nanoTime() >= end) {
       throw new TimeoutException(
           Messages.get("ClusterTopologyMonitorImpl.topologyNotUpdated", new Object[] {timeoutMs}));
     }
 
     return latestHosts;
+  }
+
+  /**
+   * Throws the recorded fatal error, if any, so that a thread waiting for a topology update fails fast
+   * instead of blocking until the failover timeout. Used for non-recoverable configuration problems.
+   * A new exception instance is thrown so the stack trace reflects the waiting thread while the original
+   * message, SQL state, and cause are preserved.
+   */
+  protected void throwIfFatalError() throws SQLException {
+    final SQLException fatal = this.fatalError.get();
+    if (fatal != null) {
+      throw new SQLException(fatal.getMessage(), fatal.getSQLState(), fatal);
+    }
+  }
+
+  /**
+   * Records a non-recoverable configuration error detected by a node monitor and wakes any threads
+   * waiting for a topology update so they can fail fast instead of blocking until the failover timeout.
+   */
+  protected void recordFatalError(final SQLException ex) {
+    if (this.fatalError.compareAndSet(null, ex)) {
+      LOGGER.severe(ex.getMessage());
+    }
+    this.nodeThreadsStop.set(true);
+    synchronized (this.topologyUpdated) {
+      this.topologyUpdated.notifyAll();
+    }
+  }
+
+  /**
+   * Determines whether a connection failure is a permanent DNS-resolution failure caused by a
+   * configuration problem: the instance template is the bare "?" placeholder (built only when the
+   * connection host is not a recognized RDS endpoint and no clusterInstanceHostPattern was supplied),
+   * and the underlying cause is an {@link UnknownHostException}. In that case the derived instance
+   * endpoints can never resolve, so retrying until the failover timeout is pointless.
+   */
+  protected boolean isUnresolvableDueToMisconfiguration(final Throwable t) {
+    if (!"?".equals(this.instanceTemplate.getHost())) {
+      return false;
+    }
+    if (rdsHelper.isRdsDns(this.initialHostSpec.getHost())) {
+      // The connection host is a recognized RDS endpoint; an unresolved host here is not a
+      // clusterInstanceHostPattern misconfiguration.
+      return false;
+    }
+    Throwable cause = t;
+    while (cause != null) {
+      if (cause instanceof UnknownHostException) {
+        return true;
+      }
+      cause = cause.getCause();
+    }
+    return false;
   }
 
   protected @Nullable List<HostSpec> getStoredHosts() {
@@ -961,6 +1029,17 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
               this.connectionAttempts = 0;
             } catch (SQLException ex) {
               // A problem occurred while connecting.
+              if (this.monitor.isUnresolvableDueToMisconfiguration(ex)) {
+                // The connection host is not a recognized RDS endpoint and no clusterInstanceHostPattern
+                // was supplied, so the driver built an unresolvable DB instance endpoint. This is a
+                // configuration error, not a transient failover condition - fail fast instead of
+                // retrying until the failover timeout expires.
+                this.monitor.recordFatalError(new SQLException(
+                    Messages.get(
+                        "ClusterTopologyMonitorImpl.unresolvedInstanceHostMisconfiguration",
+                        new Object[] {this.hostSpec.getHost(), this.monitor.initialHostSpec.getHost()})));
+                return;
+              }
               if (this.servicesContainer.getPluginService().isNetworkException(
                   ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
                 // It's a network issue that's expected during a cluster failover.
