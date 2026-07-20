@@ -108,6 +108,10 @@ public class CachedResultSet implements ResultSet {
           // Inject the per-connection config so getSource(...) sees the correct opt-in state.
           // The field on CachedSQLXML is transient, so any value present in the cache bytes
           // was already reset to the safe default during readObject().
+          // Note: injection covers top-level CachedSQLXML column values only. A CachedSQLXML
+          // nested inside another value (e.g. inside a collection) would retain the STRICT
+          // fallback, but no JDBC driver returns SQLXML nested inside another value from
+          // ResultSet.getObject(), so this path is not currently reachable in practice.
           if (inflated instanceof CachedSQLXML) {
             ((CachedSQLXML) inflated).setDeserializationConfig(this.config);
           }
