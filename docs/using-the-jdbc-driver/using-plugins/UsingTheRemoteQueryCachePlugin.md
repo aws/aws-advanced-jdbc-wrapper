@@ -55,6 +55,8 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 | `failWhenCacheDown`                | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
 | `cacheInFlightWriteSizeLimitBytes` | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
 | `cacheHealthCheckInHealthyState`   | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
+| `cacheAllowStreamSource` | Boolean | No | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below. | `false` |
+| `cacheAllowUrl` | Boolean | No | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below. | `false` |
 
 
 ## Overall Design
@@ -368,6 +370,18 @@ public void main(String status) {
 
 ## Security Considerations
 The Remote Query Cache Plugin uses Java deserialization to reconstruct cached query results from the cache server. Since cache data is treated as untrusted input, deserialization is restricted to a set of known-safe types. If your query results contain third-party types (e.g. from database extensions like PGVector), you must register them via `Driver.skipWrappingForType()` or `Driver.skipWrappingForPackage()` to allow deserialization. Ensure that any registered classes have safe deserialization behavior and cannot be used as part of a gadget chain attack. See [Enable Third Party Classes and Packages](../UsingTheJdbcDriver.md#enable-third-party-classes-and-packages) for details.
+
+### XML Columns
+XML values retrieved from a cached result set are exposed as `java.sql.SQLXML`. When you obtain a source via `SQLXML.getSource(DOMSource.class)`, `getSource(SAXSource.class)`, or `getSource(StAXSource.class)`, the driver parses the XML with DTDs and external entity resolution disabled, following the [OWASP XML External Entity Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html).
+
+`SQLXML.getSource(StreamSource.class)` is **disabled by default**. Because a `StreamSource` returns the XML unparsed, the driver cannot control how the value is subsequently parsed downstream, so this path is not permitted for XML retrieved from the cache. Calling `getSource(StreamSource.class)` on a cached `SQLXML` value throws `SQLException` with the message `StreamSource is not allowed for XML values retrieved from cached results...`.
+
+**How to fix:** prefer `DOMSource`, `SAXSource`, or `StAXSource`, which the driver parses securely on your behalf. If your application specifically requires a `StreamSource`, set the plugin property `cacheAllowStreamSource=true` to restore the previous passthrough behavior; in that case the consumer of the returned `StreamSource` is responsible for configuring its own parser or transformer securely.
+
+### URL Columns
+`java.net.URL` is **not deserialized from the cache by default**. Attempting to read a cached value of type `java.net.URL` throws `SQLException` with the message `Deserialization of class [java.net.URL] is not allowed...`.
+
+**How to fix:** prefer `java.net.URI` where possible, which has value-based equality and does not perform network resolution. If your application specifically requires `java.net.URL` and you accept the risk that cached URL values participate in DNS resolution when compared or hashed, set the plugin property `cacheAllowUrl=true` to opt in.
 
 ## Other Example Programs
 [DatabaseConnectionWithCacheExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/DatabaseConnectionWithCacheExample.java) demonstrates how to enable and configure Remote Query Cache Plugin with the AWS Advanced JDBC Wrapper.

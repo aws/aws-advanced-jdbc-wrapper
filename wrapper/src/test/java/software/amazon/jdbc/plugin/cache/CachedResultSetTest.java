@@ -1097,5 +1097,93 @@ public class CachedResultSetTest {
     // Test null class parameter
     assertFalse(cachedRs.isWrapperFor(null));
   }
+
+  /**
+   * Verifies that java.net.URL is not deserialized from cache data by default. URL is intentionally
+   * not on the allowlist because its equality/hash semantics involve network resolution, which is
+   * not appropriate for values reconstructed from untrusted input.
+   */
+  @Test
+  public void testUrlDeserializationBlocked() throws Exception {
+    byte[] urlBytes;
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject(new URL("http://example.invalid/path"));
+      oos.flush();
+      urlBytes = baos.toByteArray();
+    }
+
+    CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+    row.putRaw(1, urlBytes);
+
+    SQLException ex = assertThrows(SQLException.class, () -> row.get(1));
+    assertTrue(ex.getCause() instanceof ClassNotFoundException,
+        "Expected ClassNotFoundException as the cause.");
+  }
+
+  /**
+   * Verifies that opting in via a per-connection CacheDeserializationConfig restores URL
+   * deserialization, so users with a legitimate need for URL columns retain an escape hatch.
+   */
+  @Test
+  public void testUrlDeserializationAllowedWhenFlagEnabled() throws Exception {
+    byte[] urlBytes;
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject(new URL("http://example.invalid/path"));
+      oos.flush();
+      urlBytes = baos.toByteArray();
+    }
+
+    CachedResultSet.CachedRow row =
+        new CachedResultSet.CachedRow(1, new CacheDeserializationConfig(true, false));
+    row.putRaw(1, urlBytes);
+
+    Object result = row.get(1);
+    assertNotNull(result);
+    assertTrue(result instanceof URL);
+  }
+
+  /**
+   * Verifies that dynamic proxies are not deserialized from cache data. This locks in the
+   * SafeObjectInputStream.resolveProxyClass override so a future refactor cannot silently
+   * reopen a proxy-based allowlist bypass.
+   */
+  @Test
+  public void testProxyDeserializationBlocked() throws Exception {
+    // Build a serialized proxy that implements an allowlisted interface (java.util.Map) and is
+    // backed by a benign, serializable InvocationHandler. The proxy claims a synthetic class
+    // name; deserialization goes through resolveProxyClass rather than resolveClass.
+    java.lang.reflect.InvocationHandler handler = new NoOpSerializableHandler();
+    Object proxy = java.lang.reflect.Proxy.newProxyInstance(
+        java.util.Map.class.getClassLoader(),
+        new Class<?>[]{java.util.Map.class},
+        handler);
+
+    byte[] proxyBytes;
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+         ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+      oos.writeObject(proxy);
+      oos.flush();
+      proxyBytes = baos.toByteArray();
+    }
+
+    CachedResultSet.CachedRow row = new CachedResultSet.CachedRow(1);
+    row.putRaw(1, proxyBytes);
+
+    SQLException ex = assertThrows(SQLException.class, () -> row.get(1));
+    assertTrue(ex.getCause() instanceof ClassNotFoundException,
+        "Expected ClassNotFoundException as the cause.");
+  }
+
+  public static class NoOpSerializableHandler
+      implements java.lang.reflect.InvocationHandler, Serializable {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) {
+      return null;
+    }
+  }
 }
 

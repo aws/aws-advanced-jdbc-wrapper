@@ -26,8 +26,10 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.SQLXML;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamReader;
@@ -43,12 +45,37 @@ import org.xml.sax.XMLReader;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
+  private static final long serialVersionUID = 1L;
+
   private boolean freed;
   private @Nullable String data;
+
+  // Per-connection configuration used by getSource(...) to decide whether StreamSource is
+  // permitted. Marked transient so that a serialized CachedSQLXML in the cache cannot supply
+  // its own config: after readObject() the field is null, and CachedRow.get() injects the
+  // real per-connection config before any caller can consult it. Any code path that reaches
+  // getSource() without an injected config falls back to CacheDeserializationConfig.STRICT.
+  private transient @Nullable CacheDeserializationConfig config;
 
   public CachedSQLXML(String data) {
     this.data = data;
     this.freed = false;
+  }
+
+  /**
+   * Injects the per-connection deserialization configuration. Called by {@link CachedResultSet}
+   * immediately after this instance is either constructed from a live {@link SQLXML} or
+   * reconstructed from cache bytes, so that {@link #getSource(Class)} sees the correct opt-in
+   * state for the owning connection.
+   *
+   * @param config the per-connection deserialization configuration to apply
+   */
+  void setDeserializationConfig(CacheDeserializationConfig config) {
+    this.config = config;
+  }
+
+  private CacheDeserializationConfig effectiveConfig() {
+    return this.config != null ? this.config : CacheDeserializationConfig.STRICT;
   }
 
   @Override
@@ -114,6 +141,29 @@ public class CachedSQLXML implements SQLXML, Serializable {
     throw new UnsupportedOperationException();
   }
 
+  /**
+   * Returns a {@link Source} for reading the XML value represented by this object.
+   *
+   * <p>For {@link DOMSource}, {@link SAXSource}, and {@link StAXSource}, the XML is parsed by this
+   * method using a parser configured to disable DTDs and external entity resolution, following the
+   * <a href="https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html">OWASP
+   * XML External Entity Prevention Cheat Sheet</a>.
+   *
+   * <p>{@link StreamSource} is disabled by default. Because a {@code StreamSource} returns the XML
+   * unparsed and the driver cannot control how the caller subsequently parses it, requesting one
+   * from a cached {@code SQLXML} throws {@link SQLException}. Callers that require this behavior
+   * can opt in by setting the plugin property
+   * {@code cacheAllowStreamSource=true}, in which case the consumer of
+   * the returned {@code StreamSource} is responsible for configuring its own parser or transformer
+   * securely (for example, by disabling DTDs and external entities).
+   *
+   * @param sourceClass the class of the {@code Source} to return, or {@code null} for the default
+   *     ({@code DOMSource})
+   * @param <T> the type of {@code Source}
+   * @return a {@code Source} for reading the XML value, or {@code null} if the value has been freed
+   * @throws SQLException if the value has been freed, the XML cannot be decoded, or the requested
+   *     source class is unsupported
+   */
   @Override
   // "return": getSource legitimately returns null when the backing data has been freed/absent;
   // the generic return type T cannot be annotated @Nullable, so the null return is suppressed.
@@ -127,21 +177,48 @@ public class CachedSQLXML implements SQLXML, Serializable {
 
     try {
       if (sourceClass == null || DOMSource.class.equals(sourceClass)) {
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        // Disable DOCTYPE and external entity resolution.
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        dbf.setXIncludeAware(false);
+        dbf.setExpandEntityReferences(false);
+        DocumentBuilder builder = dbf.newDocumentBuilder();
         return (T) new DOMSource(builder.parse(new InputSource(new StringReader(xmlData))));
       }
 
       if (SAXSource.class.equals(sourceClass)) {
-        XMLReader reader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
+        // Disable DOCTYPE and external entity resolution.
+        SAXParserFactory spf = SAXParserFactory.newInstance();
+        spf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        spf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        spf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        spf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        SAXParser parser = spf.newSAXParser();
+        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        XMLReader reader = parser.getXMLReader();
         return sourceClass.cast(new SAXSource(reader, new InputSource(new StringReader(xmlData))));
       }
 
       if (StreamSource.class.equals(sourceClass)) {
+        if (!effectiveConfig().isAllowStreamSource()) {
+          throw new SQLException(Messages.get("CachedSQLXML.streamSourceDisabled"));
+        }
         return sourceClass.cast(new StreamSource(new StringReader(xmlData)));
       }
 
       if (StAXSource.class.equals(sourceClass)) {
-        XMLStreamReader xsr = XMLInputFactory.newFactory().createXMLStreamReader(new StringReader(xmlData));
+        // Disable DOCTYPE and external entity resolution.
+        XMLInputFactory xif = XMLInputFactory.newFactory();
+        xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        xif.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        XMLStreamReader xsr = xif.createXMLStreamReader(new StringReader(xmlData));
         return sourceClass.cast(new StAXSource(xsr));
       }
       throw new SQLException(Messages.get("CachedSQLXML.unsupportedSourceClass", new Object[]{sourceClass.getName()}));

@@ -81,11 +81,31 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           "16384",
           "The max query size for remote caching");
 
+  private static final AwsWrapperProperty CACHE_ALLOW_STREAM_SOURCE =
+      new AwsWrapperProperty(
+          "cacheAllowStreamSource",
+          "false",
+          "When true, allows SQLXML.getSource(StreamSource.class) on XML values retrieved from "
+              + "the cache to return the raw XML unparsed. Disabled by default because the driver "
+              + "cannot control how the returned StreamSource is parsed downstream; when disabled, "
+              + "such calls throw SQLException. Prefer DOMSource, SAXSource, or StAXSource, which "
+              + "the driver parses with DTDs and external entities disabled.");
+
+  private static final AwsWrapperProperty CACHE_ALLOW_URL =
+      new AwsWrapperProperty(
+          "cacheAllowUrl",
+          "false",
+          "When true, allows java.net.URL values to be reconstructed from the cache. Disabled by "
+              + "default because URL equality and hashing involve network resolution, which is "
+              + "not appropriate for values reconstructed from untrusted input; when disabled, "
+              + "such deserialization throws SQLException. Prefer java.net.URI where possible.");
+
   static {
     PropertyDefinition.registerPluginProperties(RemoteQueryCachePlugin.class);
   }
 
   private final int maxCacheableQuerySize;
+  private final CacheDeserializationConfig deserializationConfig;
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final @Nullable TelemetryCounter cacheHitCounter;
@@ -121,6 +141,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     this.malformedHintCounter = telemetryFactory.createCounter("remoteQueryCache.cache.malformedHints");
     this.cacheBypassCounter = telemetryFactory.createCounter("remoteQueryCache.cache.bypass");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
+    this.deserializationConfig = new CacheDeserializationConfig(
+        CACHE_ALLOW_URL.getBoolean(properties),
+        CACHE_ALLOW_STREAM_SOURCE.getBoolean(properties));
     this.cacheConnection = new CacheConnection(
         properties,
         this.telemetryFactory,
@@ -203,7 +226,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
     // Convert result into ResultSet
     try {
-      return CachedResultSet.deserializeFromByteArray(cachedResult);
+      return CachedResultSet.deserializeFromByteArray(cachedResult, this.deserializationConfig);
     } catch (Exception e) {
       LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.errorDeserializingCachedResult"), e);
       return null; // Treat this as a cache miss
@@ -222,7 +245,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       return rs; // Treat this condition as un-cacheable
     }
     try {
-      CachedResultSet crs = new CachedResultSet(rs);
+      CachedResultSet crs = new CachedResultSet(rs, this.deserializationConfig);
       byte[] jsonString = crs.serializeIntoByteArray();
       cacheConnection.writeToCache(cacheQueryKey, jsonString, expiry);
       crs.beforeFirst();
