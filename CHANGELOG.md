@@ -3,6 +3,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [4.3.0] - 2026-07-21
+
+### :magic_wand: Added
+- Added a Blue/Green pre-switchover readiness log message to provide better visibility into the switchover lifecycle ([PR #2032](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2032)).
+
+### :bug: Fixed
+- Fixed endpoint resolution to fail fast on unresolvable instance endpoints for non-RDS hosts instead of retrying ([PR #2036](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2036)).
+- Fixed `DefaultConnectionPlugin` strategy selection to allow a null role (any host) ([PR #2033](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2033)).
+
+### :crab: Changed
+- Improved the `CachedSQLXML` user experience ([PR #2034](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2034)).
+- Documentation: improved the configuration assistant skill for issue [#2020](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/2020) ([PR #2031](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2031)).
+- Dependency updates, including Hibernate ORM 7.4.5.Final, Jackson (2.22.1 and 3.2.1), Kotlin stdlib 2.4.10, Vert.x 4.5.31, AWS X-Ray Recorder SDK 2.21.1, and various GitHub Actions bumps ([PR #2024](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2024), [PR #2025](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2025), [PR #2026](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2026), [PR #2027](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2027), [PR #2028](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2028), [PR #2029](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2029), [PR #2030](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2030), [PR #2037](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2037), [PR #2038](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2038), [PR #2039](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2039), [PR #2040](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2040), [PR #2041](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2041)).
+
 ## [4.2.0] - 2026-07-13
 
 ### :magic_wand: Added
