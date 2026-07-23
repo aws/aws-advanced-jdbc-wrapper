@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [4.3.0] - 2026-07-21
+## [4.3.0] - 2026-07-23
 
 ### :magic_wand: Added
 - Added a Blue/Green pre-switchover readiness log message to provide better visibility into the switchover lifecycle ([PR #2032](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2032), [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md)).
