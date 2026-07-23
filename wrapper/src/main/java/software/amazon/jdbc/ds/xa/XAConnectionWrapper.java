@@ -24,6 +24,7 @@ import javax.sql.StatementEventListener;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
@@ -101,8 +102,8 @@ public class XAConnectionWrapper implements XAConnection {
         handle.close();
       }
     } catch (final SQLException e) {
-      LOGGER.finest(() -> "Ignoring error while closing the previous logical XA connection handle: "
-          + e.getMessage());
+      LOGGER.finest(() -> Messages.get(
+          "XAConnectionWrapper.closingPreviousHandleFailed", new Object[] {e.getMessage()}));
     }
   }
 
