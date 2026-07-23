@@ -67,6 +67,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.JdbcRunnable;
+import software.amazon.jdbc.Rebindable;
 import software.amazon.jdbc.exceptions.SnapshotStateException;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -307,6 +308,42 @@ public class WrapperUtils {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final @Nullable Object... jdbcMethodArgs)
       throws E {
+    return doExecuteWithPlugins(resultClass, exceptionClass, connectionWrapper, pluginManager,
+        methodInvokeOn, jdbcMethod, jdbcMethodFunc, null, jdbcMethodArgs);
+  }
+
+  /**
+   * Variant of {@link #executeWithPlugins} that publishes a {@link Rebindable} handle (the invoking
+   * statement wrapper) on the per-call {@link software.amazon.jdbc.PluginCallContext}, so a plugin
+   * can rebind a bound plain {@code Statement} to a routed connection. Used only by the statement
+   * execute-with-SQL methods that support rerouting.
+   */
+  public static <T, E extends Exception> T executeWithPluginsWithRebindHandle(
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final ConnectionWrapper connectionWrapper,
+      final ConnectionPluginManager pluginManager,
+      final Object methodInvokeOn,
+      final JdbcMethod jdbcMethod,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final @Nullable Rebindable rebindHandle,
+      final @Nullable Object... jdbcMethodArgs)
+      throws E {
+    return doExecuteWithPlugins(resultClass, exceptionClass, connectionWrapper, pluginManager,
+        methodInvokeOn, jdbcMethod, jdbcMethodFunc, rebindHandle, jdbcMethodArgs);
+  }
+
+  private static <T, E extends Exception> T doExecuteWithPlugins(
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final ConnectionWrapper connectionWrapper,
+      final ConnectionPluginManager pluginManager,
+      final Object methodInvokeOn,
+      final JdbcMethod jdbcMethod,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final @Nullable Rebindable rebindHandle,
+      final @Nullable Object... jdbcMethodArgs)
+      throws E {
 
     if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
@@ -321,6 +358,12 @@ public class WrapperUtils {
       }
 
       connectionWrapper.getServicesContainer().getPluginManagerService().resetCallContext();
+
+      // Publish the rebind handle after the reset so a plugin can rebind a bound plain Statement.
+      if (rebindHandle != null) {
+        connectionWrapper.getServicesContainer().getPluginService().getCallContext()
+            .setRebindHandle(rebindHandle);
+      }
 
       // The target driver may block on Statement.getConnection().
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {

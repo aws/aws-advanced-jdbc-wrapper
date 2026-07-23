@@ -41,7 +41,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
+import software.amazon.jdbc.plugin.readwritesplitting.SimpleReadWriteSplittingPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -56,7 +56,7 @@ import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 @Order(21)
-public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
+public class SimpleReadWriteSplittingTests extends ReadWriteSplittingTests {
   String pluginCode = "srw";
   String pluginCodesWithFailover = "failover2,efm2,srw";
 
@@ -214,6 +214,44 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   @Override
   public void test_pooledConnection_leastConnectionsWithPoolMapping() {
     // Skip this test for simple read write splitting as there is no reader selection strategy.
+  }
+
+  @TestTemplate
+  @Disabled("Not applicable to SimpleReadWriteSplitting: it connects to the fixed read endpoint "
+      + "rather than a topology instance, so disabling a single reader instance does not make the "
+      + "read endpoint unreachable and there is nothing to fall back from to the writer.")
+  @Override
+  public void test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter() throws SQLException {
+    // Not applicable: srw routes to the configured read/write endpoints, not per-instance topology.
+  }
+
+  @TestTemplate
+  @Disabled("Not applicable to SimpleReadWriteSplitting: it connects to the fixed read endpoint "
+      + "rather than a topology instance, so disabling a single reader instance does not make the "
+      + "read endpoint unreachable — the read does not fail, so there is no exception to expect.")
+  @Override
+  public void test_setReadOnlyTrue_oneReaderDown_readThrows() throws SQLException {
+    // Not applicable: srw routes to the configured read/write endpoints, not per-instance topology.
+  }
+
+  @TestTemplate
+  @Disabled("Not applicable to SimpleReadWriteSplitting: it connects to the fixed read endpoint "
+      + "rather than a topology instance, so disabling a single reader instance does not make the "
+      + "read endpoint unreachable — failover is not triggered, so there is nothing to recover from.")
+  @Override
+  public void test_setReadOnlyTrue_oneReaderDown_failoverRecovers() throws SQLException {
+    // Not applicable: srw routes to the configured read/write endpoints, not per-instance topology.
+  }
+
+  @TestTemplate
+  @Disabled("Not applicable to SimpleReadWriteSplitting: it always connects to the configured read "
+      + "endpoint, so it cannot select a 'different reader' after a promoted-reader failover. With "
+      + "no role verification the read endpoint may transiently resolve (stale DNS) to the promoted "
+      + "writer. This is a topology-failover expectation that does not map to the endpoint model.")
+  @Override
+  public void test_cachedReaderPromotedToWriter_switchesToDifferentReader()
+      throws SQLException, InterruptedException {
+    // Not applicable: srw has a single fixed read endpoint and no per-instance reader selection.
   }
 }
 

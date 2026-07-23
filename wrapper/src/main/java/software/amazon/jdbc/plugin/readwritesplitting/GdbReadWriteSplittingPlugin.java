@@ -16,222 +16,79 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Properties;
-import java.util.Set;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.util.AccessibleRegions;
-import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.plugin.readwritesplitting.cache.DefaultCachePolicy;
+import software.amazon.jdbc.plugin.readwritesplitting.classifier.TopologyRoleClassifier;
+import software.amazon.jdbc.plugin.readwritesplitting.gate.TransactionAwareGate;
+import software.amazon.jdbc.plugin.readwritesplitting.handler.GdbInitAndVerify;
+import software.amazon.jdbc.plugin.readwritesplitting.handler.VerifyRoleOnConnect;
+import software.amazon.jdbc.plugin.readwritesplitting.refresher.TopologyRefresherImpl;
+import software.amazon.jdbc.plugin.readwritesplitting.resolver.GdbWriterResolver;
+import software.amazon.jdbc.plugin.readwritesplitting.resolver.TopologyReaderResolver;
+import software.amazon.jdbc.plugin.readwritesplitting.resolver.TopologyWriterResolver;
+import software.amazon.jdbc.plugin.readwritesplitting.resolver.WriterResolver;
+import software.amazon.jdbc.plugin.readwritesplitting.signal.ReadOnlyFlagSignal;
+import software.amazon.jdbc.plugin.readwritesplitting.source.GdbRegionFilteredHostsCandidateSource;
+import software.amazon.jdbc.plugin.readwritesplitting.updater.RoleBasedUpdatePolicy;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.RdsUrlType;
-import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.StateSnapshotProvider;
-import software.amazon.jdbc.util.StringUtils;
 
-public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implements StateSnapshotProvider {
+/**
+ * Global Database read/write splitting plugin ({@code gdbReadWriteSplitting}): topology-aware with
+ * accessible/home region rules and Global Write Forwarding. Region configuration is held by
+ * {@link GdbSettings}.
+ */
+public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
 
-  private static final Logger LOGGER = Logger.getLogger(GdbReadWriteSplittingPlugin.class.getName());
-
-  public static final AwsWrapperProperty RW_HOME_REGION =
-      new AwsWrapperProperty(
-          "gdbRwHomeRegion",
-          null,
-          "Specifies the home region for read/write splitting.");
-
-  public static final AwsWrapperProperty RESTRICT_WRITER_TO_HOME_REGION =
-      new AwsWrapperProperty(
-          "gdbRwRestrictWriterToHomeRegion",
-          "true",
-          "Prevents connections to a writer node outside of the defined home region.");
-
-  public static final AwsWrapperProperty RESTRICT_READER_TO_HOME_REGION =
-      new AwsWrapperProperty(
-          "gdbRwRestrictReaderToHomeRegion",
-          "true",
-          "Prevents connections to a reader node outside of the defined home region.");
-
-  public static final AwsWrapperProperty ENABLE_GWF =
-      new AwsWrapperProperty(
-          "gdbEnableGlobalWriteForwarding",
-          "false",
-          "Set to true to enable Global Write Forwarding when connected to"
-          + " a reader connection in a secondary global region.");
-
-  protected boolean isInit = false;
-  protected final RdsUtils rdsHelper = new RdsUtils();
-  protected String homeRegion;
-  protected final boolean restrictWriterToHomeRegion;
-  protected final boolean restrictReaderToHomeRegion;
-  protected final boolean enableGwf;
-  protected Set<String> accessibleRegions;
-
-  static {
-    PropertyDefinition.registerPluginProperties(GdbReadWriteSplittingPlugin.class);
+  public GdbReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
+    super(pluginService, properties, gdb(properties));
   }
 
-  public GdbReadWriteSplittingPlugin(final PluginService pluginService, final @NonNull Properties properties) {
-    super(pluginService, properties);
-    this.restrictWriterToHomeRegion = RESTRICT_WRITER_TO_HOME_REGION.getBoolean(properties);
-    this.restrictReaderToHomeRegion = RESTRICT_READER_TO_HOME_REGION.getBoolean(properties);
-    this.enableGwf = ENABLE_GWF.getBoolean(properties);
+  /** Constructor for subclasses that supply their own helper assembly. */
+  protected GdbReadWriteSplittingPlugin(
+      final PluginService pluginService, final Properties properties, final RwSplitHelpers helpers) {
+    super(pluginService, properties, helpers);
   }
 
-  protected void initSettings(final HostSpec initHostSpec, Properties props) throws SQLException {
-    if (this.isInit) {
-      return;
-    }
-
-    this.isInit = true;
-
-    this.homeRegion = RW_HOME_REGION.getString(props);
-    if (StringUtils.isNullOrEmpty(this.homeRegion)) {
-      final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(initHostSpec.getHost());
-      if (rdsUrlType != null && rdsUrlType.hasRegion()) {
-        this.homeRegion = this.rdsHelper.getRdsRegion(initHostSpec.getHost());
-      }
-    }
-
-    if (StringUtils.isNullOrEmpty(this.homeRegion)) {
-      throw new SQLException(Messages.get(
-          "GdbReadWriteSplittingPlugin.missingHomeRegion",
-          new Object[] {initHostSpec.getHost()}));
-    }
-
-    LOGGER.finest(() -> Messages.get(
-        "GdbReadWriteSplittingPlugin.parameterValue",
-        new Object[] {"gdbRwHomeRegion", this.homeRegion}));
-
-    final Set<String> parsedRegions = AccessibleRegions.parse(props);
-    this.accessibleRegions = parsedRegions;
-    if (parsedRegions != null) {
-      LOGGER.finest(() -> Messages.get(
-          "GdbReadWriteSplittingPlugin.parameterValue",
-          new Object[] {"gdbAccessibleRegions", parsedRegions}));
-    }
-
-    if (this.accessibleRegions != null
-        && !this.accessibleRegions.contains(this.homeRegion.toLowerCase(Locale.ROOT))) {
-      throw new SQLException(Messages.get(
-          "GdbReadWriteSplittingPlugin.homeRegionNotInAccessibleRegions",
-          new Object[]{this.homeRegion, this.accessibleRegions}));
-    }
+  /** Builds the Global Database assembly (region rules + GWF) with {@code setReadOnly} routing. */
+  protected static RwSplitHelpers gdb(final Properties props) {
+    return gdbHelpers(props, new ReadOnlyFlagSignal(), new TransactionAwareGate());
   }
 
-  @Override
-  public Connection connect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
+  /**
+   * Shared Global Database assembly builder, parameterized by routing signal and switch gate so
+   * the SQL-routed variant can reuse it.
+   */
+  protected static RwSplitHelpers gdbHelpers(
       final Properties props,
-      final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-    this.initSettings(hostSpec, props);
-    return super.connect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
-  }
+      final software.amazon.jdbc.plugin.readwritesplitting.signal.RoutingSignal routingSignal,
+      final software.amazon.jdbc.plugin.readwritesplitting.gate.SwitchGate switchGate) {
+    final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
+    final String strategy = READER_HOST_SELECTOR_STRATEGY.getString(props);
+    final boolean verifyRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(props);
+    final GdbSettings settings = new GdbSettings(props);
 
-  @Override
-  protected void initializeWriterConnection() throws SQLException {
-    if (this.writerHostSpec != null && !isInAccessibleRegion(this.writerHostSpec)) {
-      throw new ReadWriteSplittingSQLException(Messages.get(
-          "GdbReadWriteSplittingPlugin.writerNotInAccessibleRegion",
-          new Object[]{this.writerHostSpec.getHost(),
-              this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()), this.accessibleRegions}));
-    }
-
-    if (this.restrictWriterToHomeRegion
-        && this.writerHostSpec != null
-        && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
-
-      if (this.enableGwf) {
-        LOGGER.finest(() -> Messages.get(
-            "GdbReadWriteSplittingPlugin.enabledGwf",
-            new Object[]{this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost())}));
-        return;
-      }
-
-      throw new ReadWriteSplittingSQLException(Messages.get(
-          "GdbReadWriteSplittingPlugin.cantConnectWriterOutOfHomeRegion",
-          new Object[]{this.writerHostSpec.getHost(), this.homeRegion}));
-    }
-    super.initializeWriterConnection();
-  }
-
-  @Override
-  protected void setWriterConnection(final Connection conn, final HostSpec host) throws SQLException {
-    if (this.writerHostSpec != null && !isInAccessibleRegion(this.writerHostSpec)) {
-      throw new ReadWriteSplittingSQLException(Messages.get(
-          "GdbReadWriteSplittingPlugin.writerNotInAccessibleRegion",
-          new Object[]{this.writerHostSpec.getHost(),
-              this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()), this.accessibleRegions}));
-    }
-
-    if (this.restrictWriterToHomeRegion
-        && this.writerHostSpec != null
-        && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
-      throw new ReadWriteSplittingSQLException(Messages.get(
-          "GdbReadWriteSplittingPlugin.cantConnectWriterOutOfHomeRegion",
-          new Object[] {this.writerHostSpec.getHost(), this.homeRegion}));
-    }
-    super.setWriterConnection(conn, host);
-  }
-
-  @Override
-  protected List<HostSpec> getReaderHostCandidates() throws SQLException {
-    List<HostSpec> candidates = this.pluginService.getHosts();
-
-    // Filter by accessible regions first
-    if (this.accessibleRegions != null) {
-      candidates = candidates.stream()
-          .filter(this::isInAccessibleRegion)
-          .collect(Collectors.toList());
-    }
-
-    if (this.restrictReaderToHomeRegion) {
-      final List<HostSpec> hostsInRegion = candidates.stream()
-          .filter(x -> this.rdsHelper.getRdsRegion(x.getHost())
-              .equalsIgnoreCase(this.homeRegion))
-          .collect(Collectors.toList());
-
-      if (hostsInRegion.isEmpty()) {
-        throw new ReadWriteSplittingSQLException(
-            Messages.get(
-                "GdbReadWriteSplittingPlugin.noAvailableReadersInHomeRegion",
-                new Object[]{this.homeRegion}));
-      }
-      return hostsInRegion;
-    }
-    return candidates;
-  }
-
-  protected boolean isInAccessibleRegion(final HostSpec host) {
-    if (this.accessibleRegions == null) {
-      return true;
-    }
-    final String region = this.rdsHelper.getRdsRegion(host.getHost());
-    return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
-  }
-
-  @Override
-  public List<Pair<String, Object>> getSnapshotState() {
-    List<Pair<String, Object>> state = super.getSnapshotState();
-    if (state == null) {
-      state = new ArrayList<>();
-    }
-    state.add(Pair.create("homeRegion", this.homeRegion));
-    state.add(Pair.create("restrictWriterToHomeRegion", this.restrictWriterToHomeRegion));
-    state.add(Pair.create("restrictReaderToHomeRegion", this.restrictReaderToHomeRegion));
-    state.add(Pair.create("enableGwf", this.enableGwf));
-    return state;
+    final WriterResolver writerResolver = new GdbWriterResolver(settings, new TopologyWriterResolver());
+    return RwSplitHelpers.builder()
+        .roleClassifier(roleClassifier)
+        .routingSignal(routingSignal)
+        .switchGate(switchGate)
+        .topologyRefresher(new TopologyRefresherImpl())
+        .writerResolver(writerResolver)
+        .readerResolver(new TopologyReaderResolver(
+            new GdbRegionFilteredHostsCandidateSource(settings), readerLoadBalancer(props, strategy),
+            writerResolver))
+        .cachePolicy(new DefaultCachePolicy(props))
+        .initialConnectionHandler(new GdbInitAndVerify(settings, new VerifyRoleOnConnect(strategy, verifyRole)))
+        .connectionUpdatePolicy(new RoleBasedUpdatePolicy(roleClassifier))
+        .addSnapshotContributor(RwSplitSnapshots.readerStrategy(strategy))
+        .addSnapshotContributor(() -> {
+          final List<Pair<String, Object>> state = new ArrayList<>();
+          settings.addSnapshotState(state);
+          return state;
+        })
+        .build();
   }
 }

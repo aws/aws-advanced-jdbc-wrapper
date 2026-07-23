@@ -36,10 +36,29 @@ public class PluginCallContext {
   private final Map<String, Object> attributes = new HashMap<>();
 
   /**
+   * Handle to the statement wrapper for the current call, allowing a plugin to rebind a bound
+   * plain {@code Statement} to a routed connection. Set by the execute pipeline after {@link #reset()}
+   * (the wrapper only receives the raw target statement as {@code methodInvokeOn}, so it cannot be
+   * reached directly). Cleared on {@link #reset()} so it never leaks across calls.
+   */
+  private @Nullable Rebindable rebindHandle;
+
+  /**
    * Clears all attributes from the context.
    */
   public void reset() {
     attributes.clear();
+    this.rebindHandle = null;
+  }
+
+  /** Sets the rebind handle for the current call (see {@link #rebindHandle}). */
+  public void setRebindHandle(final @Nullable Rebindable rebindHandle) {
+    this.rebindHandle = rebindHandle;
+  }
+
+  /** Returns the rebind handle for the current call, or {@code null} if none. */
+  public @Nullable Rebindable getRebindHandle() {
+    return this.rebindHandle;
   }
 
   /**

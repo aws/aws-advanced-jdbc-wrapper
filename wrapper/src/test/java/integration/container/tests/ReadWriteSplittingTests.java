@@ -46,6 +46,7 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
+import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
@@ -81,8 +82,8 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
-import software.amazon.jdbc.plugin.readwritesplitting.AbstractReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
+import software.amazon.jdbc.plugin.readwritesplitting.UnifiedReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -391,14 +392,25 @@ public class ReadWriteSplittingTests {
   @EnableOnNumOfInstances(min = 2, max = 2)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @EnableOnTestDriver(TestDriver.MYSQL)
   public void test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter()
       throws SQLException {
     // Reproduces https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324
+    //
     // In a 2-node Aurora cluster (1 writer, 1 reader), when the single reader becomes unreachable
-    // (e.g. its subnet is network-partitioned), setReadOnly(true) should fall back to the writer
-    // instead of getting stuck retrying the unreachable reader. Once the reader becomes reachable
-    // again, setReadOnly(true) should use it without requiring any availability cache reset (the
-    // plugin tracks failed readers only locally per call and has no global side effects).
+    // (e.g. its subnet is network-partitioned), the observable outcome depends on how the
+    // underlying JDBC driver reports a silently-dropped connection. The MySQL Connector/J driver
+    // surfaces the drop via Connection.isClosed(), so the plugin discards the cached reader,
+    // fails to re-establish it, and falls back to the writer instead of getting stuck retrying the
+    // unreachable reader. Once the reader becomes reachable again, setReadOnly(true) should use it
+    // without requiring any availability cache reset (the plugin tracks failed readers only
+    // locally per call and has no global side effects).
+    //
+    // Drivers that do NOT surface the drop via isClosed() (PostgreSQL, MariaDB) are covered by
+    // test_setReadOnlyTrue_oneReaderDown_readThrows: the plugin reuses the cached reader and the
+    // failure surfaces to the caller, since recovering a dead connection is the responsibility of
+    // the failover plugin (when configured) or the application, not the read/write splitting
+    // plugin.
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
 
@@ -434,6 +446,93 @@ public class ReadWriteSplittingTests {
       assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
       conn.setReadOnly(true);
       assertEquals(readerConnectionId, auroraUtil.queryInstanceId(conn));
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2, max = 2)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @EnableOnTestDriver({TestDriver.PG, TestDriver.MARIADB})
+  public void test_setReadOnlyTrue_oneReaderDown_readThrows()
+      throws SQLException {
+    // Reproduces https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324 for drivers that do
+    // NOT surface a silently-dropped socket via Connection.isClosed() (PostgreSQL and MariaDB).
+    //
+    // The read/write splitting plugin reuses its cached (sticky) reader connection without probing
+    // it. It is not the plugin's responsibility to catch the resulting connection error, reconnect,
+    // and re-execute the query: that is handled by the failover plugin (when configured) or by the
+    // application. With only the readWriteSplitting plugin configured, the dropped reader therefore
+    // surfaces as an exception on the next read. Once connectivity is restored the connection is
+    // usable again (the plugin has no global availability side effects).
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+
+      // Confirm the reader is reachable while connectivity is up.
+      conn.setReadOnly(true);
+      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+
+      // Disable connectivity to the single reader instance.
+      ProxyHelper.disableConnectivity(readerConnectionId);
+
+      // The driver still reports the cached reader connection as open, so the plugin reuses it and
+      // the dropped connection surfaces as an exception on the next read rather than being
+      // silently recovered. Recovering from this (reconnecting and retrying) is the job of the
+      // failover plugin or the application, not the read/write splitting plugin; here the failure
+      // terminates the underlying connection, so the application would have to open a new one.
+      assertThrows(SQLException.class, () -> {
+        conn.setReadOnly(true);
+        auroraUtil.queryInstanceId(conn);
+      });
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2, max = 2)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
+  @EnableOnTestDriver({TestDriver.PG, TestDriver.MARIADB})
+  public void test_setReadOnlyTrue_oneReaderDown_failoverRecovers()
+      throws SQLException {
+    // Companion to test_setReadOnlyTrue_oneReaderDown_readThrows for drivers that do NOT surface a
+    // silently-dropped socket via Connection.isClosed() (PostgreSQL and MariaDB). It confirms the
+    // division of responsibility: the read/write splitting plugin does not recover the dropped
+    // reader itself, but when the failover plugin is also configured, failover catches the
+    // resulting connection error, re-establishes a connection (falling back to the writer, the
+    // only reachable node in this 2-node cluster), and signals the application with a
+    // FailoverSuccessSQLException so it can retry.
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getProxyWrapperUrl(), getProxiedPropsWithFailover())) {
+
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+
+      // Confirm the reader is reachable while connectivity is up.
+      conn.setReadOnly(true);
+      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+
+      // Disable connectivity to the single reader instance.
+      ProxyHelper.disableConnectivity(readerConnectionId);
+
+      // Route back to the (now unreachable) reader. The plugin reuses the cached reader connection,
+      // so the drop surfaces on the next read; the failover plugin catches it, recovers, and throws
+      // FailoverSuccessSQLException to signal the application that it should retry.
+      conn.setReadOnly(true);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+
+      // Failover recovered: the logical connection is still usable and, with only the writer
+      // reachable, is now connected to the writer.
+      assertFalse(conn.isClosed());
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
     }
   }
 
@@ -1095,7 +1194,7 @@ public class ReadWriteSplittingTests {
       assertEquals(originalWriterId, currentId);
 
       // Get the plugin to verify cached connections exist
-      final AbstractReadWriteSplittingPlugin plugin = conn.unwrap(AbstractReadWriteSplittingPlugin.class);
+      final UnifiedReadWriteSplittingPlugin plugin = conn.unwrap(UnifiedReadWriteSplittingPlugin.class);
       assertNotNull(plugin.getWriterConnection(), "Writer connection should be cached before failover");
       assertNotNull(plugin.getReaderConnection(), "Reader connection should be cached before failover");
 

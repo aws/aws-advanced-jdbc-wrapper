@@ -52,7 +52,7 @@ import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
-import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
+import software.amazon.jdbc.plugin.readwritesplitting.SimpleReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;

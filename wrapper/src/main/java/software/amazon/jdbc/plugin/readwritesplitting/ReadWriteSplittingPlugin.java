@@ -16,38 +16,28 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.hostlistprovider.HostListProviderService;
-import software.amazon.jdbc.util.CacheItem;
-import software.amazon.jdbc.util.LogUtils;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.StateSnapshotProvider;
-import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.plugin.readwritesplitting.cache.DefaultCachePolicy;
+import software.amazon.jdbc.plugin.readwritesplitting.classifier.TopologyRoleClassifier;
+import software.amazon.jdbc.plugin.readwritesplitting.gate.TransactionAwareGate;
+import software.amazon.jdbc.plugin.readwritesplitting.handler.VerifyRoleOnConnect;
+import software.amazon.jdbc.plugin.readwritesplitting.refresher.TopologyRefresherImpl;
+import software.amazon.jdbc.plugin.readwritesplitting.resolver.TopologyReaderResolver;
+import software.amazon.jdbc.plugin.readwritesplitting.resolver.TopologyWriterResolver;
+import software.amazon.jdbc.plugin.readwritesplitting.signal.ReadOnlyFlagSignal;
+import software.amazon.jdbc.plugin.readwritesplitting.source.TopologyHostsCandidateSource;
+import software.amazon.jdbc.plugin.readwritesplitting.updater.RoleBasedUpdatePolicy;
 
-public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
-    implements CanReleaseResources, StateSnapshotProvider {
-
-  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
-
-  protected final String readerSelectorStrategy;
-  protected List<HostSpec> hosts;
+/**
+ * Topology-aware read/write splitting plugin ({@code readWriteSplitting}): routes on
+ * {@code setReadOnly}, selects a reader from the cluster topology using the configured host
+ * selector strategy, and caches a sticky reader. Composed from read/write splitting helpers on top
+ * of {@link UnifiedReadWriteSplittingPlugin}.
+ */
+public class ReadWriteSplittingPlugin extends UnifiedReadWriteSplittingPlugin {
 
   public static final AwsWrapperProperty READER_HOST_SELECTOR_STRATEGY =
       new AwsWrapperProperty(
@@ -65,233 +55,35 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     PropertyDefinition.registerPluginProperties(ReadWriteSplittingPlugin.class);
   }
 
-  protected final boolean verifyInitialConnectionRole;
-
-  public ReadWriteSplittingPlugin(final PluginService pluginService, final @NonNull Properties properties) {
-    super(pluginService, properties);
-    this.readerSelectorStrategy = READER_HOST_SELECTOR_STRATEGY.getString(properties);
-    this.verifyInitialConnectionRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(properties);
+  public ReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
+    super(pluginService, properties, topology(properties));
   }
 
-  /**
-   * For testing purposes only.
-   */
-  ReadWriteSplittingPlugin(
-      final PluginService pluginService,
-      final Properties properties,
-      final HostListProviderService hostListProviderService,
-      final Connection writerConnection,
-      final Connection readerConnection) {
-    this(pluginService, properties);
-    this.hostListProviderService = hostListProviderService;
-    this.writerConnection = writerConnection;
-    this.readerCacheItem = new CacheItem<>(readerConnection, this.getKeepAliveTimeout(false));
+  /** Constructor for subclasses that supply their own helper assembly. */
+  protected ReadWriteSplittingPlugin(
+      final PluginService pluginService, final Properties properties, final RwSplitHelpers helpers) {
+    super(pluginService, properties, helpers);
   }
 
-  @Override
-  public Connection connect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-    if (!this.pluginService.acceptsStrategy(hostSpec.getRole(), this.readerSelectorStrategy)) {
-      throw new UnsupportedOperationException(
-          Messages.get("ReadWriteSplittingPlugin.unsupportedHostSpecSelectorStrategy",
-              new Object[] {this.readerSelectorStrategy}));
-    }
+  /** Builds the topology-aware, {@code setReadOnly}-driven, sticky-reader assembly. */
+  protected static RwSplitHelpers topology(final Properties props) {
+    final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
+    final String strategy = READER_HOST_SELECTOR_STRATEGY.getString(props);
+    final boolean verifyRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(props);
 
-    final Connection currentConnection = connectFunc.call();
-    if (!isInitialConnection || this.hostListProviderService.isStaticHostListProvider()) {
-      return currentConnection;
-    }
-
-    if (!this.verifyInitialConnectionRole) {
-      return currentConnection;
-    }
-
-    final HostRole currentRole = this.pluginService.getHostRole(currentConnection);
-    if (currentRole == null || HostRole.UNKNOWN.equals(currentRole)) {
-      logAndThrowException(
-          Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole"));
-      return null;
-    }
-
-    final HostSpec currentHost = this.pluginService.getInitialConnectionHostSpec();
-    if (currentRole.equals(currentHost.getRole())) {
-      LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.initialConnectionRoleCheckNoUpdate",
-          new Object[] {currentHost.getHostAndPort(), currentHost.getRole(), currentRole}));
-      return currentConnection;
-    }
-
-    LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.initialConnectionRoleCheckUpdated",
-        new Object[] {currentHost.getHostAndPort(), currentHost.getRole(), currentRole}));
-    final HostSpec updatedRoleHostSpec = new HostSpec(currentHost, currentRole);
-    this.hostListProviderService.setInitialConnectionHostSpec(updatedRoleHostSpec);
-    return currentConnection;
-  }
-
-  @Override
-  protected boolean isWriter(final @NonNull HostSpec hostSpec) {
-    return HostRole.WRITER.equals(hostSpec.getRole());
-  }
-
-  @Override
-  protected boolean isReader(final @NonNull HostSpec hostSpec) {
-    return HostRole.READER.equals(hostSpec.getRole());
-  }
-
-  @Override
-  protected void refreshAndStoreTopology(Connection currentConnection) throws SQLException {
-    if (this.isConnectionUsable(currentConnection)) {
-      try {
-        this.pluginService.refreshHostList();
-      } catch (final SQLException e) {
-        // ignore
-      }
-    }
-
-    this.hosts = this.pluginService.getHosts();
-    if (Utils.isNullOrEmpty(this.hosts)) {
-      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.emptyHostList"));
-    }
-    this.writerHostSpec = getWriterHost(this.hosts);
-  }
-
-  @Override
-  protected void initializeWriterConnection() throws SQLException {
-    final Connection conn = this.pluginService.connect(writerHostSpec, this.properties, this);
-    this.isWriterConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
-    setWriterConnection(conn, writerHostSpec);
-    switchCurrentConnectionTo(this.writerConnection, writerHostSpec);
-  }
-
-  @Override
-  protected void initializeReaderConnection() throws SQLException {
-    if (this.hosts.size() == 1) {
-      if (!isConnectionUsable(this.writerConnection)) {
-        initializeWriterConnection();
-      }
-      LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.noReadersFound",
-          new Object[] {writerHostSpec.getHostAndPort()}));
-    } else {
-      openNewReaderConnection();
-      LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
-          new Object[] {this.readerHostSpec.getHostAndPort()}));
-    }
-  }
-
-  @Override
-  protected void closeReaderIfNecessary() {
-    if (this.readerHostSpec != null && !Utils.containsHostAndPort(hosts, this.readerHostSpec.getHostAndPort())) {
-      // The old reader cannot be used anymore because it is no longer in the list of allowed hosts.
-      LOGGER.finest(
-          Messages.get(
-              "ReadWriteSplittingPlugin.previousReaderNotAllowed",
-              new Object[] {this.readerHostSpec, LogUtils.logTopology(hosts, "")}));
-      closeReaderConnectionIfIdle();
-    }
-  }
-
-  private HostSpec getWriterHost(final @NonNull List<HostSpec> hosts) throws SQLException {
-    HostSpec writerHost = Utils.getWriter(hosts);
-    if (writerHost == null) {
-      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noWriterFound"));
-    }
-
-    return writerHost;
-  }
-
-  protected List<HostSpec> getReaderHostCandidates() throws SQLException {
-    return this.pluginService.getHosts();
-  }
-
-  protected void openNewReaderConnection() throws SQLException {
-    Connection conn = null;
-    HostSpec readerHost = null;
-
-    // Work on a local, mutable copy of the candidate hosts. When a connection attempt to a reader
-    // fails (for a non-login reason), the host is removed from this local list so it is not retried
-    // within this call. This is a local, per-call view of host availability and intentionally has
-    // no global side effects (it does not mark the host NOT_AVAILABLE in the shared availability
-    // cache), so a host that recovers is immediately eligible again on the next request.
-    final List<HostSpec> hostCandidates = new ArrayList<>(this.getReaderHostCandidates());
-    // Bound the number of attempts by the initial candidate count so a host selector that keeps
-    // returning the same host can never cause an infinite loop.
-    final int maxAttempts = hostCandidates.size();
-    for (int i = 0; i < maxAttempts && !hostCandidates.isEmpty(); i++) {
-      final HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
-          hostCandidates, HostRole.READER, this.readerSelectorStrategy);
-
-      // No eligible reader is left. Stop retrying and fall back to the writer instead of
-      // continuing to spend the connect timeout on hosts that are already known to be unreachable.
-      if (hostSpec == null) {
-        break;
-      }
-
-      try {
-        conn = this.pluginService.connect(hostSpec, this.properties, this);
-        this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
-        readerHost = hostSpec;
-        break;
-      } catch (final SQLException e) {
-        // A login/authentication failure (e.g. wrong credentials, expired IAM token) is a
-        // showstopper: retrying other readers won't help, so rethrow immediately.
-        if (this.pluginService.isLoginException(e, this.pluginService.getTargetDriverDialect())) {
-          throw e;
-        }
-
-        // Remove the failed reader from the local candidate list so it is not retried again during
-        // this call, then continue trying the remaining readers.
-        hostCandidates.remove(hostSpec);
-        if (LOGGER.isLoggable(Level.WARNING)) {
-          LOGGER.log(Level.WARNING,
-              Messages.get(
-                  "ReadWriteSplittingPlugin.failedToConnectToReader",
-                  new Object[]{
-                      hostSpec.getHostAndPort()}),
-              e);
-        }
-      }
-    }
-
-    if (conn == null || readerHost == null) {
-      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noReadersAvailable"),
-          SqlState.CONNECTION_UNABLE_TO_CONNECT);
-      return;
-    }
-
-    final HostSpec finalReaderHost = readerHost;
-    LOGGER.finest(
-        () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
-            new Object[] {finalReaderHost.getHostAndPort()}));
-    setReaderConnection(conn, readerHost);
-    switchCurrentConnectionTo(this.readerCacheItem.get(), this.readerHostSpec);
-  }
-
-  @Override
-  protected boolean shouldUpdateReaderConnection(Connection currentConnection, HostSpec currentHost) {
-    return isReader(currentHost);
-  }
-
-  @Override
-  protected boolean shouldUpdateWriterConnection(Connection currentConnection, HostSpec currentHost) {
-    return isWriter(currentHost);
-  }
-
-  @Override
-  public List<Pair<String, Object>> getSnapshotState() {
-    List<Pair<String, Object>> state = new ArrayList<>();
-    state.add(Pair.create("readerSelectorStrategy", this.readerSelectorStrategy));
-    PropertyUtils.addSnapshotState(state, "properties", this.properties);
-    state.add(Pair.create("inReadWriteSplit", this.inReadWriteSplit));
-    state.add(Pair.create("writerConnection", this.writerConnection));
-    state.add(Pair.create("readerCacheItem", this.readerCacheItem != null ? this.readerCacheItem.toString() : null));
-    state.add(Pair.create("writerHostSpec", this.writerHostSpec != null ? this.writerHostSpec.toString() : null));
-    state.add(Pair.create("readerHostSpec", this.readerHostSpec != null ? this.readerHostSpec.toString() : null));
-    state.add(Pair.create("isReaderConnFromInternalPool", this.isReaderConnFromInternalPool));
-    state.add(Pair.create("isWriterConnFromInternalPool", this.isWriterConnFromInternalPool));
-    return state;
+    final TopologyWriterResolver writerResolver = new TopologyWriterResolver();
+    return RwSplitHelpers.builder()
+        .roleClassifier(roleClassifier)
+        .routingSignal(new ReadOnlyFlagSignal())
+        .switchGate(new TransactionAwareGate())
+        .topologyRefresher(new TopologyRefresherImpl())
+        .writerResolver(writerResolver)
+        .readerResolver(new TopologyReaderResolver(
+            new TopologyHostsCandidateSource(), readerLoadBalancer(props, strategy), writerResolver))
+        .cachePolicy(new DefaultCachePolicy(props))
+        .initialConnectionHandler(new VerifyRoleOnConnect(strategy, verifyRole))
+        .connectionUpdatePolicy(new RoleBasedUpdatePolicy(roleClassifier))
+        .addSnapshotContributor(RwSplitSnapshots.readerStrategy(strategy))
+        .build();
   }
 }

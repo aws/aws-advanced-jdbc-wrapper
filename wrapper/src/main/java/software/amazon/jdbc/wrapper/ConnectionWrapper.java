@@ -70,6 +70,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected FullServicesContainer servicesContainer;
   private LazyCleaner.Cleanable cleanable;
 
+  // When true, prepared statements are created with rebind recording enabled so a read/write
+  // splitting plugin can reroute a re-executed read statement to another connection (query-level
+  // load balancing). Read from connection properties to avoid any overhead in the default config.
+  protected boolean rebindPreparedStatements;
+
   // Checker Framework: the constructor wires up collaborators (LazyCleaner, init())
   // using a partially-initialized 'this'. This is safe here because those collaborators
   // only store the reference for later use and do not dereference fields during
@@ -134,6 +139,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   protected void init(final Properties props) throws SQLException {
+    // Enable prepared-statement rebinding only when query-level load balancing is on and rebinding
+    // is not opted out (property names referenced by string to avoid coupling to the plugin).
+    this.rebindPreparedStatements =
+        "true".equalsIgnoreCase(props.getProperty("queryLevelLoadBalancing", "false"))
+            && "true".equalsIgnoreCase(
+                props.getProperty("allowStatementRecreationOnConnectionSwitch", "true"));
+
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =
           this.pluginManager.connect(
@@ -698,7 +710,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public CallableStatement prepareCall(final String sql) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebindCall(WrapperUtils.executeWithPlugins(
         CallableStatement.class,
         SQLException.class,
         this,
@@ -706,13 +718,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARECALL,
         () -> this.pluginService.getCurrentConnection().prepareCall(sql),
-        sql);
+        sql),
+        c -> c.prepareCall(sql));
   }
 
   @Override
   public CallableStatement prepareCall(final String sql, final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebindCall(WrapperUtils.executeWithPlugins(
         CallableStatement.class,
         SQLException.class,
         this,
@@ -725,14 +738,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
                 .prepareCall(sql, resultSetType, resultSetConcurrency),
         sql,
         resultSetType,
-        resultSetConcurrency);
+        resultSetConcurrency),
+        c -> c.prepareCall(sql, resultSetType, resultSetConcurrency));
   }
 
   @Override
   public CallableStatement prepareCall(
       final String sql, final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
       throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebindCall(WrapperUtils.executeWithPlugins(
         CallableStatement.class,
         SQLException.class,
         this,
@@ -746,12 +760,32 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         sql,
         resultSetType,
         resultSetConcurrency,
-        resultSetHoldability);
+        resultSetHoldability),
+        c -> c.prepareCall(sql, resultSetType, resultSetConcurrency, resultSetHoldability));
+  }
+
+  // Enables rebind recording on a freshly-prepared statement when configured, so a read/write
+  // splitting plugin can reroute a re-executed read statement to another connection. The repreparer
+  // captures the SQL and creation arguments needed to re-create the statement on a routed connection.
+  private PreparedStatement withRebind(
+      final PreparedStatement ps, final PreparedStatementWrapper.Repreparer repreparer) {
+    if (this.rebindPreparedStatements && ps instanceof PreparedStatementWrapper) {
+      ((PreparedStatementWrapper) ps).enableRebind(repreparer);
+    }
+    return ps;
+  }
+
+  private CallableStatement withRebindCall(
+      final CallableStatement cs, final PreparedStatementWrapper.Repreparer repreparer) {
+    if (this.rebindPreparedStatements && cs instanceof CallableStatementWrapper) {
+      ((CallableStatementWrapper) cs).enableRebind(repreparer);
+    }
+    return cs;
   }
 
   @Override
   public PreparedStatement prepareStatement(final String sql) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebind(WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
@@ -759,13 +793,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql),
-        sql);
+        sql),
+        c -> c.prepareStatement(sql));
   }
 
   @Override
   public PreparedStatement prepareStatement(final String sql, final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebind(WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
@@ -778,14 +813,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
                 .prepareStatement(sql, resultSetType, resultSetConcurrency),
         sql,
         resultSetType,
-        resultSetConcurrency);
+        resultSetConcurrency),
+        c -> c.prepareStatement(sql, resultSetType, resultSetConcurrency));
   }
 
   @Override
   public PreparedStatement prepareStatement(
       final String sql, final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
       throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebind(WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
@@ -799,12 +835,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         sql,
         resultSetType,
         resultSetConcurrency,
-        resultSetHoldability);
+        resultSetHoldability),
+        c -> c.prepareStatement(sql, resultSetType, resultSetConcurrency, resultSetHoldability));
   }
 
   @Override
   public PreparedStatement prepareStatement(final String sql, final int autoGeneratedKeys) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebind(WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
@@ -813,12 +850,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, autoGeneratedKeys),
         sql,
-        autoGeneratedKeys);
+        autoGeneratedKeys),
+        c -> c.prepareStatement(sql, autoGeneratedKeys));
   }
 
   @Override
   public PreparedStatement prepareStatement(final String sql, final int[] columnIndexes) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebind(WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
@@ -827,12 +865,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnIndexes),
         sql,
-        columnIndexes);
+        columnIndexes),
+        c -> c.prepareStatement(sql, columnIndexes));
   }
 
   @Override
   public PreparedStatement prepareStatement(final String sql, final String[] columnNames) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return withRebind(WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
@@ -841,7 +880,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnNames),
         sql,
-        columnNames);
+        columnNames),
+        c -> c.prepareStatement(sql, columnNames));
   }
 
   @Override

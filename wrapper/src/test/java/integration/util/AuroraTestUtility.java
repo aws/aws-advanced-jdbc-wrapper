@@ -2082,6 +2082,20 @@ public class AuroraTestUtility {
     }
   }
 
+  /**
+   * Returns the raw (un-hinted) SQL that selects the current instance id for the database engine
+   * and deployment of the currently running test environment. Unlike {@link
+   * #queryInstanceId(Connection)}, the returned SQL carries no routing hint, so it is a plain
+   * SELECT that the sqlParser plugin will treat as a read and route accordingly.
+   *
+   * @return the instance-id SELECT statement for the current engine/deployment
+   */
+  public String getInstanceIdSql() {
+    return getInstanceIdSql(
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment());
+  }
+
   public String queryInstanceId(Connection connection) throws SQLException {
     return queryInstanceId(
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),

@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.srw;
+package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class SimpleReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
+/** Factory for the {@code autoSimpleReadWriteSplitting} code (SQL-routed endpoint mode). */
+public class AutoSimpleReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new SimpleReadWriteSplittingPlugin(servicesContainer.getPluginService(), props);
+    return new AutoSimpleReadWriteSplittingPlugin(servicesContainer.getPluginService(), props);
   }
 }

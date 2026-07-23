@@ -43,13 +43,32 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.Rebindable;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.WrapperUtils;
 
-public class PreparedStatementWrapper implements PreparedStatement {
+public class PreparedStatementWrapper implements PreparedStatement, Rebindable {
 
-  protected final PreparedStatement statement;
+  /**
+   * Re-creates an equivalent {@link PreparedStatement} on a different physical connection, using
+   * the SQL and prepare-time creation arguments captured when the statement was prepared.
+   */
+  @FunctionalInterface
+  public interface Repreparer {
+    PreparedStatement reprepare(Connection connection) throws SQLException;
+  }
+
+  // The target is swappable so a plugin can rebind a re-executed read PreparedStatement to a routed
+  // connection (query-level load balancing). Terminal lambdas read this.statement lazily, so a swap
+  // before execution takes effect for that execution.
+  protected PreparedStatement statement;
   protected final ConnectionWrapper connectionWrapper;
   protected final ConnectionPluginManager pluginManager;
+
+  // Set only when rebinding is enabled for this statement (see ConnectionWrapper). When null, the
+  // statement is not rebindable and behaves exactly as before.
+  private @Nullable Repreparer repreparer;
+  private @Nullable PreparedStatementRecorder recorder;
 
   public PreparedStatementWrapper(
       @NonNull PreparedStatement statement,
@@ -58,6 +77,59 @@ public class PreparedStatementWrapper implements PreparedStatement {
     this.statement = statement;
     this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
+  }
+
+  /**
+   * Enables statement rebinding: installs a recording proxy over the target so parameter and
+   * configuration setters are captured, and stores the {@link Repreparer} used to re-create the
+   * statement on a routed connection. Called by {@code ConnectionWrapper} only when query-level
+   * load balancing with rebinding is configured.
+   */
+  public void enableRebind(final Repreparer repreparer) {
+    final PreparedStatementRecorder.Installed<PreparedStatement> installed =
+        PreparedStatementRecorder.install(this.statement, PreparedStatement.class);
+    this.statement = installed.proxy;
+    this.recorder = installed.recorder;
+    this.repreparer = repreparer;
+  }
+
+  @Override
+  public Connection getBoundConnection() throws SQLException {
+    return this.statement.getConnection();
+  }
+
+  @Override
+  public boolean canRebind() {
+    return this.repreparer != null && this.recorder != null && this.recorder.isRebindable();
+  }
+
+  @Override
+  public void rebind(final Connection newConnection) throws SQLException {
+    if (this.repreparer == null || this.recorder == null) {
+      throw new SQLException(Messages.get("PreparedStatementWrapper.notRebindable"));
+    }
+    final PreparedStatement old = this.recorder.getTarget();
+    final PreparedStatement fresh = this.repreparer.reprepare(newConnection);
+    try {
+      // Replay the recorded configuration and parameters onto the freshly-prepared statement.
+      this.recorder.replay(fresh);
+    } catch (final SQLException e) {
+      // Keep the original target intact on any replay failure.
+      try {
+        fresh.close();
+      } catch (final SQLException ignore) {
+        // ignore
+      }
+      throw e;
+    }
+    // The wrapper's target is the stable recording proxy; point it at the new statement. Terminal
+    // execute lambdas delegate through the proxy, so they run against 'fresh' from now on.
+    this.recorder.setTarget(fresh);
+    try {
+      old.close();
+    } catch (final SQLException e) {
+      // best-effort close of the previous target
+    }
   }
 
   @Override
@@ -184,14 +256,15 @@ public class PreparedStatementWrapper implements PreparedStatement {
   @Override
   public boolean execute() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTE)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.executeWithPluginsWithRebindHandle(
           boolean.class,
           SQLException.class,
           this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
-          this.statement::execute);
+          this.statement::execute,
+          this);
     } else {
       return this.statement.execute();
     }
@@ -287,14 +360,15 @@ public class PreparedStatementWrapper implements PreparedStatement {
   @Override
   public long executeLargeUpdate() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.executeWithPluginsWithRebindHandle(
           long.class,
           SQLException.class,
           this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE,
-          this.statement::executeLargeUpdate);
+          this.statement::executeLargeUpdate,
+          this);
     } else {
       return this.statement.executeLargeUpdate();
     }
@@ -302,14 +376,15 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
   @Override
   public ResultSet executeQuery() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return WrapperUtils.executeWithPluginsWithRebindHandle(
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
           this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
-        this.statement::executeQuery);
+        this.statement::executeQuery,
+        this);
   }
 
   @Override
@@ -328,14 +403,15 @@ public class PreparedStatementWrapper implements PreparedStatement {
   @Override
   public int executeUpdate() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE)) {
-      return WrapperUtils.executeWithPlugins(
+      return WrapperUtils.executeWithPluginsWithRebindHandle(
           int.class,
           SQLException.class,
           this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
-          this.statement::executeUpdate);
+          this.statement::executeUpdate,
+          this);
     } else {
       return this.statement.executeUpdate();
     }
