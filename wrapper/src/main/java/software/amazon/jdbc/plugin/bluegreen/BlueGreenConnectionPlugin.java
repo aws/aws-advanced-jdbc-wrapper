@@ -117,8 +117,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     this.bgdId = normalizedBgdId;
 
     final HashSet<String> methods = new HashSet<>();
-    // We should NOT subscribe to "forceConnect" pipeline since it's used by
-    // BG monitoring, and we don't want to intercept/block those monitoring connections.
     methods.add(JdbcMethod.CONNECT.methodName);
     methods.add(JdbcMethod.FORCECONNECT.methodName);
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
@@ -139,6 +137,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
+    // We don't want to intercept/block BG monitoring connections.
     if (props.containsKey(BG_SKIP_ROUTING_IN_FORCE_CONNECT)) {
       return connectFunc.call();
     }
