@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import com.zaxxer.hikari.pool.HikariPool;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -319,11 +320,23 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     final HostSpec finalHostSpec = connectionHostSpec;
     dialect.prepareConnectProperties(copy, protocol, finalHostSpec);
 
-    final HikariDataSource ds = (HikariDataSource) HikariPoolsHolder.databasePools.computeIfAbsent(
-        Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
-        (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
-        poolExpirationCheckNanos
-    );
+    final HikariDataSource ds;
+    try {
+      ds = (HikariDataSource) HikariPoolsHolder.databasePools.computeIfAbsent(
+          Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
+          (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
+          poolExpirationCheckNanos
+      );
+    } catch (final HikariPool.PoolInitializationException e) {
+      // Hikari's fail-fast pool initialization throws a RuntimeException when the initial
+      // connection attempt fails. Wrap it as a SQLException so that callers relying on the
+      // declared 'throws SQLException' contract (e.g. the failover retry loop in RetryUtil)
+      // treat it as a recoverable connection failure instead of aborting.
+      throw new SQLException(
+          Messages.get("HikariPooledConnectionProvider.poolInitializationError",
+              new Object[] {finalHostSpec.getHostAndPort(), e.getMessage()}),
+          e);
+    }
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
