@@ -32,7 +32,7 @@ import software.amazon.jdbc.hostlistprovider.HostListProvider;
 public class HostIdCacheServiceImpl implements HostIdCacheService {
 
   public static final String PROP_ENABLED = "aws.jdbc.config.host.cache.enabled";
-  public static final String PROP_REGEXP  = "aws.jdbc.config.hast.cache.regexp";
+  public static final String PROP_REGEXP  = "aws.jdbc.config.host.cache.regexp";
 
   private static final ConcurrentHashMap<String, Pair<@Nullable String, @Nullable String>> cache =
       new ConcurrentHashMap<>();
