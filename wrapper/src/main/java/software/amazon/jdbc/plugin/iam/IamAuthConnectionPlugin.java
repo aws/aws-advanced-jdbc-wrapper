@@ -200,7 +200,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           host.getHost(),
           port,
           region,
-          AwsCredentialsManager.getProvider(hostSpec, props));
+          AwsCredentialsManager.getProvider(hostSpec, props, region));
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
@@ -240,7 +240,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           host.getHost(),
           port,
           region,
-          AwsCredentialsManager.getProvider(hostSpec, props));
+          AwsCredentialsManager.getProvider(hostSpec, props, region));
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",

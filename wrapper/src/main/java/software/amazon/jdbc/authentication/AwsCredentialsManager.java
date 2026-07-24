@@ -20,6 +20,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ResourceLock;
@@ -43,20 +44,48 @@ public class AwsCredentialsManager {
   }
 
   public static AwsCredentialsProvider getProvider(final HostSpec hostSpec, final Properties props) {
+    return getProvider(hostSpec, props, null);
+  }
+
+  /**
+   * Resolves an {@link AwsCredentialsProvider} for the given connection, optionally scoping the
+   * AWS Sign-In ({@code login_session}) credential flow to the provided region.
+   *
+   * @param hostSpec the host being connected to.
+   * @param props    the connection properties.
+   * @param region   the region already resolved for the connection. Used to scope the login/signin
+   *                 exchange when {@code allowAwsLoginSession=true} and the configured profile
+   *                 authenticates via a {@code login_session} entry. May be null when no region has
+   *                 been resolved yet.
+   * @return the credentials provider to use for the connection.
+   */
+  public static AwsCredentialsProvider getProvider(
+      final HostSpec hostSpec, final Properties props, final @Nullable Region region) {
     try (ResourceLock ignored = lock.obtain()) {
       AwsCredentialsProvider provider = handler == null
           ? null
           : handler.getAwsCredentialsProvider(hostSpec, props);
 
       if (provider == null) {
-        provider = getDefaultProvider(PropertyDefinition.AWS_PROFILE.getString(props));
+        provider = getDefaultProvider(props, region);
       }
 
       return provider;
     }
   }
 
-  private static AwsCredentialsProvider getDefaultProvider(final @Nullable String awsProfileName) {
+  private static AwsCredentialsProvider getDefaultProvider(
+      final Properties props, final @Nullable Region region) {
+    final String awsProfileName = PropertyDefinition.AWS_PROFILE.getString(props);
+
+    if (PropertyDefinition.ALLOW_AWS_LOGIN_SESSION.getBoolean(props)) {
+      final AwsCredentialsProvider loginProvider =
+          LoginCredentialsProviderFactory.create(awsProfileName, region);
+      if (loginProvider != null) {
+        return loginProvider;
+      }
+    }
+
     DefaultCredentialsProvider.Builder builder = DefaultCredentialsProvider.builder();
     if (!StringUtils.isNullOrEmpty(awsProfileName)) {
       builder.profileName(awsProfileName);

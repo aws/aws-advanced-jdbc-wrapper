@@ -54,6 +54,9 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
     optionalImplementation("software.amazon.awssdk:kms:$awsSdkVersion")
     optionalImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
+    // Required only when 'allowAwsLoginSession=true' is used together with a profile that
+    // authenticates via a 'login_session' entry. Accessed reflectively so it stays optional.
+    optionalImplementation("software.amazon.awssdk:signin:$awsSdkVersion")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.1")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.14.1")
@@ -104,6 +107,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:ec2:$awsSdkVersion")
     testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
     testImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
+    testImplementation("software.amazon.awssdk:signin:$awsSdkVersion")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:$testcontainersVersion")
     testImplementation("org.testcontainers:mysql:$testcontainersVersion")
