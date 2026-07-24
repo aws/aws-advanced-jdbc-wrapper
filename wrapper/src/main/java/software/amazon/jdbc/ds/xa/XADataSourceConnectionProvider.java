@@ -87,6 +87,7 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
   private final @Nullable String resolvedUrl;
   private final ResourceLock lock = new ResourceLock();
   private volatile @Nullable XAConnection xaConnection;
+  private volatile @Nullable Connection logicalConnection;
 
   public XADataSourceConnectionProvider(final @NonNull XADataSource xaDataSource) {
     this(xaDataSource, null);
@@ -142,11 +143,37 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
     // XADataSource would keep the static password configured at getXAConnection() time and IAM
     // authentication would fail.
     final XAConnection xaConn = openXaConnection(props);
-    final Connection conn = xaConn.getConnection();
-    if (conn == null) {
-      throw new SQLLoginException(Messages.get("XADataSourceConnectionProvider.noConnection"));
+    return new ConnectionInfo(getOrCreateLogicalConnection(xaConn), false, xaConn);
+  }
+
+  /**
+   * Returns the current logical {@link Connection} over the owning XA connection, creating it on
+   * first use and reusing it while it is open.
+   *
+   * <p>A single physical XA connection supports only one live logical connection at a time, and each
+   * {@code XAConnection.getConnection()} closes the previously handed-out logical connection. The
+   * connect pipeline can call {@link #connect} more than once while establishing a single handle
+   * (for example the IAM authentication plugin retries the connect after regenerating its token). If
+   * each such call opened a fresh logical connection, the earlier one — which the caller is about to
+   * use — would be closed out from under it ("Physical Connection doesn't exist" / "This
+   * PooledConnection has already been closed"). Caching the logical connection until it is closed
+   * makes repeated connect calls idempotent. A new logical connection is created for the next
+   * {@code XAConnectionWrapper.getConnection()} because closing that handle closes this connection.
+   */
+  private @NonNull Connection getOrCreateLogicalConnection(final @NonNull XAConnection xaConn)
+      throws SQLException {
+    try (ResourceLock ignored = this.lock.obtain()) {
+      final Connection existing = this.logicalConnection;
+      if (existing != null && !existing.isClosed()) {
+        return existing;
+      }
+      final Connection conn = xaConn.getConnection();
+      if (conn == null) {
+        throw new SQLLoginException(Messages.get("XADataSourceConnectionProvider.noConnection"));
+      }
+      this.logicalConnection = conn;
+      return conn;
     }
-    return new ConnectionInfo(conn, false, xaConn);
   }
 
   /**

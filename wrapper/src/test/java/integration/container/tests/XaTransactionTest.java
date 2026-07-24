@@ -30,6 +30,7 @@ import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnNumOfInstances;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -234,8 +235,7 @@ public class XaTransactionTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   public void test_readWriteSplittingDoesNotSwitchDuringXaBranch() throws Exception {
-    recreateTable();
-    final int id = 5;
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
     final AwsWrapperXADataSource ds = createXaDataSource();
     // Enable read/write splitting on the XA datasource; it must be skipped during the XA branch.
     final Properties targetProps = new Properties();
@@ -249,20 +249,25 @@ public class XaTransactionTest {
       final Xid xid = new TestXid(5);
 
       xaResource.start(xid, XAResource.TMNOFLAGS);
-      // Requesting read-only inside an XA branch must NOT switch to a reader (the gate pins the
-      // connection). If it switched to a reader, the following write would fail.
+      final String instanceInBranch = auroraUtil.queryInstanceId(conn);
+
+      // Requesting read-only inside an XA branch must NOT switch to a reader: the transaction-aware
+      // gate pins the physical connection for the branch. If the connection had switched, the
+      // reported instance id would change. We assert on the instance id rather than performing a
+      // write, because when the switch is skipped the underlying driver still applies read-only to
+      // the pinned session, which would block a subsequent INSERT (that is expected driver behavior,
+      // not a switch).
       conn.setReadOnly(true);
-      try (final Statement stmt = conn.createStatement()) {
-        stmt.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (" + id + ")");
-      }
+      final String instanceAfterSetReadOnly = auroraUtil.queryInstanceId(conn);
+      assertEquals(instanceInBranch, instanceAfterSetReadOnly,
+          "read/write splitting must not switch the connection during an XA branch");
+
+      conn.setReadOnly(false);
       xaResource.end(xid, XAResource.TMSUCCESS);
-      xaResource.prepare(xid);
-      xaResource.commit(xid, false);
+      xaResource.rollback(xid);
     } finally {
       xaConn.close();
     }
-
-    assertEquals(1, countRows(id), "the write must have stayed on the writer during the XA branch");
   }
 
   private static boolean xidEquals(final Xid a, final Xid b) {

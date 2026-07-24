@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
@@ -39,6 +40,7 @@ import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -146,35 +148,59 @@ public class XaFailoverTest {
       }
     }
 
-    // A new XA transaction started after failover should succeed against the promoted writer.
-    // Use the cluster endpoint so the wrapper connects to the current writer.
-    final AwsWrapperXADataSource newDs = new AwsWrapperXADataSource();
-    newDs.setTargetDataSourceClassName(DriverHelper.getXaDataSourceClassname());
-    newDs.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
-    newDs.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    newDs.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-    final Properties newProps = new Properties();
-    newProps.setProperty(PropertyDefinition.PLUGINS.name, "");
-    newDs.setTargetDataSourceProperties(newProps);
+    // A new XA transaction started after failover should succeed against the promoted writer. The
+    // cluster needs time to promote the new writer and update the cluster-endpoint DNS, so retry
+    // until it settles. Each attempt uses a distinct row id and Xid so a partially-completed attempt
+    // (e.g. prepared-but-not-committed on a connection that dropped) cannot block the next one.
+    final long deadlineNanos = System.nanoTime() + TimeUnit.MINUTES.toNanos(3);
+    int committedId = -1;
+    Exception lastError = null;
+    for (int attempt = 0; committedId < 0 && System.nanoTime() < deadlineNanos; attempt++) {
+      final int rowId = 31 + attempt;
 
-    final XAConnection xaConn2 = newDs.getXAConnection();
-    try {
-      final Connection conn = xaConn2.getConnection();
-      final XAResource xaResource = xaConn2.getXAResource();
-      final Xid xid = new XaTransactionTest.TestXid(31);
+      final AwsWrapperXADataSource newDs = new AwsWrapperXADataSource();
+      newDs.setTargetDataSourceClassName(DriverHelper.getXaDataSourceClassname());
+      newDs.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
+      newDs.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      newDs.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      final Properties newProps = new Properties();
+      newProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+      newDs.setTargetDataSourceProperties(newProps);
 
-      xaResource.start(xid, XAResource.TMNOFLAGS);
-      try (final Statement stmt = conn.createStatement()) {
-        stmt.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (31)");
+      XAConnection xaConn2 = null;
+      try {
+        xaConn2 = newDs.getXAConnection();
+        final Connection conn = xaConn2.getConnection();
+        final XAResource xaResource = xaConn2.getXAResource();
+        final Xid xid = new XaTransactionTest.TestXid(rowId);
+
+        xaResource.start(xid, XAResource.TMNOFLAGS);
+        try (final Statement stmt = conn.createStatement()) {
+          stmt.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (" + rowId + ")");
+        }
+        xaResource.end(xid, XAResource.TMSUCCESS);
+        xaResource.prepare(xid);
+        xaResource.commit(xid, false);
+        committedId = rowId;
+      } catch (final Exception e) {
+        lastError = e;
+        TimeUnit.SECONDS.sleep(10);
+      } finally {
+        if (xaConn2 != null) {
+          try {
+            xaConn2.close();
+          } catch (final SQLException ignore) {
+            // ignore
+          }
+        }
       }
-      xaResource.end(xid, XAResource.TMSUCCESS);
-      xaResource.prepare(xid);
-      xaResource.commit(xid, false);
-    } finally {
-      xaConn2.close();
     }
 
-    assertEquals(1, countRows(31), "a new XA transaction after failover should commit on the promoted writer");
+    assertTrue(committedId >= 0,
+        "a new XA transaction after failover should commit on the promoted writer"
+            + (lastError != null ? " (last error: " + lastError.getMessage() + ")" : ""));
+    assertEquals(1, countRows(committedId),
+        "the new XA transaction should be committed on the promoted writer");
   }
 
   /**
