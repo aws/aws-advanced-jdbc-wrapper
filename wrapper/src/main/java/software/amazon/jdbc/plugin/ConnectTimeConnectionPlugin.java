@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -54,7 +55,7 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(
         () -> Messages.get(
             "ConnectTimeConnectionPlugin.connectTime",
-            new Object[] {elapsedTimeNanos}));
+            new Object[] {elapsedTimeNanos, TimeUnit.NANOSECONDS.toMillis(elapsedTimeNanos)}));
     return result;
   }
 
@@ -70,7 +71,7 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(
         () -> Messages.get(
             "ConnectTimeConnectionPlugin.connectTime",
-            new Object[] {elapsedTimeNanos}));
+            new Object[] {elapsedTimeNanos, TimeUnit.NANOSECONDS.toMillis(elapsedTimeNanos)}));
     connectTime += elapsedTimeNanos;
 
     return result;
