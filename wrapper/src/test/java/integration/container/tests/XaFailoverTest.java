@@ -152,6 +152,9 @@ public class XaFailoverTest {
     // cluster needs time to promote the new writer and update the cluster-endpoint DNS, so retry
     // until it settles. Each attempt uses a distinct row id and Xid so a partially-completed attempt
     // (e.g. prepared-but-not-committed on a connection that dropped) cannot block the next one.
+    // The recovery datasource must target the cluster writer endpoint (which follows failover and
+    // resolves to the promoted writer once DNS updates); pointing at a fixed instance host would hit
+    // the demoted node, now a reader, and every write would fail with "read only transaction".
     final long deadlineNanos = System.nanoTime() + TimeUnit.MINUTES.toNanos(3);
     int committedId = -1;
     Exception lastError = null;
@@ -160,7 +163,7 @@ public class XaFailoverTest {
 
       final AwsWrapperXADataSource newDs = new AwsWrapperXADataSource();
       newDs.setTargetDataSourceClassName(DriverHelper.getXaDataSourceClassname());
-      newDs.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
+      newDs.setJdbcUrl(ConnectionStringHelper.getWrapperClusterEndpointUrl());
       newDs.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
       newDs.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
       final Properties newProps = new Properties();
@@ -286,8 +289,11 @@ public class XaFailoverTest {
   }
 
   private Connection openPlainConnection() throws SQLException {
+    // Use the cluster writer endpoint so reads/writes always target the current writer. After a
+    // failover this follows the promoted node; a fixed instance host would resolve to the demoted
+    // reader and either serve stale (replica-lagged) rows or reject writes.
     return java.sql.DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(),
+        ConnectionStringHelper.getWrapperClusterEndpointUrl(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
   }
