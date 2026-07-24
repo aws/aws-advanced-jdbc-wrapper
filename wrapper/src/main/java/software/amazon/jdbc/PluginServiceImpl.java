@@ -58,6 +58,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ResourceLock;
+import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -83,6 +84,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected HostSpec initialConnectionHostSpec;
   protected @Nullable HostSpec routedHostSpec;
   private boolean isInTransaction;
+  private volatile boolean isXaTransactionActive;
   private boolean isDialectConfirmed;
   private final ExceptionManager exceptionManager;
   protected final @Nullable ExceptionHandler exceptionHandler;
@@ -294,6 +296,19 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       throws SQLException {
 
     try (ResourceLock ignored = connectionSwitchLock.obtain()) {
+
+      // Last line of defense for XA correctness: a physical connection enlisted in an active XA
+      // transaction branch must not be swapped out from under the transaction manager. Plugins are
+      // expected to skip (voluntary switches) or fail fast (failover) before reaching this point;
+      // this guard only catches a switch that slipped through. A HostSpec-only update (same
+      // connection object) and initial establishment (currentConnection == null) are allowed.
+      if (this.isXaTransactionActive
+          && this.currentConnection != null
+          && connection != this.currentConnection) {
+        throw new SQLException(
+            Messages.get("PluginServiceImpl.connectionSwitchDuringXaTransaction"),
+            SqlState.ACTIVE_SQL_TRANSACTION.getState());
+      }
 
       if (this.currentConnection == null) {
         // setting up an initial connection
@@ -524,6 +539,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void setInTransaction(final boolean inTransaction) {
     this.isInTransaction = inTransaction;
+  }
+
+  @Override
+  public boolean isXaTransactionActive() {
+    return this.isXaTransactionActive;
+  }
+
+  @Override
+  public void setXaTransactionActive(final boolean active) {
+    this.isXaTransactionActive = active;
   }
 
   @Override
@@ -910,6 +935,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     state.add(Pair.create("currentHostSpec",
         this.currentHostSpec != null ? this.currentHostSpec.toString() : null));
     state.add(Pair.create("isInTransaction", this.isInTransaction));
+    state.add(Pair.create("isXaTransactionActive", this.isXaTransactionActive));
     state.add(Pair.create("dialect", this.dialect != null ? this.dialect.getClass().getName() : null));
     state.add(Pair.create("pooledConnection", this.pooledConnection));
     return state;

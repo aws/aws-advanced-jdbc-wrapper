@@ -46,8 +46,9 @@ Always lead with this:
 > e. **Auth integration** — IAM, Secrets Manager, federated (Okta/ADFS).
 > f. **Multi-region / Aurora Global Database** — cross-region replicas, planned switchover.
 > g. **Blue/Green Deployment** — survive RDS Blue/Green switchover.
-> h. **Troubleshooting** — diagnose a specific error message or behavior.
-> i. **Just answer a parameter / plugin question** — quick reference.
+> h. **Distributed / XA transactions** — participate in JTA two-phase commit (WildFly/Narayana, Atomikos).
+> i. **Troubleshooting** — diagnose a specific error message or behavior.
+> j. **Just answer a parameter / plugin question** — quick reference.
 
 Then branch to the relevant interview track in §2.
 
@@ -169,7 +170,21 @@ There are eight read/write splitting codes, and users routinely pick the wrong o
 3. **Multiple deployments at once?** (drives `bgdId`)
 4. **Open Liberty / Wildfly?** (need `identifyException` for failover SQL states — see §15)
 
-### 2.8 Track H — Troubleshooting
+### 2.8 Track H — Distributed / XA transactions
+
+1. **JTA transaction manager?** (WildFly/Narayana, Atomikos, Bitronix) — confirms the XA entry point
+   `AwsWrapperXADataSource` is what's needed, not `AwsWrapperDataSource`.
+2. **Engine + target XADataSource?** (PG `org.postgresql.xa.PGXADataSource`, MySQL
+   `com.mysql.cj.jdbc.MysqlXADataSource`, MariaDB `org.mariadb.jdbc.MariaDbDataSource`)
+3. **Auth?** (password / IAM / Secrets Manager — all act at connect time and work on the XA path)
+4. **Do you also need failover or read/write splitting?** If yes → recommend the **two-datasource**
+   pattern (XA datasource for writes + a normal datasource with `failover2`/read-write splitting for
+   reads); connection-switching plugins cannot run on the XA datasource.
+
+→ Branch to recipe §3.12. State the XA-path constraints up front (no switching plugins, no internal
+pool; PostgreSQL needs `max_prepared_transactions > 0`).
+
+### 2.9 Track I — Troubleshooting
 
 Walk through these in order until the cause is clear:
 
@@ -180,7 +195,7 @@ Walk through these in order until the cause is clear:
 5. **Logs available?** Enable `wrapperLoggerLevel=FINER` and look for `DialectManager Current dialect:` and the rearranged plugin order line. (See §16 for diagnostic workflow.)
 6. Check §18 for known anti-patterns.
 
-### 2.9 Track I — Quick parameter / plugin lookup
+### 2.10 Track J — Quick parameter / plugin lookup
 
 Skip the interview. Look up the parameter or plugin in §5–§9 and answer directly. If the term isn't in the document, say so.
 
@@ -461,6 +476,52 @@ props.setProperty("wrapperProfileName", "SF_F0"); // Spring Boot, internal pool,
 ```
 
 See §11 for the full preset list.
+
+### 3.12 Distributed (XA) transactions (WildFly / JTA)
+
+Use this when the application needs **XA / two-phase commit** transactions coordinated by a JTA
+transaction manager (WildFly/Narayana, Atomikos, Bitronix). The entry point is a dedicated
+`javax.sql.XADataSource`, **not** `AwsWrapperDataSource`:
+
+```xml
+<xa-datasource jndi-name="java:jboss/datasources/WriterXADS" pool-name="WriterXADS">
+    <driver>aws-advanced-jdbc-wrapper</driver>
+    <xa-datasource-class>software.amazon.jdbc.ds.AwsWrapperXADataSource</xa-datasource-class>
+    <!-- Target driver's XADataSource: PG org.postgresql.xa.PGXADataSource;
+         MySQL com.mysql.cj.jdbc.MysqlXADataSource; MariaDB org.mariadb.jdbc.MariaDbDataSource -->
+    <xa-datasource-property name="targetDataSourceClassName">org.postgresql.xa.PGXADataSource</xa-datasource-property>
+    <!-- Wrapper properties go in the jdbcUrl query string (XML-escape '&' as '&amp;').
+         Use CONNECT-TIME plugins only; wrapper params are stripped before reaching the target driver. -->
+    <xa-datasource-property name="jdbcUrl">jdbc:aws-wrapper:postgresql://my-cluster.cluster-XXX.us-east-1.rds.amazonaws.com:5432/mydb?wrapperDialect=aurora-pg&amp;wrapperPlugins=efm2</xa-datasource-property>
+    <security>
+        <user-name>myuser</user-name>
+        <password>mypassword</password>
+    </security>
+</xa-datasource>
+```
+
+**Non-negotiable constraints on the XA path (state these to the user):**
+- **No connection-switching plugins.** `readWriteSplitting` (any variant) and `failover`/`failover2`
+  must not be configured on the XA datasource — an XA branch is pinned to one physical session, so a
+  switch would run work outside the transaction. Read/write splitting is skipped during a branch, and
+  a failover attempt mid-branch **fails fast** (SQLSTATE `08007`); the transaction manager then rolls
+  the (unprepared) branch back. There is no transparent failover of an in-flight XA transaction — this
+  is inherent to XA, not a wrapper limitation.
+- **No wrapper internal connection pool** (`connectionPoolType`) and **no custom connection provider** —
+  both fail fast, because they pool/return plain connections with no `XAResource`. The transaction
+  manager / application server provides XA connection pooling.
+- **What the wrapper still adds at connect time:** IAM / Secrets Manager authentication, topology-aware
+  writer discovery, observability, and Blue/Green awareness. For IAM, use `wrapperPlugins=iam`, set
+  `iamRegion`, use the IAM DB user, and omit the password.
+- **PostgreSQL server prerequisite:** set `max_prepared_transactions > 0` (cluster parameter group for
+  Aurora) or `XAResource.prepare` fails. MySQL/InnoDB supports XA by default.
+
+**Recommended architecture — two datasources:** an `AwsWrapperXADataSource` for the write/2PC path
+(connect-time plugins only) **plus** a normal `AwsWrapperDataSource` with `failover2` + read/write
+splitting for the read path (§3.6 / §3.6b). The XA datasource gets what XA allows; the read datasource
+keeps the switching features.
+
+Full details, per-driver examples, and the IAM example: [`UsingXADataSource.md`](using-the-jdbc-driver/UsingXADataSource.md).
 
 ---
 

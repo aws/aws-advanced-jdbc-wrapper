@@ -359,6 +359,11 @@ public class ContainerHelper {
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/config/standard-mysql-grant-root.sql"),
             "/docker-entrypoint-initdb.d/standard-mysql-grant-root.sql")
+        // Grant XA_RECOVER_ADMIN (required since MySQL 8.0 for "XA RECOVER") to the test user so
+        // XADataSource integration tests can call XAResource.recover().
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/config/mysql-grant-xa-recover.sh"),
+            "/docker-entrypoint-initdb.d/mysql-grant-xa-recover.sh")
         .withCommand(
             "--local_infile=1",
             "--max_allowed_packet=40M",
@@ -380,7 +385,10 @@ public class ContainerHelper {
         .withNetworkAliases(networkAlias)
         .withDatabaseName(testDbName)
         .withUsername(username)
-        .withPassword(password);
+        .withPassword(password)
+        // Enable prepared (two-phase / XA) transactions; PostgreSQL disables them by default
+        // (max_prepared_transactions=0), which would make XAResource.prepare fail.
+        .withCommand("postgres", "-c", "max_prepared_transactions=10");
   }
 
   public GenericContainer createPostgisContainer(
@@ -401,7 +409,8 @@ public class ContainerHelper {
                         "-c", "shared_buffers=256MB",
                         "-c", "maintenance_work_mem=256MB",
                         "-c", "max_wal_size=1GB",
-                        "-c", "checkpoint_timeout=1d")
+                        "-c", "checkpoint_timeout=1d",
+                        "-c", "max_prepared_transactions=10")
                     .build()))
         .waitingFor(new LogMessageWaitStrategy()
             .withRegEx(".*database system is ready to accept connections.*\\s")
