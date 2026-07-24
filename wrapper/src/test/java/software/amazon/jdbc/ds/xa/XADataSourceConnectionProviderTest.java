@@ -65,8 +65,12 @@ public class XADataSourceConnectionProviderTest {
   }
 
   @Test
-  void connect_opensXaConnectionOnce_andReturnsFreshLogicalHandles() throws SQLException {
+  void connect_isIdempotent_reusesLogicalConnectionWhileOpen() throws SQLException {
+    // Repeated connect() calls while establishing one handle (e.g. the IAM plugin retrying after
+    // regenerating its token) must reuse the same logical connection. Opening a fresh one each time
+    // would close the previous one out from under the caller.
     final Connection logical1 = mock(Connection.class);
+    when(logical1.isClosed()).thenReturn(false);
     final Connection logical2 = mock(Connection.class);
     when(xaConnection.getConnection()).thenReturn(logical1, logical2);
 
@@ -75,16 +79,32 @@ public class XADataSourceConnectionProviderTest {
     final ConnectionInfo info1 = provider.connect("jdbc:postgresql://", dialect, targetDriverDialect, hostSpec, props);
     final ConnectionInfo info2 = provider.connect("jdbc:postgresql://", dialect, targetDriverDialect, hostSpec, props);
 
-    // The physical XA connection is opened exactly once and reused.
+    // The physical XA connection is opened once, and the logical connection is created once and reused.
     verify(xaDataSource, times(1)).getXAConnection();
-    // A fresh logical handle is produced per connect.
-    verify(xaConnection, times(2)).getConnection();
+    verify(xaConnection, times(1)).getConnection();
     assertSame(logical1, info1.getConnection());
-    assertSame(logical2, info2.getConnection());
-    assertNotSame(info1.getConnection(), info2.getConnection());
-    // Each ConnectionInfo carries the owning XAConnection.
+    assertSame(logical1, info2.getConnection());
     assertSame(xaConnection, info1.getXaConnection());
-    assertSame(xaConnection, info2.getXaConnection());
+  }
+
+  @Test
+  void connect_createsFreshLogicalConnection_afterPreviousClosed() throws SQLException {
+    // Once the current logical connection is closed (the owning handle was closed), the next connect
+    // creates a fresh logical connection over the same physical XA connection.
+    final Connection logical1 = mock(Connection.class);
+    when(logical1.isClosed()).thenReturn(true); // simulate the previous handle having been closed
+    final Connection logical2 = mock(Connection.class);
+    when(logical2.isClosed()).thenReturn(false);
+    when(xaConnection.getConnection()).thenReturn(logical1, logical2);
+
+    final XADataSourceConnectionProvider provider = new XADataSourceConnectionProvider(xaDataSource);
+
+    final ConnectionInfo info1 = provider.connect("jdbc:postgresql://", dialect, targetDriverDialect, hostSpec, props);
+    final ConnectionInfo info2 = provider.connect("jdbc:postgresql://", dialect, targetDriverDialect, hostSpec, props);
+
+    verify(xaDataSource, times(1)).getXAConnection();
+    verify(xaConnection, times(2)).getConnection();
+    assertNotSame(info1.getConnection(), info2.getConnection());
   }
 
   @Test
