@@ -32,12 +32,25 @@ import software.amazon.jdbc.hostlistprovider.HostListProvider;
 public class HostIdCacheServiceImpl implements HostIdCacheService {
 
   public static final String PROP_ENABLED = "aws.jdbc.config.host.cache.enabled";
-  public static final String PROP_REGEXP  = "aws.jdbc.config.hast.cache.regexp";
+
+  /**
+   * Deprecated, misspelled name for the host identification cache regexp property.
+   *
+   * @deprecated This property name contains a typo ("hast" instead of "host"). Use
+   *     {@link #PROP_REGEXP} instead. This property is still honored for backwards
+   *     compatibility but will be removed in a future release.
+   */
+  @Deprecated
+  public static final String PROP_REGEXP_OLD = "aws.jdbc.config.hast.cache.regexp";
+  public static final String PROP_REGEXP = "aws.jdbc.config.host.cache.regexp";
 
   private static final ConcurrentHashMap<String, Pair<@Nullable String, @Nullable String>> cache =
       new ConcurrentHashMap<>();
   private static final boolean isEnabled = Boolean.parseBoolean(System.getProperty(PROP_ENABLED, "true"));
-  private static final String hostRegexp = System.getProperty(PROP_REGEXP, ".*");
+  // Prefer the correctly-spelled property, falling back to the deprecated (misspelled) one for
+  // backwards compatibility.
+  private static final String hostRegexp =
+      System.getProperty(PROP_REGEXP, System.getProperty(PROP_REGEXP_OLD, ".*"));
   private static final RdsUtils rdsHelper = new RdsUtils();
 
   @Override
