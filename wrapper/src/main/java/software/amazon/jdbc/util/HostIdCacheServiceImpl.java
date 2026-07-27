@@ -34,6 +34,8 @@ public class HostIdCacheServiceImpl implements HostIdCacheService {
   public static final String PROP_ENABLED = "aws.jdbc.config.host.cache.enabled";
 
   /**
+   * Deprecated, misspelled name for the host identification cache regexp property.
+   *
    * @deprecated This property name contains a typo ("hast" instead of "host"). Use
    *     {@link #PROP_REGEXP} instead. This property is still honored for backwards
    *     compatibility but will be removed in a future release.
