@@ -39,16 +39,17 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuro
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY =
-      "select 'pg_catalog.aurora_global_db_status'::regproc";
+      "select 'pg_catalog.aurora_global_db_status'::pg_catalog.regproc";
   protected static final String GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY =
-      "select 'pg_catalog.aurora_global_db_instance_status'::regproc";
+      "select 'pg_catalog.aurora_global_db_instance_status'::pg_catalog.regproc";
 
   protected static final String GLOBAL_TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
           + "FROM pg_catalog.aurora_global_db_instance_status()";
 
-  protected static final String REGION_COUNT_QUERY = "SELECT count(1) FROM pg_catalog.aurora_global_db_status()";
+  protected static final String REGION_COUNT_QUERY =
+      "SELECT pg_catalog.count(1) FROM pg_catalog.aurora_global_db_status()";
   protected static final String REGION_BY_INSTANCE_ID_QUERY =
       "SELECT AWS_REGION FROM pg_catalog.aurora_global_db_instance_status() WHERE SERVER_ID = ?";
 
