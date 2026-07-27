@@ -248,7 +248,7 @@ public class DialectDetectionTests {
       when(rs.getBoolean("aurora_stat_utils")).thenReturn(true);
       return rs;
     }).when(mockStatement).executeQuery(eq(
-        "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+        "SELECT (setting OPERATOR(pg_catalog.~~) '%aurora_stat_utils%') AS aurora_stat_utils "
             + "FROM pg_catalog.pg_settings "
             + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'"));
     doAnswer(invocation -> createMockResultSet(true)).when(mockStatement).executeQuery(eq(
@@ -301,8 +301,8 @@ public class DialectDetectionTests {
       when(rs.getBoolean("aurora_stat_utils")).thenReturn(false);
       return rs;
     }).when(mockStatement).executeQuery(eq(
-        "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
-            + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+        "SELECT (setting OPERATOR(pg_catalog.~~) '%rds_tools%') AS rds_tools, "
+            + "(setting OPERATOR(pg_catalog.~~) '%aurora_stat_utils%') AS aurora_stat_utils "
             + "FROM pg_catalog.pg_settings "
             + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'"));
 

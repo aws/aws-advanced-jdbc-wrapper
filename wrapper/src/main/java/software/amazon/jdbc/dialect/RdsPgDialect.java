@@ -36,12 +36,13 @@ import software.amazon.jdbc.util.Pair;
  */
 public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
-  protected static final String EXTENSIONS_EXIST_SQL = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
-      + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+  protected static final String EXTENSIONS_EXIST_SQL =
+      "SELECT (setting OPERATOR(pg_catalog.~~) '%rds_tools%') AS rds_tools, "
+      + "(setting OPERATOR(pg_catalog.~~) '%aurora_stat_utils%') AS aurora_stat_utils "
       + "FROM pg_catalog.pg_settings "
       + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
   protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
-      "SELECT 'rds_tools.show_topology'::regproc";
+      "SELECT 'rds_tools.show_topology'::pg_catalog.regproc";
   protected static final String INSTANCE_ID_QUERY =
       "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
           + " FROM rds_tools.show_topology()"

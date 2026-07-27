@@ -34,7 +34,7 @@ import software.amazon.jdbc.util.Pair;
 public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
 
   protected static final String AURORA_UTILS_EXIST_QUERY =
-      "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+      "SELECT (setting OPERATOR(pg_catalog.~~) '%aurora_stat_utils%') AS aurora_stat_utils "
           + "FROM pg_catalog.pg_settings "
           + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
   protected static final String TOPOLOGY_EXISTS_QUERY = "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
@@ -59,7 +59,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";
 
   protected static final String BG_TOPOLOGY_EXISTS_QUERY =
-      "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
+      "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::pg_catalog.regproc";
   protected static final String BG_STATUS_QUERY =
       "SELECT * FROM "
           + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
