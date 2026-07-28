@@ -30,19 +30,36 @@ public class KeyMetadata {
   private final String keyName;
   private final String masterKeyArn;
   private final String encryptedDataKey;
-  private final byte[] hmacKey;
+  private final byte @Nullable [] hmacKey;
   private final String keySpec;
   private final Instant createdAt;
   private final Instant lastUsedAt;
 
   private KeyMetadata(Builder builder) {
+    // Explicit null checks (instead of Objects.requireNonNull) so the non-null builder values can
+    // be assigned to the non-null fields. Same exception type and message as before.
+    final @Nullable String builderKeyName = builder.keyName;
+    if (builderKeyName == null) {
+      throw new NullPointerException("keyName cannot be null");
+    }
+    final @Nullable String builderMasterKeyArn = builder.masterKeyArn;
+    if (builderMasterKeyArn == null) {
+      throw new NullPointerException("masterKeyArn cannot be null");
+    }
+    final @Nullable String builderEncryptedDataKey = builder.encryptedDataKey;
+    if (builderEncryptedDataKey == null) {
+      throw new NullPointerException("encryptedDataKey cannot be null");
+    }
+    final @Nullable String builderKeySpec = builder.keySpec;
+    if (builderKeySpec == null) {
+      throw new NullPointerException("keySpec cannot be null");
+    }
     this.keyId = builder.keyId;
-    this.keyName = Objects.requireNonNull(builder.keyName, "keyName cannot be null");
-    this.masterKeyArn = Objects.requireNonNull(builder.masterKeyArn, "masterKeyArn cannot be null");
-    this.encryptedDataKey =
-        Objects.requireNonNull(builder.encryptedDataKey, "encryptedDataKey cannot be null");
+    this.keyName = builderKeyName;
+    this.masterKeyArn = builderMasterKeyArn;
+    this.encryptedDataKey = builderEncryptedDataKey;
     this.hmacKey = builder.hmacKey;
-    this.keySpec = Objects.requireNonNull(builder.keySpec, "keySpec cannot be null");
+    this.keySpec = builderKeySpec;
     this.createdAt = builder.createdAt != null ? builder.createdAt : Instant.now();
     this.lastUsedAt = builder.lastUsedAt != null ? builder.lastUsedAt : Instant.now();
   }
@@ -63,7 +80,7 @@ public class KeyMetadata {
     return encryptedDataKey;
   }
 
-  public byte[] getHmacKey() {
+  public byte @Nullable [] getHmacKey() {
     return hmacKey;
   }
 
@@ -110,7 +127,7 @@ public class KeyMetadata {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -142,51 +159,51 @@ public class KeyMetadata {
   }
 
   public static class Builder {
-    private Integer keyId;
-    private String keyName;
-    private String masterKeyArn;
-    private String encryptedDataKey;
-    private byte[] hmacKey;
-    private String keySpec = "AES_256"; // Default key spec
-    private Instant createdAt;
-    private Instant lastUsedAt;
+    private @Nullable Integer keyId;
+    private @Nullable String keyName;
+    private @Nullable String masterKeyArn;
+    private @Nullable String encryptedDataKey;
+    private byte @Nullable [] hmacKey;
+    private @Nullable String keySpec = "AES_256"; // Default key spec
+    private @Nullable Instant createdAt;
+    private @Nullable Instant lastUsedAt;
 
-    public Builder keyId(Integer keyId) {
+    public Builder keyId(@Nullable Integer keyId) {
       this.keyId = keyId;
       return this;
     }
 
-    public Builder keyName(String keyName) {
+    public Builder keyName(@Nullable String keyName) {
       this.keyName = keyName;
       return this;
     }
 
-    public Builder masterKeyArn(String masterKeyArn) {
+    public Builder masterKeyArn(@Nullable String masterKeyArn) {
       this.masterKeyArn = masterKeyArn;
       return this;
     }
 
-    public Builder encryptedDataKey(String encryptedDataKey) {
+    public Builder encryptedDataKey(@Nullable String encryptedDataKey) {
       this.encryptedDataKey = encryptedDataKey;
       return this;
     }
 
-    public Builder hmacKey(byte[] hmacKey) {
+    public Builder hmacKey(byte @Nullable [] hmacKey) {
       this.hmacKey = hmacKey;
       return this;
     }
 
-    public Builder keySpec(String keySpec) {
+    public Builder keySpec(@Nullable String keySpec) {
       this.keySpec = keySpec;
       return this;
     }
 
-    public Builder createdAt(Instant createdAt) {
+    public Builder createdAt(@Nullable Instant createdAt) {
       this.createdAt = createdAt;
       return this;
     }
 
-    public Builder lastUsedAt(Instant lastUsedAt) {
+    public Builder lastUsedAt(@Nullable Instant lastUsedAt) {
       this.lastUsedAt = lastUsedAt;
       return this;
     }

@@ -220,7 +220,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public byte[] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef) throws SQLException {
+  public byte @Nullable [] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef)
+      throws SQLException {
     return getPgEncryptedDataHelper().getEncryptedBytes(rs, columnRef);
   }
 

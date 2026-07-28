@@ -137,7 +137,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       Object methodInvokeOn,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,
-      Object... args)
+      final @Nullable Object... args)
       throws E {
 
     try {
@@ -180,7 +180,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   @SuppressWarnings("unchecked")
   private <T, E extends Exception> T handlePrepareStatement(
       Class<T> methodClass, Class<E> exceptionClass,
-      JdbcCallable<T, E> jdbcCallable, Object... args) throws E {
+      JdbcCallable<T, E> jdbcCallable, final @Nullable Object... args) throws E {
 
     T result = jdbcCallable.call();
 
@@ -212,31 +212,36 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       PreparedStatement ps,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,
-      Object... args) throws E, SQLException {
+      final @Nullable Object... args) throws E, SQLException {
 
     StatementContext ctx = statementContexts.get(ps);
     if (ctx == null || args.length < 2) {
       return jdbcCallable.call();
     }
 
-    int paramIndex = (Integer) args[0];
-    Object value = args[1];
+    // args[0] is the parameter index of a PreparedStatement.setXxx call, so it is always a
+    // non-null Integer; the instanceof check only narrows the type for the nullness checker.
+    final @Nullable Object paramIndexArg = args[0];
+    final @Nullable Object value = args[1];
 
-    if (value == null) {
+    if (!(paramIndexArg instanceof Integer) || value == null) {
       return jdbcCallable.call();
     }
 
-    String columnName = ctx.getColumnNameForParameter(paramIndex);
-    if (columnName == null || ctx.tableName == null) {
+    final int paramIndex = (Integer) paramIndexArg;
+
+    final @Nullable String columnName = ctx.getColumnNameForParameter(paramIndex);
+    final @Nullable String tableName = ctx.tableName;
+    if (columnName == null || tableName == null) {
       return jdbcCallable.call();
     }
 
     MetadataManager metadataManager = encryptionUtility.getMetadataManager();
-    if (metadataManager == null || !metadataManager.isColumnEncrypted(ctx.tableName, columnName)) {
+    if (metadataManager == null || !metadataManager.isColumnEncrypted(tableName, columnName)) {
       return jdbcCallable.call();
     }
 
-    ColumnEncryptionConfig config = metadataManager.getColumnConfig(ctx.tableName, columnName);
+    ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
     if (config == null) {
       return jdbcCallable.call();
     }
@@ -250,8 +255,15 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         config.getKeyMetadata().getMasterKeyArn());
 
     byte[] hmacKey = config.getKeyMetadata().getHmacKey();
-    byte[] encrypted = encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
+    final byte @Nullable [] encrypted =
+        encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
     java.util.Arrays.fill(dataKey, (byte) 0);
+
+    if (encrypted == null) {
+      // Unreachable: encrypt() only returns null for a null value, and null values were
+      // already delegated to the target driver above.
+      return jdbcCallable.call();
+    }
 
     // Set encrypted bytes using database-appropriate method
     pluginService.getTargetDriverDialect().setEncryptedParameter(ps, paramIndex, encrypted);
@@ -265,11 +277,11 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       ResultSet rs,
       String methodName,
       JdbcCallable<T, E> jdbcCallable,
-      Object... args) throws E, SQLException {
+      final @Nullable Object... args) throws E, SQLException {
 
     // Determine column name from args (index or label)
-    String columnName = resolveColumnName(rs, args);
-    String tableName = resolveTableName(rs, args);
+    final @Nullable String columnName = resolveColumnName(rs, args);
+    final @Nullable String tableName = resolveTableName(rs, args);
 
     if (columnName == null || tableName == null) {
       return jdbcCallable.call();
@@ -308,30 +320,40 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     return (T) decrypted;
   }
 
-  private byte[] getEncryptedBytes(ResultSet rs, Object... args) throws SQLException {
-    return pluginService.getTargetDriverDialect().getEncryptedBytes(rs, args[0]);
+  private byte @Nullable [] getEncryptedBytes(ResultSet rs, final @Nullable Object... args)
+      throws SQLException {
+    final @Nullable Object columnRef = args[0];
+    if (columnRef == null) {
+      // Unreachable: callers only get here after resolveColumnName() accepted args[0] as a
+      // column index or label.
+      return null;
+    }
+    return pluginService.getTargetDriverDialect().getEncryptedBytes(rs, columnRef);
   }
 
-  private String resolveColumnName(ResultSet rs, Object... args) throws SQLException {
+  private @Nullable String resolveColumnName(ResultSet rs, final @Nullable Object... args)
+      throws SQLException {
     if (args.length == 0) {
       return null;
     }
-    if (args[0] instanceof String) {
-      return (String) args[0];
+    final @Nullable Object columnRef = args[0];
+    if (columnRef instanceof String) {
+      return (String) columnRef;
     }
-    if (args[0] instanceof Integer) {
-      return rs.getMetaData().getColumnName((Integer) args[0]);
+    if (columnRef instanceof Integer) {
+      return rs.getMetaData().getColumnName((Integer) columnRef);
     }
     return null;
   }
 
-  private String resolveTableName(ResultSet rs, Object... args) {
+  private @Nullable String resolveTableName(ResultSet rs, final @Nullable Object... args) {
     try {
+      final @Nullable Object columnRef = args.length > 0 ? args[0] : null;
       int colIndex;
-      if (args.length > 0 && args[0] instanceof Integer) {
-        colIndex = (Integer) args[0];
-      } else if (args.length > 0 && args[0] instanceof String) {
-        colIndex = rs.findColumn((String) args[0]);
+      if (columnRef instanceof Integer) {
+        colIndex = (Integer) columnRef;
+      } else if (columnRef instanceof String) {
+        colIndex = rs.findColumn((String) columnRef);
       } else {
         return null;
       }
@@ -414,17 +436,20 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(final @Nullable HostRole role, String strategy) {
     return true;
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+  public HostSpec getHostSpecByStrategy(final @Nullable HostRole role, String strategy)
+      throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("KmsEncryptionConnectionPlugin.noHostSelection"));
   }
 
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+  @Override
+  public HostSpec getHostSpecByStrategy(
+      List<HostSpec> hosts, final @Nullable HostRole role, String strategy)
       throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("KmsEncryptionConnectionPlugin.noHostSelection2"));
@@ -450,7 +475,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   /** Tracks SQL analysis and parameter mappings for a PreparedStatement. */
   private static class StatementContext {
-    final String tableName;
+    final @Nullable String tableName;
     final Map<Integer, String> parameterColumnMapping;
 
     // Raw type casts from context — generic parameters (Set<String>, Map<Integer,String>)
@@ -474,7 +499,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       }
     }
 
-    String getColumnNameForParameter(int paramIndex) {
+    @Nullable String getColumnNameForParameter(int paramIndex) {
       return parameterColumnMapping.get(paramIndex);
     }
   }

@@ -341,8 +341,9 @@ if (project.hasProperty("enableCheckerFramework")) {
         // efm, federatedauth, iam, limitless, customendpoint, strategy, dev, staledns and
         // sqlparser,
         // (part 17) the top-level parser package and the plugin.failover2 family, and
-        // (part 18) the plugin.readwritesplitting family and its sub-packages
-        // (the encryption family remains out of scope for a follow-on part).
+        // (part 18) the plugin.readwritesplitting family and its sub-packages, and
+        // (part 19) the plugin.encryption family and its sub-packages. The whole
+        // software.amazon.jdbc source tree is now in scope.
         // No end-anchor: matching an outer class also covers its nested classes (and, for
         // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*). The
         // "plugin\.[A-Z]\w*" entry matches only classes directly in the plugin package
@@ -365,7 +366,7 @@ if (project.hasProperty("enableCheckerFramework")) {
                 + "|plugin\\.dev\\.\\w+|plugin\\.staledns\\.\\w+"
                 + "|plugin\\.sqlparser\\.\\w+"
                 + "|parser\\.\\w+|plugin\\.failover2\\.\\w+"
-                + "|plugin\\.readwritesplitting\\.\\w+"
+                + "|plugin\\.readwritesplitting\\.\\w+|plugin\\.encryption\\.\\w+"
                 + "|[A-Z]\\w*)",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",

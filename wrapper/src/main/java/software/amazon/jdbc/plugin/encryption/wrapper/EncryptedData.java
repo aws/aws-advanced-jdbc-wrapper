@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 // CHECKSTYLE:OFF: IllegalImport - PostgreSQL-specific types required for encrypted_data domain
 import org.postgresql.util.PGBinaryObject;
 import org.postgresql.util.PGobject;
@@ -28,8 +29,11 @@ import org.postgresql.util.PGobject;
  */
 public class EncryptedData extends PGobject implements PGBinaryObject {
 
-  private byte[] bytes;
+  private byte @Nullable [] bytes;
 
+  // PGobject.setType() is a public setter on the superclass; calling it from the constructor is
+  // the documented way to declare the PostgreSQL type name.
+  @SuppressWarnings("method.invocation")
   public EncryptedData() {
     setType("encrypted_data");
   }
@@ -39,7 +43,7 @@ public class EncryptedData extends PGobject implements PGBinaryObject {
     this.bytes = bytes;
   }
 
-  public byte[] getBytes() {
+  public byte @Nullable [] getBytes() {
     return bytes;
   }
 
@@ -48,7 +52,7 @@ public class EncryptedData extends PGobject implements PGBinaryObject {
   }
 
   @Override
-  public void setValue(String value) throws SQLException {
+  public void setValue(final @Nullable String value) throws SQLException {
     if (value != null && value.startsWith("\\x")) {
       this.bytes = hexToBytes(value.substring(2));
     } else {
@@ -57,11 +61,12 @@ public class EncryptedData extends PGobject implements PGBinaryObject {
   }
 
   @Override
-  public String getValue() {
-    if (bytes == null) {
+  public @Nullable String getValue() {
+    final byte @Nullable [] currentBytes = bytes;
+    if (currentBytes == null) {
       return null;
     }
-    return "\\x" + bytesToHex(bytes);
+    return "\\x" + bytesToHex(currentBytes);
   }
 
   @Override
@@ -81,8 +86,9 @@ public class EncryptedData extends PGobject implements PGBinaryObject {
 
   @Override
   public void toBytes(byte[] bytes, int offset) {
-    if (this.bytes != null) {
-      System.arraycopy(this.bytes, 0, bytes, offset, this.bytes.length);
+    final byte @Nullable [] currentBytes = this.bytes;
+    if (currentBytes != null) {
+      System.arraycopy(currentBytes, 0, bytes, offset, currentBytes.length);
     }
   }
 

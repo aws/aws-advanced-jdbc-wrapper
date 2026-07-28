@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
@@ -187,7 +188,7 @@ public class EncryptionConfig {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -347,7 +348,7 @@ public class EncryptionConfig {
       return this;
     }
 
-    public Builder encryptionMetadataSchema(String encryptionMetadataSchema) {
+    public Builder encryptionMetadataSchema(@Nullable String encryptionMetadataSchema) {
       this.encryptionMetadataSchema = SchemaName.of(encryptionMetadataSchema);
       return this;
     }

@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.wrapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * PostgreSQL-specific encrypted data handling using the EncryptedData custom type.
@@ -33,7 +34,7 @@ public class PgEncryptedDataHelper {
     ps.setObject(paramIndex, encData);
   }
 
-  public byte[] getEncryptedBytes(ResultSet rs, Object columnRef) throws SQLException {
+  public byte @Nullable [] getEncryptedBytes(ResultSet rs, Object columnRef) throws SQLException {
     Object obj;
     if (columnRef instanceof Integer) {
       obj = rs.getObject((Integer) columnRef);

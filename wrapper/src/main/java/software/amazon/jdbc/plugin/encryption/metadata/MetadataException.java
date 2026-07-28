@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.metadata;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Exception thrown when metadata operations fail, such as loading encryption configuration from
@@ -36,7 +37,8 @@ public class MetadataException extends SQLException {
   public static final String METADATA_LOOKUP_FAILED_STATE = "META04";
   public static final String METADATA_VALIDATION_FAILED_STATE = "META05";
 
-  private final Map<String, Object> errorContext = new HashMap<>();
+  // Context values are nullable: the sanitizing helpers below map a null input to a null entry.
+  private final Map<String, @Nullable Object> errorContext = new HashMap<>();
 
   /**
    * Constructs a MetadataException with the specified detail message.
@@ -53,7 +55,7 @@ public class MetadataException extends SQLException {
    * @param message the detail message
    * @param cause the cause of this exception
    */
-  public MetadataException(String message, Throwable cause) {
+  public MetadataException(String message, final @Nullable Throwable cause) {
     super(message, METADATA_LOOKUP_FAILED_STATE, cause);
   }
 
@@ -75,7 +77,8 @@ public class MetadataException extends SQLException {
    * @param vendorCode the vendor-specific error code
    * @param cause the cause of this exception
    */
-  public MetadataException(String message, String sqlState, int vendorCode, Throwable cause) {
+  public MetadataException(
+      String message, String sqlState, int vendorCode, final @Nullable Throwable cause) {
     super(message, sqlState, vendorCode, cause);
   }
 
@@ -86,7 +89,7 @@ public class MetadataException extends SQLException {
    * @param sqlState the SQL state
    * @param cause the cause of this exception
    */
-  public MetadataException(String message, String sqlState, Throwable cause) {
+  public MetadataException(String message, String sqlState, final @Nullable Throwable cause) {
     super(message, sqlState, cause);
   }
 
@@ -97,7 +100,7 @@ public class MetadataException extends SQLException {
    * @param value the context value
    * @return this exception for method chaining
    */
-  public MetadataException withContext(String key, Object value) {
+  public MetadataException withContext(String key, final @Nullable Object value) {
     errorContext.put(key, value);
     return this;
   }
@@ -149,7 +152,7 @@ public class MetadataException extends SQLException {
    * @param sql the SQL query
    * @return this exception for method chaining
    */
-  public MetadataException withSql(String sql) {
+  public MetadataException withSql(final @Nullable String sql) {
     return withContext("sql", sanitizeSql(sql));
   }
 
@@ -158,8 +161,8 @@ public class MetadataException extends SQLException {
    *
    * @return a copy of the error context
    */
-  public Map<String, Object> getErrorContext() {
-    return new HashMap<>(errorContext);
+  public Map<String, @Nullable Object> getErrorContext() {
+    return new HashMap<String, @Nullable Object>(errorContext);
   }
 
   /**
@@ -167,16 +170,18 @@ public class MetadataException extends SQLException {
    *
    * @return formatted error message with context
    */
-  public String getDetailedMessage() {
+  public @Nullable String getDetailedMessage() {
+    // Throwable.getMessage() is nullable (e.g. when built from a cause without a message).
+    final @Nullable String message = getMessage();
     if (errorContext.isEmpty()) {
-      return getMessage();
+      return message;
     }
 
-    StringBuilder sb = new StringBuilder(getMessage());
+    StringBuilder sb = new StringBuilder(message == null ? "" : message);
     sb.append(" [Context: ");
 
     boolean first = true;
-    for (Map.Entry<String, Object> entry : errorContext.entrySet()) {
+    for (Map.Entry<String, @Nullable Object> entry : errorContext.entrySet()) {
       if (!first) {
         sb.append(", ");
       }
@@ -195,7 +200,7 @@ public class MetadataException extends SQLException {
    * @param cause Root cause
    * @return New MetadataException instance
    */
-  public static MetadataException loadFailed(String message, Throwable cause) {
+  public static MetadataException loadFailed(String message, final @Nullable Throwable cause) {
     return new MetadataException(message, METADATA_LOAD_FAILED_STATE, cause);
   }
 
@@ -206,7 +211,7 @@ public class MetadataException extends SQLException {
    * @param cause Root cause
    * @return New MetadataException instance
    */
-  public static MetadataException cacheFailed(String message, Throwable cause) {
+  public static MetadataException cacheFailed(String message, final @Nullable Throwable cause) {
     return new MetadataException(message, METADATA_CACHE_FAILED_STATE, cause);
   }
 
@@ -217,7 +222,7 @@ public class MetadataException extends SQLException {
    * @param cause Root cause
    * @return New MetadataException instance
    */
-  public static MetadataException refreshFailed(String message, Throwable cause) {
+  public static MetadataException refreshFailed(String message, final @Nullable Throwable cause) {
     return new MetadataException(message, METADATA_REFRESH_FAILED_STATE, cause);
   }
 
@@ -230,7 +235,7 @@ public class MetadataException extends SQLException {
    * @return New MetadataException instance
    */
   public static MetadataException lookupFailed(
-      String tableName, String columnName, Throwable cause) {
+      String tableName, String columnName, final @Nullable Throwable cause) {
     return new MetadataException("Failed to lookup metadata", METADATA_LOOKUP_FAILED_STATE, cause)
         .withTable(tableName)
         .withColumn(columnName);
@@ -248,7 +253,7 @@ public class MetadataException extends SQLException {
 
   // Sanitization methods
 
-  private String sanitizeSql(String sql) {
+  private @Nullable String sanitizeSql(final @Nullable String sql) {
     if (sql == null) {
       return null;
     }

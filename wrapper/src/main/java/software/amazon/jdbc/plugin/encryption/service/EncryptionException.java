@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.service;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Exception thrown when encryption or decryption operations fail. Extends SQLException to integrate
@@ -52,7 +53,7 @@ public class EncryptionException extends SQLException {
    * @param message the detail message
    * @param cause the cause of this exception
    */
-  public EncryptionException(String message, Throwable cause) {
+  public EncryptionException(String message, final @Nullable Throwable cause) {
     super(message, ENCRYPTION_FAILED_STATE, cause);
   }
 
@@ -63,7 +64,7 @@ public class EncryptionException extends SQLException {
    * @param sqlState the SQL state
    * @param cause the cause of this exception
    */
-  public EncryptionException(String message, String sqlState, Throwable cause) {
+  public EncryptionException(String message, String sqlState, final @Nullable Throwable cause) {
     super(message, sqlState, cause);
   }
 
@@ -152,12 +153,14 @@ public class EncryptionException extends SQLException {
    *
    * @return formatted error message with context
    */
-  public String getDetailedMessage() {
+  public @Nullable String getDetailedMessage() {
+    // Throwable.getMessage() is nullable (e.g. when built from a cause without a message).
+    final @Nullable String message = getMessage();
     if (errorContext.isEmpty()) {
-      return getMessage();
+      return message;
     }
 
-    StringBuilder sb = new StringBuilder(getMessage());
+    StringBuilder sb = new StringBuilder(message == null ? "" : message);
     sb.append(" [Context: ");
 
     boolean first = true;
@@ -180,7 +183,8 @@ public class EncryptionException extends SQLException {
    * @param cause Root cause
    * @return New EncryptionException instance
    */
-  public static EncryptionException encryptionFailed(String message, Throwable cause) {
+  public static EncryptionException encryptionFailed(
+      String message, final @Nullable Throwable cause) {
     return new EncryptionException(message, ENCRYPTION_FAILED_STATE, cause);
   }
 
@@ -191,7 +195,8 @@ public class EncryptionException extends SQLException {
    * @param cause Root cause
    * @return New EncryptionException instance
    */
-  public static EncryptionException decryptionFailed(String message, Throwable cause) {
+  public static EncryptionException decryptionFailed(
+      String message, final @Nullable Throwable cause) {
     return new EncryptionException(message, DECRYPTION_FAILED_STATE, cause);
   }
 
@@ -226,7 +231,7 @@ public class EncryptionException extends SQLException {
    * @return New EncryptionException instance
    */
   public static EncryptionException typeConversionFailed(
-      String fromType, String toType, Throwable cause) {
+      String fromType, String toType, final @Nullable Throwable cause) {
     return new EncryptionException(
             String.format("Cannot convert %s to %s", fromType, toType),
             TYPE_CONVERSION_FAILED_STATE,

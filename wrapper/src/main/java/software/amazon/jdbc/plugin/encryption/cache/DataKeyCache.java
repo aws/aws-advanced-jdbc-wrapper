@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.util.Messages;
 
@@ -50,6 +51,9 @@ public class DataKeyCache {
   private final AtomicLong missCount = new AtomicLong(0);
   private final AtomicLong evictionCount = new AtomicLong(0);
 
+  // The scheduled cleanup task references this instance before the constructor returns; all
+  // state it touches (cache, lock, config) is assigned before the task is scheduled.
+  @SuppressWarnings("methodref.receiver.bound")
   public DataKeyCache(EncryptionConfig config) {
     this.config = config;
     this.cache = new HashMap<>();
@@ -78,14 +82,14 @@ public class DataKeyCache {
    * @param keyId the key identifier
    * @return decrypted data key bytes, or null if not found or expired
    */
-  public byte[] get(String keyId) {
+  public byte @Nullable [] get(String keyId) {
     if (!config.isDataKeyCacheEnabled() || keyId == null) {
       return null;
     }
 
     lock.readLock().lock();
     try {
-      CacheEntry entry = cache.get(keyId);
+      final @Nullable CacheEntry entry = cache.get(keyId);
       if (entry == null) {
         missCount.incrementAndGet();
         LOGGER.finest(() -> Messages.get("DataKeyCache.cacheMiss", new Object[]{keyId}));
@@ -279,7 +283,7 @@ public class DataKeyCache {
       this.createdAt = Instant.now();
     }
 
-    public byte[] getDataKey() {
+    public byte @Nullable [] getDataKey() {
       if (cleared) {
         return null;
       }

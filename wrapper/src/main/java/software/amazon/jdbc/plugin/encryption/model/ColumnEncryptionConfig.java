@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 
 import java.time.Instant;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
 
 /**
@@ -35,10 +36,28 @@ public class ColumnEncryptionConfig {
   private final Instant updatedAt;
 
   private ColumnEncryptionConfig(Builder builder) {
-    this.tableName = Objects.requireNonNull(builder.tableName, "tableName cannot be null");
-    this.columnName = Objects.requireNonNull(builder.columnName, "columnName cannot be null");
-    this.algorithm = Objects.requireNonNull(builder.algorithm, "algorithm cannot be null");
-    this.keyId = Objects.requireNonNull(builder.keyId, "keyId cannot be null");
+    // Explicit null checks (instead of Objects.requireNonNull) so the non-null builder values can
+    // be assigned to the non-null fields. Same exception type and message as before.
+    final @Nullable String builderTableName = builder.tableName;
+    if (builderTableName == null) {
+      throw new NullPointerException("tableName cannot be null");
+    }
+    final @Nullable String builderColumnName = builder.columnName;
+    if (builderColumnName == null) {
+      throw new NullPointerException("columnName cannot be null");
+    }
+    final @Nullable String builderAlgorithm = builder.algorithm;
+    if (builderAlgorithm == null) {
+      throw new NullPointerException("algorithm cannot be null");
+    }
+    final @Nullable Integer builderKeyId = builder.keyId;
+    if (builderKeyId == null) {
+      throw new NullPointerException("keyId cannot be null");
+    }
+    this.tableName = builderTableName;
+    this.columnName = builderColumnName;
+    this.algorithm = builderAlgorithm;
+    this.keyId = builderKeyId;
     this.keyMetadata = builder.keyMetadata;
     this.createdAt = builder.createdAt != null ? builder.createdAt : Instant.now();
     this.updatedAt = builder.updatedAt != null ? builder.updatedAt : Instant.now();
@@ -82,7 +101,7 @@ public class ColumnEncryptionConfig {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -114,25 +133,26 @@ public class ColumnEncryptionConfig {
   }
 
   public static class Builder {
-    private String tableName;
-    private String columnName;
-    private String algorithm = EncryptionAlgorithm.AES_256_GCM;
-    private Integer keyId;
+    private @Nullable String tableName;
+    private @Nullable String columnName;
+    private @Nullable String algorithm = EncryptionAlgorithm.AES_256_GCM;
+    private @Nullable Integer keyId;
+    // Left non-null: ColumnEncryptionConfig.getKeyMetadata() is dereferenced by callers.
     private KeyMetadata keyMetadata;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private @Nullable Instant createdAt;
+    private @Nullable Instant updatedAt;
 
-    public Builder tableName(String tableName) {
+    public Builder tableName(@Nullable String tableName) {
       this.tableName = tableName;
       return this;
     }
 
-    public Builder columnName(String columnName) {
+    public Builder columnName(@Nullable String columnName) {
       this.columnName = columnName;
       return this;
     }
 
-    public Builder algorithm(String algorithm) {
+    public Builder algorithm(@Nullable String algorithm) {
       this.algorithm = algorithm;
       return this;
     }

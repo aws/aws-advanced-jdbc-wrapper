@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 
 import java.util.Objects;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -144,7 +145,7 @@ public class ConnectionParameters {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

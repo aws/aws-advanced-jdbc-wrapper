@@ -116,7 +116,7 @@ public class KeyManager {
     throw new SQLException(Messages.get("KeyManager.noConnectionAvailable"));
   }
 
-  private void closeConnection(Connection conn) throws SQLException {
+  private void closeConnection(final @Nullable Connection conn) throws SQLException {
     if (pluginService != null && conn != null) {
       conn.close();
     }
@@ -356,6 +356,10 @@ public class KeyManager {
 
         try (ResultSet rs = stmt.executeQuery()) {
           if (rs.next()) {
+            // ResultSet.getTimestamp() is nullable; a null timestamp is passed through to the
+            // builder, which substitutes the current instant (same as MetadataManager does).
+            final @Nullable Timestamp createdAt = rs.getTimestamp("created_at");
+            final @Nullable Timestamp lastUsedAt = rs.getTimestamp("last_used_at");
             KeyMetadata metadata =
                 KeyMetadata.builder()
                     .keyId(rs.getInt("id"))
@@ -364,8 +368,8 @@ public class KeyManager {
                     .encryptedDataKey(rs.getString("encrypted_data_key"))
                     .hmacKey(rs.getBytes("hmac_key"))
                     .keySpec(rs.getString("key_spec"))
-                    .createdAt(rs.getTimestamp("created_at").toInstant())
-                    .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
+                    .createdAt(createdAt != null ? createdAt.toInstant() : null)
+                    .lastUsedAt(lastUsedAt != null ? lastUsedAt.toInstant() : null)
                     .build();
 
             LOGGER.finest(() -> Messages.get("KeyManager.keyMetadataRetrieved", new Object[]{keyId}));
@@ -456,7 +460,7 @@ public class KeyManager {
 
   /** Executes a KMS operation with retry logic and exponential backoff. */
   private <T> T executeWithRetry(KmsOperation<T> operation) throws Exception {
-    Exception lastException = null;
+    @Nullable Exception lastException = null;
     int maxRetries = config.getMaxRetries();
 
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
@@ -488,7 +492,12 @@ public class KeyManager {
       }
     }
 
-    throw lastException;
+    final @Nullable Exception failure = lastException;
+    if (failure == null) {
+      // Only reachable with a negative maxRetries, where the retry loop never runs.
+      throw new KeyManagementException(Messages.get("KeyManager.retryNoException"));
+    }
+    throw failure;
   }
 
   /** Determines if an exception is retryable. */
