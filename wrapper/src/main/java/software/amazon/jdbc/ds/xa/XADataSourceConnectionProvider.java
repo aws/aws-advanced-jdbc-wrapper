@@ -86,8 +86,11 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
   private final @NonNull String xaDataSourceClassName;
   private final @Nullable String resolvedUrl;
   private final ResourceLock lock = new ResourceLock();
+  // volatile: read outside the lock by the double-checked open in openXaConnection() and by
+  // getXaConnectionOrNull().
   private volatile @Nullable XAConnection xaConnection;
-  private volatile @Nullable Connection logicalConnection;
+  // Not volatile: only ever read/written while holding this.lock (getOrCreateLogicalConnection).
+  private @Nullable Connection logicalConnection;
 
   public XADataSourceConnectionProvider(final @NonNull XADataSource xaDataSource) {
     this(xaDataSource, null);

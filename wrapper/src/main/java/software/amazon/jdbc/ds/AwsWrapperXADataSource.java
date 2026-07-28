@@ -206,8 +206,7 @@ public class AwsWrapperXADataSource implements XADataSource, Serializable {
     // Reject the wrapper's internal connection pool on the XA path: those providers pool plain
     // Connections and cannot expose an XAResource. XA connection pooling is provided by the
     // transaction manager / application server.
-    final Properties rawProps = PropertyUtils.copyProperties(
-        this.targetDataSourceProperties != null ? this.targetDataSourceProperties : new Properties());
+    final Properties rawProps = PropertyUtils.copyProperties(this.targetDataSourceProperties);
     if (PropertyDefinition.CONNECTION_POOL_TYPE.getString(rawProps) != null) {
       throw new SQLException(
           Messages.get(
@@ -375,8 +374,7 @@ public class AwsWrapperXADataSource implements XADataSource, Serializable {
    * for now; a shared resolver with {@link AwsWrapperDataSource} is a later optimization.)
    */
   ResolvedConfig resolveConfig() throws SQLException {
-    final Properties props = PropertyUtils.copyProperties(
-        this.targetDataSourceProperties != null ? this.targetDataSourceProperties : new Properties());
+    final Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
 
     final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
     ConfigurationProfile configurationProfile = null;

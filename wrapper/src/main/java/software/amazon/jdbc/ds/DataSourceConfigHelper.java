@@ -77,14 +77,6 @@ public final class DataSourceConfigHelper {
       ConnectionUrlParser.parsePropertiesFromUrl(jdbcUrl, props);
       setDatabasePropertyFromUrl(props, jdbcUrl);
 
-      // Override credentials with the ones provided through the data source property.
-      setCredentialProperties(props, user, password);
-
-      // Override database with the one provided through the data source property.
-      if (!StringUtils.isNullOrEmpty(database)) {
-        PropertyDefinition.DATABASE.set(props, database);
-      }
-
     } else {
       final String effectiveServerName = !StringUtils.isNullOrEmpty(serverName)
           ? serverName
@@ -109,14 +101,16 @@ public final class DataSourceConfigHelper {
       }
 
       finalUrl = ConnectionUrlBuilder.buildUrl(jdbcProtocol, effectiveServerName, port, databaseName);
+    }
 
-      // Override credentials with the ones provided through the data source property.
-      setCredentialProperties(props, user, password);
+    // Override credentials with the ones provided through the data source property.
+    setCredentialProperties(props, user, password);
 
-      // Override database with the one provided through the data source property.
-      if (!StringUtils.isNullOrEmpty(databaseName)) {
-        PropertyDefinition.DATABASE.set(props, databaseName);
-      }
+    // Override database with the one provided through the data source property. In the
+    // server/port/database branch an absent `database` already fell back to the value read from
+    // `props`, so applying `database` here is equivalent (an empty value leaves `props` untouched).
+    if (!StringUtils.isNullOrEmpty(database)) {
+      PropertyDefinition.DATABASE.set(props, database);
     }
 
     return finalUrl;
@@ -149,8 +143,9 @@ public final class DataSourceConfigHelper {
 
     // Collect the parameter names, then let PropertyDefinition.removeAll decide which are AWS
     // Wrapper properties; whatever it leaves behind are the target-driver parameters to keep.
+    final String[] tokens = query.split("&");
     final Properties names = new Properties();
-    for (final String token : query.split("&")) {
+    for (final String token : tokens) {
       if (StringUtils.isNullOrEmpty(token)) {
         continue;
       }
@@ -160,7 +155,7 @@ public final class DataSourceConfigHelper {
     PropertyDefinition.removeAll(names);
 
     final StringBuilder kept = new StringBuilder();
-    for (final String token : query.split("&")) {
+    for (final String token : tokens) {
       if (StringUtils.isNullOrEmpty(token)) {
         continue;
       }
