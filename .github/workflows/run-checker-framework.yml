@@ -25,7 +25,6 @@ on:
       - 'build.gradle.kts'
       - 'gradle/**'
       - '.github/workflows/run-checker-framework.yml'
-      - 'scripts/run-checker-framework.sh'
 
 permissions:
   contents: read
