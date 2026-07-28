@@ -110,6 +110,16 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "awsProfile", null, "Name of the AWS Profile to use for IAM/SecretsManager auth.");
 
+  public static final AwsWrapperProperty ALLOW_AWS_LOGIN_SESSION =
+      new AwsWrapperProperty(
+          "allowAwsLoginSession",
+          "false",
+          "Allow resolving AWS credentials from a profile that authenticates via a "
+              + "'login_session' entry. Requires the optional 'software.amazon.awssdk:signin' "
+              + "dependency on the classpath. When enabled, the connection region is used for the "
+              + "login/signin exchange so that the configured AWS profile is honored instead of "
+              + "falling back to the 'default' profile.");
+
   public static final AwsWrapperProperty LOGIN_TIMEOUT =
       new AwsWrapperProperty(
           "loginTimeout", null, "Login timeout in msec.");

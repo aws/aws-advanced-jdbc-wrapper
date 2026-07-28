@@ -134,7 +134,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
             try {
               final URI endpointURI = new URI(endpoint);
               return SecretsManagerClient.builder()
-                  .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+                  .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props, region))
                   .endpointOverride(endpointURI)
                   .region(region)
                   .build();
@@ -144,7 +144,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
             }
           } else {
             return SecretsManagerClient.builder()
-                .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+                .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props, region))
                 .region(region)
                 .build();
           }

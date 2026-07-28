@@ -131,7 +131,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements St
         (hostSpec, region) ->
             RdsClient.builder()
                 .region(region)
-                .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+                .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props, region))
                 .build());
   }
 
