@@ -144,11 +144,12 @@ public class GdbSettings {
   }
 
   public boolean isInAccessibleRegion(final HostSpec host) {
-    if (this.accessibleRegions == null) {
+    final Set<String> regions = this.accessibleRegions;
+    if (regions == null) {
       return true;
     }
     final String region = this.rdsHelper.getRdsRegion(host.getHost());
-    return region != null && this.accessibleRegions.contains(region.toLowerCase(Locale.ROOT));
+    return region != null && regions.contains(region.toLowerCase(Locale.ROOT));
   }
 
   public boolean isInHomeRegion(final HostSpec host) {
@@ -157,6 +158,11 @@ public class GdbSettings {
   }
 
   /** Snapshot fragment fields shared by GDB helpers. */
+  // Checker Framework: snapshot values are intentionally nullable, but the
+  // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
+  // Fixing this properly means widening that interface to Pair<String, @Nullable Object>
+  // across all ~25 implementers - out of scope for this change. Suppress locally.
+  @SuppressWarnings("type.arguments.not.inferred")
   public void addSnapshotState(final List<software.amazon.jdbc.util.Pair<String, Object>> state) {
     state.add(software.amazon.jdbc.util.Pair.create("homeRegion", this.homeRegion));
     state.add(software.amazon.jdbc.util.Pair.create("restrictWriterToHomeRegion", this.restrictWriterToHomeRegion));

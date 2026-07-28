@@ -46,17 +46,27 @@ public class RwSplitHelpers {
   public final ConnectionUpdatePolicy connectionUpdatePolicy;
   private final List<SnapshotContributor> snapshotContributors;
 
-  private RwSplitHelpers(final Builder b) {
-    this.roleClassifier = b.roleClassifier;
-    this.routingSignal = b.routingSignal;
-    this.switchGate = b.switchGate;
-    this.topologyRefresher = b.topologyRefresher;
-    this.writerResolver = b.writerResolver;
-    this.readerResolver = b.readerResolver;
-    this.cachePolicy = b.cachePolicy;
-    this.initialConnectionHandler = b.initialConnectionHandler;
-    this.connectionUpdatePolicy = b.connectionUpdatePolicy;
-    this.snapshotContributors = b.snapshotContributors;
+  private RwSplitHelpers(
+      final RoleClassifier roleClassifier,
+      final RoutingSignal routingSignal,
+      final SwitchGate switchGate,
+      final TopologyRefresher topologyRefresher,
+      final WriterResolver writerResolver,
+      final ReaderResolver readerResolver,
+      final ConnectionCachePolicy cachePolicy,
+      final InitialConnectionHandler initialConnectionHandler,
+      final ConnectionUpdatePolicy connectionUpdatePolicy,
+      final List<SnapshotContributor> snapshotContributors) {
+    this.roleClassifier = roleClassifier;
+    this.routingSignal = routingSignal;
+    this.switchGate = switchGate;
+    this.topologyRefresher = topologyRefresher;
+    this.writerResolver = writerResolver;
+    this.readerResolver = readerResolver;
+    this.cachePolicy = cachePolicy;
+    this.initialConnectionHandler = initialConnectionHandler;
+    this.connectionUpdatePolicy = connectionUpdatePolicy;
+    this.snapshotContributors = snapshotContributors;
   }
 
   public List<SnapshotContributor> snapshotContributors() {
@@ -133,13 +143,24 @@ public class RwSplitHelpers {
     }
 
     public RwSplitHelpers build() {
+      final RoleClassifier roleClassifier = this.roleClassifier;
+      final RoutingSignal routingSignal = this.routingSignal;
+      final SwitchGate switchGate = this.switchGate;
+      final TopologyRefresher topologyRefresher = this.topologyRefresher;
+      final WriterResolver writerResolver = this.writerResolver;
+      final ReaderResolver readerResolver = this.readerResolver;
+      final ConnectionCachePolicy cachePolicy = this.cachePolicy;
+      final InitialConnectionHandler initialConnectionHandler = this.initialConnectionHandler;
+      final ConnectionUpdatePolicy connectionUpdatePolicy = this.connectionUpdatePolicy;
       if (roleClassifier == null || routingSignal == null || switchGate == null
           || topologyRefresher == null || writerResolver == null || readerResolver == null
           || cachePolicy == null || initialConnectionHandler == null
           || connectionUpdatePolicy == null) {
         throw new IllegalStateException("All read/write splitting helpers must be provided.");
       }
-      return new RwSplitHelpers(this);
+      return new RwSplitHelpers(roleClassifier, routingSignal, switchGate, topologyRefresher,
+          writerResolver, readerResolver, cachePolicy, initialConnectionHandler,
+          connectionUpdatePolicy, this.snapshotContributors);
     }
   }
 }

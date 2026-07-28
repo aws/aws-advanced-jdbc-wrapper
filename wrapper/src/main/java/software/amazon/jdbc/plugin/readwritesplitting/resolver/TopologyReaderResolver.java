@@ -62,10 +62,12 @@ public class TopologyReaderResolver implements ReaderResolver {
     if (hosts.size() == 1) {
       if (!ctx.isConnectionUsable(ctx.writerConnection())) {
         final WriterResolution wr = this.writerFallback.resolveWriter(ctx);
-        if (wr.isConnected() && wr.getConnection() != null && wr.getHostSpec() != null) {
+        final Connection resolvedWriter = wr.getConnection();
+        final HostSpec resolvedWriterHost = wr.getHostSpec();
+        if (wr.isConnected() && resolvedWriter != null && resolvedWriterHost != null) {
           ctx.markWriterFromPool(Boolean.TRUE.equals(ctx.pluginService().isPooledConnection()));
-          ctx.bindWriter(wr.getConnection(), wr.getHostSpec());
-          ctx.switchCurrentConnectionTo(wr.getConnection(), wr.getHostSpec());
+          ctx.bindWriter(resolvedWriter, resolvedWriterHost);
+          ctx.switchCurrentConnectionTo(resolvedWriter, resolvedWriterHost);
         }
       }
       final HostSpec writerHost = ctx.writerHostSpec();

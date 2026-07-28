@@ -66,7 +66,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       final software.amazon.jdbc.plugin.readwritesplitting.signal.RoutingSignal routingSignal,
       final software.amazon.jdbc.plugin.readwritesplitting.gate.SwitchGate switchGate) {
     final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
-    final String strategy = READER_HOST_SELECTOR_STRATEGY.getString(props);
+    final String strategy = readerHostSelectorStrategy(props);
     final boolean verifyRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(props);
     final GdbSettings settings = new GdbSettings(props);
 

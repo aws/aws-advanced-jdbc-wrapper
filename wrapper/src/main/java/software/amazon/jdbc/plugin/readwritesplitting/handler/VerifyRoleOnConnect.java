@@ -25,6 +25,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
 import software.amazon.jdbc.util.Messages;
 
@@ -55,7 +56,11 @@ public class VerifyRoleOnConnect implements InitialConnectionHandler {
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    if (!ctx.pluginService().acceptsStrategy(hostSpec.getRole(), this.readerSelectorStrategy)) {
+    // A host without a role cannot be matched against a host-selector strategy, so it is treated
+    // as "strategy not accepted" (same handling as in AuroraInitialConnectionStrategyPlugin).
+    final HostRole hostRole = hostSpec.getRole();
+    if (hostRole == null
+        || !ctx.pluginService().acceptsStrategy(hostRole, this.readerSelectorStrategy)) {
       throw new UnsupportedOperationException(
           Messages.get("ReadWriteSplittingPlugin.unsupportedHostSpecSelectorStrategy",
               new Object[] {this.readerSelectorStrategy}));
@@ -76,8 +81,11 @@ public class VerifyRoleOnConnect implements InitialConnectionHandler {
 
     final HostRole currentRole = ctx.pluginService().getHostRole(currentConnection);
     if (currentRole == null || HostRole.UNKNOWN.equals(currentRole)) {
-      ctx.logAndThrow(Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole"));
-      return null;
+      final String message = Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole");
+      ctx.logAndThrow(message);
+      // logAndThrow always throws; this statement is unreachable and only exists so the method has
+      // no null return path.
+      throw new ReadWriteSplittingSQLException(message);
     }
 
     final HostSpec currentHost = ctx.pluginService().getInitialConnectionHostSpec();

@@ -45,7 +45,7 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
   /** Builds the SQL-driven (prepare-time) routing assembly with a sticky reader. */
   protected static RwSplitHelpers auto(final Properties props) {
     final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
-    final String strategy = READER_HOST_SELECTOR_STRATEGY.getString(props);
+    final String strategy = readerHostSelectorStrategy(props);
     final boolean verifyRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(props);
 
     final TopologyWriterResolver writerResolver = new TopologyWriterResolver();

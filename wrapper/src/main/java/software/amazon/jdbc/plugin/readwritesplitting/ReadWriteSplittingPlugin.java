@@ -65,10 +65,18 @@ public class ReadWriteSplittingPlugin extends UnifiedReadWriteSplittingPlugin {
     super(pluginService, properties, helpers);
   }
 
+  // READER_HOST_SELECTOR_STRATEGY declares a non-null default ("random"), so getString never
+  // returns null here. The value stays @NonNull because PluginService.getHostSpecByStrategy and
+  // PluginService.acceptsStrategy require a non-null strategy name.
+  @SuppressWarnings("return")
+  protected static String readerHostSelectorStrategy(final Properties props) {
+    return READER_HOST_SELECTOR_STRATEGY.getString(props);
+  }
+
   /** Builds the topology-aware, {@code setReadOnly}-driven, sticky-reader assembly. */
   protected static RwSplitHelpers topology(final Properties props) {
     final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
-    final String strategy = READER_HOST_SELECTOR_STRATEGY.getString(props);
+    final String strategy = readerHostSelectorStrategy(props);
     final boolean verifyRole = VERIFY_INITIAL_CONNECTION_ROLE.getBoolean(props);
 
     final TopologyWriterResolver writerResolver = new TopologyWriterResolver();
