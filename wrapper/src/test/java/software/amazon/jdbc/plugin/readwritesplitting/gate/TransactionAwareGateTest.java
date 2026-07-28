@@ -102,6 +102,27 @@ public class TransactionAwareGateTest {
   }
 
   @Test
+  void xaTransactionActive_pins() throws SQLException {
+    // Even when there is no local (SQL-heuristic) transaction, an active XA branch must pin the
+    // connection so read/write splitting does not route work off the XA session.
+    when(pluginService.isInTransaction()).thenReturn(false);
+    when(pluginService.isXaTransactionActive()).thenReturn(true);
+
+    final TransactionAwareGate gate = new TransactionAwareGate();
+    assertFalse(gate.canSwitch(ctx, TargetRole.READER));
+    assertFalse(gate.canSwitch(ctx, TargetRole.WRITER));
+  }
+
+  @Test
+  void xaTransactionInactive_allowsSwitch() throws SQLException {
+    when(pluginService.isInTransaction()).thenReturn(false);
+    when(pluginService.isXaTransactionActive()).thenReturn(false);
+
+    final TransactionAwareGate gate = new TransactionAwareGate();
+    assertTrue(gate.canSwitch(ctx, TargetRole.READER));
+  }
+
+  @Test
   void autoCommitOff_pinsWhenConfigured() throws SQLException {
     when(pluginService.isInTransaction()).thenReturn(false);
     when(pluginService.getCallContext()).thenReturn(callContext);

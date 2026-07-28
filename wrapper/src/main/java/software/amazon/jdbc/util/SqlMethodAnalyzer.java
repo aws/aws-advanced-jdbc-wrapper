@@ -142,7 +142,13 @@ public class SqlMethodAnalyzer {
     return statement.startsWith("COMMIT")
         || statement.startsWith("ROLLBACK")
         || statement.startsWith("END")
-        || statement.startsWith("ABORT");
+        || statement.startsWith("ABORT")
+        // Two-phase commit control statements. "PREPARE TRANSACTION" detaches the current
+        // transaction from the session (the session leaves the active transaction); "COMMIT
+        // PREPARED"/"ROLLBACK PREPARED" resolve a previously-prepared branch and already match the
+        // COMMIT/ROLLBACK prefixes above. Note: this matches only "PREPARE TRANSACTION", not the
+        // unrelated "PREPARE <name> AS ..." prepared-statement command.
+        || statement.startsWith("PREPARE TRANSACTION");
   }
 
   public boolean isStatementSettingAutoCommit(final String methodName, final @Nullable Object[] args) {

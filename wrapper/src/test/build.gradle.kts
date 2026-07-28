@@ -63,6 +63,15 @@ dependencies {
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
     testImplementation("com.github.jsqlparser:jsqlparser:4.9")
+    // XA transaction managers for XADataSource integration tests (both are exercised for
+    // compatibility). Must match the host build file (wrapper/build.gradle.kts). Narayana 5.11.x is
+    // the last Java 8-compatible line.
+    testImplementation("org.jboss.narayana.jta:narayana-jta:5.11.4.Final")
+    // Narayana declares jboss-logging as an optional/provided dependency, so it is not pulled
+    // transitively; add it explicitly or Narayana's jtaLogger fails to initialize at runtime.
+    testImplementation("org.jboss.logging:jboss-logging:3.4.3.Final")
+    testImplementation("com.atomikos:transactions-jta:5.0.9")
+    testImplementation("com.atomikos:transactions-jdbc:5.0.9")
     val arch = System.getProperty("os.arch").let {
         when (it) {
             "aarch64", "arm64" -> "aarch_64"
