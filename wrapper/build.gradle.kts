@@ -339,8 +339,10 @@ if (project.hasProperty("enableCheckerFramework")) {
         // (part 14) the top-level classes of the plugin package, and
         // (part 15) the plugin sub-package families cache, bluegreen, failover, gdbfailover,
         // efm, federatedauth, iam, limitless, customendpoint, strategy, dev, staledns and
-        // sqlparser (the encryption, readwritesplitting, srw and failover2 families remain
-        // out of scope for follow-on parts).
+        // sqlparser, and
+        // (part 17) the top-level parser package and the plugin.failover2 family
+        // (the encryption and readwritesplitting families remain out of scope for
+        // follow-on parts).
         // No end-anchor: matching an outer class also covers its nested classes (and, for
         // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*). The
         // "plugin\.[A-Z]\w*" entry matches only classes directly in the plugin package
@@ -362,6 +364,7 @@ if (project.hasProperty("enableCheckerFramework")) {
                 + "|plugin\\.customendpoint\\.\\w+|plugin\\.strategy\\.\\w+"
                 + "|plugin\\.dev\\.\\w+|plugin\\.staledns\\.\\w+"
                 + "|plugin\\.sqlparser\\.\\w+"
+                + "|parser\\.\\w+|plugin\\.failover2\\.\\w+"
                 + "|[A-Z]\\w*)",
             // Warning mode: report issues but do not fail the build.
             "-Awarns",
