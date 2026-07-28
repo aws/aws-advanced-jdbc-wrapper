@@ -1356,16 +1356,22 @@ public class BlueGreenStatusProvider {
       return;
     }
 
-    final BlueGreenInterimStatus sourceInterimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
-    final BlueGreenInterimStatus targetInterimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+    final @Nullable BlueGreenInterimStatus sourceInterimStatus =
+        this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+    final @Nullable BlueGreenInterimStatus targetInterimStatus =
+        this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+
+    if (sourceInterimStatus == null || targetInterimStatus == null) {
+      // Not ready: a missing interim status previously made 'ready' false, which short-circuited
+      // before the once-per-cycle flag was set, so returning here keeps the same behavior.
+      return;
+    }
 
     // Readiness requires that both the source and target monitors have collected their topology
     // and host names, and that the blue-to-green corresponding node map has been built. Checking
     // only correspondingNodes is not enough: that map can be partially populated from host names
     // alone (see updateCorrespondingNodes()) before the target monitor has fetched its topology.
-    final boolean ready = sourceInterimStatus != null
-        && targetInterimStatus != null
-        && !Utils.isNullOrEmpty(sourceInterimStatus.startTopology)
+    final boolean ready = !Utils.isNullOrEmpty(sourceInterimStatus.startTopology)
         && !Utils.isNullOrEmpty(targetInterimStatus.startTopology)
         && !Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
         && !Utils.isNullOrEmpty(targetInterimStatus.hostNames)

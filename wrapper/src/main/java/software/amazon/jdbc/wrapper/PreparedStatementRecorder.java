@@ -98,6 +98,10 @@ public class PreparedStatementRecorder implements InvocationHandler {
     invokeAll(this.parameterOps, fresh);
   }
 
+  // Method.invoke types its varargs argument array (arg1) as non-null, but a recorded no-argument
+  // invocation legitimately carries a null array (which reflection accepts as "no arguments").
+  // Passing the recorded array through unchanged replays exactly what was recorded.
+  @SuppressWarnings("argument")
   private static void invokeAll(final List<Recorded> ops, final PreparedStatement fresh) throws SQLException {
     for (final Recorded op : ops) {
       try {
@@ -115,6 +119,12 @@ public class PreparedStatementRecorder implements InvocationHandler {
   }
 
   @Override
+  // The JDK stub declares a @NonNull return for InvocationHandler.invoke, but a void or
+  // null-returning target method legitimately produces null here.
+  @SuppressWarnings({"override.return",
+      // Method.invoke types its varargs argument array (arg1) as non-null; a proxied no-argument
+      // method is invoked with a null array, which reflection accepts as "no arguments".
+      "argument"})
   public @Nullable Object invoke(final Object proxy, final Method method, final Object @Nullable [] args)
       throws Throwable {
     final String name = method.getName();
@@ -131,11 +141,15 @@ public class PreparedStatementRecorder implements InvocationHandler {
         break;
     }
 
-    final Object result;
+    final @Nullable Object result;
     try {
       result = method.invoke(this.target, args);
     } catch (final InvocationTargetException e) {
-      throw e.getCause();
+      // Unwrap the target exception so callers see the driver's exception, exactly as before. A
+      // missing cause (never produced by reflection here) would previously have thrown a
+      // NullPointerException; rethrow the wrapper itself instead of throwing null.
+      final Throwable cause = e.getCause();
+      throw cause == null ? e : cause;
     }
 
     if (STATEMENT_SETTING_METHODS.contains(name)) {
