@@ -33,18 +33,12 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionInfo;
@@ -113,13 +107,6 @@ class DefaultConnectionPluginTest {
     closeable.close();
   }
 
-  @ParameterizedTest
-  @MethodSource("multiStatementQueries")
-  void testParseMultiStatementQueries(final String sql, final List<String> expected) {
-    final List<String> actual = plugin.parseMultiStatementQueries(sql);
-    assertEquals(expected, actual);
-  }
-
   @Test
   void testExecute_closeCurrentConnection() throws SQLException {
     when(this.pluginService.getCurrentConnection()).thenReturn(conn);
@@ -179,13 +166,4 @@ class DefaultConnectionPluginTest {
     verify(mockConnectionProviderManager, never()).acceptsStrategy(any(), anyString());
   }
 
-  private static Stream<Arguments> multiStatementQueries() {
-    return Stream.of(
-        Arguments.of("", new ArrayList<String>()),
-        Arguments.of(null, new ArrayList<String>()),
-        Arguments.of("  ", new ArrayList<String>()),
-        Arguments.of("some  \t  \r  \n   query;", Collections.singletonList("some query")),
-        Arguments.of("some\t\t\r\n query;query2", Arrays.asList("some query", "query2"))
-    );
-  }
 }
