@@ -33,6 +33,7 @@ import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 import net.sf.jsqlparser.util.TablesNamesFinder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -50,10 +51,11 @@ public final class JSQLParserAnalyzer {
 
   /** Column information with table and column name. */
   public static class ColumnInfo {
-    public String tableName;
+    /** Owning table name, or null when the column is not table-qualified in the statement. */
+    public @Nullable String tableName;
     public String columnName;
 
-    public ColumnInfo(String tableName, String columnName) {
+    public ColumnInfo(@Nullable String tableName, String columnName) {
       this.tableName = tableName;
       this.columnName = columnName;
     }
