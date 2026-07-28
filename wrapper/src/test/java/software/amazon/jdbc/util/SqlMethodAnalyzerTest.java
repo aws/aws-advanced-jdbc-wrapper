@@ -180,6 +180,23 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Statement.executeUpdate", " /*COMMENT*/ START   /*COMMENT*/TRANSACTION;",
             true, true),
         Arguments.of("Statement.executeUpdate", " /*COMMENT*/ begin", true, true),
+        // Line comments on their own line: the database honors the statement that follows them.
+        Arguments.of("Statement.execute", "-- COMMENT\nBEGIN", true, true),
+        Arguments.of("Statement.execute", "--COMMENT\nSTART TRANSACTION;", true, true),
+        Arguments.of("Statement.execute", "-- COMMENT\r\nbegin", true, true),
+        Arguments.of("Statement.execute", "# COMMENT\nbegin", true, true),
+        Arguments.of("Statement.execute", "/*COMMENT*/ -- COMMENT\n begin", true, true),
+        Arguments.of("Statement.execute", "BEGIN -- COMMENT", true, true),
+        Arguments.of("Statement.execute", "-- COMMENT; MORE\nBEGIN", true, true),
+        // A keyword on the same line as a line comment stays commented out for the database too.
+        Arguments.of("Statement.execute", "-- COMMENT BEGIN", true, false),
+        Arguments.of("Statement.execute", "-- BEGIN\nSELECT 1", true, false),
+        // A leading line comment must not hide the SET/SHOW/USE exemption in isStatementDml.
+        Arguments.of("Statement.execute", "-- COMMENT\nset autocommit = 1", false, false),
+        Arguments.of("Statement.execute", "-- COMMENT\nSHOW TABLES", false, false),
+        Arguments.of("Statement.execute", "-- COMMENT\nSELECT 1", false, true),
+        Arguments.of("Statement.executeUpdate", "INSERT INTO test_table VALUES ('-- 1')", false,
+            true),
         Arguments.of("Statement.executeUpdate", "commit", false, false),
         Arguments.of("Statement.executeQuery", " select 1", true, false),
         Arguments.of("Statement.executeQuery", " SELECT 1", false, true),
@@ -202,6 +219,18 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Statement.execute", "ROLLBACK PREPARED 'gid-1'", true),
         // "PREPARE <name> AS ..." is a prepared statement, not transaction control.
         Arguments.of("Statement.execute", "PREPARE myplan AS SELECT 1", false),
+        // Line comments on their own line: the database honors the statement that follows them.
+        Arguments.of("Statement.execute", "-- COMMENT\ncommit;", true),
+        Arguments.of("Statement.execute", "--COMMENT\nROLLBACK", true),
+        Arguments.of("Statement.execute", "-- COMMENT\r\nend", true),
+        Arguments.of("Statement.execute", "# COMMENT\nabort", true),
+        Arguments.of("Statement.execute", "/*COMMENT*/ -- COMMENT\n commit", true),
+        // A ";" inside a line comment is not a statement separator.
+        Arguments.of("Statement.execute", "-- COMMENT; MORE\nCOMMIT", true),
+        Arguments.of("Statement.execute", "-- COMMENT\nPREPARE TRANSACTION 'gid-1'", true),
+        // A keyword on the same line as a line comment stays commented out for the database too.
+        Arguments.of("Statement.execute", "-- COMMENT COMMIT", false),
+        Arguments.of("Statement.execute", "-- COMMIT\nSELECT 1", false),
         Arguments.of("Statement.execute", "select 1", false),
         Arguments.of("Statement.close", null, false),
         Arguments.of("Statement.isClosed", null, false),
@@ -217,7 +246,9 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Connection.commit", null, false),
         Arguments.of("Statement.execute", " START  TRANSACTION   READ  ONLY", false),
         Arguments.of("Statement.execute", "  set  autocommit = 1 ; ", true),
-        Arguments.of("Statement.executeUpdate", "SET AUTOCOMMIT TO OFF ;  ", true)
+        Arguments.of("Statement.executeUpdate", "SET AUTOCOMMIT TO OFF ;  ", true),
+        Arguments.of("Statement.execute", "-- COMMENT\nset autocommit = 1", true),
+        Arguments.of("Statement.execute", "-- COMMENT set autocommit = 1", false)
     );
   }
 
@@ -230,7 +261,9 @@ class SqlMethodAnalyzerTest {
         Arguments.of("SET AUTOCOMMIT to 0", false),
         Arguments.of("set autoCOMMIT = on", true),
         Arguments.of("set autoCOMMIT TO trUE", true),
-        Arguments.of("  SeT  aUtOcommIT  = 1", true)
+        Arguments.of("  SeT  aUtOcommIT  = 1", true),
+        Arguments.of("-- COMMENT\nSET AUTOCOMMIT = 1 -- COMMENT", true),
+        Arguments.of("SET AUTOCOMMIT = 0 # COMMENT", false)
     );
   }
 

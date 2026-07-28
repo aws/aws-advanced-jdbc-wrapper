@@ -83,14 +83,116 @@ public class SqlMethodAnalyzer {
   }
 
   private String getFirstSqlStatement(final String sql) {
-    List<String> statementList = parseMultiStatementQueries(sql);
+    // Comments are removed before the query is normalized and split. Both steps depend on it:
+    // parseMultiStatementQueries collapses every whitespace run (including the newline that
+    // terminates a line comment) into a single space, and a ";" inside a comment must not be
+    // treated as a statement separator.
+    List<String> statementList = parseMultiStatementQueries(stripComments(sql));
     if (statementList.isEmpty()) {
       return sql;
     }
     String statement = statementList.get(0);
     statement = statement.toUpperCase();
-    statement = statement.replaceAll("\\s*/\\*(.*?)\\*/\\s*", " ").trim();
-    return statement;
+    return statement.trim();
+  }
+
+  /**
+   * Removes SQL comments from a query so that the leading keyword of a statement can be matched
+   * reliably.
+   *
+   * <p>Line comments have to be removed before whitespace is collapsed: once the terminating
+   * newline is gone, the comment and the statement on the following line become indistinguishable,
+   * so {@code "-- note\nBEGIN"} would look like {@code "-- NOTE BEGIN"} and no longer start with
+   * {@code BEGIN}, even though the database opens a transaction for it.
+   *
+   * <p>Dialect notes: PostgreSQL treats {@code --} as a comment through the end of the line
+   * unconditionally, while MySQL requires whitespace (or a control character) after {@code --} and
+   * additionally supports {@code #} line comments. The most permissive reading is applied here
+   * ({@code --} and {@code #} always begin a comment), because failing to recognize a comment is
+   * the harmful direction: it hides a transaction-control statement from the caller. The opposite
+   * risk is benign, since every caller only compares the leading keyword of a statement, so
+   * truncating a MySQL {@code 1--2} expression or a PostgreSQL {@code #} operator cannot change the
+   * outcome.
+   *
+   * <p>Quoted sections are preserved so a comment marker inside a string literal or a quoted
+   * identifier is not mistaken for a comment. Backslash escapes and PostgreSQL dollar quoting are
+   * not interpreted; for the same reason as above, that cannot change which keyword a statement
+   * starts with. An unterminated block comment is left in place, as before.
+   *
+   * <p>Each comment is replaced by a single space so that adjacent tokens do not merge, matching
+   * the behavior of the block-comment handling this replaces.
+   */
+  private static String stripComments(final String sql) {
+    if (sql == null || sql.isEmpty()) {
+      return sql;
+    }
+
+    final int length = sql.length();
+    final StringBuilder result = new StringBuilder(length);
+    int i = 0;
+
+    while (i < length) {
+      final char c = sql.charAt(i);
+
+      if (c == '\'' || c == '"' || c == '`') {
+        final int end = skipQuoted(sql, i);
+        result.append(sql, i, end);
+        i = end;
+      } else if (c == '#' || (c == '-' && i + 1 < length && sql.charAt(i + 1) == '-')) {
+        // Line comment: drop everything up to, but not including, the line terminator. Keeping the
+        // terminator leaves a whitespace boundary between the comment and the next statement.
+        i = skipToEndOfLine(sql, i);
+        result.append(' ');
+      } else if (c == '/' && i + 1 < length && sql.charAt(i + 1) == '*') {
+        final int end = sql.indexOf("*/", i + 2);
+        if (end < 0) {
+          result.append(sql, i, length);
+          i = length;
+        } else {
+          i = end + 2;
+          result.append(' ');
+        }
+      } else {
+        result.append(c);
+        i++;
+      }
+    }
+
+    return result.toString();
+  }
+
+  /**
+   * Returns the index just past the quoted section that starts at {@code start}. A doubled quote
+   * character escapes itself. An unterminated section extends to the end of the query.
+   */
+  private static int skipQuoted(final String sql, final int start) {
+    final char quote = sql.charAt(start);
+    final int length = sql.length();
+    int i = start + 1;
+
+    while (i < length) {
+      if (sql.charAt(i) == quote) {
+        if (i + 1 < length && sql.charAt(i + 1) == quote) {
+          i += 2;
+          continue;
+        }
+        return i + 1;
+      }
+      i++;
+    }
+
+    return length;
+  }
+
+  /** Returns the index of the line terminator ending the current line, or the end of the query. */
+  private static int skipToEndOfLine(final String sql, final int start) {
+    for (int i = start; i < sql.length(); i++) {
+      final char c = sql.charAt(i);
+      if (c == '\n' || c == '\r') {
+        return i;
+      }
+    }
+    return sql.length();
   }
 
   private List<String> parseMultiStatementQueries(String query) {
