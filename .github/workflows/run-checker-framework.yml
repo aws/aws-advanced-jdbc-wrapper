@@ -8,23 +8,19 @@ name: Run Checker Framework (Nullness)
 # both JDK 8 (the project's primary toolchain) and JDK 17 (for the checker) available and
 # let Gradle's toolchain detection pick them up.
 #
-# The incremental adoption is complete: the whole software.amazon.jdbc tree is clean and
-# the checker now runs in ENFORCING mode, so any new nullness finding fails this job.
-# It runs on pull requests to keep the tree clean - feature work previously reintroduced
-# findings precisely because this was manual-only and warn-only.
+# The incremental adoption is complete: the whole software.amazon.jdbc tree is clean and the
+# checker runs in ENFORCING mode, so any new nullness finding fails the build.
+#
+# PR enforcement lives in the 'checker-framework' job in main.yml, because only that workflow
+# feeds the ci-gate aggregation that branch protection requires. This workflow is the
+# on-demand variant: same check, plus a categorized findings summary and an archived report,
+# which is what you want when investigating or measuring rather than gating.
 #
 # If a finding is a false positive, annotate the code or add a narrowly-scoped
 # @SuppressWarnings with a justifying comment; do not re-add -Awarns.
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'wrapper/src/main/**'
-      - 'wrapper/build.gradle.kts'
-      - 'build.gradle.kts'
-      - 'gradle/**'
-      - '.github/workflows/run-checker-framework.yml'
 
 permissions:
   contents: read
