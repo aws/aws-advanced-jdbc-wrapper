@@ -304,19 +304,24 @@ spotbugs {
 }
 
 // ---------------------------------------------------------------------------
-// Checker Framework pilot (NullnessChecker only, warning mode, scoped).
+// Checker Framework (NullnessChecker, enforcing, whole source tree).
 //
-// Disabled by default so normal Java 8 builds are unaffected. Enable with:
+// Opt-in via a property, and NOT because the findings are optional - the whole
+// software.amazon.jdbc tree is checker-clean and the CI job below enforces that.
+// The property exists because this block retargets compileJava:
+//   - the checker itself cannot run on JDK 8, so compileJava is forced onto a
+//     JDK 17 toolchain with release 11, whereas the shipped artifact must stay
+//     Java 8. Enabling this unconditionally would silently change the bytecode
+//     target of the published jar.
+// So this is a verification build, not a packaging build. Run it with:
 //   ./gradlew :aws-advanced-jdbc-wrapper:compileJava -PenableCheckerFramework
+// On a JDK 8 host, run it inside a JDK 17 container (scripts/run-checker-framework.sh).
 //
-// Requirements:
-//   - Must run on JDK 11+ (the checker itself cannot run on JDK 8). On a
-//     JDK 8 host, run this inside a JDK 17 container (see scripts/run-checker-framework.sh).
-//
-// Scope/behaviour for the pilot:
+// Behaviour:
 //   - Only the NullnessChecker is enabled (Optional/Regex add noise for little gain here).
-//   - Warnings only: the build does NOT fail, so we can measure the real signal.
-//   - Limited to the core connection/plugin path via -AonlyDefs.
+//   - Enforcing: findings are compile errors and fail the build. Do not add -Awarns
+//     back; if a finding is a false positive, annotate it or add a narrowly-scoped
+//     @SuppressWarnings with a justifying comment (see the existing conventions).
 // ---------------------------------------------------------------------------
 if (project.hasProperty("enableCheckerFramework")) {
     apply(plugin = "org.checkerframework")
@@ -325,25 +330,22 @@ if (project.hasProperty("enableCheckerFramework")) {
         checkers = listOf(
             "org.checkerframework.checker.nullness.NullnessChecker"
         )
-        // Scope: core connection/plugin path (parts 1-2), the self-contained util classes
-        // (part 3), the util classes that depend on central-type nullness contracts
-        // (part 4: RetryUtil, ConnectionUrlParser, HostIdCacheServiceImpl - enabled together
-        // with the HostSpec / HostRole / PluginService / HostSpecBuilder / Dialect alignment),
-        // WrapperUtils (part 5: the generic plugin-execution / proxy-wrapping helpers),
-        // (part 6) all of the per-object JDBC wrapper classes plus LazyCleanerImpl, and
-        // (parts 8-10) the whole util package plus the exceptions, cleanup, authentication,
-        // hostavailability, osgi, profile, states and ds packages,
-        // (part 11) the targetdriverdialect and dialect packages,
-        // (part 12) the hostlistprovider package,
-        // (part 13) the remaining top-level software.amazon.jdbc classes, and
-        // (part 14) the top-level classes of the plugin package, and
-        // (part 15) the plugin sub-package families cache, bluegreen, failover, gdbfailover,
-        // efm, federatedauth, iam, limitless, customendpoint, strategy, dev, staledns and
-        // sqlparser,
-        // (part 17) the top-level parser package and the plugin.failover2 family, and
-        // (part 18) the plugin.readwritesplitting family and its sub-packages, and
-        // (part 19) the plugin.encryption family and its sub-packages. The whole
-        // software.amazon.jdbc source tree is now in scope.
+        // Scope: every named class in the software.amazon.jdbc tree. The incremental
+        // adoption is complete, so this list is no longer a subset - each alternative below
+        // corresponds to a package that is fully clean, and together they cover the whole
+        // main source set.
+        //
+        // Why the filter is still here rather than deleted: dropping -AonlyDefs also pulls
+        // ANONYMOUS classes into scope, and the codebase widely uses the double-brace
+        // initializer idiom (`new HashMap<K, V>() {{ put(...); }}`) for enum mappings and
+        // plugin/dialect registries. The checker rejects those `put`/`add` calls as
+        // invocations on an @UnderInitialization receiver, which produces 100+ findings
+        // across ~25 files. Covering anonymous classes therefore requires first replacing
+        // that idiom (e.g. with static factory helpers) - tracked as follow-up work, kept
+        // separate from enabling enforcement so this change stays reviewable.
+        //
+        // When adding a new package, add it here too, otherwise it silently escapes the gate.
+        //
         // No end-anchor: matching an outer class also covers its nested classes (and, for
         // "pkg\.\w+", the classes of nested sub-packages such as util.telemetry.*). The
         // "plugin\.[A-Z]\w*" entry matches only classes directly in the plugin package
@@ -368,13 +370,11 @@ if (project.hasProperty("enableCheckerFramework")) {
                 + "|parser\\.\\w+|plugin\\.failover2\\.\\w+"
                 + "|plugin\\.readwritesplitting\\.\\w+|plugin\\.encryption\\.\\w+"
                 + "|[A-Z]\\w*)",
-            // Warning mode: report issues but do not fail the build.
-            "-Awarns",
             // Keep the output focused and avoid drowning in framework boilerplate.
             "-AsuppressWarnings=uninitialized",
-            // Raise javac's default 100-warning cap so the full finding count is visible
-            // while measuring scope (the checker runs warn-only).
-            "-Xmaxwarns", "100000"
+            // Enforcing mode caps errors at 100 by default; raise it so a regression shows
+            // its full extent in one run instead of being truncated.
+            "-Xmaxerrs", "10000"
         )
     }
 
