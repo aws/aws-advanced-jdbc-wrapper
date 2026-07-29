@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.mariadb.jdbc.MariaDbDataSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class MariadbTargetDriverDialectTests {
   @Mock private PreparedStatement mockStatement;
@@ -94,6 +95,37 @@ public class MariadbTargetDriverDialectTests {
 
     assertTrue(url.contains("connectTimeout=10000"), url);
     assertTrue(url.contains("socketTimeout=2000"), url);
+  }
+
+  @Test
+  void prepareTargetDataSource_forwardsTargetDriverPropertiesButNotCredentials() throws SQLException {
+    final Properties props = new Properties();
+    props.setProperty(PropertyDefinition.USER.name, "alice");
+    props.setProperty(PropertyDefinition.PASSWORD.name, "secret");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "failover2,efm2");
+    props.setProperty(PropertyDefinition.DATABASE.name, "db");
+    // Unknown to the wrapper, therefore a target driver option. MariaDB data sources have no bean
+    // setter for it, so it has to travel in the URL.
+    props.setProperty("allowPublicKeyRetrieval", "true");
+
+    final String url = dialect.prepareTargetDataSource(
+        new MariaDbDataSource(), "jdbc:mysql://host:3306/db", props);
+
+    assertEquals("jdbc:mysql://host:3306/db?permitMysqlScheme&allowPublicKeyRetrieval=true", url);
+  }
+
+  @Test
+  void prepareTargetDataSource_urlWithForwardedPropertiesIsAcceptedByTheDriver() throws SQLException {
+    final Properties props = new Properties();
+    props.setProperty("allowPublicKeyRetrieval", "true");
+    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "2000");
+
+    final MariaDbDataSource dataSource = new MariaDbDataSource();
+    final String url = dialect.prepareTargetDataSource(dataSource, "jdbc:mysql://host:3306/db", props);
+    dataSource.setUrl(url);
+
+    assertTrue(dataSource.getUrl().contains("allowPublicKeyRetrieval=true"), dataSource.getUrl());
+    assertTrue(dataSource.getUrl().contains("socketTimeout=2000"), dataSource.getUrl());
   }
 
   @Test

@@ -169,8 +169,11 @@ public class XaFailoverTest {
       newDs.setJdbcUrl(ConnectionStringHelper.getWrapperClusterEndpointUrl());
       newDs.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
       newDs.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-      final Properties newProps = new Properties();
-      newProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+      // The default properties carry the driver-specific settings the connection needs, notably
+      // allowPublicKeyRetrieval for the MariaDB driver: authenticating against the promoted writer
+      // runs the full caching_sha2_password exchange, which otherwise fails with "RSA public key is
+      // not available client side".
+      final Properties newProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
       newDs.setTargetDataSourceProperties(newProps);
 
       XAConnection xaConn2 = null;
@@ -295,10 +298,13 @@ public class XaFailoverTest {
     // Use the cluster writer endpoint so reads/writes always target the current writer. After a
     // failover this follows the promoted node; a fixed instance host would resolve to the demoted
     // reader and either serve stale (replica-lagged) rows or reject writes.
+    //
+    // The default properties (rather than just user/password) are used because they carry the
+    // driver-specific settings this connection needs after a failover, notably
+    // allowPublicKeyRetrieval for the MariaDB driver.
     return java.sql.DriverManager.getConnection(
         ConnectionStringHelper.getWrapperClusterEndpointUrl(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        ConnectionStringHelper.getDefaultProperties());
   }
 
   private void recreateTable() throws SQLException {

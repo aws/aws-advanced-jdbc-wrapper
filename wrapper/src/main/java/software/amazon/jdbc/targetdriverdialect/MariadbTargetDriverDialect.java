@@ -19,10 +19,12 @@ package software.amazon.jdbc.targetdriverdialect;
 import java.sql.Driver;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -36,6 +38,23 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final String PERMIT_MYSQL_SCHEME = "permitMysqlScheme";
   private static final String MYSQL_URL_PREFIX = "jdbc:mysql:";
+
+  /**
+   * Properties that must not be copied into the target URL by
+   * {@link #prepareTargetDataSource(CommonDataSource, String, Properties)}: the credentials and the
+   * login timeout have bean setters on the MariaDB data source, and the remaining ones are already
+   * expressed by the URL itself.
+   */
+  private static final Set<String> NON_URL_PROPERTY_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          PropertyDefinition.USER.name,
+          PropertyDefinition.PASSWORD.name,
+          PropertyDefinition.LOGIN_TIMEOUT.name,
+          PropertyDefinition.DATABASE.name,
+          "url",
+          "serverName",
+          "serverPort")));
+
   private static final String DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver";
   private static final String DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbDataSource";
   private static final String CP_DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbPoolDataSource";
@@ -156,17 +175,24 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   /**
-   * MariaDB Connector/J data sources accept only a URL (plus user/password/loginTimeout) as bean
-   * properties, so every other setting has to be expressed as a URL parameter.
+   * MariaDB Connector/J data sources accept only {@code url}, {@code user}, {@code password} and
+   * {@code loginTimeout} as bean properties, so every other setting has to be expressed as a URL
+   * parameter. Two adjustments are made:
    *
-   * <p>Two adjustments are made:
    * <ul>
    *   <li>{@code permitMysqlScheme} is added for a {@code jdbc:mysql://} URL. The driver rejects the
    *       MySQL scheme outright ("Wrong mariaDB url") unless the URL itself carries this parameter,
    *       and it cannot be set as a bean property.</li>
-   *   <li>The wrapper connect/socket timeouts are added (in milliseconds, the unit MariaDB uses) so
-   *       they are not silently dropped.</li>
+   *   <li>The target-driver settings are moved into the URL: the wrapper keep-alive and timeout
+   *       properties (whose names and millisecond unit match MariaDB's own options), plus every
+   *       property the wrapper does not recognize, which by definition belongs to the target driver
+   *       (for example {@code allowPublicKeyRetrieval} or {@code sslMode}). Without this they would
+   *       be dropped, because the data source has no bean setter for them. This mirrors what the
+   *       non-XA data source path does through the connection URL builder.</li>
    * </ul>
+   *
+   * <p>Credentials are deliberately kept out of the URL; they are applied through the
+   * {@code setUser} / {@code setPassword} bean setters.
    */
   @Override
   public String prepareTargetDataSource(
@@ -178,13 +204,18 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
     if (result.startsWith(MYSQL_URL_PREFIX)) {
       result = appendUrlParameter(result, PERMIT_MYSQL_SCHEME, null);
     }
-    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
-    if (connectTimeout != null) {
-      result = appendUrlParameter(result, PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout.toString());
-    }
-    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
-    if (socketTimeout != null) {
-      result = appendUrlParameter(result, PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout.toString());
+
+    final Properties urlProps = PropertyUtils.copyProperties(props);
+    PropertyDefinition.removeAllExcept(urlProps,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name);
+    // Either already part of the URL itself, or applied through a bean setter.
+    NON_URL_PROPERTY_NAMES.forEach(urlProps::remove);
+
+    // Sorted so that the resulting URL is deterministic.
+    for (final String name : new TreeSet<>(urlProps.stringPropertyNames())) {
+      result = appendUrlParameter(result, name, urlProps.getProperty(name));
     }
     return result;
   }
