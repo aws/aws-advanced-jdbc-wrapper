@@ -145,13 +145,25 @@ public class TransactionAwareGateTest {
   }
 
   @Test
-  void autoCommitIndeterminate_fallsBackToAllowingSwitch() throws SQLException {
+  void autoCommitIndeterminate_pins() throws SQLException {
+    // An unreadable autocommit state cannot rule out an implicit transaction, so the gate pins
+    // instead of guessing. Switching on a wrong guess would split a transaction across two
+    // physical connections.
     when(pluginService.isInTransaction()).thenReturn(false);
     when(pluginService.getCallContext()).thenReturn(callContext);
     when(pluginService.getSessionStateService()).thenReturn(sessionStateService);
     when(sessionStateService.getAutoCommit()).thenThrow(new SQLException("indeterminate"));
 
     final TransactionAwareGate gate = new TransactionAwareGate(true, true);
+    assertFalse(gate.canSwitch(ctx, TargetRole.READER));
+  }
+
+  @Test
+  void autoCommitIndeterminate_ignoredWhenNotConfigured() throws SQLException {
+    // The classic gate does not consult autocommit at all, so it must not be affected.
+    when(pluginService.isInTransaction()).thenReturn(false);
+
+    final TransactionAwareGate gate = new TransactionAwareGate();
     assertTrue(gate.canSwitch(ctx, TargetRole.READER));
   }
 

@@ -34,7 +34,10 @@ import software.amazon.jdbc.util.Messages;
  *   <li>an explicit {@code /*@keep* /} routing hint (when {@code honorKeepHint});</li>
  *   <li>a transaction is in progress;</li>
  *   <li>autocommit is explicitly disabled (when {@code pinOnAutoCommitOff}) — the next statement
- *       would implicitly start a transaction.</li>
+ *       would implicitly start a transaction;</li>
+ *   <li>the autocommit state cannot be read at all (when {@code pinOnAutoCommitOff}) — an unknown
+ *       state is treated like a disabled one, since the gate cannot rule out an implicit
+ *       transaction.</li>
  * </ul>
  *
  * <p>The legacy {@code setReadOnly(false)}-in-transaction throw is role-specific (it depends on
@@ -91,9 +94,15 @@ public class TransactionAwareGate implements SwitchGate {
         if (autoCommit.isPresent() && !autoCommit.get()) {
           return false;
         }
+        // An empty value means autocommit was never explicitly set, so the JDBC default (on)
+        // applies and there is no implicit transaction to protect.
       } catch (final SQLException e) {
-        // If autocommit state cannot be determined, fall back to allowing the switch.
-        return true;
+        // The autocommit state could not be read, so it is unknown whether the next statement
+        // would join an implicit transaction. Pin rather than switch: the cost is a missed routing
+        // opportunity on a connection whose session state cannot even be queried, while switching
+        // on a wrong guess can split one transaction across two physical connections.
+        LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.stayedOnConnectionForUnknownAutoCommit"));
+        return false;
       }
     }
 

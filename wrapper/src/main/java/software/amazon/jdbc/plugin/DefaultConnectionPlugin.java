@@ -18,8 +18,6 @@ package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -28,7 +26,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionInfo;
@@ -299,21 +296,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     // do nothing
-  }
-
-  List<String> parseMultiStatementQueries(String query) {
-    if (query == null || query.isEmpty()) {
-      return new ArrayList<>();
-    }
-
-    query = query.replaceAll("\\s+", " ");
-
-    // Check to see if string only has blank spaces.
-    if (query.trim().isEmpty()) {
-      return new ArrayList<>();
-    }
-
-    return Arrays.stream(query.split(";")).collect(Collectors.toList());
   }
 
   @Override
