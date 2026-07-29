@@ -56,7 +56,9 @@ public final class XaTestUtility {
         maxPreparedTransactions > 0,
         "PostgreSQL prepared (two-phase) transactions are disabled on this server "
             + "(max_prepared_transactions=" + maxPreparedTransactions + "). Set max_prepared_transactions "
-            + "to a value greater than 0 in the DB (cluster) parameter group to run the XA prepare tests.");
+            + "to a value greater than 0 in the DB (cluster) parameter group to run the XA prepare tests. "
+            + "The test framework enables it on the PostgreSQL databases it creates, so this test is only "
+            + "skipped when running against a database that was created without it (for example a reused one).");
   }
 
   private static int queryMaxPreparedTransactions() throws SQLException {

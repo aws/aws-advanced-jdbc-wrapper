@@ -43,6 +43,9 @@ public class TestEnvironmentInfo {
 
   private String clusterParameterGroupName = null;
 
+  // Instance-level parameter group, used by the RDS (non-Aurora) deployments.
+  private String dbParameterGroupName = null;
+
   // Random alphanumeric combination that is used to form a test cluster name or an instance name.
   private String randomBase = null;
 
@@ -196,6 +199,14 @@ public class TestEnvironmentInfo {
 
   public void setClusterParameterGroupName(String clusterParameterGroupName) {
     this.clusterParameterGroupName = clusterParameterGroupName;
+  }
+
+  public String getDbParameterGroupName() {
+    return this.dbParameterGroupName;
+  }
+
+  public void setDbParameterGroupName(String dbParameterGroupName) {
+    this.dbParameterGroupName = dbParameterGroupName;
   }
 
   public String getRandomBase() {
