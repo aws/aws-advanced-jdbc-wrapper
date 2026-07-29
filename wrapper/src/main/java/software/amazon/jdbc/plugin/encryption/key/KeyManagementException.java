@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.key;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Exception thrown when key management operations fail. Extends SQLException to integrate with JDBC
@@ -36,7 +37,8 @@ public class KeyManagementException extends SQLException {
   public static final String KMS_CONNECTION_FAILED_STATE = "KEY05";
   public static final String INVALID_KEY_METADATA_STATE = "KEY06";
 
-  private final Map<String, Object> errorContext = new HashMap<>();
+  // Context values are nullable: the sanitizing helpers below map a null input to a null entry.
+  private final Map<String, @Nullable Object> errorContext = new HashMap<>();
 
   /**
    * Constructs a KeyManagementException with the specified detail message.
@@ -53,7 +55,7 @@ public class KeyManagementException extends SQLException {
    * @param message the detail message
    * @param cause the cause of this exception
    */
-  public KeyManagementException(String message, Throwable cause) {
+  public KeyManagementException(String message, final @Nullable Throwable cause) {
     super(message, KEY_RETRIEVAL_FAILED_STATE, cause);
   }
 
@@ -87,7 +89,8 @@ public class KeyManagementException extends SQLException {
    * @param vendorCode the vendor-specific error code
    * @param cause the cause of this exception
    */
-  public KeyManagementException(String message, String sqlState, int vendorCode, Throwable cause) {
+  public KeyManagementException(
+      String message, String sqlState, int vendorCode, final @Nullable Throwable cause) {
     super(message, sqlState, vendorCode, cause);
   }
 
@@ -98,7 +101,7 @@ public class KeyManagementException extends SQLException {
    * @param sqlState the SQL state
    * @param cause the cause of this exception
    */
-  public KeyManagementException(String message, String sqlState, Throwable cause) {
+  public KeyManagementException(String message, String sqlState, final @Nullable Throwable cause) {
     super(message, sqlState, cause);
   }
 
@@ -109,7 +112,7 @@ public class KeyManagementException extends SQLException {
    * @param value the context value
    * @return this exception for method chaining
    */
-  public KeyManagementException withContext(String key, Object value) {
+  public KeyManagementException withContext(String key, final @Nullable Object value) {
     errorContext.put(key, value);
     return this;
   }
@@ -120,7 +123,7 @@ public class KeyManagementException extends SQLException {
    * @param keyId the key ID
    * @return this exception for method chaining
    */
-  public KeyManagementException withKeyId(String keyId) {
+  public KeyManagementException withKeyId(final @Nullable String keyId) {
     return withContext("keyId", sanitizeKeyId(keyId));
   }
 
@@ -130,7 +133,7 @@ public class KeyManagementException extends SQLException {
    * @param masterKeyArn the master key ARN
    * @return this exception for method chaining
    */
-  public KeyManagementException withMasterKeyArn(String masterKeyArn) {
+  public KeyManagementException withMasterKeyArn(final @Nullable String masterKeyArn) {
     return withContext("masterKeyArn", sanitizeArn(masterKeyArn));
   }
 
@@ -160,8 +163,8 @@ public class KeyManagementException extends SQLException {
    *
    * @return a copy of the error context
    */
-  public Map<String, Object> getErrorContext() {
-    return new HashMap<>(errorContext);
+  public Map<String, @Nullable Object> getErrorContext() {
+    return new HashMap<String, @Nullable Object>(errorContext);
   }
 
   /**
@@ -169,16 +172,18 @@ public class KeyManagementException extends SQLException {
    *
    * @return formatted error message with context
    */
-  public String getDetailedMessage() {
+  public @Nullable String getDetailedMessage() {
+    // Throwable.getMessage() is nullable (e.g. when built from a cause without a message).
+    final @Nullable String message = getMessage();
     if (errorContext.isEmpty()) {
-      return getMessage();
+      return message;
     }
 
-    StringBuilder sb = new StringBuilder(getMessage());
+    StringBuilder sb = new StringBuilder(message == null ? "" : message);
     sb.append(" [Context: ");
 
     boolean first = true;
-    for (Map.Entry<String, Object> entry : errorContext.entrySet()) {
+    for (Map.Entry<String, @Nullable Object> entry : errorContext.entrySet()) {
       if (!first) {
         sb.append(", ");
       }
@@ -197,7 +202,8 @@ public class KeyManagementException extends SQLException {
    * @param cause Root cause
    * @return KeyManagementException instance
    */
-  public static KeyManagementException keyCreationFailed(String message, Throwable cause) {
+  public static KeyManagementException keyCreationFailed(
+      String message, final @Nullable Throwable cause) {
     return new KeyManagementException(message, KEY_CREATION_FAILED_STATE, cause);
   }
 
@@ -210,7 +216,7 @@ public class KeyManagementException extends SQLException {
    * @return KeyManagementException instance
    */
   public static KeyManagementException keyDecryptionFailed(
-      String keyId, String masterKeyArn, Throwable cause) {
+      String keyId, String masterKeyArn, final @Nullable Throwable cause) {
     return new KeyManagementException(
             "Failed to decrypt data key", KEY_DECRYPTION_FAILED_STATE, cause)
         .withKeyId(keyId)
@@ -224,7 +230,8 @@ public class KeyManagementException extends SQLException {
    * @param cause Root cause
    * @return KeyManagementException instance
    */
-  public static KeyManagementException keyStorageFailed(String message, Throwable cause) {
+  public static KeyManagementException keyStorageFailed(
+      String message, final @Nullable Throwable cause) {
     return new KeyManagementException(message, KEY_STORAGE_FAILED_STATE, cause);
   }
 
@@ -235,7 +242,8 @@ public class KeyManagementException extends SQLException {
    * @param cause Root cause
    * @return KeyManagementException instance
    */
-  public static KeyManagementException kmsConnectionFailed(String message, Throwable cause) {
+  public static KeyManagementException kmsConnectionFailed(
+      String message, final @Nullable Throwable cause) {
     return new KeyManagementException(message, KMS_CONNECTION_FAILED_STATE, cause);
   }
 
@@ -251,7 +259,7 @@ public class KeyManagementException extends SQLException {
 
   // Sanitization methods to prevent sensitive data exposure
 
-  private String sanitizeKeyId(String keyId) {
+  private @Nullable String sanitizeKeyId(final @Nullable String keyId) {
     if (keyId == null) {
       return null;
     }
@@ -262,7 +270,7 @@ public class KeyManagementException extends SQLException {
     return "***";
   }
 
-  private String sanitizeArn(String arn) {
+  private @Nullable String sanitizeArn(final @Nullable String arn) {
     if (arn == null) {
       return null;
     }

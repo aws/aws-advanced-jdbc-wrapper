@@ -99,13 +99,16 @@ public class CallableStatementWrapper implements CallableStatement, Rebindable {
 
   @Override
   public void rebind(final Connection newConnection) throws SQLException {
-    if (this.repreparer == null || this.recorder == null) {
+    // Capture the optional collaborators once so the null check holds across the calls below.
+    final PreparedStatementWrapper.@Nullable Repreparer currentRepreparer = this.repreparer;
+    final @Nullable PreparedStatementRecorder currentRecorder = this.recorder;
+    if (currentRepreparer == null || currentRecorder == null) {
       throw new SQLException(Messages.get("PreparedStatementWrapper.notRebindable"));
     }
-    final PreparedStatement old = this.recorder.getTarget();
-    final PreparedStatement fresh = this.repreparer.reprepare(newConnection);
+    final PreparedStatement old = currentRecorder.getTarget();
+    final PreparedStatement fresh = currentRepreparer.reprepare(newConnection);
     try {
-      this.recorder.replay(fresh);
+      currentRecorder.replay(fresh);
     } catch (final SQLException e) {
       try {
         fresh.close();
@@ -114,7 +117,7 @@ public class CallableStatementWrapper implements CallableStatement, Rebindable {
       }
       throw e;
     }
-    this.recorder.setTarget(fresh);
+    currentRecorder.setTarget(fresh);
     try {
       old.close();
     } catch (final SQLException e) {

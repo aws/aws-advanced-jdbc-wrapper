@@ -105,14 +105,17 @@ public class PreparedStatementWrapper implements PreparedStatement, Rebindable {
 
   @Override
   public void rebind(final Connection newConnection) throws SQLException {
-    if (this.repreparer == null || this.recorder == null) {
+    // Capture the optional collaborators once so the null check holds across the calls below.
+    final @Nullable Repreparer currentRepreparer = this.repreparer;
+    final @Nullable PreparedStatementRecorder currentRecorder = this.recorder;
+    if (currentRepreparer == null || currentRecorder == null) {
       throw new SQLException(Messages.get("PreparedStatementWrapper.notRebindable"));
     }
-    final PreparedStatement old = this.recorder.getTarget();
-    final PreparedStatement fresh = this.repreparer.reprepare(newConnection);
+    final PreparedStatement old = currentRecorder.getTarget();
+    final PreparedStatement fresh = currentRepreparer.reprepare(newConnection);
     try {
       // Replay the recorded configuration and parameters onto the freshly-prepared statement.
-      this.recorder.replay(fresh);
+      currentRecorder.replay(fresh);
     } catch (final SQLException e) {
       // Keep the original target intact on any replay failure.
       try {
@@ -124,7 +127,7 @@ public class PreparedStatementWrapper implements PreparedStatement, Rebindable {
     }
     // The wrapper's target is the stable recording proxy; point it at the new statement. Terminal
     // execute lambdas delegate through the proxy, so they run against 'fresh' from now on.
-    this.recorder.setTarget(fresh);
+    currentRecorder.setTarget(fresh);
     try {
       old.close();
     } catch (final SQLException e) {

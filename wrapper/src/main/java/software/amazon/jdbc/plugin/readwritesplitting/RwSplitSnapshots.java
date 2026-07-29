@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.util.Pair;
 
@@ -37,11 +38,16 @@ public final class RwSplitSnapshots {
   }
 
   /** Fragment exposing the endpoint (Simple) configuration. */
+  // Checker Framework: snapshot values are intentionally nullable, but the
+  // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
+  // Fixing this properly means widening that interface to Pair<String, @Nullable Object>
+  // across all ~25 implementers - out of scope for this change. Suppress locally.
+  @SuppressWarnings("type.arguments.not.inferred")
   public static SnapshotContributor endpoint(
       final boolean verifyNewConnections,
       final String writeEndpoint,
       final String readEndpoint,
-      final HostRole verifyOpenedConnectionType,
+      final @Nullable HostRole verifyOpenedConnectionType,
       final int retryIntervalMs,
       final long retryTimeoutMs) {
     return () -> {

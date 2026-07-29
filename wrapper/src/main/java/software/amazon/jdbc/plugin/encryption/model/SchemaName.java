@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.encryption.model;
 
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -41,7 +42,7 @@ public final class SchemaName {
    * @return a validated SchemaName
    * @throws IllegalArgumentException if the name is null, empty, or contains invalid characters
    */
-  public static SchemaName of(String name) {
+  public static SchemaName of(@Nullable String name) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException(Messages.get("SchemaName.nullOrEmpty"));
     }
@@ -69,7 +70,7 @@ public final class SchemaName {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

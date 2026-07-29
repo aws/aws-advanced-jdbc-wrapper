@@ -53,15 +53,22 @@ public final class EncryptionAnnotationParser {
     Map<Integer, String> annotationsByPosition = new HashMap<>();
     while (annotationMatcher.find()) {
       int questionMarkPos = annotationMatcher.end() - 1; // Position of the '?'
-      annotationsByPosition.put(questionMarkPos, annotationMatcher.group(1));
+      // Matcher.group() is declared nullable; group 1 is a mandatory part of the pattern, so a
+      // successful match always captures it. Skipping a null group keeps the map values non-null.
+      final String columnIdentifier = annotationMatcher.group(1);
+      if (columnIdentifier != null) {
+        annotationsByPosition.put(questionMarkPos, columnIdentifier);
+      }
     }
     
     // Count all '?' placeholders and map annotations to parameter indices
     int paramIndex = 1;
     for (int i = 0; i < sql.length(); i++) {
       if (sql.charAt(i) == '?') {
-        if (annotationsByPosition.containsKey(i)) {
-          encryptionMap.put(paramIndex, annotationsByPosition.get(i));
+        // A mapping is present only for annotated placeholders, and its value is never null.
+        final String columnIdentifier = annotationsByPosition.get(i);
+        if (columnIdentifier != null) {
+          encryptionMap.put(paramIndex, columnIdentifier);
         }
         paramIndex++;
       }

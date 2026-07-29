@@ -1,6 +1,6 @@
 name: Run Checker Framework (Nullness)
 
-# On-demand static nullness analysis of the wrapper's core path.
+# Static nullness analysis of the wrapper's main source set.
 #
 # The main source set targets Java 8, but the Checker Framework needs JDK 11+ to run,
 # so the guarded build block in wrapper/build.gradle.kts (activated by
@@ -8,9 +8,16 @@ name: Run Checker Framework (Nullness)
 # both JDK 8 (the project's primary toolchain) and JDK 17 (for the checker) available and
 # let Gradle's toolchain detection pick them up.
 #
-# This is part of the incremental Checker Framework adoption (see
-# docs/checker-framework-pilot/README.md). It runs in WARNING mode and does not gate CI;
-# it is meant to be triggered manually to measure nullness findings.
+# The incremental adoption is complete: the whole software.amazon.jdbc tree is clean and the
+# checker runs in ENFORCING mode, so any new nullness finding fails the build.
+#
+# PR enforcement lives in the 'checker-framework' job in main.yml, because only that workflow
+# feeds the ci-gate aggregation that branch protection requires. This workflow is the
+# on-demand variant: same check, plus a categorized findings summary and an archived report,
+# which is what you want when investigating or measuring rather than gating.
+#
+# If a finding is a false positive, annotate the code or add a narrowly-scoped
+# @SuppressWarnings with a justifying comment; do not re-add -Awarns.
 
 on:
   workflow_dispatch:
@@ -20,7 +27,7 @@ permissions:
 
 jobs:
   checker-framework:
-    name: 'NullnessChecker (scoped, warn-only)'
+    name: 'NullnessChecker (enforcing)'
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
@@ -58,7 +65,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           report=checker-framework-report.txt
-          total=$(grep -cE 'warning: \[' "$report" || true)
+          # Enforcing mode reports findings as "error: [...]"; "warning: [...]" is still
+          # matched so the summary keeps working if the build is switched to warn-only.
+          finding_re='(error|warning): \['
+          total=$(grep -cE "$finding_re" "$report" || true)
           style=$(grep -cE 'type\.anno\.before\.modifier' "$report" || true)
           crashes=$(grep -cE 'The Checker Framework crashed' "$report" || true)
           real=$((total - style))
@@ -67,15 +77,20 @@ jobs:
             echo ""
             echo "| Metric | Count |"
             echo "|---|---:|"
-            echo "| Total warnings | ${total} |"
+            echo "| Total findings | ${total} |"
             echo "| Style-only (type.anno.before.modifier) | ${style} |"
             echo "| Real (non-style) findings | ${real} |"
             echo "| Checker crashes | ${crashes} |"
             echo ""
+            if [ "${total}" -gt 0 ]; then
+              echo "This job runs in **enforcing** mode, so these findings failed the build."
+              echo "Fix them, or add a narrowly-scoped \`@SuppressWarnings\` with a justifying comment."
+              echo ""
+            fi
             echo "<details><summary>Real findings by category</summary>"
             echo ""
             echo '```'
-            grep -oE 'warning: \[[a-zA-Z.]+\]' "$report" \
+            grep -oE "(error|warning): \[[a-zA-Z.]+\]" "$report" \
               | grep -v 'type.anno.before.modifier' \
               | sort | uniq -c | sort -rn || true
             echo '```'

@@ -269,7 +269,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] args)
+      final @Nullable Object[] args)
       throws E {
     final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
     if (conn != null && conn != this.pluginService.getCurrentConnection()) {
@@ -280,11 +280,14 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
 
     if (JdbcMethod.CONNECTION_CLEARWARNINGS.methodName.equals(methodName)) {
       try {
-        if (this.writerConnection != null && !this.writerConnection.isClosed()) {
-          this.writerConnection.clearWarnings();
+        final Connection writerConn = this.writerConnection;
+        if (writerConn != null && !writerConn.isClosed()) {
+          writerConn.clearWarnings();
         }
-        if (this.readerCacheItem != null && this.isConnectionUsable(this.readerCacheItem.get())) {
-          this.readerCacheItem.get().clearWarnings();
+        final CacheItem<Connection> readerItem = this.readerCacheItem;
+        final Connection readerConn = readerItem == null ? null : readerItem.get();
+        if (readerConn != null && this.isConnectionUsable(readerConn)) {
+          readerConn.clearWarnings();
         }
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
@@ -526,16 +529,22 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     }
 
     this.inReadWriteSplit = true;
-    if (!this.isConnectionUsable(this.writerConnection)) {
+    final Connection cachedWriter = this.writerConnection;
+    // The cached writer host is always recorded together with the cached writer connection (see
+    // bindWriter), so a usable cached writer connection implies a non-null cached writer host.
+    final HostSpec cachedWriterHost = this.writerHostSpec;
+    if (cachedWriter == null || cachedWriterHost == null || !this.isConnectionUsable(cachedWriter)) {
       final WriterResolution wr = this.helpers.writerResolver.resolveWriter(this);
-      if (wr.isConnected() && wr.getConnection() != null && wr.getHostSpec() != null) {
+      final Connection resolvedWriter = wr.getConnection();
+      final HostSpec resolvedWriterHost = wr.getHostSpec();
+      if (wr.isConnected() && resolvedWriter != null && resolvedWriterHost != null) {
         this.markWriterFromPool(Boolean.TRUE.equals(this.pluginService.isPooledConnection()));
-        this.bindWriter(wr.getConnection(), wr.getHostSpec());
-        this.switchCurrentConnectionTo(wr.getConnection(), wr.getHostSpec());
+        this.bindWriter(resolvedWriter, resolvedWriterHost);
+        this.switchCurrentConnectionTo(resolvedWriter, resolvedWriterHost);
       }
       // WriterResolution.STAY (e.g. Global Write Forwarding): remain on the current connection.
     } else {
-      this.switchCurrentConnectionTo(this.writerConnection, this.writerHostSpec);
+      this.switchCurrentConnectionTo(cachedWriter, cachedWriterHost);
     }
 
     if (this.isReaderConnFromInternalPool) {
@@ -559,22 +568,25 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     this.helpers.readerResolver.closeStaleReaderIfNecessary(this);
 
     this.inReadWriteSplit = true;
-    if (this.readerCacheItem == null || !this.isConnectionUsable(this.readerCacheItem.get())) {
+    final CacheItem<Connection> cachedReaderItem = this.readerCacheItem;
+    final Connection cachedReader = cachedReaderItem == null ? null : cachedReaderItem.get();
+    // The cached reader host is always recorded together with the cached reader connection (see
+    // bindReader), so a usable cached reader connection implies a non-null cached reader host.
+    final HostSpec cachedReaderHost = this.readerHostSpec;
+    if (cachedReader == null || cachedReaderHost == null || !this.isConnectionUsable(cachedReader)) {
       this.helpers.readerResolver.switchToReader(this);
     } else {
       try {
-        this.switchCurrentConnectionTo(this.readerCacheItem.get(), this.readerHostSpec);
-        final HostSpec readerHost = this.readerHostSpec;
+        this.switchCurrentConnectionTo(cachedReader, cachedReaderHost);
         LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
-            new Object[] {readerHost == null ? "" : readerHost.getHostAndPort()}));
+            new Object[] {cachedReaderHost.getHostAndPort()}));
       } catch (final SQLException e) {
-        final HostSpec readerHost = this.readerHostSpec;
         if (e.getMessage() != null) {
           LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.errorSwitchingToCachedReaderWithCause",
-              new Object[] {readerHost == null ? "" : readerHost.getHostAndPort(), e.getMessage()}));
+              new Object[] {cachedReaderHost.getHostAndPort(), e.getMessage()}));
         } else {
           LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.errorSwitchingToCachedReader",
-              new Object[] {readerHost == null ? "" : readerHost.getHostAndPort()}));
+              new Object[] {cachedReaderHost.getHostAndPort()}));
         }
         this.closeReaderConnectionIfIdle();
         this.helpers.readerResolver.switchToReader(this);
@@ -738,11 +750,12 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
 
   @Override
   public void closeReaderConnectionIfIdle() {
-    if (this.readerCacheItem == null) {
+    final CacheItem<Connection> readerItem = this.readerCacheItem;
+    if (readerItem == null) {
       return;
     }
     final Connection currentConnection = this.pluginService.getCurrentConnection();
-    final Connection readerConnection = this.readerCacheItem.get(true);
+    final Connection readerConnection = readerItem.get(true);
     if (readerConnection != null && readerConnection != currentConnection) {
       try {
         if (!readerConnection.isClosed()) {
@@ -758,10 +771,11 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   @Override
   public void closeWriterConnectionIfIdle() {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
-    if (this.writerConnection != null && this.writerConnection != currentConnection) {
+    final Connection writerConn = this.writerConnection;
+    if (writerConn != null && writerConn != currentConnection) {
       try {
-        if (!this.writerConnection.isClosed()) {
-          this.writerConnection.close();
+        if (!writerConn.isClosed()) {
+          writerConn.close();
         }
       } catch (final SQLException e) {
         // Do nothing.
@@ -811,7 +825,12 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
         logMessage, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the
+  // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
+  // Fixing this properly means widening that interface to Pair<String, @Nullable Object>
+  // across all ~25 implementers - out of scope for this change. Suppress locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     final List<Pair<String, Object>> state = new ArrayList<>();
     PropertyUtils.addSnapshotState(state, "properties", this.properties);

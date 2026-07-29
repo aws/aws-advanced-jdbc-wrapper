@@ -114,7 +114,7 @@ public class MetadataManager {
     throw new SQLException(Messages.get("MetadataManager.noConnectionAvailable"));
   }
 
-  private void closeConnection(Connection conn) throws SQLException {
+  private void closeConnection(final @Nullable Connection conn) throws SQLException {
     if ((dataSource != null || pluginService != null) && conn != null) {
       conn.close();
     }
@@ -261,7 +261,7 @@ public class MetadataManager {
    * @return ColumnEncryptionConfig if found, null otherwise
    * @throws MetadataException if database operations fail
    */
-  public ColumnEncryptionConfig getColumnConfig(String tableName, String columnName)
+  public @Nullable ColumnEncryptionConfig getColumnConfig(String tableName, String columnName)
       throws MetadataException {
     if (tableName == null || columnName == null) {
       return null;
@@ -415,7 +415,8 @@ public class MetadataManager {
   }
 
   /** Queries database directly to get column configuration. */
-  private ColumnEncryptionConfig getColumnConfigFromDatabase(String tableName, String columnName)
+  private @Nullable ColumnEncryptionConfig getColumnConfigFromDatabase(
+      String tableName, String columnName)
       throws MetadataException {
     LOGGER.finest(() -> Messages.get("MetadataManager.loadingColumnConfig", new Object[]{tableName, columnName}));
 
@@ -481,12 +482,12 @@ public class MetadataManager {
   }
 
   /** Converts SQL Timestamp to Instant, handling null values. */
-  private Instant convertTimestampToInstant(Timestamp timestamp) {
+  private Instant convertTimestampToInstant(final @Nullable Timestamp timestamp) {
     return timestamp != null ? timestamp.toInstant() : Instant.now();
   }
 
-  /** Creates a new refresh executor. */
-  private ScheduledExecutorService createRefreshExecutor() {
+  /** Creates a new refresh executor. Static so it can safely be called from constructors. */
+  private static ScheduledExecutorService createRefreshExecutor() {
     return Executors.newSingleThreadScheduledExecutor(
         r -> {
           Thread t = new Thread(r, "MetadataManager-Refresh");

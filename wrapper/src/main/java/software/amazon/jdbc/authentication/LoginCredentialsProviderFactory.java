@@ -122,16 +122,23 @@ public class LoginCredentialsProviderFactory {
     }
   }
 
+  // Method.invoke types its receiver (arg0) and its varargs elements (arg1...) as non-null, but a
+  // static factory method is invoked with a null receiver and the reflective results used as
+  // receivers/arguments here are typed as possibly-null by the JDK annotations. The builder methods
+  // never return null, and a null from any of them would surface as the same
+  // ReflectiveOperationException/NullPointerException handling as before, so the arguments are
+  // passed through unchanged.
+  @SuppressWarnings("argument")
   private static AwsCredentialsProvider buildLoginCredentialsProvider(
       final String loginSession, final Region region) {
     try {
       // SigninClient signinClient = SigninClient.builder().region(region).build();
       final Class<?> signinClientClass = Class.forName(SIGNIN_CLIENT_CLASS);
       final Class<?> signinClientBuilderClass = Class.forName(SIGNIN_CLIENT_BUILDER_CLASS);
-      final Object signinClientBuilder = signinClientClass.getMethod("builder").invoke(null);
+      final @Nullable Object signinClientBuilder = signinClientClass.getMethod("builder").invoke(null);
       signinClientBuilderClass.getMethod("region", Region.class)
           .invoke(signinClientBuilder, region);
-      final Object signinClient =
+      final @Nullable Object signinClient =
           signinClientBuilderClass.getMethod("build").invoke(signinClientBuilder);
 
       // LoginCredentialsProvider.builder()
@@ -141,13 +148,20 @@ public class LoginCredentialsProviderFactory {
       final Class<?> loginProviderClass = Class.forName(LOGIN_CREDENTIALS_PROVIDER_CLASS);
       final Class<?> loginProviderBuilderClass =
           Class.forName(LOGIN_CREDENTIALS_PROVIDER_BUILDER_CLASS);
-      final Object loginProviderBuilder = loginProviderClass.getMethod("builder").invoke(null);
+      final @Nullable Object loginProviderBuilder = loginProviderClass.getMethod("builder").invoke(null);
       loginProviderBuilderClass.getMethod("signinClient", signinClientClass)
           .invoke(loginProviderBuilder, signinClient);
       loginProviderBuilderClass.getMethod("loginSession", String.class)
           .invoke(loginProviderBuilder, loginSession);
       final Method buildMethod = loginProviderBuilderClass.getMethod("build");
-      final Object provider = buildMethod.invoke(loginProviderBuilder);
+      final @Nullable Object provider = buildMethod.invoke(loginProviderBuilder);
+
+      if (provider == null) {
+        // build() never returns null; a null here would otherwise be reported to the caller as
+        // "no login_session profile", silently falling back to the standard credentials provider.
+        throw new RuntimeException(
+            Messages.get("AwsCredentialsManager.loginSessionProviderNull"));
+      }
 
       return (AwsCredentialsProvider) provider;
     } catch (final ReflectiveOperationException e) {

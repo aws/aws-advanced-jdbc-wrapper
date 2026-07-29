@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.encryption.exception;
 
 import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.encryption.model.ConnectionParameters;
 
 /**
@@ -27,8 +28,8 @@ import software.amazon.jdbc.plugin.encryption.model.ConnectionParameters;
 public class IndependentConnectionException extends SQLException {
 
   private final ConnectionParameters attemptedParameters;
-  private final String connectionAttempt;
-  private final String failureReason;
+  private final @Nullable String connectionAttempt;
+  private final @Nullable String failureReason;
 
   /**
    * Creates a new IndependentConnectionException with a message and connection parameters.
@@ -114,7 +115,7 @@ public class IndependentConnectionException extends SQLException {
    *
    * @return the connection attempt description, or null if not provided
    */
-  public String getConnectionAttempt() {
+  public @Nullable String getConnectionAttempt() {
     return connectionAttempt;
   }
 
@@ -123,13 +124,13 @@ public class IndependentConnectionException extends SQLException {
    *
    * @return the failure reason, or null if not provided
    */
-  public String getFailureReason() {
+  public @Nullable String getFailureReason() {
     return failureReason;
   }
 
   /** Formats the error message with connection parameters and cause information. */
   private static String formatMessage(
-      String message, ConnectionParameters attemptedParameters, Throwable cause) {
+      String message, ConnectionParameters attemptedParameters, final @Nullable Throwable cause) {
     StringBuilder sb = new StringBuilder();
     sb.append("Independent connection creation failed");
 
@@ -164,9 +165,9 @@ public class IndependentConnectionException extends SQLException {
   private static String formatMessage(
       String message,
       ConnectionParameters attemptedParameters,
-      Throwable cause,
-      String connectionAttempt,
-      String failureReason) {
+      final @Nullable Throwable cause,
+      final @Nullable String connectionAttempt,
+      final @Nullable String failureReason) {
     StringBuilder sb = new StringBuilder();
     sb.append("Independent connection creation failed");
 
@@ -208,7 +209,7 @@ public class IndependentConnectionException extends SQLException {
    * Masks sensitive information in JDBC URLs for logging purposes. Removes passwords and other
    * sensitive parameters while preserving useful debugging information.
    */
-  private static String maskSensitiveUrl(String jdbcUrl) {
+  private static @Nullable String maskSensitiveUrl(final @Nullable String jdbcUrl) {
     if (jdbcUrl == null) {
       return null;
     }

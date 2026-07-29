@@ -16,11 +16,13 @@
 
 package software.amazon.jdbc.plugin.readwritesplitting;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Builds a {@link HostSpec} from a configured endpoint string (parsing an optional {@code :port}),
@@ -31,10 +33,27 @@ public final class EndpointHostSpecs {
   private EndpointHostSpecs() {
   }
 
+  /**
+   * Builds a {@link HostSpec} for the given endpoint.
+   *
+   * @param hostListProviderService the host list provider service, established by
+   *                                {@code initHostProvider}; must not be {@code null}
+   * @param endpoint                the configured endpoint, optionally including {@code :port}
+   * @param role                    the role to assign to the resulting host
+   * @return the host specification for the endpoint
+   * @throws IllegalStateException if the host list provider service has not been established yet
+   */
   public static HostSpec create(
-      final HostListProviderService hostListProviderService,
+      final @Nullable HostListProviderService hostListProviderService,
       final String endpoint,
       final HostRole role) {
+
+    if (hostListProviderService == null) {
+      // Previously this dereferenced null; fail with an explicit message instead. The service is
+      // established by initHostProvider before any read/write splitting routing happens.
+      throw new IllegalStateException(Messages.get(
+          "EndpointHostSpecs.missingHostListProviderService", new Object[] {endpoint}));
+    }
 
     final String trimmed = endpoint.trim();
 

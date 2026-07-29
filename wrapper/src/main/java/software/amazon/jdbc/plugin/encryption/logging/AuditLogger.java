@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Audit LOGGER for KMS operations and encryption activities. Provides structured logging without
@@ -30,8 +31,8 @@ public class AuditLogger {
   private static final Logger LOGGER = Logger.getLogger(AuditLogger.class.getName());
 
   // Thread-local context for audit information
-  private static final ThreadLocal<Map<String, String>> auditContext =
-      ThreadLocal.withInitial(ConcurrentHashMap::new);
+  private static final ThreadLocal<@Nullable Map<String, String>> auditContext =
+      ThreadLocal.<@Nullable Map<String, String>>withInitial(ConcurrentHashMap::new);
 
   private final boolean auditEnabled;
 
@@ -46,12 +47,20 @@ public class AuditLogger {
    * @param value Context value
    */
   public static void setContext(String key, String value) {
-    auditContext.get().put(key, value);
+    // withInitial() guarantees a map is present; the guard only satisfies static analysis.
+    final Map<String, String> context = auditContext.get();
+    if (context != null) {
+      context.put(key, value);
+    }
   }
 
   /** Clears audit context for the current thread. */
   public static void clearContext() {
-    auditContext.get().clear();
+    // withInitial() guarantees a map is present; the guard only satisfies static analysis.
+    final Map<String, String> context = auditContext.get();
+    if (context != null) {
+      context.clear();
+    }
   }
 
   /**
@@ -342,7 +351,7 @@ public class AuditLogger {
    * @param errorMessage Error message if failed
    */
   public void logConnectionParameterExtraction(
-      String strategy, String connectionType, boolean success, String errorMessage) {
+      String strategy, String connectionType, boolean success, @Nullable String errorMessage) {
     if (!auditEnabled) {
       return;
     }
@@ -557,7 +566,7 @@ public class AuditLogger {
     return sanitized.length() > 100 ? sanitized.substring(0, 97) + "..." : sanitized;
   }
 
-  private String sanitizeErrorMessage(String errorMessage) {
+  private String sanitizeErrorMessage(@Nullable String errorMessage) {
     if (errorMessage == null) {
       return "null";
     }

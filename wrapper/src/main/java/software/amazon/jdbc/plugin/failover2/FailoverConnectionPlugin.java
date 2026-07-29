@@ -33,6 +33,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -119,24 +120,24 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   protected final PluginService pluginService;
   protected final Properties properties;
   protected int failoverTimeoutMsSetting;
-  protected FailoverMode failoverMode;
+  protected @Nullable FailoverMode failoverMode;
   protected boolean telemetryFailoverAdditionalTopTraceSetting;
   protected String failoverReaderHostSelectorStrategySetting;
   protected boolean closedExplicitly = false;
   protected boolean isClosed = false;
   protected final RdsUtils rdsHelper;
-  protected Throwable lastExceptionDealtWith = null;
+  protected @Nullable Throwable lastExceptionDealtWith = null;
   protected PluginManagerService pluginManagerService;
   protected boolean isInTransaction = false;
   protected RdsUrlType rdsUrlType;
   protected HostListProviderService hostListProviderService;
   protected final AuroraStaleDnsHelper staleDnsHelper;
-  protected final TelemetryCounter failoverWriterTriggeredCounter;
-  protected final TelemetryCounter failoverWriterSuccessCounter;
-  protected final TelemetryCounter failoverWriterFailedCounter;
-  protected final TelemetryCounter failoverReaderTriggeredCounter;
-  protected final TelemetryCounter failoverReaderSuccessCounter;
-  protected final TelemetryCounter failoverReaderFailedCounter;
+  protected final @Nullable TelemetryCounter failoverWriterTriggeredCounter;
+  protected final @Nullable TelemetryCounter failoverWriterSuccessCounter;
+  protected final @Nullable TelemetryCounter failoverWriterFailedCounter;
+  protected final @Nullable TelemetryCounter failoverReaderTriggeredCounter;
+  protected final @Nullable TelemetryCounter failoverReaderSuccessCounter;
+  protected final @Nullable TelemetryCounter failoverReaderFailedCounter;
   protected final boolean skipFailoverOnInterruptedThread;
 
 
@@ -148,6 +149,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     this(servicesContainer, properties, new RdsUtils());
   }
 
+  // getSubscribedMethodNames() only builds a set of method-name constants and does not read any
+  // plugin state, so calling it on the partially-initialized receiver is safe here.
+  @SuppressWarnings("method.invocation")
   FailoverConnectionPlugin(
       final FullServicesContainer servicesContainer,
       final Properties properties,
@@ -166,8 +170,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     this.failoverTimeoutMsSetting = FAILOVER_TIMEOUT_MS.getInteger(this.properties);
     this.telemetryFailoverAdditionalTopTraceSetting =
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
-    this.failoverReaderHostSelectorStrategySetting =
-        FAILOVER_READER_HOST_SELECTOR_STRATEGY.getString(this.properties);
+    this.failoverReaderHostSelectorStrategySetting = resolveReaderHostSelectorStrategy(this.properties);
     this.skipFailoverOnInterruptedThread = SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
@@ -181,6 +184,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     final HashSet<String> methods = this.getSubscribedMethodNames();
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
+  }
+
+  // FAILOVER_READER_HOST_SELECTOR_STRATEGY declares a non-null default ("random"), so getString never
+  // returns null here. The setting stays @NonNull because PluginService.getHostSpecByStrategy requires a
+  // non-null strategy name.
+  @SuppressWarnings("return")
+  private static String resolveReaderHostSelectorStrategy(final Properties properties) {
+    return FAILOVER_READER_HOST_SELECTOR_STRATEGY.getString(properties);
   }
 
   protected @NonNull HashSet<String> getSubscribedMethodNames() {
@@ -207,6 +218,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     return subscribedMethods;
   }
 
+  // The `return result` at the end is only reached when jdbcMethodFunc.call() succeeded; the exception
+  // handlers (dealWithIllegalStateException/dealWithOriginalException) always throw. The checker cannot
+  // see that guarantee, so the possibly-null `result` return is suppressed here. This mirrors
+  // AbstractConnectionPlugin.execute, which returns jdbcMethodFunc.call() directly (also possibly null).
+  @SuppressWarnings("return")
   @Override
   public <T, E extends Exception> T execute(
       final Class<T> resultClass,
@@ -214,7 +230,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Object[] jdbcMethodArgs)
       throws E {
 
     try {
@@ -310,11 +326,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   }
 
   protected <E extends Exception> void dealWithOriginalException(
-      final Throwable originalException,
-      final Throwable wrapperException,
+      final @Nullable Throwable originalException,
+      final @Nullable Throwable wrapperException,
       final Class<E> exceptionClass) throws E {
 
-    Throwable exceptionToThrow = wrapperException;
+    @Nullable Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
       LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
       this.servicesContainer.getImportantEventService().registerEvent(
@@ -341,6 +357,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
 
     if (exceptionToThrow instanceof Error) {
       throw (Error) exceptionToThrow;
+    }
+
+    if (exceptionToThrow == null) {
+      // Unreachable on current call paths: callers always supply a non-null original or wrapper
+      // exception, so exceptionToThrow is non-null here. Guard added for null-safety only.
+      return;
     }
 
     throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, exceptionToThrow);
@@ -701,7 +723,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       if (this.failoverWriterFailedCounter != null) {
         this.failoverWriterFailedCounter.inc();
       }
-      throw new FailoverFailedSQLException(ex.getMessage());
+      // Throwable.getMessage() is nullable. The timeout raised by RetryUtil always carries a
+      // message, so the fallback below is unreachable on current paths.
+      final String timeoutMessage = ex.getMessage();
+      throw new FailoverFailedSQLException(timeoutMessage != null
+          ? timeoutMessage
+          : Messages.get("Failover.unableToConnectToWriter"));
     } catch (Exception ex) {
       if (telemetryContext != null) {
         telemetryContext.setSuccess(false);
@@ -909,7 +936,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     this.staleDnsHelper.notifyNodeListChanged(changes);
   }
 
+  // Checker Framework: snapshot values are intentionally nullable, but the StateSnapshotProvider contract
+  // types them as Pair<String, Object> (non-null Object). Widening that interface is out of scope, so the
+  // nullable value inference is suppressed locally.
   @Override
+  @SuppressWarnings("type.arguments.not.inferred")
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     PropertyUtils.addSnapshotState(state, "properties", this.properties);

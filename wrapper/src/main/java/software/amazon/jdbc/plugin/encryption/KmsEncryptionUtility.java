@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PluginService;
@@ -54,7 +55,8 @@ public class KmsEncryptionUtility {
   private KmsClient kmsClient;
 
   // Plugin services
-  private PluginService pluginService;
+  // Nullable: the default constructor leaves it unset for backward compatibility.
+  private @Nullable PluginService pluginService;
   private IndependentDataSource independentDataSource;
 
   // Monitoring and metrics
@@ -160,16 +162,19 @@ public class KmsEncryptionUtility {
     }
 
     try {
-      if (pluginService != null) {
+      // Captured into a local so the null check survives the intervening method calls.
+      final @Nullable PluginService currentPluginService = this.pluginService;
+      if (currentPluginService != null) {
         // Create independent DataSource using PluginService
-        this.independentDataSource = new IndependentDataSource(pluginService, pluginProperties);
+        this.independentDataSource =
+            new IndependentDataSource(currentPluginService, pluginProperties);
 
         // Log success
         auditLogger.logConnectionParameterExtraction("PluginService", "PLUGIN_SERVICE", true, null);
 
         // Initialize managers with PluginService
-        this.keyManager = new KeyManager(kmsClient, pluginService, config);
-        this.metadataManager = new MetadataManager(pluginService, config);
+        this.keyManager = new KeyManager(kmsClient, currentPluginService, config);
+        this.metadataManager = new MetadataManager(currentPluginService, config);
         metadataManager.initialize();
 
         LOGGER.info(Messages.get("KmsEncryptionUtility.initWithPluginService"));
@@ -209,6 +214,10 @@ public class KmsEncryptionUtility {
       if (registeredConnections.containsKey(conn)) {
         return; // Already registered for this connection
       }
+      // pluginService is non-null on every path that reaches here: the only caller
+      // (ensureInitializedWithConnection) runs initializeWithDataSource() first, which throws
+      // when pluginService is null.
+      @SuppressWarnings("dereference.of.nullable")
       TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
       try {
         targetDriverDialect.registerDataType(conn, "encrypted_data",
@@ -320,6 +329,9 @@ public class KmsEncryptionUtility {
    * @param config Encryption configuration
    * @return Configured KMS client
    */
+  // AwsCredentialsManager.getProvider() declares a non-null HostSpec, but KMS credential
+  // resolution is not host-scoped and the default provider path ignores it.
+  @SuppressWarnings("argument")
   private KmsClient createKmsClient(EncryptionConfig config) {
     LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.creatingKmsClient", new Object[]{config.getKmsRegion()}));
 
@@ -396,7 +408,7 @@ public class KmsEncryptionUtility {
    *
    * @return PluginService instance
    */
-  public PluginService getPluginService() {
+  public @Nullable PluginService getPluginService() {
     return pluginService;
   }
 

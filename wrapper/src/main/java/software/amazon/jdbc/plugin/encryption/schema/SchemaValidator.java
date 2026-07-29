@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 
 /**
@@ -125,7 +126,7 @@ public class SchemaValidator {
   }
 
   /** Gets the current schema name from the connection. */
-  private String getCurrentSchema(Connection connection) throws SQLException {
+  private @Nullable String getCurrentSchema(Connection connection) throws SQLException {
     try (Statement stmt = connection.createStatement();
         ResultSet rs = stmt.executeQuery("SELECT current_schema()")) {
       if (rs.next()) {
@@ -147,7 +148,11 @@ public class SchemaValidator {
     // Try with current schema first
     try (ResultSet rs = metaData.getColumns(null, currentSchema, tableName, null)) {
       while (rs.next()) {
-        existingColumns.add(rs.getString("COLUMN_NAME").toLowerCase());
+        // COLUMN_NAME is non-null per the JDBC spec; the guard only satisfies the nullness checker.
+        final @Nullable String columnName = rs.getString("COLUMN_NAME");
+        if (columnName != null) {
+          existingColumns.add(columnName.toLowerCase());
+        }
       }
     }
 
@@ -155,7 +160,10 @@ public class SchemaValidator {
     if (existingColumns.isEmpty()) {
       try (ResultSet rs = metaData.getColumns(null, null, tableName, null)) {
         while (rs.next()) {
-          existingColumns.add(rs.getString("COLUMN_NAME").toLowerCase());
+          final @Nullable String columnName = rs.getString("COLUMN_NAME");
+          if (columnName != null) {
+            existingColumns.add(columnName.toLowerCase());
+          }
         }
       }
     }

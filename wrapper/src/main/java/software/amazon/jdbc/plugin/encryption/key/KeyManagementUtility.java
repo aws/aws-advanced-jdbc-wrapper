@@ -118,7 +118,7 @@ public class KeyManagementUtility {
     throw new SQLException(Messages.get("KeyManagementUtility.noConnectionAvailable"));
   }
 
-  private void closeConnection(Connection conn) throws SQLException {
+  private void closeConnection(final @Nullable Connection conn) throws SQLException {
     if (dataSource != null && conn != null) {
       conn.close();
     }
@@ -169,7 +169,7 @@ public class KeyManagementUtility {
    * @return The ARN of the created master key
    * @throws KeyManagementException if key creation fails
    */
-  public String createMasterKeyWithPermissions(String description, String keyPolicy)
+  public String createMasterKeyWithPermissions(String description, final @Nullable String keyPolicy)
       throws KeyManagementException {
     Objects.requireNonNull(description, "Description cannot be null");
 

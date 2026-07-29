@@ -34,6 +34,7 @@ import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -68,7 +69,9 @@ public class EncryptionService {
    * @return the encrypted data as byte array with HMAC prepended
    * @throws EncryptionException if encryption fails
    */
-  public byte[] encrypt(Object value, byte[] dataKey, byte[] hmacKey, String algorithm)
+  public byte @Nullable [] encrypt(
+      final @Nullable Object value, byte[] dataKey, final byte @Nullable [] hmacKey,
+      String algorithm)
       throws EncryptionException {
     if (value == null) {
       return null;
@@ -105,12 +108,18 @@ public class EncryptionService {
 
       // Generate HMAC using the separate HMAC key
       Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-      hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
+      if (hmacKey == null) {
+        // Same effect as before: SecretKeySpec rejected a null key with IllegalArgumentException,
+        // which the catch block below turns into an EncryptionException.
+        throw new IllegalArgumentException(Messages.get("EncryptionService.hmacKeyNull"));
+      }
+      final byte[] hmacKeyBytes = hmacKey;
+      hmac.init(new SecretKeySpec(hmacKeyBytes, HMAC_ALGORITHM));
       byte[] hmacTag = hmac.doFinal(encryptedData);
 
       LOGGER.finest(
           () -> Messages.get("EncryptionService.encrypted",
-              new Object[]{hmacKey.length, encryptedData.length}));
+              new Object[]{hmacKeyBytes.length, encryptedData.length}));
 
       // Prepend HMAC tag to encrypted data: [HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
       ByteBuffer finalBuffer = ByteBuffer.allocate(HMAC_TAG_LENGTH + encryptedData.length);
@@ -144,8 +153,9 @@ public class EncryptionService {
    * @return the decrypted value
    * @throws EncryptionException if decryption fails or HMAC verification fails
    */
-  public Object decrypt(
-      byte[] encryptedValue, byte[] dataKey, byte[] hmacKey, String algorithm, Class<?> targetType)
+  public @Nullable Object decrypt(
+      final byte @Nullable [] encryptedValue, byte[] dataKey, final byte @Nullable [] hmacKey,
+      String algorithm, Class<?> targetType)
       throws EncryptionException {
     if (encryptedValue == null) {
       return null;
@@ -181,6 +191,11 @@ public class EncryptionService {
               new Object[]{hmacKey != null ? hmacKey.length : 0, encryptedData.length}));
 
       Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
+      if (hmacKey == null) {
+        // Same effect as before: SecretKeySpec rejected a null key with IllegalArgumentException,
+        // which the catch block below turns into an EncryptionException.
+        throw new IllegalArgumentException(Messages.get("EncryptionService.hmacKeyNull"));
+      }
       hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
       byte[] calculatedHmacTag = hmac.doFinal(encryptedData);
 

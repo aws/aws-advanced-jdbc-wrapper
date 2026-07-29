@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utility class for building detailed error messages with context information. Helps provide clear
@@ -28,7 +29,8 @@ import java.util.Set;
  */
 public class ErrorContext {
 
-  private final Map<String, Object> context = new HashMap<>();
+  // Values are nullable: the sanitizers return null for null input.
+  private final Map<String, @Nullable Object> context = new HashMap<>();
 
   private ErrorContext() {}
 
@@ -192,7 +194,7 @@ public class ErrorContext {
     sb.append(" [Context: ");
 
     boolean first = true;
-    for (Map.Entry<String, Object> entry : context.entrySet()) {
+    for (Map.Entry<String, @Nullable Object> entry : context.entrySet()) {
       if (!first) {
         sb.append(", ");
       }
@@ -277,7 +279,7 @@ public class ErrorContext {
    *
    * @return Copy of the context map
    */
-  public Map<String, Object> getContext() {
+  public Map<String, @Nullable Object> getContext() {
     return new HashMap<>(context);
   }
 
@@ -323,8 +325,8 @@ public class ErrorContext {
     Set<String> excludedKeys = new HashSet<>(Arrays.asList(
         "table", "column", "operation", "parameterIndex",
         "columnIndex", "retryAttempt", "maxRetryAttempts"));
-    Map<String, Object> additionalContext = new HashMap<>();
-    for (Map.Entry<String, Object> entry : context.entrySet()) {
+    Map<String, @Nullable Object> additionalContext = new HashMap<>();
+    for (Map.Entry<String, @Nullable Object> entry : context.entrySet()) {
       if (!excludedKeys.contains(entry.getKey())) {
         additionalContext.put(entry.getKey(), entry.getValue());
       }
@@ -333,7 +335,7 @@ public class ErrorContext {
     if (!additionalContext.isEmpty()) {
       sb.append(" [");
       boolean first = true;
-      for (Map.Entry<String, Object> entry : additionalContext.entrySet()) {
+      for (Map.Entry<String, @Nullable Object> entry : additionalContext.entrySet()) {
         if (!first) {
           sb.append(", ");
         }
@@ -346,7 +348,7 @@ public class ErrorContext {
 
   // Sanitization methods
 
-  private String sanitizeKeyId(String keyId) {
+  private @Nullable String sanitizeKeyId(@Nullable String keyId) {
     if (keyId == null) {
       return null;
     }
@@ -357,7 +359,7 @@ public class ErrorContext {
     return "***";
   }
 
-  private String sanitizeArn(String arn) {
+  private @Nullable String sanitizeArn(@Nullable String arn) {
     if (arn == null) {
       return null;
     }
@@ -369,7 +371,7 @@ public class ErrorContext {
     return "arn:aws:kms:***:***:key/***";
   }
 
-  private String sanitizeSql(String sql) {
+  private @Nullable String sanitizeSql(@Nullable String sql) {
     if (sql == null) {
       return null;
     }

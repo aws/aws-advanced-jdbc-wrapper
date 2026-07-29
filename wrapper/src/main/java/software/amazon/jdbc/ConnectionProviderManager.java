@@ -92,13 +92,13 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
    * Returns a boolean indicating if the available {@link ConnectionProvider} instances support the
    * selection of a host with the requested role and strategy via {@link #getHostSpecByStrategy}.
    *
-   * @param role     the desired host role
+   * @param role     the desired host role, or null for any role
    * @param strategy the strategy that should be used to pick a host (eg "random")
    * @return true if the available {@link ConnectionProvider} instances support the selection of a
    *     host with the requested role and strategy via {@link #getHostSpecByStrategy}. Otherwise,
    *     return false
    */
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
     final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
       return true;
@@ -118,7 +118,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
    * and strategy.
    *
    * @param hosts    the list of hosts to select from
-   * @param role     the desired role of the host - either a writer or a reader
+   * @param role     the desired role of the host - either a writer or a reader, or null for any role
    * @param strategy the strategy that should be used to select a {@link HostSpec} from the host
    *                 list (eg "random")
    * @param props    any properties that are required by the provided strategy to select a host
@@ -130,7 +130,7 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
    *                                       not support the requested strategy
    */
   public @Nullable HostSpec getHostSpecByStrategy(
-      List<HostSpec> hosts, HostRole role, String strategy, Properties props)
+      List<HostSpec> hosts, @Nullable HostRole role, String strategy, Properties props)
       throws SQLException, UnsupportedOperationException {
     @Nullable HostSpec host = null;
     final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();

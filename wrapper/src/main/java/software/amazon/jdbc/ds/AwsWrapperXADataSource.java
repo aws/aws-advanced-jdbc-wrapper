@@ -406,7 +406,13 @@ public class AwsWrapperXADataSource implements XADataSource, Serializable {
         ? null : configurationProfile.getTargetDriverDialect();
     if (targetDriverDialect == null) {
       final TargetDriverDialectManager manager = new TargetDriverDialectManager();
-      targetDriverDialect = manager.getDialect(this.targetDataSourceClassName, props);
+      // getDialect types dataSourceClass as @NonNull. The XA path always validates the target class
+      // name in createTargetXADataSource() before resolving the config, and the dialect lookup only
+      // compares the value against known class names, so it is passed through unchanged rather than
+      // adding a second (behavior-changing) validation here.
+      @SuppressWarnings("argument")
+      final TargetDriverDialect resolvedDialect = manager.getDialect(this.targetDataSourceClassName, props);
+      targetDriverDialect = resolvedDialect;
     }
 
     return new ResolvedConfig(finalUrl, props, targetDriverDialect, configurationProfile);

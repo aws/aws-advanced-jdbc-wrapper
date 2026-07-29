@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.readwritesplitting.refresher;
 
 import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.readwritesplitting.EndpointHostSpecs;
 import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
 
@@ -36,9 +37,10 @@ public class EndpointWriterHostRefresher implements TopologyRefresher {
 
   @Override
   public void refresh(final RwSplitContext ctx) {
-    if (ctx.writerHostSpec() == null && ctx.hostListProviderService() != null) {
+    final HostListProviderService hostListProviderService = ctx.hostListProviderService();
+    if (ctx.writerHostSpec() == null && hostListProviderService != null) {
       ctx.setWriterHostSpec(
-          EndpointHostSpecs.create(ctx.hostListProviderService(), this.writeEndpoint, HostRole.WRITER));
+          EndpointHostSpecs.create(hostListProviderService, this.writeEndpoint, HostRole.WRITER));
     }
   }
 }
