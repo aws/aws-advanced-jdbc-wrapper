@@ -34,6 +34,7 @@ import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import integration.util.XaTestUtility;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -107,6 +108,8 @@ public class XaFailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   public void test_failoverDuringXaBranch_failsFast() throws Exception {
+    // The post-failover verification commits a new XA transaction, which goes through prepare.
+    XaTestUtility.assumePreparedTransactionsSupported();
     recreateTable();
 
     final TestInstanceInfo writer =

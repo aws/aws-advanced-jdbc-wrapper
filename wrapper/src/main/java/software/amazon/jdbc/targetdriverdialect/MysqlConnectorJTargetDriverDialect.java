@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -38,6 +39,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   private static final String DRIVER_CLASS_NAME = "com.mysql.cj.jdbc.Driver";
   private static final String DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlDataSource";
   private static final String CP_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlConnectionPoolDataSource";
+  private static final String XA_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlXADataSource";
   private static final String PREPARED_STATEMENT_QUERY_HEADER = "PreparedStatement:";
 
   private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
@@ -66,7 +68,8 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   @Override
   public boolean isDialect(String dataSourceClass) {
     return DS_CLASS_NAME.equals(dataSourceClass)
-        || CP_DS_CLASS_NAME.equals(dataSourceClass);
+        || CP_DS_CLASS_NAME.equals(dataSourceClass)
+        || XA_DS_CLASS_NAME.equals(dataSourceClass);
   }
 
   @Override
@@ -103,6 +106,19 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
     // direct reference to com.mysql.cj.jdbc.MysqlDataSource
     final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
     helper.prepareDataSource(dataSource, hostSpec, props);
+  }
+
+  @Override
+  public String prepareTargetDataSource(
+      final @NonNull CommonDataSource dataSource,
+      final @NonNull String url,
+      final @NonNull Properties props) throws SQLException {
+
+    // The logic is isolated to a separated class since it uses
+    // direct reference to com.mysql.cj.jdbc.MysqlDataSource
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    helper.prepareTargetDataSource(dataSource, props);
+    return url;
   }
 
   @Override

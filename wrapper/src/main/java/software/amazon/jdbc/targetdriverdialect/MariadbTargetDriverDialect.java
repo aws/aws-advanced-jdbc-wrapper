@@ -23,16 +23,19 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.PropertyUtils;
 
 public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final String PERMIT_MYSQL_SCHEME = "permitMysqlScheme";
+  private static final String MYSQL_URL_PREFIX = "jdbc:mysql:";
   private static final String DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver";
   private static final String DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbDataSource";
   private static final String CP_DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbPoolDataSource";
@@ -150,6 +153,65 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
     // direct reference to org.mariadb.jdbc.MariaDbDataSource
     final MariadbDriverHelper helper = new MariadbDriverHelper();
     helper.prepareDataSource(dataSource, protocol, hostSpec, props);
+  }
+
+  /**
+   * MariaDB Connector/J data sources accept only a URL (plus user/password/loginTimeout) as bean
+   * properties, so every other setting has to be expressed as a URL parameter.
+   *
+   * <p>Two adjustments are made:
+   * <ul>
+   *   <li>{@code permitMysqlScheme} is added for a {@code jdbc:mysql://} URL. The driver rejects the
+   *       MySQL scheme outright ("Wrong mariaDB url") unless the URL itself carries this parameter,
+   *       and it cannot be set as a bean property.</li>
+   *   <li>The wrapper connect/socket timeouts are added (in milliseconds, the unit MariaDB uses) so
+   *       they are not silently dropped.</li>
+   * </ul>
+   */
+  @Override
+  public String prepareTargetDataSource(
+      final @NonNull CommonDataSource dataSource,
+      final @NonNull String url,
+      final @NonNull Properties props) {
+
+    String result = url;
+    if (result.startsWith(MYSQL_URL_PREFIX)) {
+      result = appendUrlParameter(result, PERMIT_MYSQL_SCHEME, null);
+    }
+    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    if (connectTimeout != null) {
+      result = appendUrlParameter(result, PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout.toString());
+    }
+    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+    if (socketTimeout != null) {
+      result = appendUrlParameter(result, PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout.toString());
+    }
+    return result;
+  }
+
+  /**
+   * Appends {@code name} (with {@code value}, or as a bare flag when {@code value} is null) to the
+   * query string of {@code url}, unless the parameter is already present.
+   */
+  private String appendUrlParameter(final String url, final String name, final @Nullable String value) {
+    final int queryStart = url.indexOf('?');
+    if (queryStart >= 0 && containsParameter(url.substring(queryStart + 1), name)) {
+      return url;
+    }
+    return url
+        + (queryStart >= 0 ? "&" : "?")
+        + name
+        + (value == null ? "" : "=" + value);
+  }
+
+  private boolean containsParameter(final String query, final String name) {
+    for (final String token : query.split("&")) {
+      final int eq = token.indexOf('=');
+      if (name.equals(eq < 0 ? token : token.substring(0, eq))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

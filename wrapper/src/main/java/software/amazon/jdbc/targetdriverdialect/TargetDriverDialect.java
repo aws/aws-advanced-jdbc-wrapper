@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,6 +45,33 @@ public interface TargetDriverDialect {
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException;
+
+  /**
+   * Applies AWS Wrapper connection settings that a target data source can only receive through
+   * driver-specific bean setters (for example connect/socket timeouts, whose unit differs per
+   * driver), and returns the connection URL to apply to that data source.
+   *
+   * <p>This is used by the XA datasource path, which configures a target driver
+   * {@link javax.sql.XADataSource} directly instead of going through
+   * {@link #prepareConnectInfo(String, HostSpec, Properties)}. Because that path hands the target
+   * only its own (non-wrapper) properties, wrapper properties such as {@code socketTimeout} would
+   * otherwise be dropped. Dialects whose target data source cannot express a setting as a bean
+   * property may instead add it to the returned URL.
+   *
+   * <p>The default implementation applies nothing and returns {@code url} unchanged.
+   *
+   * @param dataSource the target driver data source being configured.
+   * @param url        the target driver URL, with AWS Wrapper parameters already removed.
+   * @param props      the effective connection properties, including AWS Wrapper properties.
+   * @return the URL to apply to the target data source.
+   * @throws SQLException if a setting cannot be applied to the target data source.
+   */
+  default String prepareTargetDataSource(
+      final @NonNull CommonDataSource dataSource,
+      final @NonNull String url,
+      final @NonNull Properties props) throws SQLException {
+    return url;
+  }
 
   boolean isDriverRegistered() throws SQLException;
 

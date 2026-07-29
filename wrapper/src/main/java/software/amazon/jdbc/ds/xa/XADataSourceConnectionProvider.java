@@ -145,7 +145,7 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
     // sets it as the password on these per-connect props; without applying them here the target
     // XADataSource would keep the static password configured at getXAConnection() time and IAM
     // authentication would fail.
-    final XAConnection xaConn = openXaConnection(props);
+    final XAConnection xaConn = openXaConnection(props, targetDriverDialect);
     return new ConnectionInfo(getOrCreateLogicalConnection(xaConn), false, xaConn);
   }
 
@@ -187,7 +187,7 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
    * @throws SQLException if the XA connection cannot be opened.
    */
   public @NonNull XAConnection getOrOpenXaConnection() throws SQLException {
-    return openXaConnection(null);
+    return openXaConnection(null, null);
   }
 
   /**
@@ -196,7 +196,9 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
    * is opened, so plugin-provided credentials (e.g. an IAM token) take effect. The physical session
    * is pinned for the lifetime of this provider, so credentials are only applied on the first open.
    */
-  private @NonNull XAConnection openXaConnection(final @Nullable Properties props) throws SQLException {
+  private @NonNull XAConnection openXaConnection(
+      final @Nullable Properties props,
+      final @Nullable TargetDriverDialect targetDriverDialect) throws SQLException {
     XAConnection xaConn = this.xaConnection;
     if (xaConn == null) {
       try (ResourceLock ignored = this.lock.obtain()) {
@@ -204,7 +206,7 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
         if (xaConn == null) {
           if (props != null) {
             applyCredentials(props);
-            applyCleanUrl();
+            applyCleanUrl(props, targetDriverDialect);
           }
           xaConn = this.xaDataSource.getXAConnection();
           if (xaConn == null) {
@@ -241,7 +243,9 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
    * {@code getXAConnection()} time may miss plugin-specific properties whose classes were not yet
    * loaded).
    */
-  private void applyCleanUrl() {
+  private void applyCleanUrl(
+      final @NonNull Properties props,
+      final @Nullable TargetDriverDialect targetDriverDialect) throws SQLException {
     if (StringUtils.isNullOrEmpty(this.resolvedUrl)) {
       return;
     }
@@ -249,8 +253,14 @@ public class XADataSourceConnectionProvider implements ConnectionProvider {
     if (StringUtils.isNullOrEmpty(cleanUrl)) {
       return;
     }
+    // Re-apply the target driver dialect adjustments (driver-specific URL parameters and settings
+    // that the target data source only accepts through its own bean setters) against the final
+    // per-connect properties, which may have been rewritten by the connect pipeline.
+    final String targetUrl = targetDriverDialect == null
+        ? cleanUrl
+        : targetDriverDialect.prepareTargetDataSource(this.xaDataSource, cleanUrl, props);
     final List<Method> methods = Arrays.asList(this.xaDataSource.getClass().getMethods());
-    PropertyUtils.setPropertyOnTarget(this.xaDataSource, "url", cleanUrl, methods);
+    PropertyUtils.setPropertyOnTarget(this.xaDataSource, "url", targetUrl, methods);
   }
 
   /**

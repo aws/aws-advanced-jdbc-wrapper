@@ -19,6 +19,7 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -1046,13 +1047,17 @@ public class ReadWriteSplittingTests {
             () -> stmt.execute("CREATE DATABASE " + limitedUserNewDb));
       }
 
-      assertThrows(
-          HikariPool.PoolInitializationException.class, () -> {
+      // The internal pool provider wraps Hikari's fail-fast PoolInitializationException in a
+      // SQLException so that callers relying on the 'throws SQLException' contract (the failover
+      // retry loop) treat it as a recoverable connection failure.
+      final SQLException exception = assertThrows(
+          SQLException.class, () -> {
             try (final Connection ignored = DriverManager.getConnection(
                 ConnectionStringHelper.getWrapperUrl(), wrongUserRightPasswordProps)) {
               // Do nothing (close connection automatically)
             }
           });
+      assertInstanceOf(HikariPool.PoolInitializationException.class, exception.getCause());
     } finally {
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();

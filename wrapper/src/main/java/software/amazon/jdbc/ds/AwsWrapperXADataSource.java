@@ -329,7 +329,8 @@ public class AwsWrapperXADataSource implements XADataSource, Serializable {
    * parameters (e.g. {@code wrapperPlugins}) from leaking into the target driver's URL, which some
    * drivers reject as unknown parameters.
    */
-  void configureTargetXaDataSource(final XADataSource xaDataSource, final ResolvedConfig config) {
+  void configureTargetXaDataSource(final XADataSource xaDataSource, final ResolvedConfig config)
+      throws SQLException {
     final Properties targetProps = new Properties();
 
     if (this.targetDataSourceProperties != null) {
@@ -337,10 +338,13 @@ public class AwsWrapperXADataSource implements XADataSource, Serializable {
     }
 
     // A computed URL lets server/port/database flow to the target XADataSource that supports setUrl.
-    // Strip wrapper-specific query parameters so they are not passed to the target driver.
-    final String targetUrl = DataSourceConfigHelper.removeWrapperPropertiesFromUrl(config.finalUrl);
-    if (!StringUtils.isNullOrEmpty(targetUrl)) {
-      targetProps.put("url", targetUrl);
+    // Strip wrapper-specific query parameters so they are not passed to the target driver, then let
+    // the target driver dialect apply the wrapper settings the target can only receive through its
+    // own bean setters or URL parameters (connect/socket timeouts, MariaDB's permitMysqlScheme).
+    final String cleanUrl = DataSourceConfigHelper.removeWrapperPropertiesFromUrl(config.finalUrl);
+    if (!StringUtils.isNullOrEmpty(cleanUrl)) {
+      targetProps.put(
+          "url", config.targetDriverDialect.prepareTargetDataSource(xaDataSource, cleanUrl, config.props));
     }
     if (!StringUtils.isNullOrEmpty(this.user)) {
       targetProps.put(PropertyDefinition.USER.name, this.user);

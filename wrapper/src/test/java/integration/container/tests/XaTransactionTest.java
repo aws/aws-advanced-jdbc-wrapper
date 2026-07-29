@@ -31,12 +31,14 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.util.AuroraTestUtility;
+import integration.util.XaTestUtility;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.logging.Logger;
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -69,6 +71,8 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @Order(24)
 @Tag("xa")
 public class XaTransactionTest {
+
+  private static final Logger LOGGER = Logger.getLogger(XaTransactionTest.class.getName());
 
   private static final String TABLE = "xa_test_table";
 
@@ -126,6 +130,7 @@ public class XaTransactionTest {
 
   @TestTemplate
   public void test_xaLifecycle_commitPersists() throws Exception {
+    XaTestUtility.assumePreparedTransactionsSupported();
     recreateTable();
     final int id = 1;
     final AwsWrapperXADataSource ds = createXaDataSource();
@@ -153,6 +158,7 @@ public class XaTransactionTest {
 
   @TestTemplate
   public void test_xaLifecycle_rollbackDiscards() throws Exception {
+    XaTestUtility.assumePreparedTransactionsSupported();
     recreateTable();
     final int id = 2;
     final AwsWrapperXADataSource ds = createXaDataSource();
@@ -203,6 +209,7 @@ public class XaTransactionTest {
 
   @TestTemplate
   public void test_recover_returnsPreparedBranch() throws Exception {
+    XaTestUtility.assumePreparedTransactionsSupported();
     recreateTable();
     final int id = 4;
     final AwsWrapperXADataSource ds = createXaDataSource();
@@ -254,19 +261,35 @@ public class XaTransactionTest {
       // Requesting read-only inside an XA branch must NOT switch to a reader: the transaction-aware
       // gate pins the physical connection for the branch. If the connection had switched, the
       // reported instance id would change. We assert on the instance id rather than performing a
-      // write, because when the switch is skipped the underlying driver still applies read-only to
-      // the pinned session, which would block a subsequent INSERT (that is expected driver behavior,
-      // not a switch).
-      conn.setReadOnly(true);
+      // write, because when the switch is skipped the request is passed on to the pinned session,
+      // where the driver decides what to do with it: MySQL applies read-only (which would block a
+      // subsequent INSERT), while PostgreSQL rejects the call outright because a transaction is
+      // active ("Cannot change transaction read-only property in the middle of a transaction",
+      // allowed by the JDBC spec). Either outcome is fine here - both mean no switch happened.
+      setReadOnlyIgnoringDriverRejection(conn, true);
       final String instanceAfterSetReadOnly = auroraUtil.queryInstanceId(conn);
       assertEquals(instanceInBranch, instanceAfterSetReadOnly,
           "read/write splitting must not switch the connection during an XA branch");
 
-      conn.setReadOnly(false);
+      setReadOnlyIgnoringDriverRejection(conn, false);
       xaResource.end(xid, XAResource.TMSUCCESS);
       xaResource.rollback(xid);
     } finally {
       xaConn.close();
+    }
+  }
+
+  /**
+   * Calls {@code setReadOnly} and tolerates a driver that refuses to change the read-only property
+   * while a transaction is active (PostgreSQL). The rejection happens client-side, before any
+   * statement is sent, so the XA branch remains usable.
+   */
+  private static void setReadOnlyIgnoringDriverRejection(final Connection conn, final boolean readOnly)
+      throws SQLException {
+    try {
+      conn.setReadOnly(readOnly);
+    } catch (final SQLException e) {
+      LOGGER.finest(() -> "setReadOnly(" + readOnly + ") was rejected during the XA branch: " + e.getMessage());
     }
   }
 

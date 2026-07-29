@@ -26,6 +26,7 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
+import integration.util.XaTestUtility;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -246,6 +247,8 @@ public class XaTwoPhaseCommitTest {
 
   @TestTemplate
   public void test_twoResourceCommit_bothTransactionManagers() throws Exception {
+    // A two-resource commit always goes through prepare, which requires prepared transactions.
+    XaTestUtility.assumePreparedTransactionsSupported();
     for (final Tm tm : Tm.values()) {
       recreateTables();
       final int id = 10;

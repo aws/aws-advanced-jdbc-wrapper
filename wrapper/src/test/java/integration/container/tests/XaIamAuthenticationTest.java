@@ -29,6 +29,7 @@ import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
+import integration.util.XaTestUtility;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -117,6 +118,7 @@ public class XaIamAuthenticationTest {
   @TestTemplate
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void test_iamAuth_xaBranchLifecycle() throws Exception {
+    XaTestUtility.assumePreparedTransactionsSupported();
     final AwsWrapperXADataSource ds = createIamXaDataSource();
     final XAConnection xaConn = ds.getXAConnection();
     try {

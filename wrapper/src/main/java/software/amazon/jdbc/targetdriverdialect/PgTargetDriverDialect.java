@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -50,11 +51,13 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String SIMPLE_DS_CLASS_NAME = "org.postgresql.ds.PGSimpleDataSource";
   private static final String POOLING_DS_CLASS_NAME = "org.postgresql.ds.PGPoolingDataSource";
   private static final String CP_DS_CLASS_NAME = "org.postgresql.ds.PGConnectionPoolDataSource";
+  private static final String XA_DS_CLASS_NAME = "org.postgresql.xa.PGXADataSource";
 
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
       POOLING_DS_CLASS_NAME,
-      CP_DS_CLASS_NAME));
+      CP_DS_CLASS_NAME,
+      XA_DS_CLASS_NAME));
 
   private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -160,6 +163,19 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     // direct reference to org.postgresql.ds.common.BaseDataSource
     final PgDriverHelper helper = new PgDriverHelper();
     helper.prepareDataSource(dataSource, hostSpec, props);
+  }
+
+  @Override
+  public String prepareTargetDataSource(
+      final @NonNull CommonDataSource dataSource,
+      final @NonNull String url,
+      final @NonNull Properties props) {
+
+    // The logic is isolated to a separated class since it uses
+    // direct reference to org.postgresql.ds.common.BaseDataSource
+    final PgDriverHelper helper = new PgDriverHelper();
+    helper.prepareTargetDataSource(dataSource, props);
+    return url;
   }
 
   @Override
