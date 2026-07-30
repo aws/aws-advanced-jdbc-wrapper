@@ -621,7 +621,7 @@ public class AuroraTestUtility {
                 CreateDbClusterParameterGroupRequest.builder()
                 .dbClusterParameterGroupName(groupName)
                 .description("Test custom cluster parameter group for BGD.")
-                .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+                .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
                 .tags(this.getTag())
                 .build());
 
@@ -681,7 +681,7 @@ public class AuroraTestUtility {
         CreateDbClusterParameterGroupRequest.builder()
             .dbClusterParameterGroupName(groupName)
             .description("Test cluster parameter group with require_secure_transport disabled.")
-            .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
             .tags(this.getTag())
             .build());
 
@@ -1324,35 +1324,58 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Returns the parameter group family for the given engine, covering both the Aurora engines and the
-   * RDS engines used by the multi-az deployments. The family name is shared by the DB cluster
+   * Returns the parameter group family of the given engine version, covering both the Aurora engines
+   * and the RDS engines used by the multi-az deployments. The family name is shared by the DB cluster
    * parameter groups and the DB parameter groups of an engine.
+   *
+   * <p>The family is looked up from RDS, so that a parameter group is always created in the family the
+   * database actually requires. A hardcoded mapping goes stale as soon as a new major version becomes
+   * the default (RDS then rejects the group with "cannot be used for this instance"), so it is only
+   * used as a fallback when the lookup fails.
    *
    * @param engine        the database engine, for example {@code aurora-postgresql} or {@code postgres}
    * @param engineVersion the database engine version
    * @return the parameter group family name
    */
   public String getParameterGroupFamily(String engine, String engineVersion) {
-    switch (engine) {
-      case "postgres":
-        // RDS PostgreSQL families are named after the major version, for example "postgres17".
-        if (StringUtils.isNullOrEmpty(engineVersion)) {
-          return "postgres" + DEFAULT_PG_MAJOR_VERSION;
-        }
-        final int dotIndex = engineVersion.indexOf('.');
-        return "postgres" + (dotIndex < 0 ? engineVersion : engineVersion.substring(0, dotIndex));
-      default:
-        return getAuroraParameterGroupFamily(engine, engineVersion);
+    final String family = queryParameterGroupFamily(engine, engineVersion);
+    if (!StringUtils.isNullOrEmpty(family)) {
+      return family;
+    }
+    return buildParameterGroupFamily(engine, engineVersion);
+  }
+
+  /**
+   * Asks RDS for the parameter group family of an engine version, or returns null when it cannot be
+   * determined.
+   */
+  private @Nullable String queryParameterGroupFamily(String engine, String engineVersion) {
+    try {
+      final DescribeDbEngineVersionsRequest.Builder request =
+          DescribeDbEngineVersionsRequest.builder().engine(engine);
+      if (!StringUtils.isNullOrEmpty(engineVersion)) {
+        request.engineVersion(engineVersion);
+      }
+      final DescribeDbEngineVersionsResponse response = rdsClient.describeDBEngineVersions(request.build());
+      return response.dbEngineVersions().stream()
+          .map(DBEngineVersion::dbParameterGroupFamily)
+          .filter(family -> !StringUtils.isNullOrEmpty(family))
+          .findFirst()
+          .orElse(null);
+    } catch (Exception ex) {
+      LOGGER.finest(String.format(
+          "Could not query the parameter group family of %s %s: %s", engine, engineVersion, ex.getMessage()));
+      return null;
     }
   }
 
-  public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
+  /** Best-effort parameter group family name, used when RDS cannot be queried. */
+  private String buildParameterGroupFamily(String engine, String engineVersion) {
     switch (engine) {
       case "aurora-postgresql":
-        if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.startsWith("17.")) {
-          return "aurora-postgresql17";
-        }
-        return "aurora-postgresql16";
+      case "postgres":
+        // The PostgreSQL families are named after the major version, for example "aurora-postgresql17".
+        return engine + majorVersion(engineVersion, DEFAULT_PG_MAJOR_VERSION);
       case "aurora-mysql":
         if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
           return "aurora-mysql8.0";
@@ -1364,6 +1387,19 @@ public class AuroraTestUtility {
       default:
         throw new UnsupportedOperationException(engine);
     }
+  }
+
+  private String majorVersion(String engineVersion, String defaultMajorVersion) {
+    if (StringUtils.isNullOrEmpty(engineVersion)) {
+      return defaultMajorVersion;
+    }
+    final int dotIndex = engineVersion.indexOf('.');
+    return dotIndex < 0 ? engineVersion : engineVersion.substring(0, dotIndex);
+  }
+
+  /** Kept for compatibility; {@link #getParameterGroupFamily} also covers the non-Aurora engines. */
+  public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
+    return getParameterGroupFamily(engine, engineVersion);
   }
 
   public List<TestInstanceInfo> getTestInstancesInfo(final String clusterId) {
