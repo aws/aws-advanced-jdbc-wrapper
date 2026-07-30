@@ -21,8 +21,10 @@ import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
 
 /**
  * Establishes a reader connection and switches the current connection to it ("how to reach a
- * reader?"). The default implementation composes a {@link ReaderCandidateSource} with a
- * {@link LoadBalancingPolicy} and applies the per-call connect/retry loop.
+ * reader?"). The default implementation composes a
+ * {@link software.amazon.jdbc.plugin.readwritesplitting.source.ReaderCandidateSource} with a
+ * {@link software.amazon.jdbc.plugin.readwritesplitting.balancer.LoadBalancingPolicy} and applies
+ * the per-call connect/retry loop.
  */
 public interface ReaderResolver {
 
