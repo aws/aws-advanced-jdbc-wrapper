@@ -30,6 +30,7 @@ import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnNumOfInstances;
+import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
 import integration.util.XaTestUtility;
 import java.sql.Connection;
@@ -68,6 +69,11 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+// The XA datasource connects to the first instance and writes and prepares a transaction on it, so
+// that instance must be the writer: a reader is permanently in recovery and rejects PREPARE
+// TRANSACTION. A preceding failover test can leave the first instance demoted, so have the first
+// instance restored as the writer before running.
+@MakeSureFirstInstanceWriter
 @Order(24)
 @Tag("xa")
 public class XaTransactionTest {
