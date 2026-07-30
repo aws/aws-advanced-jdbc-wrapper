@@ -24,7 +24,8 @@ import software.amazon.jdbc.util.Messages;
 
 /**
  * {@link WriterResolver} that connects to the writer identified from the cluster topology (set by
- * the {@link TopologyRefresher} before this runs). Ports the legacy
+ * the {@link software.amazon.jdbc.plugin.readwritesplitting.refresher.TopologyRefresher} before
+ * this runs). Ports the legacy
  * {@code ReadWriteSplittingPlugin.initializeWriterConnection} connect step.
  */
 public class TopologyWriterResolver implements WriterResolver {
