@@ -21,29 +21,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- Aurora PG, 3 instances -> 4 shards
-          - { name: pg-aurora-3inst-1of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 4 }
-          - { name: pg-aurora-3inst-2of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 4 }
-          - { name: pg-aurora-3inst-3of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 4 }
-          - { name: pg-aurora-3inst-4of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 4, shardCount: 4 }
+          # --- Aurora PG, 3 instances -> 3 shards
+          - { name: pg-aurora-3inst-1of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
+          - { name: pg-aurora-3inst-2of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
+          - { name: pg-aurora-3inst-3of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
           - { name: pg-aurora-1inst, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
 
-          # --- Aurora MySQL (MySQL driver), 3 instances -> 3 shards
-          - { name: mysql-aurora-3inst-1of3, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
-          - { name: mysql-aurora-3inst-2of3, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
-          - { name: mysql-aurora-3inst-3of3, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
+          # --- Aurora MySQL (MySQL driver), 3 instances -> 4 shards
+          - { name: mysql-aurora-3inst-1of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 4 }
+          - { name: mysql-aurora-3inst-2of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 4 }
+          - { name: mysql-aurora-3inst-3of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 4 }
+          - { name: mysql-aurora-3inst-4of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 4, shardCount: 4 }
           - { name: mysql-aurora-1inst, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
 
-          # --- Aurora MySQL (MariaDB driver), 3 instances -> 2 shards
-          - { name: mysql-aurora-mariadb-3inst-1of2, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 2 }
-          - { name: mysql-aurora-mariadb-3inst-2of2, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 2 }
+          # --- Aurora MySQL (MariaDB driver), 3 instances -> 3 shards (critical path)
+          - { name: mysql-aurora-mariadb-3inst-1of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-2of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-3of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
           - { name: mysql-aurora-mariadb-1inst, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
 
-          # --- RDS Multi-AZ MySQL cluster -> 4 shards
-          - { name: mysql-multi-az-cluster-1of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 4 }
-          - { name: mysql-multi-az-cluster-2of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 4 }
-          - { name: mysql-multi-az-cluster-3of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 3, shardCount: 4 }
-          - { name: mysql-multi-az-cluster-4of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 4, shardCount: 4 }
+          # --- RDS Multi-AZ MySQL cluster -> 3 shards
+          - { name: mysql-multi-az-cluster-1of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-2of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-3of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 3, shardCount: 3 }
           - { name: mysql-multi-az-instance, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
 
           # --- RDS Multi-AZ PG cluster -> 2 shards

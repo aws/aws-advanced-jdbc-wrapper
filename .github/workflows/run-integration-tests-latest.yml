@@ -12,12 +12,13 @@ permissions:
 
 # Each matrix entry below pins itself to exactly ONE test environment and runs ONE shard of the
 # integration test classes against its own database cluster, so the whole suite runs in parallel
-# instead of one engine at a time. 20 entries => at most 20 concurrent clusters / ~52 DB instances,
+# instead of one engine at a time. 20 entries => at most 20 concurrent clusters / 50 DB instances,
 # and 20 inbound rules in the region's default security group (quota is 60 per security group).
 #
-# Shard counts are sized from measured per-class timings so every shard lands at roughly the same
-# duration; see the weight table in wrapper/src/test/build.gradle.kts. Class-to-shard assignment is
-# computed there from the compiled classes on disk, so adding a test class needs no change here.
+# Shard counts are sized from the per-environment totals measured in run 30645460736, and the
+# per-class weight table in wrapper/src/test/build.gradle.kts keeps the shards within a group evenly
+# sized. Class-to-shard assignment is computed there from the compiled classes on disk, so adding a
+# test class needs no change here. Projected critical path is ~54 min (mysql-aurora-mariadb-3inst).
 #
 # The 2-instance Aurora environment is NOT covered here - it is a near-duplicate of the 3-instance
 # one and is exercised by run-integration-tests-full-matrix-weekly.yml instead.
@@ -29,34 +30,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- Aurora PG, 3 instances: 116.8 min of tests -> 4 shards
-          - { name: pg-aurora-3inst-1of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 4 }
-          - { name: pg-aurora-3inst-2of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 4 }
-          - { name: pg-aurora-3inst-3of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 4 }
-          - { name: pg-aurora-3inst-4of4, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 4, shardCount: 4 }
-          # --- Aurora PG, single instance: 4.2 min of tests -> 1 shard
+          # --- Aurora PG, 3 instances: 95.6 min of tests -> 3 shards (~47 min)
+          - { name: pg-aurora-3inst-1of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
+          - { name: pg-aurora-3inst-2of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
+          - { name: pg-aurora-3inst-3of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
+          # --- Aurora PG, single instance: 4.9 min of tests -> 1 shard
           - { name: pg-aurora-1inst, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
 
-          # --- Aurora MySQL (MySQL driver), 3 instances: 110.2 min -> 3 shards
-          - { name: mysql-aurora-3inst-1of3, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
-          - { name: mysql-aurora-3inst-2of3, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
-          - { name: mysql-aurora-3inst-3of3, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
+          # --- Aurora MySQL (MySQL driver), 3 instances: 126.8 min -> 4 shards (~47 min)
+          - { name: mysql-aurora-3inst-1of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 4 }
+          - { name: mysql-aurora-3inst-2of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 4 }
+          - { name: mysql-aurora-3inst-3of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 4 }
+          - { name: mysql-aurora-3inst-4of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 4, shardCount: 4 }
           - { name: mysql-aurora-1inst, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
 
-          # --- Aurora MySQL (MariaDB driver), 3 instances: 71.3 min -> 2 shards
-          - { name: mysql-aurora-mariadb-3inst-1of2, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 2 }
-          - { name: mysql-aurora-mariadb-3inst-2of2, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 2 }
+          # --- Aurora MySQL (MariaDB driver), 3 instances: 114.8 min -> 3 shards (~54 min).
+          #     This is the critical path; give it a 4th shard first if more clusters become available.
+          - { name: mysql-aurora-mariadb-3inst-1of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-2of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-3of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
           - { name: mysql-aurora-mariadb-1inst, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
 
-          # --- RDS Multi-AZ MySQL cluster: 89.0 min -> 4 shards (Multi-AZ provisioning is slow, so
-          #     these shards are kept small to offset the larger fixed overhead)
-          - { name: mysql-multi-az-cluster-1of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 4 }
-          - { name: mysql-multi-az-cluster-2of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 4 }
-          - { name: mysql-multi-az-cluster-3of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 3, shardCount: 4 }
-          - { name: mysql-multi-az-cluster-4of4, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 4, shardCount: 4 }
+          # --- RDS Multi-AZ MySQL cluster: 97.1 min -> 3 shards (~50 min)
+          - { name: mysql-multi-az-cluster-1of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-2of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-3of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 3, shardCount: 3 }
           - { name: mysql-multi-az-instance, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
 
-          # --- RDS Multi-AZ PG cluster: 40.4 min -> 2 shards
+          # --- RDS Multi-AZ PG cluster: 44.2 min -> 2 shards (~43 min)
           - { name: pg-multi-az-cluster-1of2, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 2 }
           - { name: pg-multi-az-cluster-2of2, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 2 }
           - { name: pg-multi-az-instance, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
