@@ -29,6 +29,8 @@ import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.XaTestUtility;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -71,6 +73,11 @@ import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+// The XA datasource connects to the first instance and prepares a transaction on it, so that instance
+// must be the writer: a reader is permanently in recovery and rejects PREPARE TRANSACTION with
+// "cannot execute PREPARE TRANSACTION during recovery". A preceding failover test can leave the first
+// instance demoted, so have the first instance restored as the writer before running.
+@MakeSureFirstInstanceWriter
 @Order(26)
 @Tag("xa")
 public class XaIamAuthenticationTest {
@@ -117,6 +124,7 @@ public class XaIamAuthenticationTest {
   @TestTemplate
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void test_iamAuth_xaBranchLifecycle() throws Exception {
+    XaTestUtility.assumePreparedTransactionsSupported();
     final AwsWrapperXADataSource ds = createIamXaDataSource();
     final XAConnection xaConn = ds.getXAConnection();
     try {

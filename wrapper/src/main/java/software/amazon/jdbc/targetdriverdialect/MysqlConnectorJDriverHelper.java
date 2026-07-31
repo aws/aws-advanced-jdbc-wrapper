@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -79,6 +80,45 @@ public class MysqlConnectorJDriverHelper {
         PropertyDefinition.CONNECT_TIMEOUT.name);
 
     PropertyUtils.applyProperties(dataSource, props);
+  }
+
+  /**
+   * Applies the AWS Wrapper TCP keep-alive and timeout properties to a MySQL Connector/J data source
+   * (including {@code MysqlXADataSource}). Connector/J expresses connect/socket timeouts in
+   * milliseconds, the same unit as the corresponding wrapper properties, so the values are passed
+   * through unchanged. Non-Connector/J data sources are left untouched.
+   *
+   * @param dataSource the target data source to configure.
+   * @param props      the connection properties.
+   * @throws SQLException if a setting cannot be applied to the data source.
+   */
+  public void prepareTargetDataSource(
+      final @NonNull CommonDataSource dataSource, final @NonNull Properties props) throws SQLException {
+
+    if (!(dataSource instanceof MysqlDataSource)) {
+      return;
+    }
+    final MysqlDataSource mysqlDataSource = (MysqlDataSource) dataSource;
+
+    final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
+    if (tcpKeepAlive != null) {
+      mysqlDataSource.setTcpKeepAlive(tcpKeepAlive);
+    }
+
+    final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    if (loginTimeout != null) {
+      mysqlDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+    }
+
+    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    if (connectTimeout != null) {
+      mysqlDataSource.setConnectTimeout(connectTimeout);
+    }
+
+    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+    if (socketTimeout != null) {
+      mysqlDataSource.setSocketTimeout(socketTimeout);
+    }
   }
 
   public boolean isDriverRegistered() throws SQLException {

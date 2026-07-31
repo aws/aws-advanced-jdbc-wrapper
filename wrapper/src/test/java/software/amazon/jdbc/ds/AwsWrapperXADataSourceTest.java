@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mysql.cj.jdbc.MysqlXADataSource;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -29,6 +30,8 @@ import javax.sql.XAConnection;
 import javax.sql.XADataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mariadb.jdbc.MariaDbDataSource;
+import org.postgresql.xa.PGXADataSource;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.ds.AwsWrapperXADataSource.ResolvedConfig;
@@ -126,6 +129,85 @@ public class AwsWrapperXADataSourceTest {
     assertTrue(targetUrl.contains("ssl=true"), "target parameter was dropped: " + targetUrl);
     assertTrue(targetUrl.contains("ApplicationName=myapp"), "target parameter was dropped: " + targetUrl);
     assertTrue(targetUrl.startsWith("jdbc:postgresql://host:5432/mydb"), "unexpected base URL: " + targetUrl);
+  }
+
+  @Test
+  void configureTargetXaDataSource_appliesTimeoutsToPgXaDataSource() throws SQLException {
+    // Wrapper timeouts are expressed in milliseconds; PostgreSQL expects seconds.
+    final AwsWrapperXADataSource ds = new AwsWrapperXADataSource();
+    ds.setJdbcUrl("jdbc:aws-wrapper:postgresql://host:5432/mydb");
+    ds.setTargetDataSourceClassName("org.postgresql.xa.PGXADataSource");
+    final Properties props = new Properties();
+    props.setProperty("connectTimeout", "10000");
+    props.setProperty("socketTimeout", "5000");
+    props.setProperty("tcpKeepAlive", "true");
+    ds.setTargetDataSourceProperties(props);
+
+    final PGXADataSource target = new PGXADataSource();
+    ds.configureTargetXaDataSource(target, ds.resolveConfig());
+
+    assertEquals(10, target.getConnectTimeout());
+    assertEquals(5, target.getSocketTimeout());
+    assertTrue(target.getTcpKeepAlive());
+  }
+
+  @Test
+  void configureTargetXaDataSource_appliesTimeoutsToMysqlXaDataSource() throws Exception {
+    // MySQL Connector/J uses milliseconds, the same unit as the wrapper properties.
+    final AwsWrapperXADataSource ds = new AwsWrapperXADataSource();
+    ds.setJdbcUrl("jdbc:aws-wrapper:mysql://host:3306/mydb");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlXADataSource");
+    final Properties props = new Properties();
+    props.setProperty("connectTimeout", "10000");
+    props.setProperty("socketTimeout", "2000");
+    ds.setTargetDataSourceProperties(props);
+
+    final MysqlXADataSource target = new MysqlXADataSource();
+    ds.configureTargetXaDataSource(target, ds.resolveConfig());
+
+    assertEquals(10000, target.getConnectTimeout());
+    assertEquals(2000, target.getSocketTimeout());
+  }
+
+  @Test
+  void configureTargetXaDataSource_mariadbTargetAcceptsMysqlSchemeUrl() throws SQLException {
+    // MariaDB Connector/J rejects a "jdbc:mysql://" URL outright ("Wrong mariaDB url") unless the
+    // URL itself carries permitMysqlScheme, and it only accepts timeouts as URL parameters. The
+    // driver normalizes the URL it was given, so assert on the settings it kept rather than on the
+    // exact string.
+    final AwsWrapperXADataSource ds = new AwsWrapperXADataSource();
+    ds.setJdbcProtocol("jdbc:mysql://");
+    ds.setServerName("host");
+    ds.setServerPort("3306");
+    ds.setDatabase("mydb");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
+    final Properties props = new Properties();
+    props.setProperty("socketTimeout", "2000");
+    ds.setTargetDataSourceProperties(props);
+
+    final MariaDbDataSource target = new MariaDbDataSource();
+    ds.configureTargetXaDataSource(target, ds.resolveConfig());
+
+    final String targetUrl = target.getUrl();
+    assertTrue(targetUrl.contains("host"), "unexpected URL: " + targetUrl);
+    assertTrue(targetUrl.contains("mydb"), "unexpected URL: " + targetUrl);
+    assertTrue(targetUrl.contains("permitMysqlScheme"), "permitMysqlScheme was not added: " + targetUrl);
+    assertTrue(targetUrl.contains("socketTimeout=2000"), "socketTimeout was dropped: " + targetUrl);
+  }
+
+  @Test
+  void configureTargetXaDataSource_mariadbTargetKeepsMariadbSchemeUrlUnchanged() throws SQLException {
+    final AwsWrapperXADataSource ds = new AwsWrapperXADataSource();
+    ds.setJdbcUrl("jdbc:aws-wrapper:mariadb://host:3306/mydb");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
+
+    final MariaDbDataSource target = new MariaDbDataSource();
+    ds.configureTargetXaDataSource(target, ds.resolveConfig());
+
+    final String targetUrl = target.getUrl();
+    assertTrue(targetUrl.startsWith("jdbc:mariadb://"), "unexpected URL: " + targetUrl);
+    assertFalse(targetUrl.contains("permitMysqlScheme"),
+        "permitMysqlScheme must only be added for a jdbc:mysql:// URL: " + targetUrl);
   }
 
   /** A minimal fake XADataSource exposing bean setters that PropertyUtils can invoke by name. */

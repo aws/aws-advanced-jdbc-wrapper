@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.postgresql.ds.common.BaseDataSource;
@@ -61,6 +62,32 @@ public class PgDriverHelper {
       baseDataSource.setPortNumbers(new int[] { hostSpec.getPort() });
     }
 
+    applyKeepAliveAndTimeouts(baseDataSource, props);
+
+    // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
+    // and try to apply them to data source
+    PropertyDefinition.removeAll(props);
+
+    PropertyUtils.applyProperties(dataSource, props);
+  }
+
+  /**
+   * Applies the AWS Wrapper TCP keep-alive and timeout properties to a PostgreSQL data source
+   * (including {@code PGXADataSource}, which is a {@link BaseDataSource} but not a
+   * {@link DataSource}). Non-PostgreSQL data sources are left untouched.
+   *
+   * @param dataSource the target data source to configure.
+   * @param props      the connection properties.
+   */
+  public void prepareTargetDataSource(
+      final @NonNull CommonDataSource dataSource, final @NonNull Properties props) {
+    if (!(dataSource instanceof BaseDataSource)) {
+      return;
+    }
+    applyKeepAliveAndTimeouts((BaseDataSource) dataSource, props);
+  }
+
+  private void applyKeepAliveAndTimeouts(final BaseDataSource baseDataSource, final Properties props) {
     final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
     if (tcpKeepAlive != null) {
       baseDataSource.setTcpKeepAlive(tcpKeepAlive);
@@ -71,6 +98,7 @@ public class PgDriverHelper {
       baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
     }
 
+    // PostgreSQL expresses these timeouts in seconds, the wrapper properties are in milliseconds.
     final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
     if (connectTimeout != null) {
       baseDataSource.setConnectTimeout((int) TimeUnit.MILLISECONDS.toSeconds(connectTimeout));
@@ -80,12 +108,6 @@ public class PgDriverHelper {
     if (socketTimeout != null) {
       baseDataSource.setSocketTimeout((int) TimeUnit.MILLISECONDS.toSeconds(socketTimeout));
     }
-
-    // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
-    // and try to apply them to data source
-    PropertyDefinition.removeAll(props);
-
-    PropertyUtils.applyProperties(dataSource, props);
   }
 
   public boolean isDriverRegistered() throws SQLException {

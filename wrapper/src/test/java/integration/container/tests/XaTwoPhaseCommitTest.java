@@ -26,6 +26,8 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
+import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.XaTestUtility;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -66,6 +68,11 @@ import software.amazon.jdbc.ds.AwsWrapperXADataSource;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+// Both XA datasources connect to the first instance and the transaction manager prepares on it, so
+// that instance must be the writer: a reader is permanently in recovery and rejects PREPARE
+// TRANSACTION. A preceding failover test can leave the first instance demoted, so have the first
+// instance restored as the writer before running.
+@MakeSureFirstInstanceWriter
 @Order(25)
 @Tag("xa")
 public class XaTwoPhaseCommitTest {
@@ -246,6 +253,8 @@ public class XaTwoPhaseCommitTest {
 
   @TestTemplate
   public void test_twoResourceCommit_bothTransactionManagers() throws Exception {
+    // A two-resource commit always goes through prepare, which requires prepared transactions.
+    XaTestUtility.assumePreparedTransactionsSupported();
     for (final Tm tm : Tm.values()) {
       recreateTables();
       final int id = 10;

@@ -198,6 +198,7 @@ public class TestEnvironment implements AutoCloseable {
         env.auroraUtil.testClustersCleanUp();
         env.auroraUtil.testInstancesCleanUp();
         env.auroraUtil.testClusterParameterGroupsCleanUp();
+        env.auroraUtil.testDbParameterGroupsCleanUp();
         env.auroraUtil.securityGroupRulesCleanUp();
       }
     }
@@ -283,6 +284,7 @@ public class TestEnvironment implements AutoCloseable {
           initEnv(env);
           cleanUp(env);
           authorizeRunnerIpAddress(env);
+          createCustomParameterGroups(env);
           createMultiAzInstance(env);
           configureIamAccess(env);
           break;
@@ -290,6 +292,7 @@ public class TestEnvironment implements AutoCloseable {
           initEnv(env);
           cleanUp(env);
           authorizeRunnerIpAddress(env);
+          createCustomParameterGroups(env);
           createDbCluster(env);
           configureIamAccess(env);
           break;
@@ -297,16 +300,7 @@ public class TestEnvironment implements AutoCloseable {
           initEnv(env);
           cleanUp(env);
           authorizeRunnerIpAddress(env);
-
-          if (!env.reuseDb
-              && env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
-            createCustomClusterParameterGroup(env);
-          }
-          if (!env.reuseDb
-              && env.info.getClusterParameterGroupName() == null
-              && env.info.getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
-            createMysqlClusterParameterGroup(env);
-          }
+          createCustomParameterGroups(env);
           createDbCluster(env);
           configureIamAccess(env);
           break;
@@ -417,6 +411,55 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
+  /**
+   * Creates the custom parameter groups the database needs, before the database itself is created, so
+   * that it comes up with the required settings and no reboot is necessary. Nothing is created when an
+   * existing database is reused.
+   *
+   * <p>Which group type is used depends on the deployment. A cluster (Aurora or RDS multi-az) takes a
+   * DB cluster parameter group, which is the only parameter group {@code CreateDBCluster} accepts and
+   * which carries the instance-level parameters as well. A multi-az instance takes a DB parameter
+   * group, through {@code CreateDBInstance}.
+   */
+  private static void createCustomParameterGroups(TestEnvironment env) {
+    if (env.reuseDb) {
+      return;
+    }
+
+    final TestEnvironmentRequest request = env.info.getRequest();
+    switch (request.getDatabaseEngineDeployment()) {
+      case AURORA:
+        if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+          createCustomClusterParameterGroup(env);
+        }
+        if (env.info.getClusterParameterGroupName() == null) {
+          switch (request.getDatabaseEngine()) {
+            case MYSQL:
+              createMysqlClusterParameterGroup(env);
+              break;
+            case PG:
+              createPgClusterParameterGroup(env);
+              break;
+            default:
+              break;
+          }
+        }
+        break;
+      case RDS_MULTI_AZ_CLUSTER:
+        if (request.getDatabaseEngine() == DatabaseEngine.PG) {
+          createPgClusterParameterGroup(env);
+        }
+        break;
+      case RDS_MULTI_AZ_INSTANCE:
+        if (request.getDatabaseEngine() == DatabaseEngine.PG) {
+          createPgDbParameterGroup(env);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   private static void createCustomClusterParameterGroup(TestEnvironment env) {
     String groupName = String.format("test-cpg-%s", env.info.getRandomBase());
     String engine = getDbEngine(env.info.getRequest());
@@ -432,6 +475,52 @@ public class TestEnvironment implements AutoCloseable {
     String engineVersion = getDbEngineVersion(engine, env);
     env.auroraUtil.createMysqlClusterParameterGroup(groupName, engine, engineVersion);
     env.info.setClusterParameterGroupName(groupName);
+  }
+
+  /**
+   * Creates the DB cluster parameter group that enables prepared (two-phase) transactions on a
+   * PostgreSQL cluster (Aurora or RDS multi-az), so that the XA tests can prepare a branch instead of
+   * being skipped.
+   *
+   * <p>Enabling prepared transactions is a bonus for the XA tests, not a prerequisite for the rest of
+   * the suite: if the parameter group cannot be created the environment is created without it, and the
+   * XA tests that need a prepared branch skip themselves as they did before.
+   */
+  private static void createPgClusterParameterGroup(TestEnvironment env) {
+    String groupName = String.format("test-pg-cpg-%s", env.info.getRandomBase());
+    String engine = getDbEngine(env.info.getRequest());
+    String engineVersion = getDbEngineVersion(engine, env);
+    try {
+      env.auroraUtil.createPgClusterParameterGroup(groupName, engine, engineVersion);
+      env.info.setClusterParameterGroupName(groupName);
+    } catch (Exception ex) {
+      LOGGER.warning(String.format(
+          "Could not create the PG cluster parameter group %s; the database will be created with the default "
+              + "parameter group and the XA tests that need prepared transactions will be skipped. %s",
+          groupName, ex));
+      env.auroraUtil.deleteCustomClusterParameterGroupSafely(groupName);
+    }
+  }
+
+  /**
+   * Creates the DB parameter group that enables prepared (two-phase) transactions on an RDS PostgreSQL
+   * multi-az instance. Best-effort, for the same reason as
+   * {@link #createPgClusterParameterGroup(TestEnvironment)}.
+   */
+  private static void createPgDbParameterGroup(TestEnvironment env) {
+    String groupName = String.format("test-pg-dpg-%s", env.info.getRandomBase());
+    String engine = getDbEngine(env.info.getRequest());
+    String engineVersion = getDbEngineVersion(engine, env);
+    try {
+      env.auroraUtil.createPgDbParameterGroup(groupName, engine, engineVersion);
+      env.info.setDbParameterGroupName(groupName);
+    } catch (Exception ex) {
+      LOGGER.warning(String.format(
+          "Could not create the PG DB parameter group %s; the database will be created with the default parameter "
+              + "group and the XA tests that need prepared transactions will be skipped. %s",
+          groupName, ex));
+      env.auroraUtil.deleteCustomDbParameterGroupSafely(groupName);
+    }
   }
 
   private static void createValkeyCacheContainer(TestEnvironment env) {
@@ -883,6 +972,7 @@ public class TestEnvironment implements AutoCloseable {
                 engine,
                 instanceClass,
                 engineVersion,
+                env.info.getDbParameterGroupName(),
                 instances);
 
         env.info.setDatabaseEngine(engine);
@@ -1569,6 +1659,9 @@ public class TestEnvironment implements AutoCloseable {
         break;
       case RDS_MULTI_AZ_CLUSTER:
         deleteDbCluster(false);
+        if (!StringUtils.isNullOrEmpty(this.info.getClusterParameterGroupName())) {
+          deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
+        }
         deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_INSTANCE:
@@ -1577,6 +1670,7 @@ public class TestEnvironment implements AutoCloseable {
           deleteBlueGreenDeployment();
         }
         deleteMultiAzInstance();
+        deleteCustomDbParameterGroup(this.info.getDbParameterGroupName());
         deAuthorizeIP(this);
         break;
       case RDS:
@@ -1711,6 +1805,16 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
+  private void deleteCustomDbParameterGroup(String groupName) {
+    if (!this.reuseDb && !StringUtils.isNullOrEmpty(groupName)) {
+      try {
+        this.auroraUtil.deleteCustomDbParameterGroup(groupName);
+      } catch (Exception ex) {
+        LOGGER.finest(String.format("Error deleting DB parameter group %s. %s", groupName, ex));
+      }
+    }
+  }
+
   private static void preCreateEnvironment(int currentEnvIndex) {
     int index = currentEnvIndex + 1; // inclusive
     int endIndex = index + NUM_OR_ENV_PRE_CREATE; //  exclusive
@@ -1745,6 +1849,7 @@ public class TestEnvironment implements AutoCloseable {
                 initEnv(env);
                 cleanUp(env);
                 authorizeRunnerIpAddress(env);
+                createCustomParameterGroups(env);
                 createMultiAzInstance(env);
                 configureIamAccess(env);
                 break;
@@ -1752,6 +1857,7 @@ public class TestEnvironment implements AutoCloseable {
                 initEnv(env);
                 cleanUp(env);
                 authorizeRunnerIpAddress(env);
+                createCustomParameterGroups(env);
                 createDbCluster(env);
                 configureIamAccess(env);
                 break;
@@ -1759,14 +1865,7 @@ public class TestEnvironment implements AutoCloseable {
                 initEnv(env);
                 cleanUp(env);
                 authorizeRunnerIpAddress(env);
-
-                if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
-                  createCustomClusterParameterGroup(env);
-                }
-                if (env.info.getClusterParameterGroupName() == null
-                    && env.info.getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
-                  createMysqlClusterParameterGroup(env);
-                }
+                createCustomParameterGroups(env);
                 createDbCluster(env);
                 configureIamAccess(env);
                 break;

@@ -104,11 +104,14 @@ import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRe
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.CreateDbParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.CreateDbParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DBClusterParameterGroup;
 import software.amazon.awssdk.services.rds.model.DBEngineVersion;
 import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.awssdk.services.rds.model.DBParameterGroup;
 import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DbInstanceNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentRequest;
@@ -117,6 +120,7 @@ import software.amazon.awssdk.services.rds.model.DeleteDbClusterParameterGroupRe
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.DeleteDbParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.DescribeBlueGreenDeploymentsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterParameterGroupsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
@@ -125,6 +129,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRequest
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbParameterGroupsResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.InvalidDbClusterStateException;
@@ -133,6 +138,8 @@ import software.amazon.awssdk.services.rds.model.ListTagsForResourceRequest;
 import software.amazon.awssdk.services.rds.model.ListTagsForResourceResponse;
 import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupResponse;
+import software.amazon.awssdk.services.rds.model.ModifyDbParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.ModifyDbParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.Parameter;
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterResponse;
@@ -165,6 +172,11 @@ public class AuroraTestUtility {
   private static final int DEFAULT_IOPS = 64000;
   private static final int DEFAULT_ALLOCATED_STORAGE = 400;
   private static final int MULTI_AZ_SIZE = 3;
+  // Number of concurrently prepared (two-phase) transactions the PostgreSQL test databases allow.
+  // The XA tests never hold more than a handful, and each unused slot only costs shared memory.
+  private static final String PG_MAX_PREPARED_TRANSACTIONS = "100";
+  // Used to build a PostgreSQL parameter group family name when the engine version is unknown.
+  private static final String DEFAULT_PG_MAJOR_VERSION = "17";
   private static final Random rand = new Random();
 
   private final RdsClient rdsClient;
@@ -253,6 +265,8 @@ public class AuroraTestUtility {
    * @param instanceClass the instance class, refer to
    *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
    * @param version       the database engine's version
+   * @param clusterParameterGroupName the custom DB cluster parameter group to associate with the cluster, or null to
+   *                                  use the default one
    * @param numInstances  the number of instances to create for the cluster
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
@@ -283,7 +297,8 @@ public class AuroraTestUtility {
                   + MULTI_AZ_SIZE + " instances.");
         }
         createMultiAzCluster(
-            username, password, dbName, identifier, region, engine, instanceClass, version);
+            username, password, dbName, identifier, region, engine, instanceClass, version,
+            clusterParameterGroupName);
         break;
       default:
         throw new UnsupportedOperationException(deployment.toString());
@@ -299,6 +314,7 @@ public class AuroraTestUtility {
       String engine,
       String instanceClass,
       String version,
+      @Nullable String dbParameterGroupName,
       ArrayList<TestInstanceInfo> instances) {
 
     if (deployment != RDS_MULTI_AZ_INSTANCE) {
@@ -316,6 +332,7 @@ public class AuroraTestUtility {
         .engine(engine)
         .engineVersion(version)
         .dbInstanceClass(instanceClass)
+        .dbParameterGroupName(dbParameterGroupName)
         .enablePerformanceInsights(false)
         .backupRetentionPeriod(1)
         .storageEncrypted(true)
@@ -452,6 +469,10 @@ public class AuroraTestUtility {
    * @param instanceClass the instance class, refer to
    *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
    * @param version       the database engine's version
+   * @param clusterParameterGroupName the custom DB cluster parameter group to associate with the cluster, or null to
+   *                                  use the default one. A multi-az cluster's DB cluster parameter group carries the
+   *                                  instance-level parameters too, and it is the only parameter group that
+   *                                  {@code CreateDBCluster} accepts.
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
   public void createMultiAzCluster(String username,
@@ -461,7 +482,8 @@ public class AuroraTestUtility {
       String region,
       String engine,
       String instanceClass,
-      String version)
+      String version,
+      @Nullable String clusterParameterGroupName)
       throws InterruptedException {
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
@@ -479,6 +501,7 @@ public class AuroraTestUtility {
             .tags(this.getTag())
             .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
             .dbClusterInstanceClass(instanceClass)
+            .dbClusterParameterGroupName(clusterParameterGroupName)
             .storageType(DEFAULT_STORAGE_TYPE)
             .enableIAMDatabaseAuthentication(true)
             .iops(DEFAULT_IOPS);
@@ -598,7 +621,7 @@ public class AuroraTestUtility {
                 CreateDbClusterParameterGroupRequest.builder()
                 .dbClusterParameterGroupName(groupName)
                 .description("Test custom cluster parameter group for BGD.")
-                .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+                .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
                 .tags(this.getTag())
                 .build());
 
@@ -629,11 +652,13 @@ public class AuroraTestUtility {
         response2 = rdsClient.modifyDBClusterParameterGroup(
             ModifyDbClusterParameterGroupRequest.builder()
                 .dbClusterParameterGroupName(groupName)
-                .parameters(Parameter.builder()
-                    .parameterName("rds.logical_replication")
-                    .parameterValue("true")
-                    .applyMethod(ApplyMethod.PENDING_REBOOT)
-                    .build())
+                .parameters(
+                    Parameter.builder()
+                        .parameterName("rds.logical_replication")
+                        .parameterValue("true")
+                        .applyMethod(ApplyMethod.PENDING_REBOOT)
+                        .build(),
+                    maxPreparedTransactionsParameter())
                 .build());
         break;
       default:
@@ -656,7 +681,7 @@ public class AuroraTestUtility {
         CreateDbClusterParameterGroupRequest.builder()
             .dbClusterParameterGroupName(groupName)
             .description("Test cluster parameter group with require_secure_transport disabled.")
-            .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
             .tags(this.getTag())
             .build());
 
@@ -681,12 +706,123 @@ public class AuroraTestUtility {
     }
   }
 
+  /**
+   * Creates a DB cluster parameter group for PostgreSQL clusters (Aurora or RDS multi-az) that enables
+   * prepared (two-phase) transactions. A cluster's DB cluster parameter group carries the
+   * instance-level parameters as well, and it is the only parameter group {@code CreateDBCluster}
+   * accepts; see {@link #createPgDbParameterGroup} for a standalone (multi-az) instance.
+   *
+   * @param groupName     the name of the parameter group to create
+   * @param engine        the database engine the group is created for
+   * @param engineVersion the database engine version the group is created for
+   */
+  public void createPgClusterParameterGroup(String groupName, String engine, String engineVersion) {
+    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
+        CreateDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .description("Test cluster parameter group with prepared (two-phase) transactions enabled.")
+            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
+            .tags(this.getTag())
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException(
+          "Error creating PG cluster parameter group. " + response.sdkHttpResponse());
+    }
+
+    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
+        ModifyDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .parameters(maxPreparedTransactionsParameter())
+            .build());
+
+    if (!response2.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException(
+          "Error setting max_prepared_transactions. " + response2.sdkHttpResponse());
+    }
+  }
+
+  /**
+   * Creates a DB parameter group for an RDS PostgreSQL instance (the multi-az instance deployment) that
+   * enables prepared (two-phase) transactions. A standalone instance has no cluster, so the setting is
+   * applied through the instance-level parameter group that {@code CreateDBInstance} accepts.
+   *
+   * @param groupName     the name of the parameter group to create
+   * @param engine        the database engine the group is created for
+   * @param engineVersion the database engine version the group is created for
+   */
+  public void createPgDbParameterGroup(String groupName, String engine, String engineVersion) {
+    CreateDbParameterGroupResponse response = rdsClient.createDBParameterGroup(
+        CreateDbParameterGroupRequest.builder()
+            .dbParameterGroupName(groupName)
+            .description("Test DB parameter group with prepared (two-phase) transactions enabled.")
+            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
+            .tags(this.getTag())
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException("Error creating PG DB parameter group. " + response.sdkHttpResponse());
+    }
+
+    ModifyDbParameterGroupResponse response2 = rdsClient.modifyDBParameterGroup(
+        ModifyDbParameterGroupRequest.builder()
+            .dbParameterGroupName(groupName)
+            .parameters(maxPreparedTransactionsParameter())
+            .build());
+
+    if (!response2.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException(
+          "Error setting max_prepared_transactions. " + response2.sdkHttpResponse());
+    }
+  }
+
+  /**
+   * PostgreSQL disables prepared (two-phase) transactions by default
+   * ({@code max_prepared_transactions = 0}), which makes {@code XAResource.prepare} fail with
+   * "prepared transactions are disabled". The parameter is static, so it is applied on the next start
+   * of the database: setting it in the parameter group that the database is created with means the
+   * database comes up with prepared transactions already enabled, without an extra reboot.
+   */
+  private Parameter maxPreparedTransactionsParameter() {
+    return Parameter.builder()
+        .parameterName("max_prepared_transactions")
+        .parameterValue(PG_MAX_PREPARED_TRANSACTIONS)
+        .applyMethod(ApplyMethod.PENDING_REBOOT)
+        .build();
+  }
+
   public void deleteCustomClusterParameterGroup(String groupName) {
     rdsClient.deleteDBClusterParameterGroup(
         DeleteDbClusterParameterGroupRequest.builder()
             .dbClusterParameterGroupName(groupName)
             .build()
     );
+  }
+
+  public void deleteCustomDbParameterGroup(String groupName) {
+    rdsClient.deleteDBParameterGroup(
+        DeleteDbParameterGroupRequest.builder()
+            .dbParameterGroupName(groupName)
+            .build()
+    );
+  }
+
+  /** Deletes a DB cluster parameter group, ignoring the case where it was never created. */
+  public void deleteCustomClusterParameterGroupSafely(String groupName) {
+    try {
+      deleteCustomClusterParameterGroup(groupName);
+    } catch (Exception ex) {
+      LOGGER.finest("Could not delete cluster parameter group " + groupName + ": " + ex.getMessage());
+    }
+  }
+
+  /** Deletes a DB parameter group, ignoring the case where it was never created. */
+  public void deleteCustomDbParameterGroupSafely(String groupName) {
+    try {
+      deleteCustomDbParameterGroup(groupName);
+    } catch (Exception ex) {
+      LOGGER.finest("Could not delete DB parameter group " + groupName + ": " + ex.getMessage());
+    }
   }
 
   /**
@@ -1187,13 +1323,59 @@ public class AuroraTestUtility {
     }
   }
 
-  public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
+  /**
+   * Returns the parameter group family of the given engine version, covering both the Aurora engines
+   * and the RDS engines used by the multi-az deployments. The family name is shared by the DB cluster
+   * parameter groups and the DB parameter groups of an engine.
+   *
+   * <p>The family is looked up from RDS, so that a parameter group is always created in the family the
+   * database actually requires. A hardcoded mapping goes stale as soon as a new major version becomes
+   * the default (RDS then rejects the group with "cannot be used for this instance"), so it is only
+   * used as a fallback when the lookup fails.
+   *
+   * @param engine        the database engine, for example {@code aurora-postgresql} or {@code postgres}
+   * @param engineVersion the database engine version
+   * @return the parameter group family name
+   */
+  public String getParameterGroupFamily(String engine, String engineVersion) {
+    final String family = queryParameterGroupFamily(engine, engineVersion);
+    if (!StringUtils.isNullOrEmpty(family)) {
+      return family;
+    }
+    return buildParameterGroupFamily(engine, engineVersion);
+  }
+
+  /**
+   * Asks RDS for the parameter group family of an engine version, or returns null when it cannot be
+   * determined.
+   */
+  private @Nullable String queryParameterGroupFamily(String engine, String engineVersion) {
+    try {
+      final DescribeDbEngineVersionsRequest.Builder request =
+          DescribeDbEngineVersionsRequest.builder().engine(engine);
+      if (!StringUtils.isNullOrEmpty(engineVersion)) {
+        request.engineVersion(engineVersion);
+      }
+      final DescribeDbEngineVersionsResponse response = rdsClient.describeDBEngineVersions(request.build());
+      return response.dbEngineVersions().stream()
+          .map(DBEngineVersion::dbParameterGroupFamily)
+          .filter(family -> !StringUtils.isNullOrEmpty(family))
+          .findFirst()
+          .orElse(null);
+    } catch (Exception ex) {
+      LOGGER.finest(String.format(
+          "Could not query the parameter group family of %s %s: %s", engine, engineVersion, ex.getMessage()));
+      return null;
+    }
+  }
+
+  /** Best-effort parameter group family name, used when RDS cannot be queried. */
+  private String buildParameterGroupFamily(String engine, String engineVersion) {
     switch (engine) {
       case "aurora-postgresql":
-        if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.startsWith("17.")) {
-          return "aurora-postgresql17";
-        }
-        return "aurora-postgresql16";
+      case "postgres":
+        // The PostgreSQL families are named after the major version, for example "aurora-postgresql17".
+        return engine + majorVersion(engineVersion, DEFAULT_PG_MAJOR_VERSION);
       case "aurora-mysql":
         if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
           return "aurora-mysql8.0";
@@ -1205,6 +1387,19 @@ public class AuroraTestUtility {
       default:
         throw new UnsupportedOperationException(engine);
     }
+  }
+
+  private String majorVersion(String engineVersion, String defaultMajorVersion) {
+    if (StringUtils.isNullOrEmpty(engineVersion)) {
+      return defaultMajorVersion;
+    }
+    final int dotIndex = engineVersion.indexOf('.');
+    return dotIndex < 0 ? engineVersion : engineVersion.substring(0, dotIndex);
+  }
+
+  /** Kept for compatibility; {@link #getParameterGroupFamily} also covers the non-Aurora engines. */
+  public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
+    return getParameterGroupFamily(engine, engineVersion);
   }
 
   public List<TestInstanceInfo> getTestInstancesInfo(final String clusterId) {
@@ -2657,41 +2852,11 @@ public class AuroraTestUtility {
           continue;
         }
 
-        // Check age via the "created" tag — skip groups younger than 2 hours to protect
+        // Check age via the "created" tag — skip groups that are still young to protect
         // parameter groups that have been created but not yet attached to a cluster.
-        if (paramGroup.dbClusterParameterGroupArn() != null) {
-          try {
-            ListTagsForResourceResponse tagsResponse = rdsClient.listTagsForResource(
-                ListTagsForResourceRequest.builder()
-                    .resourceName(paramGroup.dbClusterParameterGroupArn())
-                    .build());
-            String createdValue = null;
-            for (Tag tag : tagsResponse.tagList()) {
-              if ("created".equals(tag.key())) {
-                createdValue = tag.value();
-                break;
-              }
-            }
-            if (createdValue != null) {
-              try {
-                ZonedDateTime createdTime = ZonedDateTime.parse(
-                    createdValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzz"));
-                if (createdTime.toInstant().plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
-                  // Parameter group is less than 12 hours old — skip it
-                  continue;
-                }
-              } catch (Exception parseEx) {
-                // If we can't parse the tag, proceed with deletion (best-effort)
-                LOGGER.finest("Could not parse 'created' tag for " + paramGroup.dbClusterParameterGroupName()
-                    + ": " + parseEx.getMessage());
-              }
-            }
-            // If no "created" tag exists, proceed with deletion (legacy parameter group)
-          } catch (Exception tagEx) {
-            // If we can't read tags, proceed with deletion (best-effort)
-            LOGGER.finest("Could not read tags for " + paramGroup.dbClusterParameterGroupName()
-                + ": " + tagEx.getMessage());
-          }
+        if (isRecentlyCreated(
+            paramGroup.dbClusterParameterGroupArn(), paramGroup.dbClusterParameterGroupName())) {
+          continue;
         }
 
         LOGGER.finest("Deleting cluster parameter group " + paramGroup.dbClusterParameterGroupName());
@@ -2706,5 +2871,89 @@ public class AuroraTestUtility {
     } catch (Exception ex) {
       LOGGER.warning(ex.getMessage());
     }
+  }
+
+  /**
+   * Deletes the leftover test DB parameter groups (the instance-level counterpart of
+   * {@link #testClusterParameterGroupsCleanUp()}), so that an aborted test run that never reached its
+   * cleanup step does not consume the account's parameter group quota.
+   */
+  public void testDbParameterGroupsCleanUp() {
+    try {
+      // Collect parameter group names currently in use by test instances.
+      Set<String> inUseParameterGroups = ConcurrentHashMap.newKeySet();
+      try {
+        DescribeDbInstancesResponse describeDbInstancesResponse = rdsClient.describeDBInstances();
+        for (DBInstance dbInstance : describeDbInstancesResponse.dbInstances()) {
+          dbInstance.dbParameterGroups().forEach(group -> inUseParameterGroups.add(group.dbParameterGroupName()));
+        }
+      } catch (Exception ex) {
+        LOGGER.warning("Error listing instances for parameter group cleanup: " + ex.getMessage());
+      }
+
+      DescribeDbParameterGroupsResponse response = rdsClient.describeDBParameterGroups();
+      for (DBParameterGroup paramGroup : response.dbParameterGroups()) {
+        if (!paramGroup.dbParameterGroupName().startsWith("test-")) {
+          continue;
+        }
+        if (inUseParameterGroups.contains(paramGroup.dbParameterGroupName())) {
+          continue;
+        }
+        if (isRecentlyCreated(paramGroup.dbParameterGroupArn(), paramGroup.dbParameterGroupName())) {
+          continue;
+        }
+
+        LOGGER.finest("Deleting DB parameter group " + paramGroup.dbParameterGroupName());
+        try {
+          rdsClient.deleteDBParameterGroup(builder -> builder
+              .dbParameterGroupName(paramGroup.dbParameterGroupName())
+              .build());
+        } catch (Exception ex) {
+          LOGGER.warning(ex.getMessage());
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  /**
+   * Returns true when the resource carries a "created" tag that is less than 12 hours old, which
+   * protects a parameter group that has been created but not yet attached to a database. A resource
+   * without a readable or parsable tag is treated as old (best-effort cleanup), which matches the
+   * behavior for legacy parameter groups created before the tag was introduced.
+   */
+  private boolean isRecentlyCreated(final @Nullable String resourceArn, final String resourceName) {
+    if (resourceArn == null) {
+      return false;
+    }
+    try {
+      ListTagsForResourceResponse tagsResponse = rdsClient.listTagsForResource(
+          ListTagsForResourceRequest.builder()
+              .resourceName(resourceArn)
+              .build());
+      String createdValue = null;
+      for (Tag tag : tagsResponse.tagList()) {
+        if ("created".equals(tag.key())) {
+          createdValue = tag.value();
+          break;
+        }
+      }
+      if (createdValue != null) {
+        try {
+          ZonedDateTime createdTime = ZonedDateTime.parse(
+              createdValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzz"));
+          return createdTime.toInstant().plus(12, ChronoUnit.HOURS).isAfter(Instant.now());
+        } catch (Exception parseEx) {
+          // If we can't parse the tag, proceed with deletion (best-effort)
+          LOGGER.finest("Could not parse 'created' tag for " + resourceName + ": " + parseEx.getMessage());
+        }
+      }
+      // If no "created" tag exists, proceed with deletion (legacy parameter group)
+    } catch (Exception tagEx) {
+      // If we can't read tags, proceed with deletion (best-effort)
+      LOGGER.finest("Could not read tags for " + resourceName + ": " + tagEx.getMessage());
+    }
+    return false;
   }
 }
