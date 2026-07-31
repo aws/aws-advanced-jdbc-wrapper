@@ -652,6 +652,8 @@ tasks.withType<Test> {
         if (it.key.toString().startsWith("test-no-")
             || it.key.toString() == "test-include-tags"
             || it.key.toString() == "test-exclude-tags"
+            || it.key.toString() == "test-shard-index"
+            || it.key.toString() == "test-shard-count"
         ) {
             systemProperty(it.key.toString(), it.value.toString())
         }

@@ -70,6 +70,44 @@ cmd /c ./gradlew --no-parallel --no-daemon test-all-environments
 
 Test results can be found at `wrapper/build/report/index.html`.
 
+### Splitting a Test Run Across Several Machines (Sharding)
+
+A full Aurora run takes hours because every test executes serially against a single cluster. The
+scheduled CI workflows therefore split the work: each job pins itself to one test environment and
+runs one *shard* of the integration test classes against its own database cluster.
+
+Two system properties control this:
+
+| System Property     | Default | Description                                                                 |
+|---------------------|---------|-----------------------------------------------------------------------------|
+| `test-shard-count`  | `1`     | Number of shards the integration test classes are divided into.              |
+| `test-shard-index`  | `1`     | Which shard this run executes. 1-based, must be in `[1, test-shard-count]`.  |
+
+The default of shard 1 of 1 runs every test class, so local runs and non-sharded workflows behave
+exactly as before.
+
+```bash
+./gradlew --no-parallel --no-daemon test-all-pg-aurora \
+  -Dtest-shard-index=2 -Dtest-shard-count=4
+```
+
+Sharding only selects *test classes*. Which environments are exercised (deployment, engine,
+instance count) is still controlled separately by the `test-no-*` properties, so a sharded CI job
+usually combines both, for example `-Dtest-no-instances-1=true -Dtest-shard-index=2
+-Dtest-shard-count=4`.
+
+Notes for maintainers:
+
+- The shard split is computed in `wrapper/src/test/build.gradle.kts`. The list of classes is read
+  from the compiled classes under `integration.container.tests`, so a newly added test class is
+  automatically picked up by exactly one shard - no workflow change is needed.
+- A `testClassWeightsSeconds` table in that file records the approximate cost of each class and is
+  used only to keep shards evenly sized. A missing or stale entry costs some balance but can never
+  drop coverage. Update it when a class's runtime changes substantially.
+- Any class under `integration.container.tests` that neither ends in `Test`/`Tests` nor appears in
+  `nonTestHelperClasses` fails the build rather than being silently left out of every shard.
+- Running all shards of a group covers exactly the same classes as one unsharded run.
+
 If you encounter unexplained build issues/errors, or after major project structure changes, try running the following to perform a clean build:
 
 macOS:

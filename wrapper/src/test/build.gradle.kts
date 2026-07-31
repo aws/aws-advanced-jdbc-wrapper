@@ -151,10 +151,155 @@ tasks.withType<Test> {
     reports.html.required.set(false)
 }
 
+// Approximate cost of each integration test class, in seconds, derived from measured CI runs.
+// Used ONLY to balance test classes across shards - it never affects which tests run, so a stale
+// or missing entry costs some balance but can never drop coverage. Values are the worst case
+// (slowest environment) observed for the class.
+val testClassWeightsSeconds = mapOf(
+    "FailoverTest" to 1136,
+    "SimpleReadWriteSplittingTests" to 1003,
+    "Failover2Test" to 937,
+    "GdbFailoverTest" to 908,
+    "AutoSimpleReadWriteSplittingTests" to 889,
+    "AutoReadWriteSplittingTests" to 844,
+    "ReadWriteSplittingTests" to 701,
+    "CustomEndpointTest" to 403,
+    "XaFailoverTest" to 349,
+    "HikariTests" to 215,
+    "FastestResponseStrategyTest" to 82,
+    "AuroraInitialConnectionStrategyTest" to 71,
+    "EFM2Test" to 47,
+    "AwsIamIntegrationTest" to 44,
+    "AwsSecretsManager2IntegrationTest" to 43,
+    "DataCachePluginTests" to 43,
+    "BasicConnectivityTests" to 70,
+    "XaTransactionTest" to 54,
+    "XaTwoPhaseCommitTest" to 29,
+    "LogQueryPluginTests" to 17,
+    "DriverConfigurationProfileTests" to 16,
+    "XaIamAuthenticationTest" to 15,
+    "DataSourceTests" to 13,
+    "RdsConnectivityTests" to 11,
+    "SpringTests" to 8,
+    // Gated off by deployment/feature conditions in the sharded Aurora and Multi-AZ workflows, so
+    // they cost nothing there. They still run (unsharded) in their own dedicated workflows, where
+    // these weights are unused.
+    "AdvancedPerformanceTest" to 0,
+    "AutoscalingTests" to 0,
+    "BlueGreenDeploymentTests" to 0,
+    "DatabasePerformanceMetricTest" to 0,
+    "KmsEncryptionIntegrationTest" to 0,
+    "PerformanceTest" to 0,
+    "ReadWriteSplittingPerformanceTest" to 0,
+    "RemoteQueryCachePluginTests" to 0,
+    "SpringCachingTests" to 0
+)
+
+// Any class missing from the table above still runs; it is just assumed to be moderately
+// expensive so that a newly added test cannot quietly unbalance a shard by a large amount.
+val defaultTestClassWeightSeconds = 60
+
+// Classes that live under integration.container.tests but hold no tests. They are listed
+// explicitly so that any *other* class not following the Test/Tests naming convention fails the
+// build instead of quietly never being assigned to a shard.
+val nonTestHelperClasses = setOf(
+    "integration.container.tests.metrics.FailoverResult",
+    "integration.container.tests.metrics.RunData",
+    "integration.container.tests.metrics.RunDataNode",
+    "integration.container.tests.metrics.RunDataRow",
+    "integration.container.tests.metrics.Runs",
+    "integration.container.tests.metrics.TopologyEventHolder"
+)
+
+/**
+ * Returns the fully qualified names of every compiled class under integration.container.tests.
+ *
+ * The universe is read from disk rather than from a hardcoded list so that a newly added test
+ * class is always picked up by exactly one shard instead of being silently skipped.
+ */
+fun discoverContainerTestClasses(): List<String> {
+    val classesRoot = file("./test")
+    val testsPackageDir = file("./test/integration/container/tests")
+    if (!testsPackageDir.isDirectory) {
+        return emptyList()
+    }
+    return testsPackageDir.walkTopDown()
+        .filter { it.isFile && it.name.endsWith(".class") && !it.name.contains('$') }
+        .map {
+            it.relativeTo(classesRoot).path
+                .removeSuffix(".class")
+                .replace('\\', '.')
+                .replace('/', '.')
+        }
+        .sorted()
+        .toList()
+}
+
+/**
+ * Assigns classes to [shardCount] shards with a longest-processing-time-first pass and returns the
+ * ones belonging to [shardIndex] (1-based). Every class lands in exactly one shard, and the result
+ * depends only on the class list and the weight table, so all shards of a run agree on the split
+ * without needing to talk to each other.
+ */
+fun selectShard(classNames: List<String>, shardIndex: Int, shardCount: Int): List<String> {
+    val shardTotals = LongArray(shardCount)
+    val shards = List(shardCount) { mutableListOf<String>() }
+    val ordered = classNames.sortedWith(
+        // Heaviest first, then by name so ties are broken deterministically.
+        compareByDescending<String> {
+            testClassWeightsSeconds[it.substringAfterLast('.')] ?: defaultTestClassWeightSeconds
+        }.thenBy { it }
+    )
+    for (className in ordered) {
+        val weight = testClassWeightsSeconds[className.substringAfterLast('.')]
+            ?: defaultTestClassWeightSeconds
+        var target = 0
+        for (i in 1 until shardCount) {
+            if (shardTotals[i] < shardTotals[target]) {
+                target = i
+            }
+        }
+        shards[target].add(className)
+        shardTotals[target] += weight.toLong()
+    }
+    return shards[shardIndex - 1].sorted()
+}
+
 tasks.register<Test>("in-container") {
     filter.excludeTestsMatching("software.*") // exclude unit tests
 
-    // modify below filter to select specific integration tests
-    // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
-    filter.includeTestsMatching("integration.container.tests.*")
+    val shardIndex = (System.getProperty("test-shard-index") ?: "1").toInt()
+    val shardCount = (System.getProperty("test-shard-count") ?: "1").toInt()
+
+    if (shardCount <= 1) {
+        // modify below filter to select specific integration tests
+        // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
+        filter.includeTestsMatching("integration.container.tests.*")
+    } else {
+        require(shardIndex in 1..shardCount) {
+            "test-shard-index must be between 1 and test-shard-count ($shardCount), got $shardIndex"
+        }
+        val discovered = discoverContainerTestClasses()
+        require(discovered.isNotEmpty()) {
+            "Sharding was requested but no compiled classes were found under " +
+                "integration.container.tests. Is ./test populated?"
+        }
+        val unclassified = discovered.filter {
+            !nonTestHelperClasses.contains(it) && !it.endsWith("Test") && !it.endsWith("Tests")
+        }
+        require(unclassified.isEmpty()) {
+            "Cannot shard: $unclassified neither follow the Test/Tests naming convention nor appear " +
+                "in nonTestHelperClasses, so it is unclear whether they must be run. Rename them or " +
+                "add them to nonTestHelperClasses in wrapper/src/test/build.gradle.kts."
+        }
+        val allClasses = discovered.filter { !nonTestHelperClasses.contains(it) }
+        require(allClasses.size >= shardCount) {
+            "test-shard-count ($shardCount) exceeds the number of discovered test classes " +
+                "(${allClasses.size}); some shards would have nothing to run."
+        }
+        val shardClasses = selectShard(allClasses, shardIndex, shardCount)
+        println("Test shard $shardIndex of $shardCount: ${shardClasses.size} of ${allClasses.size} classes")
+        shardClasses.forEach { println("  $it") }
+        shardClasses.forEach { filter.includeTestsMatching(it) }
+    }
 }

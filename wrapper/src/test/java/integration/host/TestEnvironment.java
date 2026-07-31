@@ -1550,7 +1550,9 @@ public class TestEnvironment implements AutoCloseable {
           taskName,
           config.includeTags,
           config.excludeTags,
-          this.info.getRequest().getTargetJvm());
+          this.info.getRequest().getTargetJvm(),
+          config.shardIndex,
+          config.shardCount);
     }
   }
 

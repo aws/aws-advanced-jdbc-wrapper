@@ -94,6 +94,18 @@ public class TestEnvironmentConfiguration {
   public String includeTags = System.getProperty("test-include-tags");
   public String excludeTags = System.getProperty("test-exclude-tags");
 
+  /**
+   * Splits the in-container integration test classes across several CI jobs so they can run in
+   * parallel, each against its own database cluster. {@code shardIndex} is 1-based and must be in
+   * the range {@code [1, shardCount]}. The default ({@code 1} of {@code 1}) runs every test class,
+   * which is what a local run or any non-sharded workflow does.
+   *
+   * <p>Only test class selection is affected. Which environments (deployment, engine, instance
+   * count) are exercised is still controlled by the {@code test-no-*} properties.
+   */
+  public int shardIndex = Integer.parseInt(System.getProperty("test-shard-index", "1"));
+  public int shardCount = Integer.parseInt(System.getProperty("test-shard-count", "1"));
+
   public String rdsDbRegion = System.getenv("RDS_DB_REGION");
 
   public boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));

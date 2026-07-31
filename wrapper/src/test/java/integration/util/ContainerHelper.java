@@ -101,7 +101,9 @@ public class ContainerHelper {
       String task,
       String includeTags,
       String excludeTags,
-      TargetJvm targetJvm)
+      TargetJvm targetJvm,
+      int shardIndex,
+      int shardCount)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
@@ -118,6 +120,10 @@ public class ContainerHelper {
     }
     if (!StringUtils.isNullOrEmpty(excludeTags)) {
       commands.add(String.format("-Dtest-exclude-tags=%s", excludeTags.replaceAll(" ", "")));
+    }
+    if (shardCount > 1) {
+      commands.add(String.format("-Dtest-shard-index=%d", shardIndex));
+      commands.add(String.format("-Dtest-shard-count=%d", shardCount));
     }
 
     Long exitCode = execInContainer(container, consumer, commands.toArray(new String[0]));
