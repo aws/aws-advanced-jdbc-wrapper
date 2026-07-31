@@ -155,36 +155,43 @@ tasks.withType<Test> {
 // Used ONLY to balance test classes across shards - it never affects which tests run, so a stale
 // or missing entry costs some balance but can never drop coverage.
 //
-// Each value is the worst per-environment cost observed for that class, taken as the maximum over
-// the most recent runs so that shards stay balanced for the slowest environment. Refresh these when
-// a class's runtime changes substantially; run 30645460736 showed that under-weighting a class by
-// 60% is enough to make its shard the critical path.
+// Each value is the worst per-environment cost observed for that class, taken from the most recent
+// green run (30654857141) so that shards stay balanced for the slowest environment. Refresh these
+// when a class's runtime changes substantially: run 30645460736 showed that under-weighting a class
+// by 60% is enough to make its shard the critical path.
+//
+// KNOWN LIMITATION: a single table cannot balance Aurora and RDS Multi-AZ at the same time, because
+// AuroraTestUtility.crashInstance performs a real failover on Aurora but only a toxiproxy outage on
+// Multi-AZ clusters. That inverts the cost profile - the failover classes cost roughly half as much
+// on Multi-AZ while the read/write-splitting classes cost 1.2-1.5x more. Using the maximum keeps
+// every shard within its budget but leaves the cheaper deployment unevenly packed. Making the
+// weights per-deployment would recover roughly 10 min of the critical path.
 val testClassWeightsSeconds = mapOf(
-    "FailoverTest" to 1136,
-    "AutoReadWriteSplittingTests" to 1101,
-    "GdbFailoverTest" to 1100,
-    "SimpleReadWriteSplittingTests" to 1095,
-    "AutoSimpleReadWriteSplittingTests" to 995,
-    "Failover2Test" to 971,
-    "ReadWriteSplittingTests" to 921,
-    "CustomEndpointTest" to 516,
-    "DataCachePluginTests" to 456,
-    "XaFailoverTest" to 349,
-    "HikariTests" to 238,
-    "AuroraInitialConnectionStrategyTest" to 145,
-    "XaTransactionTest" to 90,
-    "FastestResponseStrategyTest" to 82,
+    "GdbFailoverTest" to 1173,
+    "ReadWriteSplittingTests" to 1163,
+    "SimpleReadWriteSplittingTests" to 1024,
+    "FailoverTest" to 967,
+    "AutoSimpleReadWriteSplittingTests" to 905,
+    "Failover2Test" to 903,
+    "AutoReadWriteSplittingTests" to 864,
+    "CustomEndpointTest" to 509,
+    "HikariTests" to 352,
+    "XaFailoverTest" to 207,
+    "XaTransactionTest" to 159,
+    "FastestResponseStrategyTest" to 83,
+    "XaTwoPhaseCommitTest" to 73,
     "BasicConnectivityTests" to 70,
-    "AwsIamIntegrationTest" to 61,
-    "AwsSecretsManager2IntegrationTest" to 61,
+    "AwsIamIntegrationTest" to 62,
     "EFM2Test" to 48,
-    "XaTwoPhaseCommitTest" to 47,
-    "LogQueryPluginTests" to 22,
-    "XaIamAuthenticationTest" to 20,
-    "DriverConfigurationProfileTests" to 16,
-    "DataSourceTests" to 13,
+    "DataCachePluginTests" to 46,
+    "AuroraInitialConnectionStrategyTest" to 43,
+    "AwsSecretsManager2IntegrationTest" to 41,
+    "XaIamAuthenticationTest" to 32,
+    "DriverConfigurationProfileTests" to 19,
+    "LogQueryPluginTests" to 18,
+    "DataSourceTests" to 14,
+    "RdsConnectivityTests" to 13,
     "SpringTests" to 12,
-    "RdsConnectivityTests" to 11,
     // Gated off by deployment/feature conditions in the sharded Aurora and Multi-AZ workflows, so
     // they cost nothing there. They still run (unsharded) in their own dedicated workflows, where
     // these weights are unused.
