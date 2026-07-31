@@ -13,6 +13,16 @@ permissions:
 
 # See run-integration-tests-latest.yml for an explanation of the sharded matrix. The two workflows
 # are deliberately kept identical in shape so that a shard layout change is applied to both.
+concurrency:
+  # These workflows create real RDS clusters and whitelist the runner's IP in the region's
+  # default security group. Running two of them at once risks exhausting the security group
+  # rule quota (60 inbound rules per group) and the DB cluster/instance quotas, since a single
+  # sharded run already claims 20 clusters and 20 rules. Every quota-consuming workflow shares
+  # this group so only one runs at a time; `queue: max` makes the others wait their turn
+  # instead of being cancelled (the default `queue: single` would drop them).
+  group: rds-integration-tests
+  queue: max
+
 jobs:
   all-integration-tests-default:
     name: 'Default / ${{ matrix.name }}'

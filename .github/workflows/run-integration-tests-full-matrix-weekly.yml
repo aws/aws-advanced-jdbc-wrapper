@@ -3,8 +3,9 @@ name: Run Aurora Integration Tests Full Matrix Weekly
 on:
   workflow_dispatch:
   schedule:
-    # Saturdays at 12:30 AM PST (8:30 AM UTC), when nothing else is competing for clusters.
-    - cron: '30 8 * * 6'
+    # Sundays at 12:30 AM PST (8:30 AM UTC). Sunday is the only day with no other scheduled
+    # integration test workflow, so this never has to queue behind one.
+    - cron: '30 8 * * 0'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
@@ -22,6 +23,16 @@ permissions:
 #
 # This workflow keeps that coverage on a weekly cadence. It runs the 2-instance environment only
 # (the other topologies are covered daily), unsharded, one job per engine.
+concurrency:
+  # These workflows create real RDS clusters and whitelist the runner's IP in the region's
+  # default security group. Running two of them at once risks exhausting the security group
+  # rule quota (60 inbound rules per group) and the DB cluster/instance quotas, since a single
+  # sharded run already claims 20 clusters and 20 rules. Every quota-consuming workflow shares
+  # this group so only one runs at a time; `queue: max` makes the others wait their turn
+  # instead of being cancelled (the default `queue: single` would drop them).
+  group: rds-integration-tests
+  queue: max
+
 jobs:
   two-instance-integration-tests:
     name: 'Weekly 2-instance / ${{ matrix.dbEngine }}'
