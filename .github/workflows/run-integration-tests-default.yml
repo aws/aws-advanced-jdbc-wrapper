@@ -11,14 +11,55 @@ permissions:
   id-token: write   # This is required for requesting the JWT
   contents: read    # This is required for actions/checkout
 
+# See run-integration-tests-latest.yml for an explanation of the sharded matrix. The two workflows
+# are deliberately kept identical in shape so that a shard layout change is applied to both.
+concurrency:
+  # These workflows create real RDS clusters and whitelist the runner's IP in the region's
+  # default security group. Running two of them at once risks exhausting the security group
+  # rule quota (60 inbound rules per group) and the DB cluster/instance quotas, since a single
+  # sharded run already claims 20 clusters and 20 rules. Every quota-consuming workflow shares
+  # this group so only one runs at a time; `queue: max` makes the others wait their turn
+  # instead of being cancelled (the default `queue: single` would drop them).
+  group: rds-integration-tests
+  queue: max
+
 jobs:
   all-integration-tests-default:
-    name: 'Run Aurora integration tests with default engine version'
+    name: 'Default / ${{ matrix.name }}'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dbEngine: [ "mysql-aurora", "mysql-aurora-mariadb-driver", "mysql-multi-az", "pg-aurora", "pg-multi-az" ]
+        include:
+          # --- Aurora PG, 3 instances -> 3 shards
+          - { name: pg-aurora-3inst-1of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
+          - { name: pg-aurora-3inst-2of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
+          - { name: pg-aurora-3inst-3of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
+          - { name: pg-aurora-1inst, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
+
+          # --- Aurora MySQL (MySQL driver), 3 instances -> 4 shards
+          - { name: mysql-aurora-3inst-1of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 4 }
+          - { name: mysql-aurora-3inst-2of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 4 }
+          - { name: mysql-aurora-3inst-3of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 4 }
+          - { name: mysql-aurora-3inst-4of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 4, shardCount: 4 }
+          - { name: mysql-aurora-1inst, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
+
+          # --- Aurora MySQL (MariaDB driver), 3 instances -> 3 shards (critical path)
+          - { name: mysql-aurora-mariadb-3inst-1of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-2of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-3of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-1inst, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
+
+          # --- RDS Multi-AZ MySQL cluster -> 3 shards
+          - { name: mysql-multi-az-cluster-1of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-2of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-3of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 3, shardCount: 3 }
+          - { name: mysql-multi-az-instance, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
+
+          # --- RDS Multi-AZ PG cluster -> 2 shards
+          - { name: pg-multi-az-cluster-1of2, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 2 }
+          - { name: pg-multi-az-cluster-2of2, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 2 }
+          - { name: pg-multi-az-instance, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -29,6 +70,7 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: 8
+          cache: 'gradle'
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6
@@ -40,7 +82,12 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} -Dtest-no-instances-5=true
+          ./gradlew --no-parallel --no-daemon ${{ matrix.task }} \
+            -Dtest-no-instances-2=true \
+            -Dtest-no-instances-5=true \
+            ${{ matrix.envArgs }} \
+            -Dtest-shard-index=${{ matrix.shard }} \
+            -Dtest-shard-count=${{ matrix.shardCount }}
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -52,18 +99,18 @@ jobs:
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
-      - name: Archive junit results for ${{ matrix.dbEngine }}
+      - name: Archive junit results for ${{ matrix.name }}
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-default-${{ matrix.dbEngine }}
+          name: junit-report-default-${{ matrix.name }}
           path: ./wrapper/build/test-results
           retention-days: 5
-      - name: Archive html summary report for ${{ matrix.dbEngine }}
+      - name: Archive html summary report for ${{ matrix.name }}
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-default-${{ matrix.dbEngine }}
+          name: html-summary-report-default-${{ matrix.name }}
           path: ./wrapper/build/report
           retention-days: 5
       - name: Get Github Action IP

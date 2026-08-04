@@ -1,12 +1,28 @@
-name: Run Aurora 5-Instance Integration Tests Default
+name: Run Aurora Integration Tests Full Matrix Weekly
 
 on:
   workflow_dispatch:
+  schedule:
+    # Sundays at 12:30 AM PST (8:30 AM UTC). Sunday is the only day with no other scheduled
+    # integration test workflow, so this never has to queue behind one.
+    - cron: '30 8 * * 0'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
   contents: read    # This is required for actions/checkout
 
+# The daily "default" and "latest" workflows skip the 2-instance Aurora environment: it re-runs
+# almost exactly the same tests as the 3-instance environment for ~60 minutes per engine, and only
+# these 9 tests genuinely need a 2-node topology:
+#
+#   FailoverTest / Failover2Test / GdbFailoverTest       test_failFromReaderToWriter
+#   ReadWriteSplittingTests / AutoReadWriteSplittingTests
+#       test_setReadOnlyTrue_oneReaderDown_failoverRecovers
+#       test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter
+#       test_setReadOnlyTrue_oneReaderDown_readThrows
+#
+# This workflow keeps that coverage on a weekly cadence. It runs the 2-instance environment only
+# (the other topologies are covered daily), unsharded, one job per engine.
 concurrency:
   # These workflows create real RDS clusters and whitelist the runner's IP in the region's
   # default security group. Running two of them at once risks exhausting the security group
@@ -18,43 +34,47 @@ concurrency:
   queue: max
 
 jobs:
-  aurora-5-instance-integration-tests-default:
-    name: 'Run Aurora 5-instance integration tests with default engine version'
+  two-instance-integration-tests:
+    name: 'Weekly 2-instance / ${{ matrix.dbEngine }}'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dbEngine: [ "mysql-aurora", "pg-aurora" ]
+        dbEngine: [ "mysql-aurora", "mysql-aurora-mariadb-driver", "pg-aurora" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 50
       - name: 'Set up JDK 8'
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5
         with:
           distribution: 'corretto'
           java-version: 8
+          cache: 'gradle'
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: run_integration_test_5_instance_default
+          role-session-name: run_integration_test_weekly_full_matrix
           role-duration-seconds: 21600
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           output-credentials: true
-      - name: Run 5-instance integration tests
+      - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} -Dtest-no-instances-2=true -Dtest-no-instances-3=true -Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} \
+            -Dtest-no-instances-1=true \
+            -Dtest-no-instances-3=true \
+            -Dtest-no-instances-5=true
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
-          MYSQL_VERSION: "default"
-          PG_VERSION: "default"
+          MYSQL_VERSION: "latest"
+          PG_VERSION: "latest"
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
@@ -62,14 +82,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-default-5-instance-${{ matrix.dbEngine }}
+          name: junit-report-weekly-2inst-${{ matrix.dbEngine }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: Archive html summary report for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-default-5-instance-${{ matrix.dbEngine }}
+          name: html-summary-report-weekly-2inst-${{ matrix.dbEngine }}
           path: ./wrapper/build/report
           retention-days: 5
       - name: Get Github Action IP
