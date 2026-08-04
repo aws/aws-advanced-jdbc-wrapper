@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -311,10 +312,64 @@ class MonitorServiceImplTest {
     assertEquals(MonitorState.STOPPED, monitor.getState());
   }
 
+  @Test
+  public void testCheckMonitors_unexpectedErrorDoesNotStopSupervision() throws SQLException {
+    spyMonitorService.registerMonitorTypeIfAbsent(
+        ThrowingMonitor.class,
+        TimeUnit.MINUTES.toNanos(1),
+        TimeUnit.MINUTES.toNanos(1),
+        EnumSet.noneOf(MonitorErrorResponse.class),
+        null
+    );
+
+    String key = "throwingMonitor";
+    ThrowingMonitor monitor = spyMonitorService.runIfAbsent(
+        ThrowingMonitor.class,
+        key,
+        mockStorageService,
+        mockEventPublisher,
+        mockTelemetryFactory,
+        mockConnectionProvider,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        mockTargetDriverDialect,
+        mockDbDialect,
+        new Properties(),
+        null,
+        (serviceContainer) -> new ThrowingMonitor(30)
+    );
+    assertNotNull(monitor);
+
+    // checkMonitors() runs on a scheduleAtFixedRate task, and such tasks are silently cancelled if they throw. An
+    // unexpected error from a single monitor must not escape, otherwise stuck/expired monitor detection stops for
+    // every monitor type for the lifetime of the JVM.
+    assertDoesNotThrow(() -> spyMonitorService.checkMonitors());
+
+    // A second pass must still run, proving supervision was not left in a broken state.
+    assertDoesNotThrow(() -> spyMonitorService.checkMonitors());
+  }
+
   static class NoOpMonitor extends AbstractMonitor {
     protected NoOpMonitor(
         long terminationTimeoutSec) {
       super(terminationTimeoutSec);
+    }
+
+    @Override
+    public void monitor() {
+      // do nothing.
+    }
+  }
+
+  static class ThrowingMonitor extends AbstractMonitor {
+    protected ThrowingMonitor(
+        long terminationTimeoutSec) {
+      super(terminationTimeoutSec);
+    }
+
+    @Override
+    public MonitorState getState() {
+      throw new RuntimeException("simulated failure while inspecting the monitor state");
     }
 
     @Override
