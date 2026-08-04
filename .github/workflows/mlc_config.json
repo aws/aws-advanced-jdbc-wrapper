@@ -1,6 +1,17 @@
 {
   "retryOn429": true,
   "retryCount": 5,
+  "//": [
+    "aliveStatusCodes treats 403 as reachable: several documentation sites answer 403 to the",
+    "link checker's user agent even though the page is fine. ignorePatterns skips dev.mysql.com",
+    "entirely because it blocks CI runners outright rather than just returning a bot challenge."
+  ],
+  "aliveStatusCodes": [200, 206, 403],
+  "ignorePatterns": [
+    {
+      "pattern": "^https://dev\\.mysql\\.com/"
+    }
+  ],
   "replacementPatterns": [
     {
       "pattern": "^#",

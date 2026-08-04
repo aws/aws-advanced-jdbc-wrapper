@@ -408,4 +408,4 @@ Check the application logs for encryption-related messages.
 
 ## Example Application
 
-See the [KmsEncryptionExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/KmsEncryptionExample.java) for a complete working example.
+See [KmsEncryptionIntegrationTest.java](../../../wrapper/src/test/java/integration/container/tests/KmsEncryptionIntegrationTest.java) for a complete working example.

@@ -371,7 +371,7 @@ URL: cluster reader endpoint (`*.cluster-ro-XXX.<region>.rds.amazonaws.com`). Re
 - **`efm2` left out by default** — `tcpKeepAlive=true` covers the analytics datasource, and short OLTP queries time out via `socketTimeout` long before EFM would fire. Add `efm2` to either datasource if you can't tune OS keep-alive (see §6.10 decision matrix).
 - **Same `clusterId`** — both pools see the same physical cluster, so they share topology cache and monitor threads. Different `clusterId` would duplicate that work.
 
-For Spring Boot bean wiring with two `EntityManagerFactory`s, see the [`SpringHibernateBalancedReaderTwoDataSourceExample`](../../examples/SpringHibernateBalancedReaderTwoDataSourceExample/) project in the wrapper repo.
+For Spring Boot bean wiring with two `EntityManagerFactory`s, see the [`SpringHibernateBalancedReaderTwoDataSourceExample`](../examples/SpringHibernateBalancedReaderTwoDataSourceExample/) project in the wrapper repo.
 
 ### 3.7 Aurora Global Database — primary region writer
 
