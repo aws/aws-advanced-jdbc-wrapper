@@ -120,19 +120,25 @@ The plugin includes a health monitoring subsystem to avoid cascading failures wh
 
 ## Telemetry / Operational Visibility
 
-| Metric Name                                              | Description                                                                     |
-|----------------------------------------------------------|:--------------------------------------------------------------------------------|
-| `remoteQueryCache.cache.hit`                             | Total number of queries with cache hits                                         |
-| `remoteQueryCache.cache.miss`                            | Total number of queries with cache misses                                       |
-| `remoteQueryCache.cache.totalQueries`                    | Total number of total queries evaluated for caching                             |
-| `remoteQueryCache.cache.malformedHints`                  | Total number of queries with malformed query hints                              |
-| `remoteQueryCache.cache.bypass`                          | Total number of queries that are evaluated but bypassed caching                 |
-| `remoteQueryCache.cache.error`                           | Total number of errors encountered when processing cached queries               |
-| `remoteQueryCache.cache.stateTransition`                 | Total number of state transitions for a particular cache cluster endpoint       |
-| `remoteQueryCache.cache.healthCheck.success`             | Total number of successful health checks to a particular cache cluster endpoint |
-| `remoteQueryCache.cache.healthCheck.failure`             | Total number of failed health checks to a particular cache cluster endpoint     |
-| `remoteQueryCache.cache.healthCheck.consecutiveSuccess`  | Max number of consecutive health check successes across clusters                |
-| `remoteQueryCache.cache.healthCheck.consecutiveFailure`  | Max number of consecutive health check failures across clusters                 |
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics:
+
+| Metric Name                                             | Metric type | Description                                                                      |
+|---------------------------------------------------------|-------------|:---------------------------------------------------------------------------------|
+| `remoteQueryCache.cache.hit`                            | Counter     | Total number of queries with cache hits                                          |
+| `remoteQueryCache.cache.miss`                           | Counter     | Total number of queries with cache misses                                        |
+| `remoteQueryCache.cache.totalQueries`                   | Counter     | Total number of total queries evaluated for caching                              |
+| `remoteQueryCache.cache.malformedHints`                 | Counter     | Total number of queries with malformed query hints                               |
+| `remoteQueryCache.cache.bypass`                         | Counter     | Total number of queries that are evaluated but bypassed caching                  |
+| `remoteQueryCache.cache.error`                          | Counter     | Total number of errors encountered when processing cached queries                |
+| `remoteQueryCache.cache.stateTransition`                | Counter     | Total number of state transitions for a particular cache cluster endpoint        |
+| `remoteQueryCache.cache.healthCheck.success`            | Counter     | Total number of successful health checks to a particular cache cluster endpoint  |
+| `remoteQueryCache.cache.healthCheck.failure`            | Counter     | Total number of failed health checks to a particular cache cluster endpoint      |
+| `remoteQueryCache.cache.healthCheck.consecutiveSuccess` | Gauge       | Max number of consecutive health check successes across clusters                 |
+| `remoteQueryCache.cache.healthCheck.consecutiveFailure` | Gauge       | Max number of consecutive health check failures across clusters                  |
+
+Cache lookups and the database queries behind a cache miss are also recorded as trace segments (`jdbc-cache-lookup` and `jdbc-database-query`).
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.
 
 
 ## Query Performance with Caching

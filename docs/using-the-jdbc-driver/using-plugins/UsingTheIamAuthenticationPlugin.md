@@ -97,3 +97,17 @@ Example IAM policy:
 
 ---
 <sup>1</sup> Note: The smaller dependencies cannot be used with Global databases, which require the full [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency.
+
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics:
+
+| Metric name            | Metric type | Description                                                                                                                                                                                                                                                        |
+|------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `iam.fetchToken.count` | Counter     | Number of IAM authentication tokens generated. Incremented when no valid cached token is available (cache miss, expired token, or `iamExpiration` set to `0`), and again when a login failure with a cached token triggers a retry with a freshly generated token. |
+| `iam.tokenCache.size`  | Gauge       | Number of entries currently held in the authentication token cache.                                                                                                                                                                                                |
+
+> [!NOTE]\
+> The authentication token cache is shared between the `iam`, `federatedAuth`, and `okta` plugins. The `iam.tokenCache.size`, `federatedAuth.tokenCache.size`, and `oktaAuth.tokenCache.size` gauges therefore all report the size of the same cache.
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.

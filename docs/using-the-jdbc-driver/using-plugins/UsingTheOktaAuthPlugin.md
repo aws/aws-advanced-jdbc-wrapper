@@ -100,3 +100,19 @@ Example IAM policy:
 
 > [!NOTE]
 > [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) is **required** when using this plugin with Global databases.
+
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics:
+
+| Metric name                 | Metric type | Description                                                                                                                                                                                                                             |
+|-----------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `oktaAuth.fetchToken.count` | Counter     | Number of IAM authentication tokens generated after a SAML assertion exchange. Incremented when no valid cached token is available, and again when a login failure with a cached token triggers a retry with a freshly generated token. |
+| `oktaAuth.tokenCache.size`  | Gauge       | Number of entries currently held in the authentication token cache.                                                                                                                                                                     |
+
+> [!NOTE]\
+> The authentication token cache is shared between the `okta`, `federatedAuth`, and `iam` plugins. The `oktaAuth.tokenCache.size`, `federatedAuth.tokenCache.size`, and `iam.tokenCache.size` gauges therefore all report the size of the same cache.
+
+Fetching the SAML assertion from Okta is recorded as a trace segment (`Fetch OKTA SAML Assertion`) rather than a metric.
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.

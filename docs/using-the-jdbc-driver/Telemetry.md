@@ -114,50 +114,131 @@ The default value is set to `false`, which means the driver traces to always be 
 
 The AWS Advanced JDBC Wrapper also submits a set of metrics to Amazon Cloudwatch when the driver is used. These metrics are predefined and they help give insight on what is happening inside the plugins when the plugins are used.
 
-Metrics can be one of 3 types: counters, gauges or histograms.
+Metrics are one of two types: counters or gauges. A metric name that contains `[NODE]` is submitted once per monitored node: the placeholder is replaced by the instance ID, or by the host name when no instance ID is available.
 
-### EFM plugin
+Metrics are only submitted by the plugins that are enabled through [`wrapperPlugins`](./UsingTheJdbcDriver.md#connection-plugin-manager-parameters). Plugins not listed below, such as `readWriteSplitting`, `limitless`, and `bg`, submit traces but no metrics. Each plugin page repeats its own metrics next to the parameters that influence them.
 
-| Metric name                    | Metric type | Description                                                                                           |
-|--------------------------------|-------------|-------------------------------------------------------------------------------------------------------|
-| efm.connections.aborted        | Counter     | Number of times a connection was aborted after being defined as unhealthy by an EFM monitoring thread |
-| efm.nodeUnhealthy.count.[NODE] | Counter     | Number of times a specific node has been defined as unhealthy                                         |
+### Host Monitoring plugin — `efm`
 
-### Secrets Manager plugin
+See [Using the Host Monitoring Plugin](./using-plugins/UsingTheHostMonitoringPlugin.md#telemetry-metrics).
+
+| Metric name                      | Metric type | Description                                                                                                       |
+|----------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------|
+| efm.connections.aborted          | Counter     | Number of times a connection was aborted after being defined as unhealthy by an EFM monitoring thread             |
+| efm.nodeUnhealthy.count.[NODE]   | Counter     | Number of times a specific node has been defined as unhealthy                                                     |
+| efm.contextPool.size             | Gauge       | Number of idle monitoring contexts held in the shared context pool. Submitted by both `efm` and `efm2`, and only while context pooling is enabled |
+
+### Host Monitoring plugin v2 — `efm2`
+
+See [Host Monitoring Plugin v2](./using-plugins/UsingTheHostMonitoringPlugin.md#telemetry-metrics-1).
+
+| Metric name              | Metric type | Description                                                                                           |
+|--------------------------|-------------|-------------------------------------------------------------------------------------------------------|
+| efm2.connections.aborted | Counter     | Number of times a connection was aborted after being defined as unhealthy by an EFM monitoring thread |
+| efm.contextPool.size     | Gauge       | Number of idle monitoring contexts held in the shared context pool                                    |
+
+`efm2` does not submit a per-node unhealthy counter.
+
+### Secrets Manager plugins — `awsSecretsManager`, `awsSecretsManager2`
+
+See [Using the AWS Secrets Manager Plugin](./using-plugins/UsingTheAwsSecretsManagerPlugin.md#telemetry-metrics) and [plugin v2](./using-plugins/UsingTheAwsSecretsManagerPlugin2.md#telemetry-metrics).
 
 | Metric name                           | Metric type | Description                                                   |
 |---------------------------------------|-------------|---------------------------------------------------------------|
 | secretsManager.fetchCredentials.count | Counter     | Number of times credentials were fetched from Secrets Manager |
 
-### IAM plugin
+Both plugins use this name, with different semantics: `awsSecretsManager` increments it on every connection attempt including cache hits, while `awsSecretsManager2` increments it only when a call is made to AWS Secrets Manager.
+
+### IAM plugin — `iam`
+
+See [Using the IAM Authentication Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md#telemetry-metrics).
 
 | Metric name          | Metric type | Description                                  |
 |----------------------|-------------|----------------------------------------------|
 | iam.fetchToken.count | Counter     | Number of times tokens were fetched from IAM |
 | iam.tokenCache.size  | Gauge       | Size of the token cache                      |
 
-### Data Cache plugin
+### Federated Authentication plugin — `federatedAuth`
+
+See [Using the Federated Authentication Plugin](./using-plugins/UsingTheFederatedAuthPlugin.md#telemetry-metrics).
+
+| Metric name                    | Metric type | Description                                                        |
+|--------------------------------|-------------|--------------------------------------------------------------------|
+| federatedAuth.fetchToken.count | Counter     | Number of tokens generated after a SAML assertion exchange         |
+| federatedAuth.tokenCache.size  | Gauge       | Size of the token cache                                            |
+
+### Okta Authentication plugin — `okta`
+
+See [Using the Okta Authentication Plugin](./using-plugins/UsingTheOktaAuthPlugin.md#telemetry-metrics).
+
+| Metric name               | Metric type | Description                                                |
+|---------------------------|-------------|------------------------------------------------------------|
+| oktaAuth.fetchToken.count | Counter     | Number of tokens generated after a SAML assertion exchange |
+| oktaAuth.tokenCache.size  | Gauge       | Size of the token cache                                    |
+
+The `iam`, `federatedAuth`, and `okta` plugins share one token cache, so the three `tokenCache.size` gauges all report the same value.
+
+### Data Cache plugin — `dataCache`
 
 | Metric name                | Metric type | Description                                                      |
 |----------------------------|-------------|------------------------------------------------------------------|
 | dataCache.cache.hit        | Counter     | Number of times the cache was consulted and found a cached entry |
-| dataCache.cache.miss       | Counter     | Number of times the cacbe was consulted and no match was found   |
+| dataCache.cache.miss       | Counter     | Number of times the cache was consulted and no match was found   |
 | dataCache.cache.totalCalls | Counter     | Total number of calls to the cache                               |
 | dataCache.cache.size       | Gauge       | Size of the data cache                                           |
 
-### Failover plugin
+### Remote Query Cache plugin — `remoteQueryCache`
 
-| Metric name                             | Metric type | Description                                                  |
-|-----------------------------------------|-------------|--------------------------------------------------------------|
-| writerFailover.triggered.count          | Counter     | Number of times writer failover was triggered                |
-| writerFailover.completed.success.count  | Counter     | Number of times writer failover was completed and succeeded  |
-| writerFailover.completed.failed.count   | Counter     | Number of times writer failover was completed and failed     |
-| replicaFailover.triggered.count         | Counter     | Number of times replica failover was triggered               |
-| replicaFailover.completed.success.count | Counter     | Number of times replica failover was completed and succeeded |
-| replicaFailover.completed.failed.count  | Counter     | Number of times replica failover was completed and failed    |
+See [Using the Remote Query Cache Plugin](./using-plugins/UsingTheRemoteQueryCachePlugin.md#telemetry--operational-visibility).
 
-### Stale DNS
+| Metric name                                           | Metric type | Description                                                                     |
+|-------------------------------------------------------|-------------|---------------------------------------------------------------------------------|
+| remoteQueryCache.cache.hit                            | Counter     | Total number of queries with cache hits                                         |
+| remoteQueryCache.cache.miss                           | Counter     | Total number of queries with cache misses                                       |
+| remoteQueryCache.cache.totalQueries                   | Counter     | Total number of queries evaluated for caching                                   |
+| remoteQueryCache.cache.malformedHints                 | Counter     | Total number of queries with malformed query hints                              |
+| remoteQueryCache.cache.bypass                         | Counter     | Total number of queries that are evaluated but bypassed caching                 |
+| remoteQueryCache.cache.error                          | Counter     | Total number of errors encountered when processing cached queries               |
+| remoteQueryCache.cache.stateTransition                | Counter     | Total number of health state transitions for a cache cluster endpoint           |
+| remoteQueryCache.cache.healthCheck.success            | Counter     | Total number of successful health checks to a cache cluster endpoint            |
+| remoteQueryCache.cache.healthCheck.failure            | Counter     | Total number of failed health checks to a cache cluster endpoint                |
+| remoteQueryCache.cache.healthCheck.consecutiveSuccess | Gauge       | Max number of consecutive health check successes across clusters                |
+| remoteQueryCache.cache.healthCheck.consecutiveFailure | Gauge       | Max number of consecutive health check failures across clusters                 |
+
+### Custom Endpoint plugin — `customEndpoint`
+
+See [Using the Custom Endpoint Plugin](./using-plugins/UsingTheCustomEndpointPlugin.md#telemetry-metrics).
+
+| Metric name                        | Metric type | Description                                                                             |
+|------------------------------------|-------------|-----------------------------------------------------------------------------------------|
+| customEndpoint.infoChanged.counter | Counter     | Number of times a monitor detected changed custom endpoint information                  |
+| customEndpoint.waitForInfo.counter | Counter     | Number of times a connection attempt waited for custom endpoint information to be fetched |
+
+### Failover plugins — `failover`, `failover2`, `gdbFailover`
+
+See [Failover Plugin](./using-plugins/UsingTheFailoverPlugin.md#telemetry-metrics), [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md#telemetry-metrics), and [GDB Failover Plugin](./using-plugins/UsingTheGdbFailoverPlugin.md#telemetry-metrics).
+
+| Metric name                            | Metric type | Description                                                 |
+|----------------------------------------|-------------|-------------------------------------------------------------|
+| writerFailover.triggered.count         | Counter     | Number of times writer failover was triggered               |
+| writerFailover.completed.success.count | Counter     | Number of times writer failover was completed and succeeded |
+| writerFailover.completed.failed.count  | Counter     | Number of times writer failover was completed and failed    |
+| readerFailover.triggered.count         | Counter     | Number of times reader failover was triggered               |
+| readerFailover.completed.success.count | Counter     | Number of times reader failover was completed and succeeded |
+| readerFailover.completed.failed.count  | Counter     | Number of times reader failover was completed and failed    |
+
+All three failover plugins submit these metrics under the same names.
+
+### Stale DNS plugin — `auroraStaleDns`
 
 | Metric name             | Metric type | Description                            |
 |-------------------------|-------------|----------------------------------------|
 | staleDNS.stale.detected | Counter     | Number of times DNS was detected stale |
+
+### Fastest Response Strategy plugin — `fastestResponseStrategy`
+
+See [Host Selection Strategies](./HostSelectionStrategies.md).
+
+| Metric name                 | Metric type | Description                                                                                                                            |
+|-----------------------------|-------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| frt.response.time.[NODE]    | Gauge       | Most recently measured response time to a node, in milliseconds. Reported as `-1` when the response time could not be measured |

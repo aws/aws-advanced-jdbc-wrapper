@@ -48,6 +48,21 @@ Both plugins share the same credential cache and use identical configuration par
 
 For details, see [AWS Secrets Manager Connection Plugin v2](./UsingTheAwsSecretsManagerPlugin2.md).
 
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metric:
+
+| Metric name                             | Metric type | Description                                                                                                                                                                    |
+|-----------------------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `secretsManager.fetchCredentials.count` | Counter     | Number of times the plugin resolved the secret. `awsSecretsManager` increments this on every connection attempt, including attempts served entirely from the credential cache. |
+
+> [!NOTE]\
+> `awsSecretsManager2` submits the same metric with different semantics: it is incremented only when a call is actually made to AWS Secrets Manager. See [Telemetry behavior change](./UsingTheAwsSecretsManagerPlugin2.md#telemetry-behavior-change).
+
+The call to AWS Secrets Manager is also recorded as a trace segment (`fetch credentials`).
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.
+
 ## Secret Data
 The secret stored in the AWS Secrets Manager should be a JSON object containing the properties `username` and `password`. If the secret contains different key names, you can specify them with the `secretsManagerSecretUsernameProperty` and `secretsManagerSecretPasswordProperty` parameters.
 
