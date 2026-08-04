@@ -135,8 +135,8 @@ dependencies {
     testImplementation("org.jboss.narayana.jta:narayana-jta:5.11.4.Final") // 5.11.x is the last Java 8-compatible line
     // Narayana declares jboss-logging as optional/provided; add it explicitly or jtaLogger fails to init.
     testImplementation("org.jboss.logging:jboss-logging:3.6.3.Final")
-    testImplementation("com.atomikos:transactions-jta:5.0.9")
-    testImplementation("com.atomikos:transactions-jdbc:5.0.9")
+    testImplementation("com.atomikos:transactions-jta:6.0.1")
+    testImplementation("com.atomikos:transactions-jdbc:6.0.1")
 }
 
 repositories {
