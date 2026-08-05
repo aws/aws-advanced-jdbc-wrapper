@@ -1300,11 +1300,11 @@ false, false, true, false),
   STATEMENT_EXECUTE(607, "Statement.execute",
 false, false, true, true),
   STATEMENT_GETRESULTSET(608, "Statement.getResultSet",
-false, true, true, false),
+false, true, true, true),
   STATEMENT_GETUPDATECOUNT(609, "Statement.getUpdateCount",
 false, false, true, false),
   STATEMENT_GETMORERESULTS(610, "Statement.getMoreResults",
-false, false, true, false),
+false, false, true, true),
   STATEMENT_GETFETCHDIRECTION(611, "Statement.getFetchDirection",
 false, false, true, false),
   STATEMENT_SETFETCHDIRECTION(612, "Statement.setFetchDirection",
@@ -1382,6 +1382,15 @@ true, false, true, false),
   public final boolean alwaysUsePipeline;
   public final boolean wrapResults;
   public final boolean shouldLockConnection;
+
+  /**
+   * Whether an invocation of this method must be rejected when it is made on a wrapper object left
+   * over from a connection that has since been swapped out. Effective only together with
+   * {@code shouldLockConnection}. Call sites of a method declared with this flag must go through
+   * {@code WrapperUtils.executeWithPluginsWithBoundObject} (or the rebind-handle variant) and pass
+   * the invoking wrapper, which carries the connection it was created on; the plain
+   * {@code executeWithPlugins} variants have no bound object and therefore cannot check.
+   */
   public final boolean checkBoundedConnection;
 
   JdbcMethod(
