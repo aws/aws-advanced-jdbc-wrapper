@@ -45,6 +45,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -161,6 +162,11 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
           this.jdbcProtocol,
           this.user,
           this.password);
+
+      // The requested logger level should be applied before anything is logged below. This is the
+      // earliest point where all property sources are merged: the data source properties, the
+      // configuration profile, and the JDBC URL parameters parsed by resolveFinalUrl.
+      LogUtils.applyLoggerLevel(props);
 
       TargetDriverDialect targetDriverDialect = configurationProfile == null
           ? null

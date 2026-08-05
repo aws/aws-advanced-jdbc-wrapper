@@ -18,11 +18,52 @@ package software.amazon.jdbc.util;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class LogUtils {
+
+  private static final Logger DRIVER_PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
+
+  /**
+   * Applies the logger level requested through the {@code wrapperLoggerLevel} connection property,
+   * if it's specified. The level is set on the driver's parent logger
+   * ({@code software.amazon.jdbc}), so loggers that have their own level explicitly configured (for
+   * instance, through a {@code logging.properties} file) are not affected and keep their configured
+   * level.
+   *
+   * <p>This method should be called as early as possible while establishing a connection so that
+   * the driver's own log messages are governed by the requested level.
+   *
+   * @param props the connection properties to get the requested logger level from
+   * @throws IllegalArgumentException if the specified logger level isn't a valid {@link Level}
+   */
+  public static void applyLoggerLevel(final Properties props) {
+    final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
+    if (StringUtils.isNullOrEmpty(logLevelStr)) {
+      return;
+    }
+
+    final Level logLevel = Level.parse(logLevelStr.toUpperCase());
+    final Logger rootLogger = Logger.getLogger("");
+    for (final Handler handler : rootLogger.getHandlers()) {
+      if (handler instanceof ConsoleHandler) {
+        if (handler.getLevel().intValue() > logLevel.intValue()) {
+          // Set higher (more detailed) level as requested
+          handler.setLevel(logLevel);
+        }
+      }
+    }
+    DRIVER_PARENT_LOGGER.setLevel(logLevel);
+  }
+
   public static String logTopology(final @Nullable List<HostSpec> hosts) {
     return logTopology(hosts, null);
   }
