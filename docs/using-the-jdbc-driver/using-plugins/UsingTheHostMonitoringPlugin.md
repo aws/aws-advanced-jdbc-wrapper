@@ -77,6 +77,18 @@ properties.setProperty("monitoring-socketTimeout", "10");
 >
 > Although using RDS Proxy endpoints with the AWS Advanced JDBC Wrapper with Enhanced Failure Monitoring doesn't cause any critical issues, we don't recommend this approach. The main reason is that RDS Proxy transparently re-routes requests to a single database instance. RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). Switching between different instances makes the Host Monitoring Connection Plugin useless in terms of instance health monitoring because the plugin will be unable to identify which instance it's connected to, and which one it's monitoring. This could result in false positive failure detections. At the same time, the plugin will still proactively monitor network connectivity to RDS Proxy endpoints and report outages back to a user application if they occur.
 
+### Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, the `efm` plugin submits the following metrics:
+
+| Metric name                      | Metric type | Description                                                                                                                                                                                                                                                                                                  |
+|----------------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `efm.connections.aborted`        | Counter     | Number of connections aborted after a monitoring thread determined the node was unhealthy.                                                                                                                                                                                                                   |
+| `efm.nodeUnhealthy.count.[NODE]` | Counter     | Number of times a monitoring thread found a specific node unhealthy, either because the health check reported the connection invalid or because it raised an error. `[NODE]` is replaced by the instance ID, or by the host name when no instance ID is available, producing one counter per monitored node. |
+| `efm.contextPool.size`           | Gauge       | Number of idle monitoring contexts currently held in the [context pool](#context-pool-configuration). Reported per pooled context type, and only while `efm.contextPool.enabled` is `true`.                                                                                                                  |
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.
+
 # Host Monitoring Plugin v2
 
 ## Plugin Availability
@@ -122,3 +134,17 @@ System.setProperty("efm.contextPool.enabled", "true");
 System.setProperty("efm.contextPool.maxIdleCount", "50");
 System.setProperty("efm.contextPool.lazyInitialization", "true");
 ```
+
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, the `efm2` plugin submits the following metrics:
+
+| Metric name                | Metric type | Description                                                                                                                                                                                                                                                                                            |
+|----------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `efm2.connections.aborted` | Counter     | Number of connections aborted after a monitoring thread determined the node was unhealthy.                                                                                                                                                                                                             |
+| `efm.contextPool.size`     | Gauge       | Number of idle monitoring contexts currently held in the [context pool](#context-pool-configuration). Reported per pooled context type, and only while `efm.contextPool.enabled` is `true`. The context pool is shared infrastructure, so this gauge keeps the `efm.` prefix for both plugin versions. |
+
+> [!NOTE]\
+> Unlike `efm`, the `efm2` plugin does not submit a per-node `nodeUnhealthy` counter. If you rely on per-node unhealthy counts, use `efm.nodeUnhealthy.count.[NODE]` with the `efm` plugin instead.
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.

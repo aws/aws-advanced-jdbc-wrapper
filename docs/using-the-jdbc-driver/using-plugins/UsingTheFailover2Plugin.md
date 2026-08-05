@@ -83,3 +83,23 @@ Please refer to the original [Failover Plugin](./UsingTheFailoverPlugin.md) for 
 
 This sample code uses the original `failover` plugin, but it can also be used with the `failover2` plugin. Configuration parameters should be adjusted in accordance with the table above. 
 
+
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics:
+
+| Metric name                              | Metric type | Description                                                                                                                                 |
+|------------------------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `writerFailover.triggered.count`         | Counter     | Number of times failover to a writer node was triggered.                                                                                    |
+| `writerFailover.completed.success.count` | Counter     | Number of times failover to a writer node completed successfully.                                                                           |
+| `writerFailover.completed.failed.count`  | Counter     | Number of times failover to a writer node failed. Also incremented when the plugin cannot refresh the topology within the failover timeout. |
+| `readerFailover.triggered.count`         | Counter     | Number of times failover to a reader node was triggered.                                                                                    |
+| `readerFailover.completed.success.count` | Counter     | Number of times failover to a reader node completed successfully.                                                                           |
+| `readerFailover.completed.failed.count`  | Counter     | Number of times failover to a reader node failed.                                                                                           |
+
+Each failover attempt is also recorded as a trace segment (`failover to writer node` or `failover to replica`). Setting `telemetryFailoverAdditionalTopTrace` to `true` submits an additional top-level trace for every failover.
+
+> [!NOTE]\
+> The `failover2`, `failover`, and `gdbFailover` plugins submit these metrics under the same names, so the counters are not distinguishable by plugin. Only one failover plugin can be enabled at a time.
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.

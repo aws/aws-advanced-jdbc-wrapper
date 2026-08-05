@@ -128,3 +128,23 @@ This sample code uses the original `failover` plugin, but it can also be used wi
 
 > [!WARNING]
 > This example covers failover and failover-related settings only. Complete driver configuration may require settings for other plugins. For instance, `initialConnection` may require `endpointSubstitutionRole` and `verifyOpenedConnectionType` parameters to be set properly.
+
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics. The names are inherited from the [Failover Plugin v2](./UsingTheFailover2Plugin.md).
+
+| Metric name                              | Metric type | Description                                                       |
+|------------------------------------------|-------------|-------------------------------------------------------------------|
+| `writerFailover.triggered.count`         | Counter     | Number of times failover to a writer node was triggered.          |
+| `writerFailover.completed.success.count` | Counter     | Number of times failover to a writer node completed successfully. |
+| `writerFailover.completed.failed.count`  | Counter     | Number of times failover to a writer node failed.                 |
+| `readerFailover.triggered.count`         | Counter     | Number of times failover to a reader node was triggered.          |
+| `readerFailover.completed.success.count` | Counter     | Number of times failover to a reader node completed successfully. |
+| `readerFailover.completed.failed.count`  | Counter     | Number of times failover to a reader node failed.                 |
+
+> [!NOTE]\
+> This plugin also increments the writer `triggered` and `failed` counters together for conditions detected before a failover attempt starts: the topology cannot be refreshed within the failover timeout, no writer candidate is found, or the writer candidate is outside the [accessible regions](./UsingGlobalAuroraAccessibleRegions.md). A `triggered` count that always matches a `failed` count in those cases is expected, not a partially recorded failover.
+
+Failover is also recorded as a trace segment (`failover`). Setting `telemetryFailoverAdditionalTopTrace` to `true` submits an additional top-level trace for every failover.
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.

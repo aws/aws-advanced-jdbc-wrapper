@@ -50,3 +50,14 @@ When using IAM authentication make sure that IAM user has `rds:DescribeDBCluster
 ```
 software.amazon.awssdk.services.rds.model.RdsException: User: arn:aws:sts:...:assumed-role/.... is not authorized to perform: rds:DescribeDBClusterEndpoints on resource: arn:aws:rds:.... because no identity-based policy allows the rds:DescribeDBClusterEndpoints action (Service: Rds, Status Code: 403, Request ID: ...) 
 ```
+
+### Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics:
+
+| Metric name                          | Metric type | Description                                                                                                                                                                                                                                                                                               |
+|--------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `customEndpoint.infoChanged.counter` | Counter     | Number of times a custom endpoint monitor detected that the endpoint's information changed and refreshed the cached info.                                                                                                                                                                                 |
+| `customEndpoint.waitForInfo.counter` | Counter     | Number of times a connection attempt had to wait for a monitor to place custom endpoint info in the cache. Only incremented while `waitForCustomEndpointInfo` is enabled. A steadily growing value suggests monitors expire between connections, so consider raising `customEndpointMonitorExpirationMs`. |
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.

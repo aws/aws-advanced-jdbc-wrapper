@@ -128,6 +128,18 @@ The `secretsManager.fetchCredentials.count` telemetry counter has different sema
 
 If you have monitoring dashboards or alerts based on this counter, you will see a significant drop in its value after migrating. This is expected and reflects the reduced number of API calls, not a loss of functionality.
 
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metric:
+
+| Metric name                             | Metric type | Description                                                                                                                                                                                     |
+|-----------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `secretsManager.fetchCredentials.count` | Counter     | Number of calls made to AWS Secrets Manager. Connection attempts served from the credential cache do not increment it, including attempts served stale while a background refresh is in flight. |
+
+The call to AWS Secrets Manager is also recorded as a trace segment (`fetch credentials`).
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.
+
 ## When to Use Which Plugin
 
 Use **`awsSecretsManager`** (original) if:
