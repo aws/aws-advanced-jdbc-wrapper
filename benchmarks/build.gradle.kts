@@ -29,6 +29,11 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.55.1")
     implementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier")
     implementation("org.apache.commons:commons-pool2:2.13.1")
+    // Optional dependency of the wrapper, required at runtime by the sqlParser,
+    // autoReadWriteSplitting and kmsEncryption plugins. Without it on the benchmark classpath those
+    // plugins fail with NoClassDefFoundError instead of being measured. Keep the version aligned
+    // with wrapper/build.gradle.kts.
+    implementation("com.github.jsqlparser:jsqlparser:4.9")
     jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.14.4")
