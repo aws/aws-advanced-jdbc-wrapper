@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import com.zaxxer.hikari.HikariConfig;
@@ -29,6 +30,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -58,12 +60,15 @@ import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -92,8 +97,10 @@ public class PluginBenchmarks {
   private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
 
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private Dialect mockDialect;
+  @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
@@ -102,9 +109,12 @@ public class PluginBenchmarks {
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private PluginManagerService mockPluginManagerService;
   @Mock ConnectionProvider mockConnectionProvider;
+  @Mock PluginCallContext mockPluginCallContext;
+  @Mock SessionStateService mockSessionStateService;
   @Mock Connection mockConnection;
   @Mock Statement mockStatement;
   @Mock ResultSet mockResultSet;
+  private final AtomicReference<Connection> currentConnection = new AtomicReference<>();
   private AutoCloseable closeable;
 
   public static void main(String[] args) throws RunnerException {
@@ -120,11 +130,18 @@ public class PluginBenchmarks {
   @Setup(Level.Iteration)
   public void setUpIteration() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
+    when(mockServicesContainer.getConnectionPluginManager()).thenReturn(mockConnectionPluginManager);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
+    when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
     when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean(), any()))
         .thenReturn(mockConnection);
     when(mockConnectionPluginManager.execute(
         any(), any(), any(), eq(JdbcMethod.CONNECTION_CREATESTATEMENT), any(), any()))
         .thenReturn(mockStatement);
+    when(mockConnectionPluginManager.execute(
+        any(), any(), any(), eq(JdbcMethod.STATEMENT_EXECUTEQUERY), any(), any()))
+        .thenReturn(mockResultSet);
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
@@ -145,9 +162,27 @@ public class PluginBenchmarks {
         .thenReturn("instance-0", "instance-1");
     when(mockResultSet.getStatement()).thenReturn(mockStatement);
     when(mockStatement.getConnection()).thenReturn(mockConnection);
+    // Model the current connection as real state instead of a fixed value: ConnectionWrapper.init()
+    // only opens a connection when getCurrentConnection() is null, and everything afterwards
+    // (createStatement, close, ...) dereferences it. A constant null breaks close(); a constant
+    // non-null makes init() a no-op and stops the benchmark from measuring the connect pipeline.
+    this.currentConnection.set(null);
+    when(this.mockPluginService.getCurrentConnection()).thenAnswer(inv -> this.currentConnection.get());
+    doAnswer(inv -> {
+      this.currentConnection.set(inv.getArgument(0));
+      return null;
+    }).when(this.mockPluginService).setCurrentConnection(any(Connection.class), any());
+    when(this.mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    // Statement.executeQuery() publishes a rebind handle on the per-call context.
+    when(this.mockPluginService.getCallContext()).thenReturn(mockPluginCallContext);
     when(this.mockPluginService.acceptsStrategy(any(), eq("random"))).thenReturn(true);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
+    when(this.mockPluginService.getInitialConnectionHostSpec()).thenReturn(writerHostSpec);
     when(this.mockPluginService.getDialect()).thenReturn(mockDialect);
+    // ConnectionWrapper.init() calls getTargetDriverDialect().updateInternalState(...) on the
+    // freshly opened connection. Without this stub every benchmark that builds a
+    // ConnectionWrapper fails in its warmup iteration with an NPE.
+    when(this.mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
   }
 
   @TearDown(Level.Iteration)
@@ -168,14 +203,7 @@ public class PluginBenchmarks {
   }
 
   private ConnectionWrapper getConnectionWrapper(Properties props, String connString) throws SQLException {
-    return new TestConnectionWrapper(
-        props,
-        connString,
-        PG_PROTOCOL,
-        mockConnectionPluginManager,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService);
+    return new TestConnectionWrapper(mockServicesContainer, props, connString, PG_PROTOCOL);
   }
 
   @Benchmark

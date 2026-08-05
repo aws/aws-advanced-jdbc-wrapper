@@ -70,6 +70,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -96,8 +97,11 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock FullServicesContainer mockServicesContainer;
+  @Mock ImportantEventService mockImportantEventService;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  @Mock Dialect mockDialect;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock HostListProviderService mockHostListProvider;
   @Mock Connection mockConnection;
@@ -111,7 +115,7 @@ public class ConnectionPluginManagerBenchmarks {
 
   public static void main(String[] args) throws RunnerException {
     Options opt = new OptionsBuilder()
-        .include(software.amazon.jdbc.benchmarks.PluginBenchmarks.class.getSimpleName())
+        .include(ConnectionPluginManagerBenchmarks.class.getSimpleName())
         .addProfiler(GCProfiler.class)
         .detectJvmArgs()
         .build();
@@ -140,9 +144,17 @@ public class ConnectionPluginManagerBenchmarks {
     when(mockResultSet.getString(eq(FIELD_SESSION_ID))).thenReturn(WRITER_SESSION_ID);
     when(mockResultSet.getString(eq(FIELD_SERVER_ID)))
         .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
+    when(mockStatement.getConnection()).thenReturn(mockConnection);
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    // DefaultConnectionPlugin's constructor rejects a null PluginManagerService, and its
+    // execute()/connect() paths go through the ImportantEventService. Both are resolved from the
+    // services container, so leaving them unstubbed makes every benchmark here fail during setup.
+    when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
+    when(mockServicesContainer.getImportantEventService()).thenReturn(mockImportantEventService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
 
     // Create a plugin chain with 10 custom test plugins.
     final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
@@ -179,7 +191,10 @@ public class ConnectionPluginManagerBenchmarks {
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
     final ConnectionPluginManager manager =
         new ConnectionPluginManager(propertiesWithoutPlugins, mockTelemetryFactory, mockConnectionProvider, null);
-    manager.initPlugins(mockServicesContainer, configurationProfile);
+    // The configuration profile must be null here: a non-null profile takes precedence over the
+    // wrapperPlugins property, so passing the "benchmark" profile would build the 10-plugin chain
+    // and make this benchmark a duplicate of initConnectionPluginManagerWithPlugins.
+    manager.initPlugins(mockServicesContainer, null);
     return manager;
   }
 
@@ -252,7 +267,7 @@ public class ConnectionPluginManagerBenchmarks {
         "url",
         propertiesWithoutPlugins,
         mockHostListProvider);
-    return pluginManager;
+    return pluginManagerWithNoPlugins;
   }
 
   @Benchmark
@@ -278,6 +293,6 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public ConnectionPluginManager releaseResourcesWithNoPlugins() {
     pluginManagerWithNoPlugins.releaseResources();
-    return pluginManager;
+    return pluginManagerWithNoPlugins;
   }
 }

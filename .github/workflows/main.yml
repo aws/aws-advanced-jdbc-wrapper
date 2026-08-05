@@ -95,6 +95,11 @@ jobs:
             ${{ runner.os }}-gradle-
       - name: 'Run checkstyle and spotbugs'
         run: ./gradlew --build-cache checkstyleMain checkstyleTest spotbugsMain spotbugsTest
+      # The JMH benchmarks live in the `jmh` source set of the :benchmarks module, so neither
+      # `test` nor `checkstyleMain` compiles them. They reach into the wrapper's internal APIs
+      # and silently stop compiling when those change, so compile them here.
+      - name: 'Compile JMH benchmarks'
+        run: ./gradlew --build-cache :benchmarks:jmhJar
 
   # Nullness analysis in enforcing mode: any new Checker Framework finding fails the build.
   # This lives in main.yml (rather than only in run-checker-framework.yml) so it is covered by
