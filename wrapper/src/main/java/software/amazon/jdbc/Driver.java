@@ -26,9 +26,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,6 +50,7 @@ import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.DriverImportantEventService;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
@@ -162,8 +160,6 @@ public class Driver implements java.sql.Driver {
       return null;
     }
 
-    LOGGER.finest(() -> Messages.get("Driver.openingConnection", new Object[] {url}));
-
     ConnectionUrlParser.parsePropertiesFromUrl(url, info);
     final Properties props = PropertyUtils.copyProperties(info);
 
@@ -171,6 +167,12 @@ public class Driver implements java.sql.Driver {
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(props, databaseName);
     }
+
+    // The requested logger level should be applied before any message is logged below, otherwise
+    // the driver's own messages are logged with a level the user hasn't asked for.
+    LogUtils.applyLoggerLevel(props);
+
+    LOGGER.finest(() -> Messages.get("Driver.openingConnection", new Object[] {url}));
 
     LOGGER.finest(() -> PropertyUtils.logProperties(
         PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
@@ -189,6 +191,8 @@ public class Driver implements java.sql.Driver {
       configurationProfile = DriverConfigurationProfiles.getProfileConfiguration(profileName);
       if (configurationProfile != null) {
         PropertyUtils.addProperties(props, configurationProfile.getProperties());
+        // The profile may define its own logger level; re-apply it.
+        LogUtils.applyLoggerLevel(props);
         if (configurationProfile.getAwsCredentialsProviderHandler() != null) {
           AwsCredentialsManager.setCustomHandler(configurationProfile.getAwsCredentialsProviderHandler());
         }
@@ -210,21 +214,6 @@ public class Driver implements java.sql.Driver {
 
       TargetDriverHelper helper = new TargetDriverHelper();
       java.sql.Driver driver = helper.getTargetDriver(driverUrl, props);
-
-      final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
-      if (!StringUtils.isNullOrEmpty(logLevelStr)) {
-        final Level logLevel = Level.parse(logLevelStr.toUpperCase());
-        final Logger rootLogger = Logger.getLogger("");
-        for (final Handler handler : rootLogger.getHandlers()) {
-          if (handler instanceof ConsoleHandler) {
-            if (handler.getLevel().intValue() > logLevel.intValue()) {
-              // Set higher (more detailed) level as requested
-              handler.setLevel(logLevel);
-            }
-          }
-        }
-        PARENT_LOGGER.setLevel(logLevel);
-      }
 
       TargetDriverDialect targetDriverDialect = configurationProfile == null
           ? null

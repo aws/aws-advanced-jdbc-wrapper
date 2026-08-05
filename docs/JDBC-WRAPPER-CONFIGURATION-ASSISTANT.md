@@ -1288,7 +1288,7 @@ A v1 normal profile: `failoverTimeoutMs=180000`, the rest at defaults. A v1 aggr
 
 | Name | Default | Description |
 |---|---|---|
-| `wrapperLoggerLevel` | (none) | `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. **Avoid `ALL` and `FINEST` in prod** — high volume + may include connection metadata. |
+| `wrapperLoggerLevel` | (none) | `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. **Avoid `ALL` and `FINEST` in prod** — high volume + may include connection metadata. Best-effort: applied to the `software.amazon.jdbc` logger when a connection is opened, and does not override a per-logger level from `logging.properties` (see §16.1). |
 | `wrapperLogUnclosedConnections` | `false` | Track stack of every connection opened; log if `finalize()` is reached without `close()`. Useful for finding connection leaks. |
 | `enableTelemetry` | `false` | Master toggle for telemetry. |
 | `telemetryTracesBackend` | (none) | `XRAY`, `OTLP`, or `NONE`. |
@@ -1902,13 +1902,17 @@ Then point the JVM at it:
 -Djava.util.logging.config.file=/absolute/path/to/logging.properties
 ```
 
-**The `wrapperLoggerLevel` connection parameter is best-effort.** It sets the level on the wrapper's JUL logger and adjusts existing JUL `ConsoleHandler` levels if any are attached, but it cannot guarantee output. Whether you actually see anything depends on:
+**The `wrapperLoggerLevel` connection parameter is best-effort.** It sets the level on the wrapper's parent JUL logger (`software.amazon.jdbc`) and adjusts existing JUL `ConsoleHandler` levels if any are attached, but it cannot guarantee output. Whether you actually see anything depends on:
 
 - Whether JUL has any handlers attached at all (some app frameworks remove or replace them).
 - Whether your app's main logger (SLF4J, Log4j, Logback) is bridging from JUL — if it is, the bridge controls output, not JUL handlers.
 - Whether Spring Boot or another framework has reconfigured JUL.
 
 So `wrapperLoggerLevel=FINER` may work for a plain main()-method app and silently produce nothing in a Spring Boot or Wildfly app. Prefer the `logging.properties` approach (or the framework-native logger config below) for predictable results.
+
+**`wrapperLoggerLevel` does not override a per-logger level from `logging.properties`.** JUL uses the level of the nearest logger that has one set, and the parameter only sets the level of the parent logger `software.amazon.jdbc`. So with the sample file above — which sets `software.amazon.jdbc.Driver.level=FINER` — `wrapperLoggerLevel` is ignored for `software.amazon.jdbc.Driver`, including `wrapperLoggerLevel=OFF`. If you want to silence the wrapper, remove or lower the per-logger entries in the file (or set `software.amazon.jdbc.level=OFF` there) rather than relying on the connection parameter. `logging.properties` always wins; that's by design.
+
+**Other things `wrapperLoggerLevel` cannot do.** It's applied when a connection is opened, so anything logged earlier (driver loading, application startup) uses whatever level the app has configured. It's set on a JVM-wide static logger, so the most recently opened connection wins for every connection and the level isn't restored on close. All three entry points apply it — `DriverManager`, `AwsWrapperDataSource`, and `AwsWrapperXADataSource` — whether it comes from the connection properties, the JDBC URL query string, or a configuration profile.
 
 ```
 wrapperLoggerLevel=FINER

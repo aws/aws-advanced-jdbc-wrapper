@@ -90,6 +90,11 @@ To use the AWS Advanced JDBC Wrapper with a connection pool, you must:
    ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres?socketTimeout=10&wrapperLoggerLevel=ALL");
    ```
 
+   > [!NOTE]\
+   > `wrapperLoggerLevel` is applied on a best-effort basis when a connection is opened, and it
+   > doesn't override a level that is explicitly configured for a particular logger, for example in a
+   > `logging.properties` file. See [Logging](./UsingTheJdbcDriver.md#logging) for the details.
+
 > [!WARNING]\
 > HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, and the  `HikariDataSource.setJdbcUrl` method should not be used. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).
 
