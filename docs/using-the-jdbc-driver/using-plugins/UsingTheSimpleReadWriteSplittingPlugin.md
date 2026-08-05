@@ -43,7 +43,7 @@ The values of `srwConnectRetryTimeoutMs` and `srwConnectRetryIntervalMs` control
 
 Additionally, to consistently ensure the role of connections made with the plugin, the plugin also provides role verification for the initial connection. When connecting with an RDS writer cluster or reader cluster endpoint, the plugin will retry the initial connection up to `srwConnectRetryTimeoutMs` until it has verified the intended role of the endpoint.
 If it is unable to return a verified initial connection, it will log a message and continue with the normal workflow of the other plugins.
-When connecting with custom endpoints and other non-standard URLs, role verification on the initial connection can also be triggered by providing the expected role through the `verifyInitialConnectionType` parameter. Set this to `writer` or `reader` accordingly.
+When connecting with [custom endpoints](./UsingTheCustomEndpointPlugin.md) and other non-standard URLs, role verification on the initial connection can also be triggered by providing the expected role through the `verifyInitialConnectionType` parameter. Set this to `writer` or `reader` accordingly.
 
 The AWS Advanced JDBC Wrapper supports verifying the role of connections to PostgreSQL, MySQL, and MariaDB databases through using the following queries:
 
