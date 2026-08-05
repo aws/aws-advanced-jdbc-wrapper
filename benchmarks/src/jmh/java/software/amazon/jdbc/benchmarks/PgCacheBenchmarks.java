@@ -1,3 +1,19 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package software.amazon.jdbc.benchmarks;
 
 import java.sql.Connection;
@@ -43,6 +59,19 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
  * ----+---------+-------------+----------+---------+----------+----------+---------+--------+-------+--------------
  * (0 rows)
  *
+ * <p>Unlike the other benchmarks in this module, this one needs live infrastructure: a reachable
+ * PostgreSQL instance holding the pre-populated {@code test} table plus a reachable cache server.
+ * The endpoints are therefore not hardcoded - supply them as system properties, for example:
+ *
+ * <pre>
+ * java -Dbenchmarks.pg.url=jdbc:aws-wrapper:postgresql://my-db:5432/postgres \
+ *      -Dbenchmarks.cache.rw=my-cache:6379 \
+ *      -Dbenchmarks.cache.ro=my-cache:6380 \
+ *      -jar build/libs/benchmarks-&lt;version&gt;-jmh.jar PgCacheBenchmarks
+ * </pre>
+ *
+ * <p>With no properties set, setup fails fast with a clear message instead of timing out against a
+ * placeholder host name. This class is excluded from the default benchmark run for that reason.
  */
 @State(Scope.Thread)
 @Fork(1)
@@ -51,9 +80,9 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class PgCacheBenchmarks {
-  private static final String DB_CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://db-0.XYZ.us-east-2.rds.amazonaws.com:5432/postgres";
-  private static final String CACHE_RW_SERVER_ADDR = "cache-0.XYZ.us-east-2.rds.amazonaws.com:6379";
-  private static final String CACHE_RO_SERVER_ADDR = "cache-0.XYZ.us-east-2.rds.amazonaws.com:6380";
+  private static final String DB_URL_PROPERTY = "benchmarks.pg.url";
+  private static final String CACHE_RW_PROPERTY = "benchmarks.cache.rw";
+  private static final String CACHE_RO_PROPERTY = "benchmarks.cache.ro";
 
   private Connection connection;
   private int counter;
@@ -71,6 +100,9 @@ public class PgCacheBenchmarks {
 
   @Setup(Level.Trial)
   public void setup() throws SQLException {
+    final String dbUrl = requiredProperty(DB_URL_PROPERTY);
+    final String cacheRw = requiredProperty(CACHE_RW_PROPERTY);
+    final String cacheRo = requiredProperty(CACHE_RO_PROPERTY);
     try {
       software.amazon.jdbc.Driver.register();
     } catch (IllegalStateException e) {
@@ -78,17 +110,31 @@ public class PgCacheBenchmarks {
     }
     Properties properties = new Properties();
     properties.setProperty("wrapperPlugins", "remoteQueryCache");
-    properties.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR);
-    properties.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
+    properties.setProperty("cacheEndpointAddrRw", cacheRw);
+    properties.setProperty("cacheEndpointAddrRo", cacheRo);
     properties.setProperty("wrapperLogUnclosedConnections", "true");
     counter = 0;
-    connection = DriverManager.getConnection(DB_CONNECTION_STRING, properties);
+    connection = DriverManager.getConnection(dbUrl, properties);
     startTime = System.currentTimeMillis();
+  }
+
+  private static String requiredProperty(final String name) {
+    final String value = System.getProperty(name);
+    if (value == null || value.trim().isEmpty()) {
+      throw new IllegalStateException(
+          "PgCacheBenchmarks requires a live database and cache server. Set the system property '"
+              + name + "'. See the class javadoc and benchmarks/README.md for details.");
+    }
+    return value;
   }
 
   @TearDown(Level.Trial)
   public void tearDown() throws SQLException {
-    connection.close();
+    // setup() can fail before the connection is opened (e.g. missing endpoint properties); a plain
+    // connection.close() would then mask the real cause with an NPE from the teardown.
+    if (connection != null) {
+      connection.close();
+    }
   }
 
   // Code to warm up the data in the table

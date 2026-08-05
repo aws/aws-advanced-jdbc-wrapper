@@ -19,30 +19,26 @@ package software.amazon.jdbc.benchmarks.testplugin;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.hostlistprovider.HostListProviderService;
-import software.amazon.jdbc.PluginManagerService;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-// Test class allowing for mocks to be used with ConnectionWrapper logic
+/**
+ * Test class allowing mocks to be used with {@link ConnectionWrapper} logic.
+ *
+ * <p>This delegates to the production constructor and supplies a (mocked) services container
+ * rather than using the {@code protected} "for testing purposes only" constructor. That
+ * constructor leaves {@code ConnectionWrapper.servicesContainer} null, and every JDBC call now
+ * routes through {@code WrapperUtils.doExecuteWithPlugins}, which dereferences
+ * {@code getServicesContainer()}. Going through the production constructor keeps the benchmarks
+ * aligned with the code path real connections take.
+ */
 public class TestConnectionWrapper extends ConnectionWrapper {
   public TestConnectionWrapper(
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final String protocol,
-      @NonNull final ConnectionPluginManager connectionPluginManager,
-      @NonNull final PluginService pluginService,
-      @NonNull final HostListProviderService hostListProviderService,
-      @NonNull final PluginManagerService pluginManagerService)
+      @NonNull final String protocol)
       throws SQLException {
-    super(
-        props,
-        url,
-        protocol,
-        connectionPluginManager,
-        pluginService,
-        hostListProviderService,
-        pluginManagerService);
+    super(servicesContainer, props, url, protocol, null);
   }
 }
