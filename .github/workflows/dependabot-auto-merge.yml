@@ -1,5 +1,11 @@
 name: Dependabot Automerge
 
+# SECURITY: the trigger below must stay `pull_request` and must NOT be changed to
+# `pull_request_target`. With `pull_request`, a fork PR gets a read-only GITHUB_TOKEN and no
+# access to secrets, so the approve/merge steps cannot be driven by an outside contributor even
+# if the actor gate below were bypassed. `pull_request_target` would run with a writable token
+# in the context of the base repository and turn this workflow into an arbitrary-code-push
+# primitive. See https://www.synacktiv.com/publications/github-actions-exploitation-dependabot
 on:
   pull_request:
     branches:
@@ -15,12 +21,18 @@ jobs:
       contents: write
       pull-requests: write
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    # SECURITY: gate on the PR author, not on `github.actor`. `github.actor` is the last identity
+    # to have acted on the pull request, so an attacker can flip it to 'dependabot[bot]' by
+    # opening a PR from a fork branch and then getting Dependabot to force-push on that branch.
+    # `github.event.pull_request.user.login` is the immutable author of the PR and cannot be
+    # spoofed from a fork. The `dependabot/fetch-metadata` step below performs the same author
+    # check internally; this condition makes the guarantee explicit rather than incidental.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
 
     steps:
       - name: Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v2
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v3.1.0
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - name: Approve PR
