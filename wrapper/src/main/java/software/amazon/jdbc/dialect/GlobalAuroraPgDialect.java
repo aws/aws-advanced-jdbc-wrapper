@@ -44,14 +44,16 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuro
       "select 'pg_catalog.aurora_global_db_instance_status'::pg_catalog.regproc";
 
   protected static final String GLOBAL_TOPOLOGY_QUERY =
-      "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
+      "SELECT SERVER_ID, "
+          + "CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
           + "FROM pg_catalog.aurora_global_db_instance_status()";
 
   protected static final String REGION_COUNT_QUERY =
       "SELECT pg_catalog.count(1) FROM pg_catalog.aurora_global_db_status()";
   protected static final String REGION_BY_INSTANCE_ID_QUERY =
-      "SELECT AWS_REGION FROM pg_catalog.aurora_global_db_instance_status() WHERE SERVER_ID = ?";
+      "SELECT AWS_REGION FROM pg_catalog.aurora_global_db_instance_status() "
+          + "WHERE SERVER_ID OPERATOR(pg_catalog.=) ?";
 
   private static final Logger LOGGER = Logger.getLogger(GlobalAuroraPgDialect.class.getName());
 
