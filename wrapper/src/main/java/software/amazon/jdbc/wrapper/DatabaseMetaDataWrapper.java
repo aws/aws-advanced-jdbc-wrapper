@@ -24,16 +24,20 @@ import java.sql.SQLException;
 import java.util.StringJoiner;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionBoundObject;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.WrapperUtils;
 
-public class DatabaseMetaDataWrapper implements DatabaseMetaData {
+public class DatabaseMetaDataWrapper implements DatabaseMetaData, ConnectionBoundObject {
 
   protected final DatabaseMetaData databaseMetaData;
   protected final ConnectionWrapper connectionWrapper;
   protected final ConnectionPluginManager pluginManager;
+
+  // The internal connection this metadata object was created on; see ConnectionBoundObject.
+  private volatile Connection createdOnConnection;
 
   public DatabaseMetaDataWrapper(
       @NonNull DatabaseMetaData databaseMetaData,
@@ -42,6 +46,17 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     this.databaseMetaData = databaseMetaData;
     this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
+    this.createdOnConnection = connectionWrapper.getCurrentConnection();
+  }
+
+  @Override
+  public Connection getCreatedOnConnection() {
+    return this.createdOnConnection;
+  }
+
+  @Override
+  public void setCreatedOnConnection(final Connection connection) {
+    this.createdOnConnection = connection;
   }
 
   @Override
@@ -2441,11 +2456,12 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public Connection getConnection() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return WrapperUtils.executeWithPluginsWithBoundObject(
         Connection.class,
         SQLException.class,
         this.connectionWrapper,
           this.pluginManager,
+        this,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCONNECTION,
         () -> this.connectionWrapper);

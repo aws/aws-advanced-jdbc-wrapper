@@ -23,6 +23,7 @@ import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.Clob;
+import java.sql.Connection;
 import java.sql.Date;
 import java.sql.NClob;
 import java.sql.Ref;
@@ -40,15 +41,19 @@ import java.util.Calendar;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionBoundObject;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
-public class ResultSetWrapper implements ResultSet {
+public class ResultSetWrapper implements ResultSet, ConnectionBoundObject {
 
   protected final ResultSet resultSet;
   protected final ConnectionWrapper connectionWrapper;
   protected final ConnectionPluginManager pluginManager;
+
+  // The internal connection this result set was created on; see ConnectionBoundObject.
+  private volatile Connection createdOnConnection;
 
   public ResultSetWrapper(
       @NonNull ResultSet resultSet,
@@ -57,6 +62,17 @@ public class ResultSetWrapper implements ResultSet {
     this.resultSet = resultSet;
     this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
+    this.createdOnConnection = connectionWrapper.getCurrentConnection();
+  }
+
+  @Override
+  public Connection getCreatedOnConnection() {
+    return this.createdOnConnection;
+  }
+
+  @Override
+  public void setCreatedOnConnection(final Connection connection) {
+    this.createdOnConnection = connection;
   }
 
   @Override
@@ -1202,11 +1218,12 @@ public class ResultSetWrapper implements ResultSet {
 
   @Override
   public @Nullable Statement getStatement() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
+    return WrapperUtils.executeWithPluginsWithBoundObject(
         Statement.class,
         SQLException.class,
         this.connectionWrapper,
           this.pluginManager,
+        this,
         this.resultSet,
         JdbcMethod.RESULTSET_GETSTATEMENT,
         this.resultSet::getStatement);
