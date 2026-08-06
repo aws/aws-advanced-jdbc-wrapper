@@ -52,12 +52,14 @@ import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
 import integration.util.RetryHelper;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -804,6 +806,56 @@ public class ReadWriteSplittingTests {
       // have been cached and thus should be the same across conn1 and conn2.
       assertNotSame(conn1, conn2);
       assertSame(unwrappedConn1, unwrappedConn2);
+    } finally {
+      ConnectionProviderManager.releaseResources();
+      Driver.resetCustomConnectionProvider();
+    }
+  }
+
+  /**
+   * A {@code ResultSet} obtained from {@link Array#getResultSet()} is built by the target driver on
+   * the physical connection, while the wrapper's current connection is the pooled handle that wraps
+   * it. They are the same session, so the array's {@code ResultSet} must remain usable and must not
+   * be reported as belonging to an old connection
+   * (<a href="https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1367">issue #1367</a>).
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.PG})
+  public void test_pooledConnection_arrayResultSetAfterSetReadOnly() throws SQLException {
+    final String sql = "with stuff(text_col) as (values ('a'),('b'),('c'),('d'),('a')) "
+        + "select array(select distinct text_col from stuff) as text_values";
+
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider(getHikariConfig(1));
+    Driver.setCustomConnectionProvider(provider);
+
+    try (final Connection conn =
+             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getProps())) {
+
+      // Switches the internal connection, so the current connection is a pooled reader handle.
+      conn.setReadOnly(true);
+
+      final List<String> values = new ArrayList<>();
+      try (final Statement stmt = conn.createStatement()) {
+        stmt.execute(sql);
+        try (final ResultSet rs = stmt.getResultSet()) {
+          assertTrue(rs.next());
+
+          final Array array = rs.getArray("text_values");
+          assertNotNull(array);
+
+          try (final ResultSet arrayRs = array.getResultSet()) {
+            // Also covers a method that is checked against the bound connection.
+            assertDoesNotThrow(arrayRs::getStatement);
+            while (arrayRs.next()) {
+              values.add(arrayRs.getString(2));
+            }
+          }
+        }
+      }
+
+      assertEquals(4, values.size());
+      assertTrue(values.containsAll(Arrays.asList("a", "b", "c", "d")));
     } finally {
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();
