@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.plugin.iam;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -24,13 +26,24 @@ import software.amazon.awssdk.services.rds.RdsUtilities;
 
 public class RegularRdsUtility implements IamTokenUtility {
 
-  private @Nullable RdsUtilities utilities = null;
+  // Cache the RdsUtilities per region. RdsUtilities bakes in the region (and credentials provider)
+  // at build time, so a single cached instance would produce tokens signed for the region seen on
+  // the first call even after the region changes (e.g. cross-region failover). Keying by region
+  // ensures each region uses an RdsUtilities built for that region. The map is naturally bounded by
+  // the small number of regions a single instance can encounter.
+  private final Map<Region, RdsUtilities> utilitiesByRegion = new ConcurrentHashMap<>();
 
-  public RegularRdsUtility() {}
+  // For testing only: when set, this instance is always used regardless of region so tests can
+  // inject an RdsUtilities backed by a fixed clock for deterministic tokens.
+  private final @Nullable RdsUtilities injectedUtilities;
+
+  public RegularRdsUtility() {
+    this.injectedUtilities = null;
+  }
 
   // For testing only
   public RegularRdsUtility(final RdsUtilities utilities) {
-    this.utilities = utilities;
+    this.injectedUtilities = utilities;
   }
 
   @Override
@@ -41,14 +54,15 @@ public class RegularRdsUtility implements IamTokenUtility {
       final int port,
       final @NonNull String username) {
 
-    RdsUtilities localUtilities = this.utilities;
-    if (localUtilities == null) {
-      localUtilities = RdsUtilities.builder()
-          .credentialsProvider(credentialsProvider)
-          .region(region)
-          .build();
-      this.utilities = localUtilities;
-    }
+    final RdsUtilities localUtilities = this.injectedUtilities != null
+        ? this.injectedUtilities
+        : this.utilitiesByRegion.computeIfAbsent(
+            region,
+            r -> RdsUtilities.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(r)
+                .build());
+
     return localUtilities.generateAuthenticationToken((builder) ->
         builder
             .hostname(hostname)
