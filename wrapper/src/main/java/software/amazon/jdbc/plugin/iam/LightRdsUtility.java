@@ -24,12 +24,10 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.CredentialUtils;
 import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.utils.CompletableFutureUtils;
 import software.amazon.awssdk.utils.StringUtils;
 
 @SuppressWarnings("deprecation")
@@ -78,12 +76,12 @@ public class LightRdsUtility implements IamTokenUtility {
 
     final Instant expirationTime = Instant.now(this.clock).plus(EXPIRATION_DURATION);
 
-    // CompletableFutureUtils.joinLikeSync's type parameter is @NonNull-bounded; the wildcard
-    // captured from resolveIdentity() cannot be proven @NonNull by the checker (an SDK generics
-    // inference limitation), so the type-argument warning is suppressed here.
-    @SuppressWarnings("type.argument")
-    final AwsCredentials credentials = CredentialUtils.toCredentials(
-        CompletableFutureUtils.joinLikeSync(credentialsProvider.resolveIdentity()));
+    // Use the long-stable synchronous resolveCredentials() rather than the newer
+    // resolveIdentity() (introduced with the identity-spi refactor in AWS SDK ~2.20). When only a
+    // transitive AWS SDK dependency such as secretsmanager is on the classpath, it may resolve
+    // 'auth' to an older version that lacks resolveIdentity(), producing a NoSuchMethodError.
+    // resolveCredentials() has existed since AWS SDK v2.0 and avoids that version sensitivity.
+    final AwsCredentials credentials = credentialsProvider.resolveCredentials();
 
     final Aws4PresignerParams presignRequest = Aws4PresignerParams.builder()
         .signingClockOverride(this.clock)
