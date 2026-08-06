@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,7 +36,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Hashtable;
 import java.util.Properties;
-import java.util.logging.Logger;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -59,8 +59,6 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(6)
 public class DataSourceTests {
-
-  private static final Logger LOGGER = Logger.getLogger(DataSourceTests.class.getName());
 
   @TestTemplate
   @DisableOnTestDriver(TestDriver.MARIADB)
@@ -164,7 +162,7 @@ public class DataSourceTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
 
-      assertTrue(conn instanceof ConnectionWrapper);
+      assertInstanceOf(ConnectionWrapper.class, conn);
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
       assertEquals(
           conn.getCatalog(),

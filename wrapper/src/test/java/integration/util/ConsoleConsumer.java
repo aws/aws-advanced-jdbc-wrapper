@@ -23,7 +23,7 @@ import software.amazon.jdbc.util.Messages;
 public class ConsoleConsumer
     extends BaseConsumer<org.testcontainers.containers.output.Slf4jLogConsumer> {
 
-  private boolean separateOutputStreams;
+  private final boolean separateOutputStreams;
 
   public ConsoleConsumer() {
     this(false);

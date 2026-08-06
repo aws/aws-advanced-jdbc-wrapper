@@ -157,7 +157,7 @@ public class KmsEncryptionIntegrationTest {
   }
 
   @AfterEach
-  void cleanupTestData() throws Exception {
+  void cleanupTestData() {
     // Clean up test data between tests without dropping schema
     /*
     if (connection != null && !connection.isClosed()) {

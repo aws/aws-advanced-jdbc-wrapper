@@ -18,15 +18,11 @@ package integration.container.condition;
 
 import integration.container.TestDriver;
 import integration.container.TestEnvironment;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 public class EnableBasedOnEnvironmentFeatureExtension implements ExecutionCondition {
-
-  private static final Logger LOGGER =
-      Logger.getLogger(EnableBasedOnEnvironmentFeatureExtension.class.getName());
 
   private final TestDriver testDriver;
 

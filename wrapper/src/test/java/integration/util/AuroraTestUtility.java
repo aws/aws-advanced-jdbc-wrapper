@@ -103,7 +103,6 @@ import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRe
 import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
-import software.amazon.awssdk.services.rds.model.CreateDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.CreateDbParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.DBCluster;
@@ -321,7 +320,7 @@ public class AuroraTestUtility {
       throw new UnsupportedOperationException(deployment.toString());
     }
 
-    CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
+    rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
         .dbInstanceIdentifier(identifier)
         .publiclyAccessible(true)
         .dbName(dbName)

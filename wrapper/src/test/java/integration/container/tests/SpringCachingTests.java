@@ -59,7 +59,7 @@ import software.amazon.jdbc.plugin.cache.CacheConnection;
 public class SpringCachingTests {
 
   @AfterEach
-  public void afterEach() throws Exception {
+  public void afterEach() {
     // Clear the static connection pool registry to prevent test pollution
     CacheConnection.clearEndpointPoolRegistry();
   }
@@ -81,7 +81,7 @@ public class SpringCachingTests {
   }
 
   @TestTemplate
-  public void testWrongAuthFallsBackToDatabase() throws Exception {
+  public void testWrongAuthFallsBackToDatabase() {
     // Use WRONG cache credentials
     JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource("wrong-password", 0, true, false));
 

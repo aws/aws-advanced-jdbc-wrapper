@@ -57,14 +57,13 @@ public class ConnectionStringHelper {
       String databaseName) {
     final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
-    final String url = DriverHelper.getDriverProtocol(databaseEngine, testDriver)
+    return DriverHelper.getDriverProtocol(databaseEngine, testDriver)
         + host
         + ":"
         + port
         + "/"
         + databaseName
         + requiredParameters;
-    return url;
   }
 
   public static String getWrapperUrlWithPlugins(String host, int port, String databaseName, String wrapperPlugins) {

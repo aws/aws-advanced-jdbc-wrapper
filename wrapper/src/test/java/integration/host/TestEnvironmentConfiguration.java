@@ -18,81 +18,81 @@ package integration.host;
 
 public class TestEnvironmentConfiguration {
 
-  public boolean noDocker =
+  public final boolean noDocker =
       Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
-  public boolean noAurora =
+  public final boolean noAurora =
       Boolean.parseBoolean(System.getProperty("test-no-aurora", "false"));
-  public boolean noMultiAzCluster =
+  public final boolean noMultiAzCluster =
       Boolean.parseBoolean(System.getProperty("test-no-multi-az-cluster", "false"));
-  public boolean noMultiAzInstance =
+  public final boolean noMultiAzInstance =
       Boolean.parseBoolean(System.getProperty("test-no-multi-az-instance", "false"));
-  public boolean noPerformance =
+  public final boolean noPerformance =
       Boolean.parseBoolean(System.getProperty("test-no-performance", "false"));
-  public boolean noMysqlEngine =
+  public final boolean noMysqlEngine =
       Boolean.parseBoolean(System.getProperty("test-no-mysql-engine", "false"));
-  public boolean noMysqlDriver =
+  public final boolean noMysqlDriver =
       Boolean.parseBoolean(System.getProperty("test-no-mysql-driver", "false"));
-  public boolean noPgEngine =
+  public final boolean noPgEngine =
       Boolean.parseBoolean(System.getProperty("test-no-pg-engine", "false"));
-  public boolean noPgDriver =
+  public final boolean noPgDriver =
       Boolean.parseBoolean(System.getProperty("test-no-pg-driver", "false"));
-  public boolean noMariadbEngine =
+  public final boolean noMariadbEngine =
       Boolean.parseBoolean(System.getProperty("test-no-mariadb-engine", "false"));
-  public boolean noMariadbDriver =
+  public final boolean noMariadbDriver =
       Boolean.parseBoolean(System.getProperty("test-no-mariadb-driver", "false"));
-  public boolean noFailover =
+  public final boolean noFailover =
       Boolean.parseBoolean(System.getProperty("test-no-failover", "false"));
-  public boolean noIam =
+  public final boolean noIam =
       Boolean.parseBoolean(System.getProperty("test-no-iam", "false"));
-  public boolean noSecretsManager =
+  public final boolean noSecretsManager =
       Boolean.parseBoolean(System.getProperty("test-no-secrets-manager", "false"));
-  public boolean noHikari =
+  public final boolean noHikari =
       Boolean.parseBoolean(System.getProperty("test-no-hikari", "false"));
-  public boolean noGraalVm =
+  public final boolean noGraalVm =
       Boolean.parseBoolean(System.getProperty("test-no-graalvm", "false"));
-  public boolean noOpenJdk =
+  public final boolean noOpenJdk =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk", "false"));
-  public boolean noOpenJdk8 =
+  public final boolean noOpenJdk8 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk8", "false"));
-  public boolean noOpenJdk11 =
+  public final boolean noOpenJdk11 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk11", "false"));
-  public boolean noOpenJdk17 =
+  public final boolean noOpenJdk17 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk17", "false"));
-  public boolean noOpenJdk21 =
+  public final boolean noOpenJdk21 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk21", "false"));
-  public boolean noOpenJdk24 =
+  public final boolean noOpenJdk24 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk24", "false"));
-  public boolean testHibernateOnly =
+  public final boolean testHibernateOnly =
       Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
-  public boolean testAutoscalingOnly =
+  public final boolean testAutoscalingOnly =
       Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
-  public boolean testEncryptionOnly =
+  public final boolean testEncryptionOnly =
       Boolean.parseBoolean(System.getProperty("test-encryption-only", "false"));
-  public boolean testMetricsOnly =
+  public final boolean testMetricsOnly =
       Boolean.parseBoolean(System.getProperty("test-metrics-only", "false"));
 
-  public boolean noInstances1 =
+  public final boolean noInstances1 =
       Boolean.parseBoolean(System.getProperty("test-no-instances-1", "false"));
-  public boolean noInstances2 =
+  public final boolean noInstances2 =
       Boolean.parseBoolean(System.getProperty("test-no-instances-2", "false"));
-  public boolean noInstances3 =
+  public final boolean noInstances3 =
       Boolean.parseBoolean(System.getProperty("test-no-instances-3", "false"));
-  public boolean noInstances5 =
+  public final boolean noInstances5 =
       Boolean.parseBoolean(System.getProperty("test-no-instances-5", "false"));
 
-  public boolean noTracesTelemetry =
+  public final boolean noTracesTelemetry =
       Boolean.parseBoolean(System.getProperty("test-no-traces-telemetry", "false"));
-  public boolean noMetricsTelemetry =
+  public final boolean noMetricsTelemetry =
       Boolean.parseBoolean(System.getProperty("test-no-metrics-telemetry", "false"));
-  public boolean noBlueGreen =
+  public final boolean noBlueGreen =
       Boolean.parseBoolean(System.getProperty("test-no-bg", "true"));
-  public boolean testBlueGreenOnly =
+  public final boolean testBlueGreenOnly =
       Boolean.parseBoolean(System.getProperty("test-bg-only", "false"));
-  public boolean testValkeyCache =
+  public final boolean testValkeyCache =
       Boolean.parseBoolean(System.getProperty("test-valkey-cache", "false"));
 
-  public String includeTags = System.getProperty("test-include-tags");
-  public String excludeTags = System.getProperty("test-exclude-tags");
+  public final String includeTags = System.getProperty("test-include-tags");
+  public final String excludeTags = System.getProperty("test-exclude-tags");
 
   /**
    * Splits the in-container integration test classes across several CI jobs so they can run in
@@ -103,34 +103,34 @@ public class TestEnvironmentConfiguration {
    * <p>Only test class selection is affected. Which environments (deployment, engine, instance
    * count) are exercised is still controlled by the {@code test-no-*} properties.
    */
-  public int shardIndex = Integer.parseInt(System.getProperty("test-shard-index", "1"));
-  public int shardCount = Integer.parseInt(System.getProperty("test-shard-count", "1"));
+  public final int shardIndex = Integer.parseInt(System.getProperty("test-shard-index", "1"));
+  public final int shardCount = Integer.parseInt(System.getProperty("test-shard-count", "1"));
 
-  public String rdsDbRegion = System.getenv("RDS_DB_REGION");
+  public final String rdsDbRegion = System.getenv("RDS_DB_REGION");
 
-  public boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
-  public String rdsDbName = System.getenv("RDS_DB_NAME"); // "cluster-mysql", "instance-name", "cluster-multi-az-name"
-  public String rdsDbDomain =
+  public final boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
+  public final String rdsDbName = System.getenv("RDS_DB_NAME"); // "cluster-mysql", "instance-name", "cluster-multi-az-name"
+  public final String rdsDbDomain =
       System.getenv("RDS_DB_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
 
-  public String rdsEndpoint =
+  public final String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
 
   // Expected values: "latest", "default", or engine version, for example, "15.4"
   // If left as empty, will use default version
-  public String mysqlVersion =
+  public final String mysqlVersion =
       System.getenv("MYSQL_VERSION");
-  public String pgVersion =
+  public final String pgVersion =
       System.getenv("PG_VERSION");
 
-  public String dbName = System.getenv("DB_DATABASE_NAME");
-  public String dbUsername = System.getenv("DB_USERNAME");
-  public String dbPassword = System.getenv("DB_PASSWORD");
+  public final String dbName = System.getenv("DB_DATABASE_NAME");
+  public final String dbUsername = System.getenv("DB_USERNAME");
+  public final String dbPassword = System.getenv("DB_PASSWORD");
 
-  public String awsAccessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
-  public String awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
-  public String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
-  public String kmsKeyId = System.getenv("KMS_KEY_ID");
-  public String iamUser = System.getenv("IAM_USER");
+  public final String awsAccessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
+  public final String awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
+  public final String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
+  public final String kmsKeyId = System.getenv("KMS_KEY_ID");
+  public final String iamUser = System.getenv("IAM_USER");
   
 }

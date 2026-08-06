@@ -507,7 +507,7 @@ public class BlueGreenDeploymentTests {
         while (!stop.get()) {
           try  {
             final Statement statement = conn.createStatement();
-            final ResultSet result = statement.executeQuery("SELECT 1");
+            statement.executeQuery("SELECT 1");
             TimeUnit.SECONDS.sleep(1);
           } catch (SQLException throwable) {
             LOGGER.finest(String.format("[DirectBlueConnectivity @ %s] thread exception: %s", hostId, throwable));
@@ -611,7 +611,7 @@ public class BlueGreenDeploymentTests {
     return new Thread(() -> {
 
       Connection conn = null;
-      BlueGreenConnectionPlugin bgPlugin = null;
+      BlueGreenConnectionPlugin bgPlugin;
 
       String query;
       switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
@@ -738,7 +738,7 @@ public class BlueGreenDeploymentTests {
     return new Thread(() -> {
 
       Connection conn = null;
-      BlueGreenConnectionPlugin bgPlugin = null;
+      BlueGreenConnectionPlugin bgPlugin;
       try {
         final Properties props = this.getWrapperConnectionProperties();
 
@@ -833,7 +833,7 @@ public class BlueGreenDeploymentTests {
     return new Thread(() -> {
 
       Connection conn = null;
-      String originalBlueIp = null;
+      String originalBlueIp;
       try {
         final Properties props = this.getWrapperConnectionProperties();
         final String url = ConnectionStringHelper.getWrapperUrlWithPlugins(
@@ -950,7 +950,7 @@ public class BlueGreenDeploymentTests {
         while (!stop.get()) {
           TimeUnit.SECONDS.sleep(1);
           try {
-            String tmp = InetAddress.getByName(host).getHostAddress();
+            InetAddress.getByName(host).getHostAddress();
           } catch (UnknownHostException unknownHostException) {
             results.dnsGreenRemovedTime.set(System.nanoTime());
             break;
@@ -1180,7 +1180,7 @@ public class BlueGreenDeploymentTests {
           try  {
             final Statement statement = conn.createStatement();
             startTime = System.nanoTime();
-            final ResultSet result = statement.executeQuery("SELECT 1");
+            statement.executeQuery("SELECT 1");
             long endTime = System.nanoTime();
             results.greenWrapperExecuteTimes.add(new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
             TimeUnit.SECONDS.sleep(1);

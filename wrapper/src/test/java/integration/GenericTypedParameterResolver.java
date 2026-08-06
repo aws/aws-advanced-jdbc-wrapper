@@ -22,7 +22,7 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
 public class GenericTypedParameterResolver<T> implements ParameterResolver {
-  T data;
+  final T data;
 
   public GenericTypedParameterResolver(T data) {
     this.data = data;

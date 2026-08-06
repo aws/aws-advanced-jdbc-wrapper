@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -87,19 +88,19 @@ public class DriverConfigurationProfileTests {
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
-    assertTrue(conn instanceof ConnectionWrapper);
+    assertInstanceOf(ConnectionWrapper.class, conn);
     assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
-    assertTrue(statement instanceof StatementWrapper);
+    assertInstanceOf(StatementWrapper.class, statement);
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
-    assertTrue(resultSet instanceof ResultSetWrapper);
+    assertInstanceOf(ResultSetWrapper.class, resultSet);
 
     resultSet.next();
     int result = resultSet.getInt(1);

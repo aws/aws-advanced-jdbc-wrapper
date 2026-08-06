@@ -41,13 +41,10 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment {
-
-  private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
 
   private static TestEnvironment env;
 
@@ -270,10 +267,7 @@ public class TestEnvironment {
         throw new UnsupportedOperationException(testDriver.toString());
     }
 
-    if (disabledByFeature || !driverCompatibleToDatabaseEngine) {
-      // this driver is disabled
-      return false;
-    }
-    return true;
+    // the driver is disabled when a feature disables it or it is incompatible with the engine
+    return !disabledByFeature && driverCompatibleToDatabaseEngine;
   }
 }

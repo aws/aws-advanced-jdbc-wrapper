@@ -241,7 +241,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
 
       @Override
       public List<Extension> getAdditionalExtensions() {
-        return Collections.singletonList(new GenericTypedParameterResolver(info));
+        return Collections.singletonList(new GenericTypedParameterResolver<>(info));
       }
     };
   }
@@ -264,6 +264,6 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
 
   public static class EnvPreCreateInfo {
     public TestEnvironmentRequest request;
-    public Future envPreCreateFuture;
+    public Future<?> envPreCreateFuture;
   }
 }

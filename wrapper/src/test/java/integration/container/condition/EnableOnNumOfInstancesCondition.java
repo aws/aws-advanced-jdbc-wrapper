@@ -19,15 +19,11 @@ package integration.container.condition;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import integration.container.TestEnvironment;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 class EnableOnNumOfInstancesCondition implements ExecutionCondition {
-
-  private static final Logger LOGGER =
-      Logger.getLogger(EnableOnTestFeatureCondition.class.getName());
 
   public EnableOnNumOfInstancesCondition() {}
 
@@ -47,10 +43,7 @@ class EnableOnNumOfInstancesCondition implements ExecutionCondition {
                   if (annotation.min() > 0 && actualNumOfInstances < annotation.min()) {
                     return false;
                   }
-                  if (annotation.max() > 0 && actualNumOfInstances > annotation.max()) {
-                    return false;
-                  }
-                  return true;
+                  return !(annotation.max() > 0 && actualNumOfInstances > annotation.max());
                 }) //
             .orElse(true);
 

@@ -55,8 +55,6 @@ import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 @Order(9)
 public class LogQueryPluginTests {
 
-  private static final Logger LOGGER = Logger.getLogger(LogQueryPluginTests.class.getName());
-
   @TestTemplate
   public void testStatementExecuteQueryWithArg() throws SQLException, UnsupportedEncodingException {
 
@@ -81,7 +79,7 @@ public class LogQueryPluginTests {
     conn.close();
 
     handler.flush();
-    String logMessages = new String(os.toByteArray(), "UTF-8");
+    String logMessages = os.toString("UTF-8");
     assertTrue(logMessages.contains("[Statement.executeQuery] Executing query: SELECT 100"));
   }
 
@@ -110,7 +108,7 @@ public class LogQueryPluginTests {
     conn.close();
 
     handler.flush();
-    String logMessages = new String(os.toByteArray(), "UTF-8");
+    String logMessages = os.toString("UTF-8");
     assertTrue(
         logMessages.contains("[PreparedStatement.executeQuery] Executing query: SELECT 12345 * ?"));
   }
