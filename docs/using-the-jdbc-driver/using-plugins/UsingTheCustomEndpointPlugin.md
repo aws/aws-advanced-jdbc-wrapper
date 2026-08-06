@@ -2,6 +2,11 @@
 
 The Custom Endpoint Plugin adds support for RDS custom endpoints. When the Custom Endpoint Plugin is in use, the driver will analyse custom endpoint information to ensure instances used in connections are part of the custom endpoint being used. This includes connections used in failover and read-write splitting.
 
+Use this plugin when your connection string is an [Aurora custom endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Endpoints.Custom.html), also known as an Aurora cluster custom endpoint: `<custom-endpoint-name>.cluster-custom-<XYZ>.<region>.rds.amazonaws.com`. The plugin code is `customEndpoint`.
+
+> [!NOTE]
+> An Aurora custom endpoint is a cluster endpoint with a user-defined member list, managed in RDS. It is **not** the same as a user custom domain (a CNAME alias pointing at an RDS endpoint), which is configured with the [`clusterInstanceHostPattern`](./UsingTheFailoverPlugin.md#failover-parameters) parameter instead.
+
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ## Plugin Availability
@@ -28,7 +33,7 @@ The plugin is available since version 2.5.0.
 1. If needed, create a custom endpoint using the AWS RDS Console:
     - If needed, review the documentation about [creating a custom endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-custom-endpoint-creating.html).
 2. Add the plugin code `customEndpoint` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
-3. If you are using the failover plugin, set the failover parameter `failoverMode` according to the custom endpoint type. For example, if the custom endpoint you are using is of type `READER`, you can set `failoverMode` to `strict-reader`, or if it is of type `ANY`, you can set `failoverMode` to `reader-or-writer`.
+3. If you are using the failover plugin, set the failover parameter [`failoverMode`](./UsingTheFailoverPlugin.md#failover-parameters) according to the custom endpoint type. For example, if the custom endpoint you are using is of type `READER`, you can set `failoverMode` to `strict-reader`, or if it is of type `ANY`, you can set `failoverMode` to `reader-or-writer`.
 4. Specify parameters that are required or specific to your case.
 
 ### Custom Endpoint Plugin Parameters
@@ -50,6 +55,19 @@ When using IAM authentication make sure that IAM user has `rds:DescribeDBCluster
 ```
 software.amazon.awssdk.services.rds.model.RdsException: User: arn:aws:sts:...:assumed-role/.... is not authorized to perform: rds:DescribeDBClusterEndpoints on resource: arn:aws:rds:.... because no identity-based policy allows the rds:DescribeDBClusterEndpoints action (Service: Rds, Status Code: 403, Request ID: ...) 
 ```
+
+## See Also
+
+Other parameters and pages that affect how the wrapper behaves when connecting through an Aurora custom endpoint:
+
+| Topic                                                                            | Why it matters for custom endpoints                                                                                                                |
+|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`failoverMode`](./UsingTheFailoverPlugin.md#failover-parameters)                | Set it to match the custom endpoint type (`strict-reader` for `READER`, `reader-or-writer` for `ANY`). Applies to both `failover` and `failover2`. |
+| [`endpointSubstitutionRole`](./UsingTheAuroraInitialConnectionStrategyPlugin.md) | With this plugin enabled, valid values for custom cluster endpoints are `any`, `reader`, or `none`. Without it, the only valid value is `none`.    |
+| [`clusterId`](../ClusterId.md)                                                   | A custom endpoint is a non-standard RDS URL, so `clusterId` should be set explicitly.                                                              |
+| [Database URL types compatibility](../CompatibilityEndpoints.md)                 | Which plugins are compatible with the Aurora cluster custom endpoint URL type.                                                                     |
+| [Cross-plugin compatibility](../CompatibilityCrossPlugins.md)                    | `customEndpoint` is incompatible with `limitless`.                                                                                                 |
+| [Read/Write Splitting Plugin](./UsingTheReadWriteSplittingPlugin.md)             | Custom endpoints may contain both writer and reader instances, which affects role verification.                                                    |
 
 ### Telemetry Metrics
 
