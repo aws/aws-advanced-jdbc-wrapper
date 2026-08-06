@@ -106,26 +106,26 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
           "Cluster topology refresh rate in millis during a writer failover process. "
               + "During the writer failover process, "
               + "cluster topology may be refreshed at a faster pace than normal to speed up "
-              + "discovery of the newly promoted writer.");
+              + "discovery of the newly promoted writer.").nonNegative();
 
   public static final AwsWrapperProperty FAILOVER_TIMEOUT_MS =
       new AwsWrapperProperty(
           "failoverTimeoutMs",
           "300000",
-          "Maximum allowed time for the failover process.");
+          "Maximum allowed time for the failover process.").nonNegative();
 
   public static final AwsWrapperProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
       new AwsWrapperProperty(
           "failoverWriterReconnectIntervalMs",
           "2000",
           "Interval of time to wait between attempts to reconnect to a failed writer during a "
-              + "writer failover process.");
+              + "writer failover process.").nonNegative();
 
   public static final AwsWrapperProperty FAILOVER_READER_CONNECT_TIMEOUT_MS =
       new AwsWrapperProperty(
           "failoverReaderConnectTimeoutMs",
           "30000",
-          "Reader connection attempt timeout during a reader failover process.");
+          "Reader connection attempt timeout during a reader failover process.").nonNegative();
 
   public static final AwsWrapperProperty ENABLE_CLUSTER_AWARE_FAILOVER =
       new AwsWrapperProperty(

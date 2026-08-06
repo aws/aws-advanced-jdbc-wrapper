@@ -82,7 +82,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
 
   public static final AwsWrapperProperty IAM_EXPIRATION = new AwsWrapperProperty(
       "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
-      "IAM token cache expiration in seconds");
+      "IAM token cache expiration in seconds").nonNegative();
 
   public static final AwsWrapperProperty IAM_TOKEN_PROPERTY_NAME = new AwsWrapperProperty(
       "iamAccessTokenPropertyName", PropertyDefinition.PASSWORD.name,

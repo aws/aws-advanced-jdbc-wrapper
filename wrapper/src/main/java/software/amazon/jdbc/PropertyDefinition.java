@@ -122,14 +122,14 @@ public class PropertyDefinition {
 
   public static final AwsWrapperProperty LOGIN_TIMEOUT =
       new AwsWrapperProperty(
-          "loginTimeout", null, "Login timeout in msec.");
+          "loginTimeout", null, "Login timeout in msec.").nonNegative();
 
   public static final AwsWrapperProperty CONNECT_TIMEOUT =
       new AwsWrapperProperty(
-          "connectTimeout", null, "Socket connect timeout in msec.");
+          "connectTimeout", null, "Socket connect timeout in msec.").nonNegative();
   public static final AwsWrapperProperty SOCKET_TIMEOUT =
       new AwsWrapperProperty(
-          "socketTimeout", null, "Socket timeout in msec.");
+          "socketTimeout", null, "Socket timeout in msec.").nonNegative();
 
   public static final AwsWrapperProperty TCP_KEEP_ALIVE =
       new AwsWrapperProperty(
