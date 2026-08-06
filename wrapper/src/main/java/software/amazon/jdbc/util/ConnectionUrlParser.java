@@ -49,6 +49,12 @@ public class ConnectionUrlParser {
           Pattern.CASE_INSENSITIVE);
 
   static final Pattern EMPTY_STRING_IN_QUOTATIONS = Pattern.compile("\"(\\s*)\"");
+
+  // Matches a "password=<value>" query parameter (case-insensitive name), capturing the
+  // "password=" prefix so it can be preserved while the value is replaced when masking.
+  private static final Pattern PASSWORD_IN_URL_PATTERN =
+      Pattern.compile("(?i)(password=)[^&]*");
+
   private static final RdsUtils rdsUtils = new RdsUtils();
 
   public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
@@ -218,6 +224,25 @@ public class ConnectionUrlParser {
     return null;
   }
 
+  /**
+   * Mask the value of any "password" query parameter in a connection URL so the URL can be safely
+   * logged. For example, "...?user=foo&password=secret" becomes "...?user=foo&password=***".
+   *
+   * @param url the connection URL, which may be null
+   * @return the URL with password values replaced by "***", or the input unchanged if it is null,
+   *         empty, or contains no password parameter
+   */
+  public static @Nullable String maskUrlPassword(final @Nullable String url) {
+    if (StringUtils.isNullOrEmpty(url)) {
+      return url;
+    }
+    return PASSWORD_IN_URL_PATTERN.matcher(url).replaceAll("$1***");
+  }
+
+  private static boolean isSecretParameter(final @Nullable String parameterName) {
+    return parameterName != null && parameterName.toLowerCase().contains("password");
+  }
+
   // Get the properties from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
   public static void parsePropertiesFromUrl(final String url, final Properties props) {
@@ -236,7 +261,8 @@ public class ConnectionUrlParser {
         continue;
       }
 
-      currentParameterValue = urlDecode(param.substring(pos + 1));
+      final String currentParameterName = param.substring(0, pos);
+      currentParameterValue = urlDecode(param.substring(pos + 1), currentParameterName);
       if (currentParameterValue == null) {
         continue;
       }
@@ -247,7 +273,6 @@ public class ConnectionUrlParser {
       if (matcher.matches()) {
         currentParameterValue = "";
       }
-      final String currentParameterName = param.substring(0, pos);
       props.setProperty(currentParameterName, currentParameterValue);
     }
 
@@ -298,18 +323,21 @@ public class ConnectionUrlParser {
     }
   }
 
-  private static @Nullable String urlDecode(final String url) {
+  private static @Nullable String urlDecode(final String value, final @Nullable String parameterName) {
     try {
-      return StringUtils.decode(url);
+      return StringUtils.decode(value);
     } catch (final IllegalArgumentException e) {
+      // The value being decoded is a single query-parameter value; if it belongs to a password
+      // parameter, mask it so the secret is not written to the logs.
+      final String loggedValue = isSecretParameter(parameterName) ? "***" : value;
       LOGGER.fine(
           () -> Messages.get(
               "Driver.urlParsingFailed",
-              new Object[] {url, e.getMessage()}));
+              new Object[] {loggedValue, e.getMessage()}));
     }
 
     // Attempt to use the original value for connection.
-    return url;
+    return value;
   }
 
   public String getProtocol(final String url) {

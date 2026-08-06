@@ -172,7 +172,8 @@ public class Driver implements java.sql.Driver {
     // the driver's own messages are logged with a level the user hasn't asked for.
     LogUtils.applyLoggerLevel(props);
 
-    LOGGER.finest(() -> Messages.get("Driver.openingConnection", new Object[] {url}));
+    LOGGER.finest(() -> Messages.get("Driver.openingConnection",
+        new Object[] {ConnectionUrlParser.maskUrlPassword(url)}));
 
     LOGGER.finest(() -> PropertyUtils.logProperties(
         PropertyUtils.maskProperties(props), "Connecting with properties: \n"));

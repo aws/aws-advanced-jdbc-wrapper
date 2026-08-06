@@ -33,6 +33,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -137,7 +138,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     final ConnectInfo connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
-    LOGGER.finest(() -> "Connecting to " + connectInfo.url
+    LOGGER.finest(() -> "Connecting to " + ConnectionUrlParser.maskUrlPassword(connectInfo.url)
         + PropertyUtils.logProperties(
             PropertyUtils.maskProperties(connectInfo.props),
         "\nwith properties: \n"));
@@ -195,7 +196,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
       final ConnectInfo fixedConnectInfo = targetDriverDialect.prepareConnectInfo(protocol, connectionHostSpec, copy);
 
-      LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
+      LOGGER.finest(() -> "Connecting to " + ConnectionUrlParser.maskUrlPassword(fixedConnectInfo.url)
           + " after correcting the hostname from " + originalHost
           + PropertyUtils.logProperties(
               PropertyUtils.maskProperties(fixedConnectInfo.props), "\nwith properties: \n"));
