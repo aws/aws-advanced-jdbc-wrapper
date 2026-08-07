@@ -8,7 +8,13 @@ The plugin is available since version 1.0.0.
 
 ## Enabling the AWS Secrets Manager Connection Plugin
 > [!WARNING]\
-> To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These dependencies are required for the AWS Advanced JDBC Wrapper to pass database credentials to the underlying driver.
+> To use this plugin, you must include the runtime dependencies Jackson Databind and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These dependencies are required for the AWS Advanced JDBC Wrapper to pass database credentials to the underlying driver.
+>
+> **Which Jackson Databind version to add depends on your Java runtime.** The driver ships as a multi-release JAR, and this plugin selects its Jackson implementation based on the running JVM:
+> - **Java 17 or later:** the plugin uses **Jackson 3.x** and requires [`tools.jackson.core:jackson-databind`](https://central.sonatype.com/artifact/tools.jackson.core/jackson-databind) (tested against `3.2.1`).
+> - **Java 8, 11, or up to 16:** the plugin uses **Jackson 2.x** and requires [`com.fasterxml.jackson.core:jackson-databind`](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind).
+>
+> Jackson 2.x and 3.x use different Maven coordinates (`com.fasterxml.jackson.core` vs `tools.jackson.core`) and different Java packages (`com.fasterxml.jackson.*` vs `tools.jackson.*`), so they coexist on the same classpath without conflict. Adding Jackson 3.x will not interfere with a Jackson 2.x that another framework (for example, Spring Boot 3.x) already provides. If you run on Java 17+ and only Jackson 2.x is present, the plugin fails at initialization with `NoClassDefFoundError: tools/jackson/core/JacksonException`. See the [Jackson 3 Migration Guide](https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md) for background on the package/groupId change.
 
 > [!WARNING]\
 > To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
