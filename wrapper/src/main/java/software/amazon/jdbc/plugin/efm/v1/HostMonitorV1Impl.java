@@ -127,7 +127,11 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
   @Override
   public void startMonitoring(final ConnectionContext context) {
     if (this.stop.get()) {
+      // A stopped monitor never processes newContexts, so queueing more contexts here would grow the
+      // queue without bound. The monitor service replaces stopped monitors, so subsequent calls get
+      // a healthy monitor.
       LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
+      return;
     }
 
     assert context instanceof HostMonitorConnectionContextV1;
@@ -151,124 +155,34 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
           this, Collections.singleton(MonitorResetEvent.class));
 
       while (!this.stop.get()) {
-
-        // process new contexts
-        HostMonitorConnectionContextV1 newMonitorContext;
-        HostMonitorConnectionContextV1 firstAddedNewMonitorContext = null;
-        final long currentTimeNano = this.getCurrentTimeNano();
-
-        while ((newMonitorContext = this.newContexts.poll()) != null) {
-          if (this.stop.get()) {
-            break;
-          }
-          if (firstAddedNewMonitorContext == newMonitorContext) {
-            // This context has already been processed.
-            // Add it back to the queue and process it in the next round.
-            this.newContexts.add(newMonitorContext);
-            break;
-          }
-          if (newMonitorContext.isActiveContext()) {
-            if (newMonitorContext.getExpectedActiveMonitoringStartTimeNano() > currentTimeNano) {
-              // The context active monitoring time hasn't come.
-              // Add the context to the queue and check it later.
-              this.newContexts.add(newMonitorContext);
-              if (firstAddedNewMonitorContext == null) {
-                firstAddedNewMonitorContext = newMonitorContext;
-              }
-            } else {
-              // It's time to start actively monitor this context.
-              this.activeContexts.add(newMonitorContext);
-            }
-          }
-        }
-
-        final Connection copyConnection = this.monitoringConn.get();
-        if (!this.activeContexts.isEmpty()
-            || copyConnection == null
-            || copyConnection.isClosed()) {
-
-          final long statusCheckStartTimeNano = this.getCurrentTimeNano();
-          final boolean isValid = this.checkConnectionStatus(this.nodeCheckTimeoutMillis);
-          final long statusCheckEndTimeNano = this.getCurrentTimeNano();
-          final long elapsedTimeNano = statusCheckEndTimeNano - statusCheckStartTimeNano;
-          this.lastActivityTimestampNanos.set(statusCheckEndTimeNano);
-
-          long delayMillis = -1;
-          HostMonitorConnectionContextV1 monitorContext;
-          HostMonitorConnectionContextV1 firstAddedMonitorContext = null;
-
-          while ((monitorContext = this.activeContexts.poll()) != null) {
-            if (this.stop.get()) {
-              break;
-            }
-            monitorContext.getLock().lock();
-            try {
-              // If context is already invalid, just skip it
-              if (!monitorContext.isActiveContext()) {
-                continue;
-              }
-
-              if (firstAddedMonitorContext == monitorContext) {
-                // this context has already been processed by this loop
-                // add it to the queue and exit this loop
-                this.activeContexts.add(monitorContext);
-                break;
-              }
-
-              // otherwise, process this context
-              monitorContext.updateConnectionStatus(
-                  this.hostSpec.getUrl(),
-                  statusCheckStartTimeNano,
-                  statusCheckEndTimeNano,
-                  isValid);
-
-              // If context is still valid and node is still healthy, it needs to continue updating this context
-              if (monitorContext.isActiveContext() && !monitorContext.isNodeUnhealthy()) {
-                this.activeContexts.add(monitorContext);
-                if (firstAddedMonitorContext == null) {
-                  firstAddedMonitorContext = monitorContext;
-                }
-
-                if (delayMillis == -1 || delayMillis > monitorContext.getFailureDetectionIntervalMillis()) {
-                  delayMillis = monitorContext.getFailureDetectionIntervalMillis();
-                }
-              }
-            } finally {
-              monitorContext.getLock().unlock();
-            }
-          }
-
-          if (delayMillis == -1) {
-            // No active contexts
-            delayMillis = THREAD_SLEEP_WHEN_INACTIVE_MILLIS;
-          } else {
-            delayMillis -= TimeUnit.NANOSECONDS.toMillis(elapsedTimeNano);
-            // Check for min delay between node health check
-            if (delayMillis <= MIN_CONNECTION_CHECK_TIMEOUT_MILLIS) {
-              delayMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
-            }
-            // Use this delay as node checkout timeout since it corresponds to min interval for all active contexts
-            this.nodeCheckTimeoutMillis = delayMillis;
-          }
-
-          TimeUnit.MILLISECONDS.sleep(delayMillis);
-
-        } else {
+        try {
+          this.monitorIteration();
+        } catch (final InterruptedException intEx) {
+          Thread.currentThread().interrupt();
+          break;
+        } catch (final Throwable throwable) {
+          // A failed iteration must not terminate this thread; otherwise failure detection silently
+          // stops for this node and newContexts is never processed again. Log the error and keep
+          // monitoring.
+          LOGGER.log(
+              Level.WARNING,
+              Messages.get(
+                  "HostMonitorImpl.exceptionDuringMonitoringContinue",
+                  new Object[] {this.hostSpec.getHost()}),
+              throwable); // We want to print full trace stack of the exception.
           TimeUnit.MILLISECONDS.sleep(THREAD_SLEEP_WHEN_INACTIVE_MILLIS);
         }
       }
     } catch (final InterruptedException intEx) {
       Thread.currentThread().interrupt();
-    } catch (final Exception ex) {
+    } catch (final Throwable throwable) {
       // this should not be reached; log and exit thread
-      if (LOGGER.isLoggable(Level.FINEST)) {
-        LOGGER.log(
-            Level.FINEST,
-            Messages.get(
-                "HostMonitorImpl.exceptionDuringMonitoringStop",
-                new Object[] {this.hostSpec.getHost()}),
-            ex); // We want to print full trace stack of the exception.
-      }
+      LOGGER.log(
+          Level.WARNING,
+          Messages.get(
+              "HostMonitorImpl.exceptionDuringMonitoringStop",
+              new Object[] {this.hostSpec.getHost()}),
+          throwable); // We want to print full trace stack of the exception.
     } finally {
       this.stop.set(true);
       this.monitoringConn.clean();
@@ -279,6 +193,121 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
     LOGGER.finest(() -> Messages.get(
         "HostMonitorImpl.stopMonitoringThread",
         new Object[] {this.hostSpec.getHost()}));
+  }
+
+  /**
+   * Performs a single monitoring iteration: promotes due contexts from the new contexts queue, checks the status of the
+   * monitored host if needed, and updates the active monitoring contexts.
+   *
+   * @throws SQLException         if the monitoring connection cannot be inspected.
+   * @throws InterruptedException if the thread is interrupted while waiting for the next iteration.
+   */
+  protected void monitorIteration() throws SQLException, InterruptedException {
+
+    // process new contexts
+    HostMonitorConnectionContextV1 newMonitorContext;
+    HostMonitorConnectionContextV1 firstAddedNewMonitorContext = null;
+    final long currentTimeNano = this.getCurrentTimeNano();
+
+    while ((newMonitorContext = this.newContexts.poll()) != null) {
+      if (this.stop.get()) {
+        break;
+      }
+      if (firstAddedNewMonitorContext == newMonitorContext) {
+        // This context has already been processed.
+        // Add it back to the queue and process it in the next round.
+        this.newContexts.add(newMonitorContext);
+        break;
+      }
+      if (newMonitorContext.isActiveContext()) {
+        if (newMonitorContext.getExpectedActiveMonitoringStartTimeNano() > currentTimeNano) {
+          // The context active monitoring time hasn't come.
+          // Add the context to the queue and check it later.
+          this.newContexts.add(newMonitorContext);
+          if (firstAddedNewMonitorContext == null) {
+            firstAddedNewMonitorContext = newMonitorContext;
+          }
+        } else {
+          // It's time to start actively monitor this context.
+          this.activeContexts.add(newMonitorContext);
+        }
+      }
+    }
+
+    final Connection copyConnection = this.monitoringConn.get();
+    if (!this.activeContexts.isEmpty()
+        || copyConnection == null
+        || copyConnection.isClosed()) {
+
+      final long statusCheckStartTimeNano = this.getCurrentTimeNano();
+      final boolean isValid = this.checkConnectionStatus(this.nodeCheckTimeoutMillis);
+      final long statusCheckEndTimeNano = this.getCurrentTimeNano();
+      final long elapsedTimeNano = statusCheckEndTimeNano - statusCheckStartTimeNano;
+      this.lastActivityTimestampNanos.set(statusCheckEndTimeNano);
+
+      long delayMillis = -1;
+      HostMonitorConnectionContextV1 monitorContext;
+      HostMonitorConnectionContextV1 firstAddedMonitorContext = null;
+
+      while ((monitorContext = this.activeContexts.poll()) != null) {
+        if (this.stop.get()) {
+          break;
+        }
+        monitorContext.getLock().lock();
+        try {
+          // If context is already invalid, just skip it
+          if (!monitorContext.isActiveContext()) {
+            continue;
+          }
+
+          if (firstAddedMonitorContext == monitorContext) {
+            // this context has already been processed by this loop
+            // add it to the queue and exit this loop
+            this.activeContexts.add(monitorContext);
+            break;
+          }
+
+          // otherwise, process this context
+          monitorContext.updateConnectionStatus(
+              this.hostSpec.getUrl(),
+              statusCheckStartTimeNano,
+              statusCheckEndTimeNano,
+              isValid);
+
+          // If context is still valid and node is still healthy, it needs to continue updating this context
+          if (monitorContext.isActiveContext() && !monitorContext.isNodeUnhealthy()) {
+            this.activeContexts.add(monitorContext);
+            if (firstAddedMonitorContext == null) {
+              firstAddedMonitorContext = monitorContext;
+            }
+
+            if (delayMillis == -1 || delayMillis > monitorContext.getFailureDetectionIntervalMillis()) {
+              delayMillis = monitorContext.getFailureDetectionIntervalMillis();
+            }
+          }
+        } finally {
+          monitorContext.getLock().unlock();
+        }
+      }
+
+      if (delayMillis == -1) {
+        // No active contexts
+        delayMillis = THREAD_SLEEP_WHEN_INACTIVE_MILLIS;
+      } else {
+        delayMillis -= TimeUnit.NANOSECONDS.toMillis(elapsedTimeNano);
+        // Check for min delay between node health check
+        if (delayMillis <= MIN_CONNECTION_CHECK_TIMEOUT_MILLIS) {
+          delayMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
+        }
+        // Use this delay as node checkout timeout since it corresponds to min interval for all active contexts
+        this.nodeCheckTimeoutMillis = delayMillis;
+      }
+
+      TimeUnit.MILLISECONDS.sleep(delayMillis);
+
+    } else {
+      TimeUnit.MILLISECONDS.sleep(THREAD_SLEEP_WHEN_INACTIVE_MILLIS);
+    }
   }
 
   /**
