@@ -17,7 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -127,7 +127,7 @@ public class XaTransactionTest {
     final XAConnection xaConn = ds.getXAConnection();
     try {
       final Connection conn = xaConn.getConnection();
-      assertTrue(conn instanceof ConnectionWrapper);
+      assertInstanceOf(ConnectionWrapper.class, conn);
       assertNotNull(xaConn.getXAResource());
     } finally {
       xaConn.close();
@@ -290,8 +290,7 @@ public class XaTransactionTest {
    * while a transaction is active (PostgreSQL). The rejection happens client-side, before any
    * statement is sent, so the XA branch remains usable.
    */
-  private static void setReadOnlyIgnoringDriverRejection(final Connection conn, final boolean readOnly)
-      throws SQLException {
+  private static void setReadOnlyIgnoringDriverRejection(final Connection conn, final boolean readOnly) {
     try {
       conn.setReadOnly(readOnly);
     } catch (final SQLException e) {

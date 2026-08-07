@@ -35,7 +35,7 @@ import javax.naming.spi.ObjectFactory;
  * testing purposes. Objects are stored as references.
  */
 public class SimpleJndiContext implements Context {
-  private Map<String, Object> map = new HashMap<String, Object>();
+  private final Map<String, Object> map = new HashMap<>();
 
   public SimpleJndiContext() {
   }
@@ -76,92 +76,92 @@ public class SimpleJndiContext implements Context {
     map.put(name, ((Referenceable) obj).getReference());
   }
 
-  public void unbind(Name name) throws NamingException {
+  public void unbind(Name name) {
     unbind(name.get(0));
   }
 
-  public void unbind(String name) throws NamingException {
+  public void unbind(String name) {
     map.remove(name);
   }
 
-  public void rename(Name oldName, Name newName) throws NamingException {
+  public void rename(Name oldName, Name newName) {
     rename(oldName.get(0), newName.get(0));
   }
 
-  public void rename(String oldName, String newName) throws NamingException {
+  public void rename(String oldName, String newName) {
     map.put(newName, map.remove(oldName));
   }
 
-  public NamingEnumeration<NameClassPair> list(Name name) throws NamingException {
+  public NamingEnumeration<NameClassPair> list(Name name) {
     return null;
   }
 
-  public NamingEnumeration<NameClassPair> list(String name) throws NamingException {
+  public NamingEnumeration<NameClassPair> list(String name) {
     return null;
   }
 
-  public NamingEnumeration<Binding> listBindings(Name name) throws NamingException {
+  public NamingEnumeration<Binding> listBindings(Name name) {
     return null;
   }
 
-  public NamingEnumeration<Binding> listBindings(String name) throws NamingException {
+  public NamingEnumeration<Binding> listBindings(String name) {
     return null;
   }
 
-  public void destroySubcontext(Name name) throws NamingException {
+  public void destroySubcontext(Name name) {
   }
 
-  public void destroySubcontext(String name) throws NamingException {
+  public void destroySubcontext(String name) {
   }
 
-  public Context createSubcontext(Name name) throws NamingException {
+  public Context createSubcontext(Name name) {
     return null;
   }
 
-  public Context createSubcontext(String name) throws NamingException {
+  public Context createSubcontext(String name) {
     return null;
   }
 
-  public Object lookupLink(Name name) throws NamingException {
+  public Object lookupLink(Name name) {
     return null;
   }
 
-  public Object lookupLink(String name) throws NamingException {
+  public Object lookupLink(String name) {
     return null;
   }
 
-  public NameParser getNameParser(Name name) throws NamingException {
+  public NameParser getNameParser(Name name) {
     return null;
   }
 
-  public NameParser getNameParser(String name) throws NamingException {
+  public NameParser getNameParser(String name) {
     return null;
   }
 
-  public Name composeName(Name name, Name prefix) throws NamingException {
+  public Name composeName(Name name, Name prefix) {
     return null;
   }
 
-  public String composeName(String name, String prefix) throws NamingException {
+  public String composeName(String name, String prefix) {
     return null;
   }
 
-  public Object addToEnvironment(String propName, Object propVal) throws NamingException {
+  public Object addToEnvironment(String propName, Object propVal) {
     return null;
   }
 
-  public Object removeFromEnvironment(String propName) throws NamingException {
+  public Object removeFromEnvironment(String propName) {
     return null;
   }
 
-  public Hashtable<?, ?> getEnvironment() throws NamingException {
+  public Hashtable<?, ?> getEnvironment() {
     return null;
   }
 
-  public void close() throws NamingException {
+  public void close() {
   }
 
-  public String getNameInNamespace() throws NamingException {
+  public String getNameInNamespace() {
     return null;
   }
 }

@@ -61,7 +61,7 @@ import software.amazon.jdbc.plugin.cache.CachedResultSet;
 public class RemoteQueryCachePluginTests {
 
   @AfterEach
-  public void afterEach() throws Exception {
+  public void afterEach() {
     // Clear the static connection pool registry to prevent test pollution
     CacheConnection.clearEndpointPoolRegistry();
   }

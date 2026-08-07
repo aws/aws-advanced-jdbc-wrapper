@@ -18,6 +18,7 @@ package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -241,7 +242,7 @@ public class BasicConnectivityTests {
     try (Connection conn =
         DriverManager.getConnection(url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins())) {
 
-      assertTrue(conn instanceof ConnectionWrapper);
+      assertInstanceOf(ConnectionWrapper.class, conn);
       assertTrue(conn.isValid(10));
     }
   }

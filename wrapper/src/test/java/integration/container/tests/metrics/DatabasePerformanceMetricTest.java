@@ -794,7 +794,7 @@ public class DatabasePerformanceMetricTest {
     this.topologyEvents.stream().collect(groupingBy(x -> x.nodeId, toList()))
         .forEach((key, value) -> {
           final ArrayList<TopologyEventHolder> sortedEvents = value.stream()
-              .sorted(Comparator.comparingLong(y -> y.getOffsetTimeMs()))
+              .sorted(Comparator.comparingLong(TopologyEventHolder::getOffsetTimeMs))
               .collect(Collectors.toCollection(ArrayList::new));
           sortedEventsByOffsetTime.put(key, sortedEvents);
         });
@@ -809,7 +809,7 @@ public class DatabasePerformanceMetricTest {
             .findFirst().orElse(null))
         .collect(toSet());
 
-    if (startWriterIds.size() == 0) {
+    if (startWriterIds.isEmpty()) {
       runData.topologyError = "Can't identify start writer node.";
       return;
     }
@@ -831,7 +831,7 @@ public class DatabasePerformanceMetricTest {
             .findFirst().orElse(null))
         .collect(toSet());
 
-    if (endWriterIds.size() == 0) {
+    if (endWriterIds.isEmpty()) {
       runData.topologyError = "Can't identify end writer node.";
       return;
     }

@@ -21,15 +21,11 @@ import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 import integration.DatabaseEngineDeployment;
 import integration.container.TestEnvironment;
 import java.util.Arrays;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 public class EnableOnDatabaseEngineDeploymentCondition implements ExecutionCondition {
-
-  private static final Logger LOGGER =
-      Logger.getLogger(EnableOnDatabaseEngineDeploymentCondition.class.getName());
 
   public EnableOnDatabaseEngineDeploymentCondition() {}
 
@@ -47,7 +43,7 @@ public class EnableOnDatabaseEngineDeploymentCondition implements ExecutionCondi
                     return true;
                   }
                   return Arrays.stream(annotation.value())
-                      .anyMatch(v -> databaseEngineDeployment.equals(v));
+                      .anyMatch(databaseEngineDeployment::equals);
                 }) //
             .orElse(true);
 

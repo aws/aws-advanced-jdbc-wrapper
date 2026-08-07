@@ -49,7 +49,6 @@ public class TestInstanceInfo {
   }
 
   public String getUrl() {
-    String url = host + ":" + port + "/";
-    return url;
+    return host + ":" + port + "/";
   }
 }

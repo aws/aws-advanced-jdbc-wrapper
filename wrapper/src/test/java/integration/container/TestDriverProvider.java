@@ -17,6 +17,7 @@
 package integration.container;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
@@ -258,7 +259,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
           instanceIDs = new ArrayList<>();
         }
       }
-      assertTrue(instanceIDs.size() > 0);
+      assertFalse(instanceIDs.isEmpty());
       assertTrue(
           auroraUtil.isDBInstanceWriter(
               testInfo.getRdsDbName(),

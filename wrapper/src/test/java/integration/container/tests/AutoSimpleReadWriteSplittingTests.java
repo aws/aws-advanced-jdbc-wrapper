@@ -62,21 +62,21 @@ public class AutoSimpleReadWriteSplittingTests extends SimpleReadWriteSplittingT
   @Disabled("SQL routing reroutes 'START TRANSACTION READ ONLY' before the transaction is active, "
       + "so this setReadOnly-oriented expectation does not apply to autoSimpleReadWriteSplitting.")
   @Override
-  public void test_setReadOnlyFalseInReadOnlyTransaction() throws SQLException {
+  public void test_setReadOnlyFalseInReadOnlyTransaction() {
   }
 
   @TestTemplate
   @Disabled("SQL routing may reroute the post-write SELECT to the read endpoint (subject to "
       + "replication lag), so this expectation does not apply to autoSimpleReadWriteSplitting.")
   @Override
-  public void test_setReadOnlyTrueInTransaction() throws SQLException {
+  public void test_setReadOnlyTrueInTransaction() {
   }
 
   @TestTemplate
   @Disabled("SQL routing reroutes the raw SELECT to the read endpoint, changing the stale-statement "
       + "semantics this test relies on; not applicable to autoSimpleReadWriteSplitting.")
   @Override
-  public void test_executeWithOldConnection() throws SQLException {
+  public void test_executeWithOldConnection() {
   }
 
   @TestTemplate
@@ -84,13 +84,13 @@ public class AutoSimpleReadWriteSplittingTests extends SimpleReadWriteSplittingT
       + "setReadOnly(false) does not switch back to the writer here; this setReadOnly-oriented "
       + "expectation does not apply to autoSimpleReadWriteSplitting.")
   @Override
-  public void test_setReadOnlyFalseInTransaction_setAutocommitFalse() throws SQLException {
+  public void test_setReadOnlyFalseInTransaction_setAutocommitFalse() {
   }
 
   @TestTemplate
   @Disabled("With autocommit disabled the connection is pinned, so setReadOnly(true) does not "
       + "switch to the read endpoint; this expectation does not apply to autoSimpleReadWriteSplitting.")
   @Override
-  public void test_autoCommitStatePreserved_acrossConnectionSwitches() throws SQLException {
+  public void test_autoCommitStatePreserved_acrossConnectionSwitches() {
   }
 }

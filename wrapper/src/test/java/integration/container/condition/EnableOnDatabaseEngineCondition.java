@@ -21,15 +21,11 @@ import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 import integration.DatabaseEngine;
 import integration.container.TestEnvironment;
 import java.util.Arrays;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 public class EnableOnDatabaseEngineCondition implements ExecutionCondition {
-
-  private static final Logger LOGGER =
-      Logger.getLogger(EnableOnDatabaseEngineCondition.class.getName());
 
   public EnableOnDatabaseEngineCondition() {}
 
@@ -46,7 +42,7 @@ public class EnableOnDatabaseEngineCondition implements ExecutionCondition {
                   if (annotation == null || annotation.value() == null) {
                     return true;
                   }
-                  return Arrays.stream(annotation.value()).anyMatch(v -> databaseEngine.equals(v));
+                  return Arrays.stream(annotation.value()).anyMatch(databaseEngine::equals);
                 }) //
             .orElse(true);
 

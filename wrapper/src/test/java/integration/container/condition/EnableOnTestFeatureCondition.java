@@ -22,15 +22,11 @@ import integration.TestEnvironmentFeatures;
 import integration.container.TestEnvironment;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 class EnableOnTestFeatureCondition implements ExecutionCondition {
-
-  private static final Logger LOGGER =
-      Logger.getLogger(EnableOnTestFeatureCondition.class.getName());
 
   public EnableOnTestFeatureCondition() {}
 
@@ -47,7 +43,7 @@ class EnableOnTestFeatureCondition implements ExecutionCondition {
                   if (annotation == null || annotation.value() == null) {
                     return true;
                   }
-                  return Arrays.stream(annotation.value()).allMatch(v -> features.contains(v));
+                  return Arrays.stream(annotation.value()).allMatch(features::contains);
                 })
             .orElse(true);
 

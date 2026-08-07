@@ -261,7 +261,7 @@ public class FailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   public void test_writerFailWithinTransaction_startTransaction()
-      throws SQLException, InterruptedException {
+      throws SQLException {
 
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =

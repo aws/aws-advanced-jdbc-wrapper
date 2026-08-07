@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.DatabaseEngine;
@@ -40,7 +41,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
@@ -89,8 +89,6 @@ import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 // rather than a clear password, to a DB server and that leads to 'Access denied' error.
 // So taking that into account, all IAM tests are disabled for MariaDb driver.
 public class AwsIamIntegrationTest {
-
-  private static final Logger LOGGER = Logger.getLogger(AwsIamIntegrationTest.class.getName());
 
   @BeforeEach
   public void beforeEach() {
@@ -304,7 +302,7 @@ public class AwsIamIntegrationTest {
     // isolating the assertion to the topology monitor's own connections.
     ConfigurationProfileBuilder.get()
         .withName(profileName)
-        .withPluginFactories(Arrays.<Class<? extends ConnectionPluginFactory>>asList(
+        .withPluginFactories(Arrays.asList(
             IamAuthConnectionPluginFactory.class,
             AuroraConnectionTrackerPluginFactory.class,
             software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class))
@@ -344,8 +342,8 @@ public class AwsIamIntegrationTest {
             "The cluster topology monitor failed to refresh topology on an IAM-only database. This indicates the "
                 + "monitor did not inherit the IAM plugin from the class-based ConfigurationProfile and fell back to "
                 + "the default plugin list.");
-        assertTrue(
-            pluginService.getAllHosts().size() >= 1,
+        assertFalse(
+            pluginService.getAllHosts().isEmpty(),
             "Expected the topology monitor to have discovered at least one cluster host.");
       }
     } finally {
