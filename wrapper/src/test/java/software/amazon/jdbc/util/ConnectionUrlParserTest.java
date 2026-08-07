@@ -149,6 +149,12 @@ class ConnectionUrlParserTest {
   }
 
   @ParameterizedTest
+  @MethodSource("maskUrlPasswordUrls")
+  void testMaskUrlPassword(final String url, final String expected) {
+    assertEquals(expected, ConnectionUrlParser.maskUrlPassword(url));
+  }
+
+  @ParameterizedTest
   @MethodSource("encodedParams")
   void testEncodedParams(final String url, final String expected) {
     Properties props = new Properties();
@@ -260,6 +266,36 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//url/db?PASSWORD=foo", null),
         Arguments.of("protocol//url/db?PASSWORD=foo&user=bar", null),
         Arguments.of("protocol//url/db?pass=foo", null)
+    );
+  }
+
+  private static Stream<Arguments> maskUrlPasswordUrls() {
+    return Stream.of(
+        // null / empty / no-password inputs are returned unchanged
+        Arguments.of(null, null),
+        Arguments.of("", ""),
+        Arguments.of("protocol//url/db?user=foo", "protocol//url/db?user=foo"),
+        // basic masking
+        Arguments.of("protocol//url/db?password=secret", "protocol//url/db?password=***"),
+        // password in the middle keeps following params intact
+        Arguments.of("protocol//url/db?user=foo&password=secret&x=y",
+            "protocol//url/db?user=foo&password=***&x=y"),
+        // password followed by another param
+        Arguments.of("protocol//url/db?password=secret&user=bar",
+            "protocol//url/db?password=***&user=bar"),
+        // case-insensitive parameter name, original case preserved
+        Arguments.of("protocol//url/db?PASSWORD=secret", "protocol//url/db?PASSWORD=***"),
+        Arguments.of("protocol//url/db?Password=secret", "protocol//url/db?Password=***"),
+        // a "wrapperPassword"-style param (ends with password=) is masked too
+        Arguments.of("protocol//url/db?wrapperPassword=secret", "protocol//url/db?wrapperPassword=***"),
+        // a param that merely starts with "password" but isn't "password=" is left untouched
+        Arguments.of("protocol//url/db?passwordHint=notASecret", "protocol//url/db?passwordHint=notASecret"),
+        // empty password value stays masked/empty-safe
+        Arguments.of("protocol//url/db?password=&user=bar", "protocol//url/db?password=***&user=bar"),
+        Arguments.of("protocol//url/db?password=", "protocol//url/db?password=***"),
+        // multiple password occurrences are all masked
+        Arguments.of("protocol//url/db?password=a&x=1&password=b",
+            "protocol//url/db?password=***&x=1&password=***")
     );
   }
 
