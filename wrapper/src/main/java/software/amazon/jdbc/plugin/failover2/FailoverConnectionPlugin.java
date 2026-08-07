@@ -85,7 +85,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       new AwsWrapperProperty(
           "failoverTimeoutMs",
           "300000",
-          "Maximum allowed time for the failover process.");
+          "Maximum allowed time for the failover process.").nonNegative();
 
   public static final AwsWrapperProperty FAILOVER_MODE =
       new AwsWrapperProperty(
