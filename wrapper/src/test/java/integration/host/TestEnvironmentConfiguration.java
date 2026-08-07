@@ -109,7 +109,10 @@ public class TestEnvironmentConfiguration {
   public final String rdsDbRegion = System.getenv("RDS_DB_REGION");
 
   public final boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
-  public final String rdsDbName = System.getenv("RDS_DB_NAME"); // "cluster-mysql", "instance-name", "cluster-multi-az-name"
+
+  // "cluster-mysql", "instance-name", "cluster-multi-az-name"
+  public final String rdsDbName = System.getenv("RDS_DB_NAME");
+
   public final String rdsDbDomain =
       System.getenv("RDS_DB_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
 
@@ -132,5 +135,5 @@ public class TestEnvironmentConfiguration {
   public final String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
   public final String kmsKeyId = System.getenv("KMS_KEY_ID");
   public final String iamUser = System.getenv("IAM_USER");
-  
+
 }
