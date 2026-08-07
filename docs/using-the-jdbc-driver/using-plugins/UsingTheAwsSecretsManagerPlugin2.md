@@ -68,7 +68,7 @@ Both `awsSecretsManager` and `awsSecretsManager2` share the same credential cach
 ## Enabling the AWS Secrets Manager Connection Plugin v2
 
 > [!WARNING]\
-> To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These are the same dependencies required by the original plugin.
+> To use this plugin, you must include the runtime dependencies Jackson Databind and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These are the same dependencies required by the original plugin. As with the original plugin, the required Jackson Databind version depends on your Java runtime — **Jackson 3.x ([`tools.jackson.core:jackson-databind`](https://central.sonatype.com/artifact/tools.jackson.core/jackson-databind)) on Java 17+**, or **Jackson 2.x ([`com.fasterxml.jackson.core:jackson-databind`](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind)) on Java 8–16**. See the [original plugin's dependency notes](./UsingTheAwsSecretsManagerPlugin.md#enabling-the-aws-secrets-manager-connection-plugin) for details.
 
 > [!WARNING]\
 > To use this plugin, you must provide valid AWS credentials. See the [AWS credentials documentation](../AwsCredentials.md) for details.
