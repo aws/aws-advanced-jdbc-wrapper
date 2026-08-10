@@ -78,8 +78,11 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.retry.AwsRetryStrategy;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupRulesRequest;
@@ -171,6 +174,12 @@ public class AuroraTestUtility {
   private static final int DEFAULT_IOPS = 64000;
   private static final int DEFAULT_ALLOCATED_STORAGE = 400;
   private static final int MULTI_AZ_SIZE = 3;
+  // The RDS/EC2 control-plane APIs throttle aggressively ("Rate exceeded") when many integration
+  // test jobs run against the same AWS account in parallel. The SDK default is 3 retries (4 total
+  // attempts), which is exhausted within seconds and fails the whole test-environment build. Use an
+  // adaptive retry strategy (adds a client-side rate limiter that backs off on throttling responses)
+  // with a higher attempt count so transient throttling is ridden out instead of failing the run.
+  private static final int RDS_API_MAX_RETRY_ATTEMPTS = 13;
   // Number of concurrently prepared (two-phase) transactions the PostgreSQL test databases allow.
   // The XA tests never hold more than a handful, and each unused slot only costs shared memory.
   private static final String PG_MAX_PREPARED_TRANSACTIONS = "100";
@@ -207,9 +216,14 @@ public class AuroraTestUtility {
    * @param credentialsProvider The AWS credential provider to use to initialize the RdsClient and Ec2Client.
    */
   public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
+    final ClientOverrideConfiguration overrideConfiguration = ClientOverrideConfiguration.builder()
+        .retryStrategy(buildThrottlingResilientRetryStrategy())
+        .build();
+
     final RdsClientBuilder rdsClientBuilder = RdsClient.builder()
         .region(region)
-        .credentialsProvider(credentialsProvider);
+        .credentialsProvider(credentialsProvider)
+        .overrideConfiguration(overrideConfiguration);
 
     if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
       try {
@@ -223,6 +237,22 @@ public class AuroraTestUtility {
     ec2Client = Ec2Client.builder()
         .region(region)
         .credentialsProvider(credentialsProvider)
+        .overrideConfiguration(overrideConfiguration)
+        .build();
+  }
+
+  /**
+   * Builds a retry strategy that tolerates aggressive control-plane throttling ("Rate exceeded").
+   * The adaptive strategy adds a client-side rate limiter that slows request dispatch when the
+   * service returns throttling errors, and a higher {@code maxAttempts} extends how long transient
+   * throttling is retried before giving up.
+   *
+   * @return a throttling-resilient {@link RetryStrategy} for the RDS and EC2 clients.
+   */
+  private static RetryStrategy buildThrottlingResilientRetryStrategy() {
+    return AwsRetryStrategy.adaptiveRetryStrategy()
+        .toBuilder()
+        .maxAttempts(RDS_API_MAX_RETRY_ATTEMPTS)
         .build();
   }
 
