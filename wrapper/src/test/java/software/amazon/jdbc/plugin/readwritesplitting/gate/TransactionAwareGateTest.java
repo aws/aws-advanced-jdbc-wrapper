@@ -134,6 +134,40 @@ public class TransactionAwareGateTest {
   }
 
   @Test
+  void autoCommitOff_allowsSwitchToWriter() throws SQLException {
+    // A write with autocommit off but no transaction in progress must still reach the writer:
+    // it is the statement that would start the implicit transaction, and a read-only reader
+    // cannot serve it. Pinning would guarantee a --super-read-only failure (see issue #2083).
+    when(pluginService.isInTransaction()).thenReturn(false);
+    when(pluginService.getCallContext()).thenReturn(callContext);
+
+    final TransactionAwareGate gate = new TransactionAwareGate(true, true);
+    assertTrue(gate.canSwitch(ctx, TargetRole.WRITER));
+  }
+
+  @Test
+  void autoCommitIndeterminate_allowsSwitchToWriter() throws SQLException {
+    // Even when autocommit cannot be read, a write still cannot run on a reader, so the writer
+    // switch must not be blocked by the autocommit-off pin.
+    when(pluginService.isInTransaction()).thenReturn(false);
+    when(pluginService.getCallContext()).thenReturn(callContext);
+
+    final TransactionAwareGate gate = new TransactionAwareGate(true, true);
+    assertTrue(gate.canSwitch(ctx, TargetRole.WRITER));
+  }
+
+  @Test
+  void autoCommitOff_stillPinsWriterWhenInTransaction() throws SQLException {
+    // Once a transaction is in progress, even a write stays pinned: the connection must not
+    // change mid-transaction. This is enforced by the in-transaction check, ahead of the
+    // autocommit-off pin.
+    when(pluginService.isInTransaction()).thenReturn(true);
+
+    final TransactionAwareGate gate = new TransactionAwareGate(true, true);
+    assertFalse(gate.canSwitch(ctx, TargetRole.WRITER));
+  }
+
+  @Test
   void autoCommitOn_allowsSwitch() throws SQLException {
     when(pluginService.isInTransaction()).thenReturn(false);
     when(pluginService.getCallContext()).thenReturn(callContext);

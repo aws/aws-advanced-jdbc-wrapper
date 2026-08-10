@@ -40,6 +40,15 @@ import software.amazon.jdbc.util.Messages;
  *       transaction.</li>
  * </ul>
  *
+ * <p>The autocommit-off pin never blocks a switch to the {@link TargetRole#WRITER}. When control
+ * reaches that check there is no transaction in progress yet (the in-progress check above already
+ * returned), so autocommit-off only means the <em>next</em> statement would implicitly start one.
+ * That next statement is the write being routed here, and a write cannot run on a read-only reader:
+ * pinning it to the reader guarantees failure (e.g. MySQL {@code --super-read-only}, error 1290).
+ * The implicit transaction physically starts when the write executes on the writer, after which
+ * the in-progress check pins any following statements. Reads are still pinned so a read-first
+ * implicit transaction stays put.
+ *
  * <p>The legacy {@code setReadOnly(false)}-in-transaction throw is role-specific (it depends on
  * whether the current host is the writer) and is therefore enforced by the plugin orchestration,
  * which owns the role check; this gate only decides pinning.
@@ -88,7 +97,10 @@ public class TransactionAwareGate implements SwitchGate {
       return false;
     }
 
-    if (this.pinOnAutoCommitOff) {
+    // A write must reach the writer even with autocommit off: no transaction is in progress yet
+    // (checked above), so this write is what would start the implicit transaction, and a reader
+    // cannot serve it. Pinning here would guarantee a read-only failure.
+    if (this.pinOnAutoCommitOff && desired != TargetRole.WRITER) {
       try {
         final Optional<Boolean> autoCommit = ctx.pluginService().getSessionStateService().getAutoCommit();
         if (autoCommit.isPresent() && !autoCommit.get()) {
