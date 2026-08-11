@@ -228,8 +228,9 @@ public class WrapperUtils {
 
   /**
    * Runs a method that does not throw a checked exception through the plugin pipeline. There is no
-   * bound object, so no stale-object check is performed; a {@link JdbcMethod} declared with
-   * {@code checkBoundedConnection} must use {@link #executeWithPluginsWithBoundObject} instead.
+   * bound object, so no stale-object check can be performed; a {@link JdbcMethod} declared with
+   * {@code checkBoundedConnection} must use {@link #executeWithPluginsWithBoundObject} instead, which
+   * is asserted at runtime while assertions are enabled.
    */
   public static <T> T executeWithPlugins(
       final Class<T> resultClass,
@@ -239,6 +240,8 @@ public class WrapperUtils {
       final JdbcMethod jdbcMethod,
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
       final @Nullable Object... jdbcMethodArgs) {
+
+    assertBoundObjectSupplied(jdbcMethod, null);
 
     if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
@@ -355,6 +358,25 @@ public class WrapperUtils {
   }
 
   /**
+   * Fails fast when a method declared with {@code checkBoundedConnection} is routed through a call
+   * path that carries no bound object, because {@link #checkNotStale} would then silently skip the
+   * check and a stale object would go undetected. Enforced with an assertion: it fails the build in
+   * tests (Gradle enables assertions for test tasks) and is a no-op in production, so no working
+   * application starts failing on an upgrade. Must be called before the connection lock is taken so
+   * a failing assertion cannot leak the lock.
+   */
+  private static void assertBoundObjectSupplied(
+      final JdbcMethod jdbcMethod, final @Nullable ConnectionBoundObject boundObject) {
+    assert !jdbcMethod.shouldLockConnection
+        || !jdbcMethod.checkBoundedConnection
+        || boundObject != null
+        : jdbcMethod.methodName + " is declared with checkBoundedConnection, so it must be invoked"
+        + " through WrapperUtils.executeWithPluginsWithBoundObject (or the rebind-handle variant)"
+        + " passing the invoking wrapper as the bound object, otherwise a stale object is not"
+        + " detected. See JdbcMethod.checkBoundedConnection.";
+  }
+
+  /**
    * Rejects a method invoked on a wrapper object that was created against a connection which has
    * since been replaced (by failover or read/write splitting), because such an object is bound to the
    * previous session.
@@ -398,6 +420,8 @@ public class WrapperUtils {
       final @Nullable Rebindable rebindHandle,
       final @Nullable Object... jdbcMethodArgs)
       throws E {
+
+    assertBoundObjectSupplied(jdbcMethod, boundObject);
 
     if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
