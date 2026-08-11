@@ -168,6 +168,7 @@ public class WrapperUtilsTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation") // keeps covering the deprecated method until it is removed
   void getConnectionFromSqlObjectChecksStatementNotClosed() throws Exception {
     final Statement mockClosedStatement = mock(Statement.class);
     when(mockClosedStatement.isClosed()).thenReturn(true);
@@ -183,6 +184,7 @@ public class WrapperUtilsTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation") // keeps covering the deprecated method until it is removed
   void getConnectionFromSqlObjectChecksResultSetNotClosed() throws Exception {
     final ResultSet mockResultSet = mock(ResultSet.class);
     when(mockResultSet.isClosed()).thenReturn(true);

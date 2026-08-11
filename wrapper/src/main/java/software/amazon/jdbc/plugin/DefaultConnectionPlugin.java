@@ -45,7 +45,6 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
-import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -140,10 +139,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     final Connection currentConn = this.pluginService.getCurrentConnection();
-    final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-    if (boundConnection != null && boundConnection != currentConn) {
-      // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
-      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
+    if (methodInvokeOn instanceof Connection && methodInvokeOn != currentConn) {
+      // The call operates on a connection that is no longer the current one, so it must not update
+      // the transaction/autocommit state tracked for the current connection.
+      //
+      // Only a Connection is compared here. A Statement or ResultSet is not asked which connection
+      // it is bound to: the answer would come from the target driver, which reports the physical
+      // connection even when the wrapper holds a pooled or logical handle for the same session (for
+      // example a ResultSet from Array#getResultSet), so equally-valid objects looked stale. Those
+      // objects are covered earlier instead - WrapperUtils rejects a stale object before the pipeline
+      // runs for every method declared with JdbcMethod.checkBoundedConnection, which includes every
+      // method the analysis below reacts to (execute/executeQuery/executeUpdate/executeBatch).
       return result;
     }
 
