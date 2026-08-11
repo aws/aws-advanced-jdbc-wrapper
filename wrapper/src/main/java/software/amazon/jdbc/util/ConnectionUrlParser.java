@@ -226,7 +226,7 @@ public class ConnectionUrlParser {
 
   /**
    * Mask the value of any "password" query parameter in a connection URL so the URL can be safely
-   * logged. For example, "...?user=foo&password=secret" becomes "...?user=foo&password=***".
+   * logged. For example, "...?user=foo&amp;password=secret" becomes "...?user=foo&amp;password=***".
    *
    * @param url the connection URL, which may be null
    * @return the URL with password values replaced by "***", or the input unchanged if it is null,
