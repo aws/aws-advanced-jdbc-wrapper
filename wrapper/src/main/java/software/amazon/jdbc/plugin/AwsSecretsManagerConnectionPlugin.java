@@ -101,7 +101,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   public static final AwsWrapperProperty SECRETS_MANAGER_EXPIRATION_SEC_PROPERTY = new AwsWrapperProperty(
       "secretsManagerExpirationTimeSec", String.valueOf(DEFAULT_CREDENTIALS_EXPIRATION_SEC),
       "Secrets Manager credentials' expiration time in seconds."
-  );
+  ).nonNegative();
 
   protected static final RegionUtils regionUtils = new RegionUtils();
   private static final Pattern SECRETS_ARN_PATTERN =
