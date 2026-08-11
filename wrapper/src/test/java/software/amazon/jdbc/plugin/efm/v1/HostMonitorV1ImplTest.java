@@ -31,6 +31,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -185,7 +186,19 @@ class HostMonitorV1ImplTest {
   void test_startMonitoring_whenStopped() {
     monitor.stop();
     monitor.startMonitoring(contextWithShortInterval);
-    verify(contextWithShortInterval).setStartMonitorTimeNano(anyLong());
+
+    // A stopped monitor never processes queued contexts, so it must not accept any. Accepting them
+    // would grow the queue without bound while the caller keeps monitoring connections.
+    verify(contextWithShortInterval, never()).setStartMonitorTimeNano(anyLong());
+    assertEquals(0, getSnapshotStateValue("newContexts (size)"));
+  }
+
+  private Object getSnapshotStateValue(final String key) {
+    return monitor.getSnapshotState().stream()
+        .filter(pair -> key.equals(pair.getValue1()))
+        .map(Pair::getValue2)
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Snapshot state does not contain '" + key + "'"));
   }
 
   @Test

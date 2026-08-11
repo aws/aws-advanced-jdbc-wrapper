@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -107,6 +108,18 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   protected void checkMonitors() {
+    // This method runs on a scheduleAtFixedRate task, and such tasks are silently cancelled when
+    // they throw. Swallowing errors here keeps monitor supervision alive: without it, a single
+    // unexpected exception would permanently stop stuck/expired monitor detection for every monitor
+    // type, letting a broken monitor stay in the cache and accumulate state indefinitely.
+    try {
+      this.checkMonitorsInternal();
+    } catch (final Throwable throwable) {
+      LOGGER.log(Level.WARNING, Messages.get("MonitorServiceImpl.errorCheckingMonitors"), throwable);
+    }
+  }
+
+  protected void checkMonitorsInternal() {
     LOGGER.finest(Messages.get("MonitorServiceImpl.checkingMonitors"));
     for (CacheContainer container : monitorCaches.values()) {
       ExternallyManagedCache<Object, MonitorItem> cache = container.getCache();

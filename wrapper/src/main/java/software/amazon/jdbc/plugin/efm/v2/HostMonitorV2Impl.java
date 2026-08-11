@@ -175,7 +175,11 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
   @Override
   public void startMonitoring(final ConnectionContext context) {
     if (this.stop.get()) {
+      // A stopped monitor never drains newContexts, so queueing more contexts here would grow the
+      // map without bound. The monitor service replaces stopped monitors, so subsequent calls get
+      // a healthy monitor.
       LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
+      return;
     }
 
     assert context instanceof HostMonitorConnectionContextV2;
@@ -209,43 +213,59 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
 
     try {
       while (!this.stop.get()) {
-        final long currentTimeNano = this.getCurrentTimeNano();
-        this.lastActivityTimestampNanos.set(currentTimeNano);
+        try {
+          final long currentTimeNano = this.getCurrentTimeNano();
+          this.lastActivityTimestampNanos.set(currentTimeNano);
 
-        final ArrayList<Long> processedKeys = new ArrayList<>();
-        this.newContexts.entrySet().stream()
-            // Get entries with key (that is a time in nanos) less or equal than current time.
-            .filter(entry -> entry.getKey() < currentTimeNano)
-            .forEach(entry -> {
-              final Queue<WeakReference<HostMonitorConnectionContextV2>> queue = entry.getValue();
-              processedKeys.add(entry.getKey());
-              // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
-              // Add all contexts to an active monitoring contexts queue.
-              // Ignore disposed contexts.
-              WeakReference<HostMonitorConnectionContextV2> contextWeakRef;
-              while ((contextWeakRef = queue.poll()) != null) {
-                HostMonitorConnectionContextV2 context = contextWeakRef.get();
-                if (context != null && context.isActive()) {
-                  this.activeContexts.add(contextWeakRef);
+          final ArrayList<Long> processedKeys = new ArrayList<>();
+          this.newContexts.entrySet().stream()
+              // Get entries with key (that is a time in nanos) less or equal than current time.
+              .filter(entry -> entry.getKey() < currentTimeNano)
+              .forEach(entry -> {
+                final Queue<WeakReference<HostMonitorConnectionContextV2>> queue = entry.getValue();
+                processedKeys.add(entry.getKey());
+                // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
+                // Add all contexts to an active monitoring contexts queue.
+                // Ignore disposed contexts.
+                WeakReference<HostMonitorConnectionContextV2> contextWeakRef;
+                while ((contextWeakRef = queue.poll()) != null) {
+                  HostMonitorConnectionContextV2 context = contextWeakRef.get();
+                  if (context != null && context.isActive()) {
+                    this.activeContexts.add(contextWeakRef);
+                  }
                 }
-              }
-            });
-        processedKeys.forEach(this.newContexts::remove);
+              });
+          processedKeys.forEach(this.newContexts::remove);
+        } catch (final Throwable throwable) {
+          // A failed iteration must not terminate this thread. This thread is the only consumer of
+          // newContexts while startMonitoring() keeps adding to it on every monitored call, so an
+          // early exit means newContexts grows without bound (memory leak) and no context ever
+          // reaches activeContexts (failure detection silently stops for this node).
+          LOGGER.log(
+              Level.WARNING,
+              Messages.get(
+                  "HostMonitorImpl.exceptionDuringMonitoringContinue",
+                  new Object[] {this.hostSpec.getHost()}),
+              throwable); // We want to print full trace stack of the exception.
+        }
 
         TimeUnit.SECONDS.sleep(1);
       }
     } catch (final InterruptedException intEx) {
       Thread.currentThread().interrupt();
-    } catch (final Exception ex) {
+    } catch (final Throwable throwable) {
       // this should not be reached; log and exit thread
-      if (LOGGER.isLoggable(Level.FINEST)) {
-        LOGGER.log(
-            Level.FINEST,
-            Messages.get(
-                "HostMonitorImpl.exceptionDuringMonitoringStop",
-                new Object[] {this.hostSpec.getHost()}),
-            ex); // We want to print full trace stack of the exception.
-      }
+      LOGGER.log(
+          Level.WARNING,
+          Messages.get(
+              "HostMonitorImpl.exceptionDuringMonitoringStop",
+              new Object[] {this.hostSpec.getHost()}),
+          throwable); // We want to print full trace stack of the exception.
+    } finally {
+      // If this thread is gone, nothing drains newContexts anymore. Stopping the monitor lets the
+      // monitor service detect it and replace it with a healthy one, and makes startMonitoring()
+      // stop queueing contexts that would never be processed.
+      this.stop.set(true);
     }
 
     LOGGER.finest(() -> Messages.get(
@@ -266,69 +286,33 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
           this, Collections.singleton(MonitorResetEvent.class));
 
       while (!this.stop.get()) {
-
-        if (this.activeContexts.isEmpty() && !this.nodeUnhealthy.get()) {
+        try {
+          this.monitorIteration();
+        } catch (final InterruptedException intEx) {
+          Thread.currentThread().interrupt();
+          break;
+        } catch (final Throwable throwable) {
+          // A failed iteration must not terminate this thread; otherwise failure detection silently
+          // stops for this node. Log the error and keep monitoring.
+          LOGGER.log(
+              Level.WARNING,
+              Messages.get(
+                  "HostMonitorImpl.exceptionDuringMonitoringContinue",
+                  new Object[] {this.hostSpec.getHost()}),
+              throwable); // We want to print full trace stack of the exception.
           TimeUnit.NANOSECONDS.sleep(THREAD_SLEEP_NANO);
-          continue;
         }
-
-        final long statusCheckStartTimeNano = this.getCurrentTimeNano();
-        final boolean isValid = this.checkConnectionStatus();
-        final long statusCheckEndTimeNano = this.getCurrentTimeNano();
-
-        this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
-
-        final List<WeakReference<HostMonitorConnectionContextV2>> tmpActiveContexts = new ArrayList<>();
-        WeakReference<HostMonitorConnectionContextV2> monitorContextWeakRef;
-
-        while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
-          if (this.stop.get()) {
-            break;
-          }
-
-          HostMonitorConnectionContextV2 monitorContext = monitorContextWeakRef.get();
-          if (monitorContext == null) {
-            continue;
-          }
-
-          if (this.nodeUnhealthy.get()) {
-            // Kill connection.
-            monitorContext.setNodeUnhealthy(true);
-            final Connection connectionToAbort = monitorContext.getConnection();
-            this.servicesContainer.getConnectionContextService().release(monitorContext);
-            if (connectionToAbort != null) {
-              this.abortConnection(connectionToAbort);
-              if (this.abortedConnectionsCounter != null) {
-                this.abortedConnectionsCounter.inc();
-              }
-            }
-          } else if (monitorContext.isActive()) {
-            tmpActiveContexts.add(monitorContextWeakRef);
-          }
-        }
-
-        // activeContexts is empty now and tmpActiveContexts contains all yet active contexts
-        // Add active contexts back to the queue.
-        this.activeContexts.addAll(tmpActiveContexts);
-
-        long delayNano = this.failureDetectionIntervalNano - (statusCheckEndTimeNano - statusCheckStartTimeNano);
-        if (delayNano < THREAD_SLEEP_NANO) {
-          delayNano = THREAD_SLEEP_NANO;
-        }
-        TimeUnit.NANOSECONDS.sleep(delayNano);
       }
     } catch (final InterruptedException intEx) {
       Thread.currentThread().interrupt();
-    } catch (final Exception ex) {
+    } catch (final Throwable throwable) {
       // this should not be reached; log and exit thread
-      if (LOGGER.isLoggable(Level.FINEST)) {
-        LOGGER.log(
-            Level.FINEST,
-            Messages.get(
-                "HostMonitorImpl.exceptionDuringMonitoringStop",
-                new Object[] {this.hostSpec.getHost()}),
-            ex); // We want to print full trace stack of the exception.
-      }
+      LOGGER.log(
+          Level.WARNING,
+          Messages.get(
+              "HostMonitorImpl.exceptionDuringMonitoringStop",
+              new Object[] {this.hostSpec.getHost()}),
+          throwable); // We want to print full trace stack of the exception.
     } finally {
       this.stop.set(true);
       this.monitoringConn.clean();
@@ -339,6 +323,65 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
     LOGGER.finest(() -> Messages.get(
         "HostMonitorImpl.stopMonitoringThread",
         new Object[] {this.hostSpec.getHost()}));
+  }
+
+  /**
+   * Performs a single monitoring iteration: checks the status of the monitored host, updates its health status, and
+   * processes the active monitoring contexts.
+   *
+   * @throws InterruptedException if the thread is interrupted while waiting for the next iteration.
+   */
+  protected void monitorIteration() throws InterruptedException {
+
+    if (this.activeContexts.isEmpty() && !this.nodeUnhealthy.get()) {
+      TimeUnit.NANOSECONDS.sleep(THREAD_SLEEP_NANO);
+      return;
+    }
+
+    final long statusCheckStartTimeNano = this.getCurrentTimeNano();
+    final boolean isValid = this.checkConnectionStatus();
+    final long statusCheckEndTimeNano = this.getCurrentTimeNano();
+
+    this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
+
+    final List<WeakReference<HostMonitorConnectionContextV2>> tmpActiveContexts = new ArrayList<>();
+    WeakReference<HostMonitorConnectionContextV2> monitorContextWeakRef;
+
+    while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
+      if (this.stop.get()) {
+        break;
+      }
+
+      HostMonitorConnectionContextV2 monitorContext = monitorContextWeakRef.get();
+      if (monitorContext == null) {
+        continue;
+      }
+
+      if (this.nodeUnhealthy.get()) {
+        // Kill connection.
+        monitorContext.setNodeUnhealthy(true);
+        final Connection connectionToAbort = monitorContext.getConnection();
+        this.servicesContainer.getConnectionContextService().release(monitorContext);
+        if (connectionToAbort != null) {
+          this.abortConnection(connectionToAbort);
+          if (this.abortedConnectionsCounter != null) {
+            this.abortedConnectionsCounter.inc();
+          }
+        }
+      } else if (monitorContext.isActive()) {
+        tmpActiveContexts.add(monitorContextWeakRef);
+      }
+    }
+
+    // activeContexts is empty now and tmpActiveContexts contains all yet active contexts
+    // Add active contexts back to the queue.
+    this.activeContexts.addAll(tmpActiveContexts);
+
+    long delayNano = this.failureDetectionIntervalNano - (statusCheckEndTimeNano - statusCheckStartTimeNano);
+    if (delayNano < THREAD_SLEEP_NANO) {
+      delayNano = THREAD_SLEEP_NANO;
+    }
+    TimeUnit.NANOSECONDS.sleep(delayNano);
   }
 
   /**
