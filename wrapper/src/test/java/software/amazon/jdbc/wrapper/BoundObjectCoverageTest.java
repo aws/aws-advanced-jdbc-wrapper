@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.wrapper;
 
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +52,7 @@ import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -66,14 +69,30 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class BoundObjectCoverageTest {
 
   /** Wrapper class to the {@link JdbcMethod} name prefix its call sites use. */
-  private static final Map<Class<?>, String> WRAPPERS = new LinkedHashMap<>();
+  private static final Map<Class<?>, String> WRAPPERS = wrappers();
 
-  static {
-    WRAPPERS.put(StatementWrapper.class, "Statement");
-    WRAPPERS.put(PreparedStatementWrapper.class, "PreparedStatement");
-    WRAPPERS.put(CallableStatementWrapper.class, "CallableStatement");
-    WRAPPERS.put(ResultSetWrapper.class, "ResultSet");
-    WRAPPERS.put(DatabaseMetaDataWrapper.class, "DatabaseMetaData");
+  /**
+   * The literal part of the stale-object message that precedes the offending object, taken from the
+   * resource bundle so a reworded message does not have to be mirrored here.
+   */
+  private static final String STALE_MESSAGE_PREFIX = staleMessagePrefix();
+
+  private static Map<Class<?>, String> wrappers() {
+    final Map<Class<?>, String> map = new LinkedHashMap<>();
+    map.put(StatementWrapper.class, "Statement");
+    map.put(PreparedStatementWrapper.class, "PreparedStatement");
+    map.put(CallableStatementWrapper.class, "CallableStatement");
+    map.put(ResultSetWrapper.class, "ResultSet");
+    map.put(DatabaseMetaDataWrapper.class, "DatabaseMetaData");
+    return Collections.unmodifiableMap(map);
+  }
+
+  private static String staleMessagePrefix() {
+    final String placeholder = "@@INVOKED_ON@@";
+    final String message = Messages.get(
+        "ConnectionPluginManager.invokedAgainstOldConnection", new Object[] {placeholder});
+    final int at = message.indexOf(placeholder);
+    return at > 0 ? message.substring(0, at) : message;
   }
 
   @Mock private ConnectionWrapper connectionWrapper;
@@ -195,7 +214,7 @@ public class BoundObjectCoverageTest {
 
     // Sanity: the wrapper recorded the connection it was created on, and it is no longer current.
     final ConnectionBoundObject bound = (ConnectionBoundObject) wrapper;
-    assertTrue(bound.getCreatedOnConnection() == createdOn,
+    assertSame(createdOn, bound.getCreatedOnConnection(),
         wrapperClass.getSimpleName() + " did not record the connection it was created on");
     currentConnection.set(mock(Connection.class));
     return wrapper;
@@ -216,7 +235,7 @@ public class BoundObjectCoverageTest {
       while (cause != null) {
         if (cause instanceof SQLException
             && cause.getMessage() != null
-            && cause.getMessage().contains("internal connection has changed")) {
+            && cause.getMessage().startsWith(STALE_MESSAGE_PREFIX)) {
           return true;
         }
         cause = cause.getCause();
@@ -250,6 +269,20 @@ public class BoundObjectCoverageTest {
       names.add(type.getSimpleName());
     }
     return String.join(", ", names);
+  }
+
+  @Test
+  void staleMessagePrefixIsUsable() {
+    // The audit recognises a rejection by this prefix, so it must be a real, non-empty prefix of the
+    // formatted message. Without this, a bundle change could turn the audit into a no-op.
+    final String formatted = Messages.get(
+        "ConnectionPluginManager.invokedAgainstOldConnection", new Object[] {"someObject"});
+
+    assertTrue(!STALE_MESSAGE_PREFIX.isEmpty(), "the stale-object message prefix must not be empty");
+    assertTrue(STALE_MESSAGE_PREFIX.length() < formatted.length(),
+        "the prefix must be shorter than the formatted message, was: " + STALE_MESSAGE_PREFIX);
+    assertTrue(formatted.startsWith(STALE_MESSAGE_PREFIX),
+        "the formatted message must start with the prefix the audit matches on");
   }
 
   @Test

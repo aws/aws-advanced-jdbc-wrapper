@@ -367,13 +367,12 @@ public class WrapperUtils {
    */
   private static void assertBoundObjectSupplied(
       final JdbcMethod jdbcMethod, final @Nullable ConnectionBoundObject boundObject) {
+    // The message is only built when the assertion fails, so the lookup costs nothing on a normal
+    // call, and nothing at all when assertions are disabled.
     assert !jdbcMethod.shouldLockConnection
         || !jdbcMethod.checkBoundedConnection
         || boundObject != null
-        : jdbcMethod.methodName + " is declared with checkBoundedConnection, so it must be invoked"
-        + " through WrapperUtils.executeWithPluginsWithBoundObject (or the rebind-handle variant)"
-        + " passing the invoking wrapper as the bound object, otherwise a stale object is not"
-        + " detected. See JdbcMethod.checkBoundedConnection.";
+        : Messages.get("WrapperUtils.missingBoundObject", new Object[] {jdbcMethod.methodName});
   }
 
   /**
