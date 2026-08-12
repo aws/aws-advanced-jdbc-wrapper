@@ -730,45 +730,6 @@ public class WrapperUtils {
   }
 
   /**
-   * Returns the connection the given JDBC object is bound to, according to the target driver.
-   *
-   * @param obj a {@code Connection}, {@code Statement} or {@code ResultSet}, or {@code null}.
-   * @return the bound connection, or {@code null} when it cannot be determined (a {@code null},
-   *     closed, or unsupported object).
-   * @deprecated no longer used by the driver and scheduled for removal. It is not a reliable way to
-   *     decide whether a JDBC object still belongs to the current session: the target driver reports
-   *     the physical connection even when the wrapper holds a pooled or logical handle wrapping that
-   *     same session, so equally-valid objects appear stale (see
-   *     <a href="https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1367">issue #1367</a>). A
-   *     wrapper object now records the connection it was created on instead; see
-   *     {@link software.amazon.jdbc.ConnectionBoundObject}. Calling this also queries the target
-   *     driver ({@code Statement.getConnection()} may block).
-   */
-  @Deprecated
-  public static @Nullable Connection getConnectionFromSqlObject(final @Nullable Object obj) {
-    if (obj == null) {
-      return null;
-    }
-    try {
-      if (obj instanceof Connection) {
-        return (Connection) obj;
-      } else if (obj instanceof Statement) {
-        final Statement stmt = (Statement) obj;
-        return !stmt.isClosed() ? stmt.getConnection() : null;
-      } else if (obj instanceof ResultSet) {
-        final ResultSet rs = (ResultSet) obj;
-        final Statement stmt = !rs.isClosed() ? rs.getStatement() : null;
-        return stmt != null && !stmt.isClosed() ? stmt.getConnection() : null;
-      }
-    } catch (final SQLException | UnsupportedOperationException e) {
-      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by
-      // DataLocalCacheConnectionPlugin and will be triggered when getStatement is called.
-    }
-
-    return null;
-  }
-
-  /**
    * Check if the throwable is an instance of the given exception and throw it as the required
    * exception class, otherwise throw it as a runtime exception.
    *

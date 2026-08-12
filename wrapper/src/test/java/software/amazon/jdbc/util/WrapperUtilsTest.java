@@ -18,7 +18,6 @@ package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -165,33 +164,6 @@ public class WrapperUtilsTest {
         CompletableFuture.supplyAsync(this::callExecuteWithPluginsWithException),
         CompletableFuture.supplyAsync(this::callCancelExecuteWithPluginsWithException)
     ).join();
-  }
-
-  @Test
-  @SuppressWarnings("deprecation") // keeps covering the deprecated method until it is removed
-  void getConnectionFromSqlObjectChecksStatementNotClosed() throws Exception {
-    final Statement mockClosedStatement = mock(Statement.class);
-    when(mockClosedStatement.isClosed()).thenReturn(true);
-    when(mockClosedStatement.getConnection()).thenThrow(IllegalStateException.class);
-
-    final ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.getStatement()).thenReturn(mockClosedStatement);
-
-    final Connection stmtConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
-    assertNull(stmtConn);
-    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
-    assertNull(rsConn);
-  }
-
-  @Test
-  @SuppressWarnings("deprecation") // keeps covering the deprecated method until it is removed
-  void getConnectionFromSqlObjectChecksResultSetNotClosed() throws Exception {
-    final ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.isClosed()).thenReturn(true);
-    when(mockResultSet.getStatement()).thenThrow(IllegalStateException.class);
-
-    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockResultSet);
-    assertNull(rsConn);
   }
 
   @Test
