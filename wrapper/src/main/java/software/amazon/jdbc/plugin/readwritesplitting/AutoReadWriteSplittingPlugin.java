@@ -51,7 +51,8 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     final TopologyWriterResolver writerResolver = new TopologyWriterResolver();
     return RwSplitHelpers.builder()
         .roleClassifier(roleClassifier)
-        .routingSignal(new CompositeSignal(new SqlRoutingSignal(), new ReadOnlyFlagSignal()))
+        .routingSignal(new CompositeSignal(
+            new SqlRoutingSignal(ASSUME_WRITE_TRANSACTION.getBoolean(props)), new ReadOnlyFlagSignal()))
         .switchGate(new TransactionAwareGate(true, true))
         .topologyRefresher(new TopologyRefresherImpl())
         .writerResolver(writerResolver)

@@ -50,6 +50,8 @@ This plugin accepts the same endpoint parameters as the [Simple Read/Write Split
 
 It also accepts the family-wide `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters — see [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing). Because each read statement is a routing point, query-level load balancing rotates reads per query.
 
+Like the other SQL-routing plugins, it accepts `assumeWriteTransaction` (default `false`) to route a transaction that was not declared read-only to the writer, including its leading reads. Recommended for Spring/JPA applications; see [Transactions and autocommit](./UsingTheAutoReadWriteSplittingPlugin.md#transactions-and-autocommit) for the rationale and the recommended `setReadOnly`/`setAutoCommit` sequence.
+
 ## Limitations
 
 All limitations of the [Automatic Read/Write Splitting Plugin](./UsingTheAutoReadWriteSplittingPlugin.md#limitations) (including the handling of `CallableStatement` and unparseable SQL) and the [Simple Read/Write Splitting Plugin](./UsingTheSimpleReadWriteSplittingPlugin.md#limitations) apply.

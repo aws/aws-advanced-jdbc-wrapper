@@ -37,7 +37,8 @@ public class AutoSimpleReadWriteSplittingPlugin extends SimpleReadWriteSplitting
 
   private static RwSplitHelpers autoSimple(final Properties props) {
     return endpointHelpers(props,
-        new CompositeSignal(new SqlRoutingSignal(), new ReadOnlyFlagSignal()),
+        new CompositeSignal(
+            new SqlRoutingSignal(ASSUME_WRITE_TRANSACTION.getBoolean(props)), new ReadOnlyFlagSignal()),
         new TransactionAwareGate(true, true),
         new NoOpTopologyRefresher());
   }
