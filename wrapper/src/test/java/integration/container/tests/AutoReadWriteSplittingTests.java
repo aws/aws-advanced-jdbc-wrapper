@@ -274,43 +274,54 @@ public class AutoReadWriteSplittingTests extends ReadWriteSplittingTests {
 
     try (final Connection conn = DriverManager.getConnection(url, props)) {
       // A fresh connection starts on the writer. Create the target table there, before any routing.
+      // A regular (not TEMPORARY) table is used so that the test does not depend on the write
+      // landing on the very same physical session that created it; the primary key is required
+      // because RDS Multi-AZ clusters enforce sql_require_primary_key.
       final String writerInstanceId = auroraUtil.queryInstanceId(conn);
       try (Statement stmt = conn.createStatement()) {
-        stmt.executeUpdate(
-            "CREATE TEMPORARY TABLE IF NOT EXISTS auto_rw_write_tx (id INT PRIMARY KEY)");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS auto_rw_write_tx (id INT PRIMARY KEY)");
       }
 
-      // An earlier read moves the connection to a reader, which is the state a pooled connection is
-      // often handed out in.
-      try (Statement stmt = conn.createStatement();
-          ResultSet rs = stmt.executeQuery("SELECT 1")) {
-        rs.next();
+      try {
+        // An earlier read moves the connection to a reader, which is the state a pooled connection
+        // is often handed out in.
+        try (Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1")) {
+          rs.next();
+        }
+        final String readerInstanceId = auroraUtil.queryInstanceId(conn);
+        assertNotEquals(writerInstanceId, readerInstanceId,
+            "the setup read should have routed to a reader instance");
+
+        // The transaction manager opens a read-write transaction: autocommit off, nothing else. No
+        // statement may run between here and the routed read below, or the transaction would
+        // already be in progress and the connection pinned to the reader.
+        conn.setAutoCommit(false);
+
+        try (PreparedStatement stmt = conn.prepareStatement("SELECT 1");
+            ResultSet rs = stmt.executeQuery()) {
+          rs.next();
+        }
+
+        assertEquals(writerInstanceId, auroraUtil.queryInstanceId(conn),
+            "a read opening an undeclared transaction should route to the writer");
+
+        // The write in the same transaction now runs on the writer instead of failing on a reader.
+        try (PreparedStatement stmt =
+            conn.prepareStatement("INSERT INTO auto_rw_write_tx (id) VALUES (1)")) {
+          stmt.executeUpdate();
+        }
+
+        conn.commit();
+      } finally {
+        if (!conn.getAutoCommit()) {
+          conn.rollback();
+          conn.setAutoCommit(true);
+        }
+        try (Statement stmt = conn.createStatement()) {
+          stmt.executeUpdate("DROP TABLE IF EXISTS auto_rw_write_tx");
+        }
       }
-      final String readerInstanceId = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(writerInstanceId, readerInstanceId,
-          "the setup read should have routed to a reader instance");
-
-      // The transaction manager opens a read-write transaction: autocommit off, nothing else. No
-      // statement may run between here and the routed read below, or the transaction would already
-      // be in progress and the connection pinned to the reader.
-      conn.setAutoCommit(false);
-
-      try (PreparedStatement stmt = conn.prepareStatement("SELECT 1");
-          ResultSet rs = stmt.executeQuery()) {
-        rs.next();
-      }
-
-      assertEquals(writerInstanceId, auroraUtil.queryInstanceId(conn),
-          "a read opening an undeclared transaction should route to the writer");
-
-      // The write in the same transaction now runs on the writer instead of failing on a reader.
-      try (PreparedStatement stmt =
-          conn.prepareStatement("INSERT INTO auto_rw_write_tx (id) VALUES (1)")) {
-        stmt.executeUpdate();
-      }
-
-      conn.commit();
-      conn.setAutoCommit(true);
     }
   }
 

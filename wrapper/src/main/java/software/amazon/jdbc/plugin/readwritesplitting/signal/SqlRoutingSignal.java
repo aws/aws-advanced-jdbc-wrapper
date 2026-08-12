@@ -147,7 +147,10 @@ public class SqlRoutingSignal implements RoutingSignal {
         // A plain read: send it to a reader unless it belongs to a transaction that has to be
         // assumed read-write, in which case the whole transaction must start on the writer.
         if (this.isWriteTransactionAssumed(ctx)) {
-          LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.assumedWriteTransaction"));
+          // FINEST, not FINE: this fires on every read of every transaction while the setting is
+          // enabled, so it belongs at the most verbose level to keep the routing path quiet. The
+          // resulting host switch (or the absence of one) is already logged by the plugin.
+          LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.assumedWriteTransaction"));
           return TargetRole.WRITER;
         }
         return TargetRole.READER;
@@ -205,6 +208,8 @@ public class SqlRoutingSignal implements RoutingSignal {
       // every read to the writer on a connection whose state cannot be queried. A switch to a
       // reader is separately vetoed by TransactionAwareGate, which pins on an unreadable autocommit
       // state, so this cannot move an open transaction.
+      LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.assumeWriteTransactionUnknownState",
+          new Object[] {e.getMessage()}));
       return false;
     }
   }
