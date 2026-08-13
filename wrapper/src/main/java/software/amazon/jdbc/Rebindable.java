@@ -29,7 +29,7 @@ import java.sql.SQLException;
  * {@link PluginCallContext} so a plugin (which only receives the raw target statement as
  * {@code methodInvokeOn}) can trigger the rebind.
  */
-public interface Rebindable {
+public interface Rebindable extends ConnectionBoundObject {
 
   /** The connection the current target statement is bound to. */
   Connection getBoundConnection() throws SQLException;

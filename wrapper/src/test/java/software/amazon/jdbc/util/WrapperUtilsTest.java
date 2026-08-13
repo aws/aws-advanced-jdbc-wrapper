@@ -18,7 +18,6 @@ package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,6 +50,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.PreparedStatementWrapper;
+import software.amazon.jdbc.wrapper.ResultSetWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
 @SuppressWarnings("unchecked")
@@ -167,31 +167,6 @@ public class WrapperUtilsTest {
   }
 
   @Test
-  void getConnectionFromSqlObjectChecksStatementNotClosed() throws Exception {
-    final Statement mockClosedStatement = mock(Statement.class);
-    when(mockClosedStatement.isClosed()).thenReturn(true);
-    when(mockClosedStatement.getConnection()).thenThrow(IllegalStateException.class);
-
-    final ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.getStatement()).thenReturn(mockClosedStatement);
-
-    final Connection stmtConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
-    assertNull(stmtConn);
-    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
-    assertNull(rsConn);
-  }
-
-  @Test
-  void getConnectionFromSqlObjectChecksResultSetNotClosed() throws Exception {
-    final ResultSet mockResultSet = mock(ResultSet.class);
-    when(mockResultSet.isClosed()).thenReturn(true);
-    when(mockResultSet.getStatement()).thenThrow(IllegalStateException.class);
-
-    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockResultSet);
-    assertNull(rsConn);
-  }
-
-  @Test
   void testStatementWrapper() throws InstantiationException {
     ConnectionPluginManager mockPluginManager = mock(ConnectionPluginManager.class);
 
@@ -224,21 +199,32 @@ public class WrapperUtilsTest {
     final Statement mockOldStatement = mock(Statement.class);
     final ResultSet mockOldResultSet = mock(ResultSet.class);
 
+    // The wrappers are created while the old connection is the current one.
+    when(mockConnectionWrapper.getCurrentConnection()).thenReturn(mockOldConnection);
+    final StatementWrapper oldStatementWrapper =
+        new StatementWrapper(mockOldStatement, mockConnectionWrapper, mockPluginManager);
+    final ResultSetWrapper oldResultSetWrapper =
+        new ResultSetWrapper(mockOldResultSet, mockConnectionWrapper, mockPluginManager);
+
+    // The internal connection is then swapped out (failover or read/write splitting).
     when(mockConnectionWrapper.getCurrentConnection()).thenReturn(mockCurrentConnection);
-    when(mockOldStatement.getConnection()).thenReturn(mockOldConnection);
-    when(mockOldResultSet.getStatement()).thenReturn(mockOldStatement);
 
     mockExecuteReturnValue("result");
     assertThrows(SQLException.class,
-        () -> WrapperUtils.executeWithPlugins(String.class, Exception.class, mockConnectionWrapper, mockPluginManager,
-            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result"));
+        () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
+            mockPluginManager, oldStatementWrapper, mockOldStatement,
+            JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result"));
     assertThrows(SQLException.class,
-        () -> WrapperUtils.executeWithPlugins(String.class, Exception.class, mockConnectionWrapper, mockPluginManager,
-            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
+        () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
+            mockPluginManager, oldStatementWrapper, mockOldStatement,
+            JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
     assertThrows(SQLException.class,
-        () -> WrapperUtils.executeWithPlugins(String.class, Exception.class, mockConnectionWrapper, mockPluginManager,
-            mockOldResultSet, JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result"));
+        () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
+            mockPluginManager, oldResultSetWrapper, mockOldResultSet,
+            JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result"));
 
+    // Methods that are not declared with checkBoundedConnection stay usable on a stale object, so
+    // that an application can still release it.
     mockExecuteReturnValue(null);
     assertDoesNotThrow(
         () -> WrapperUtils.executeWithPlugins(Void.class, SQLException.class, mockConnectionWrapper, mockPluginManager,
@@ -252,30 +238,56 @@ public class WrapperUtilsTest {
     assertDoesNotThrow(
         () -> WrapperUtils.executeWithPlugins(Void.class, SQLException.class, mockConnectionWrapper, mockPluginManager,
             mockOldResultSet, JdbcMethod.RESULTSET_CLOSE, () -> null));
+  }
+
+  @Test
+  public void testExecuteAgainstConnectionRestoredAfterSwitchingBack() throws Exception {
+    // Read/write splitting caches the writer connection and switches back to the very same object,
+    // so a statement created before setReadOnly(true) is valid again after setReadOnly(false).
+    final Connection mockWriterConnection = mock(Connection.class);
+    final Connection mockReaderConnection = mock(Connection.class);
+    final Statement mockStatement = mock(Statement.class);
+
+    when(mockConnectionWrapper.getCurrentConnection()).thenReturn(mockWriterConnection);
+    final StatementWrapper statementWrapper =
+        new StatementWrapper(mockStatement, mockConnectionWrapper, mockPluginManager);
+
+    when(mockConnectionWrapper.getCurrentConnection()).thenReturn(mockReaderConnection);
+    mockExecuteReturnValue("result");
+    assertThrows(SQLException.class,
+        () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
+            mockPluginManager, statementWrapper, mockStatement,
+            JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
+
+    when(mockConnectionWrapper.getCurrentConnection()).thenReturn(mockWriterConnection);
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
+            mockPluginManager, statementWrapper, mockStatement,
+            JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
+  }
+
+  @Test
+  public void testResultSetBoundToPhysicalConnectionIsNotStale() throws Exception {
+    // Regression test for the Array#getResultSet false positive: the target driver builds the
+    // array's ResultSet on the physical connection, while the wrapper's current connection is a
+    // pooled handle wrapping that same physical connection. It is the same session, so the
+    // ResultSet must remain usable.
+    final Connection physicalConnection = mock(Connection.class);
+    final Connection pooledConnection = mock(Connection.class);
+    final Statement arrayStatement = mock(Statement.class);
+    final ResultSet arrayResultSet = mock(ResultSet.class);
+
+    when(arrayStatement.getConnection()).thenReturn(physicalConnection);
+    when(arrayResultSet.getStatement()).thenReturn(arrayStatement);
+    when(mockConnectionWrapper.getCurrentConnection()).thenReturn(pooledConnection);
+
+    final ResultSetWrapper arrayResultSetWrapper =
+        new ResultSetWrapper(arrayResultSet, mockConnectionWrapper, mockPluginManager);
 
     mockExecuteReturnValue("result");
-    assertThrows(RuntimeException.class,
-        () -> WrapperUtils.executeWithPlugins(String.class, mockConnectionWrapper, mockPluginManager,
-            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result"));
-    assertThrows(RuntimeException.class,
-        () -> WrapperUtils.executeWithPlugins(String.class, mockConnectionWrapper, mockPluginManager,
-            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
-    assertThrows(RuntimeException.class,
-        () -> WrapperUtils.executeWithPlugins(String.class, mockConnectionWrapper, mockPluginManager,
-            mockOldResultSet, JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result"));
-
-    mockExecuteReturnValue(null);
     assertDoesNotThrow(
-        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
-            mockOldConnection, JdbcMethod.CONNECTION_CLOSE, () -> null));
-    assertDoesNotThrow(
-        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
-            mockOldConnection, JdbcMethod.CONNECTION_ABORT, () -> null));
-    assertDoesNotThrow(
-        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
-            mockOldStatement, JdbcMethod.STATEMENT_CLOSE, () -> null));
-    assertDoesNotThrow(
-        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
-            mockOldResultSet, JdbcMethod.RESULTSET_CLOSE, () -> null));
+        () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
+            mockPluginManager, arrayResultSetWrapper, arrayResultSet,
+            JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
   }
 }

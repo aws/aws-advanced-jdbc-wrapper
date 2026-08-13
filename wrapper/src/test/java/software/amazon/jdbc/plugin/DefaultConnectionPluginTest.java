@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -119,6 +121,23 @@ class DefaultConnectionPluginTest {
     when(this.pluginService.getCurrentConnection()).thenReturn(conn);
     plugin.execute(Void.class, SQLException.class, oldConn, "Connection.close", mockSqlFunction, new Object[]{});
     verify(pluginManagerService, never()).setInTransaction(anyBoolean());
+  }
+
+  @Test
+  void testExecute_statementIsNotAskedForItsConnection() throws SQLException {
+    // Staleness of a Statement or ResultSet is decided before the pipeline runs (see
+    // WrapperUtils and JdbcMethod.checkBoundedConnection), so this plugin must not ask the target
+    // driver which connection the object is bound to. That question returned the physical connection
+    // even when the wrapper held a pooled or logical handle for the same session, which made valid
+    // objects look stale.
+    when(this.pluginService.getCurrentConnection()).thenReturn(conn);
+    final Statement statement = mock(Statement.class);
+
+    plugin.execute(
+        Void.class, SQLException.class, statement, "Statement.close", mockSqlFunction, new Object[]{});
+
+    verify(statement, never()).getConnection();
+    verify(statement, never()).isClosed();
   }
 
   @Test

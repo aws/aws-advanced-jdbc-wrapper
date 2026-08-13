@@ -271,8 +271,15 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       final JdbcCallable<T, E> jdbcMethodFunc,
       final @Nullable Object[] args)
       throws E {
-    final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-    if (conn != null && conn != this.pluginService.getCurrentConnection()) {
+    // A call that operates on a connection other than the current one is not routed: it belongs to a
+    // previous session. Only a Connection is compared. A Statement or ResultSet is not asked which
+    // connection it is bound to, because that answer comes from the target driver, which reports the
+    // physical connection even when the wrapper holds a pooled or logical handle for the same session
+    // (a pooled XA connection does this), so a perfectly valid statement looked stale and skipped
+    // routing. A genuinely stale statement cannot reach this point: every execute method subscribed
+    // below is declared with JdbcMethod.checkBoundedConnection, so WrapperUtils rejects it first.
+    if (methodInvokeOn instanceof Connection
+        && methodInvokeOn != this.pluginService.getCurrentConnection()) {
       LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.executingAgainstOldConnection",
           new Object[] {methodInvokeOn}));
       return jdbcMethodFunc.call();

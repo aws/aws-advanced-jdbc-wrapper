@@ -63,6 +63,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionBoundObject;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -225,6 +226,12 @@ public class WrapperUtils {
         jdbcMethodArgs);
   }
 
+  /**
+   * Runs a method that does not throw a checked exception through the plugin pipeline. There is no
+   * bound object, so no stale-object check can be performed; a {@link JdbcMethod} declared with
+   * {@code checkBoundedConnection} must use {@link #executeWithPluginsWithBoundObject} instead, which
+   * is asserted at runtime while assertions are enabled.
+   */
   public static <T> T executeWithPlugins(
       final Class<T> resultClass,
       final ConnectionWrapper connectionWrapper,
@@ -233,6 +240,8 @@ public class WrapperUtils {
       final JdbcMethod jdbcMethod,
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
       final @Nullable Object... jdbcMethodArgs) {
+
+    assertBoundObjectSupplied(jdbcMethod, null);
 
     if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
@@ -247,22 +256,6 @@ public class WrapperUtils {
       }
 
       connectionWrapper.getServicesContainer().getPluginManagerService().resetCallContext();
-
-      // The target driver may block on Statement.getConnection().
-      // This guard detects a statement bound to a connection that was swapped out by failover or
-      // read/write splitting. On the XA path the physical connection is pinned for the branch (a
-      // swap is rejected by PluginServiceImpl.setCurrentConnection), so this can only be a false
-      // positive there: some target XA drivers (e.g. PostgreSQL's pooled XA connection) hand out a
-      // statement whose getConnection() is not reference-identical to the logical handle the wrapper
-      // holds, even though it is the same physical session. Skip while an XA transaction is active.
-      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection
-          && !connectionWrapper.getServicesContainer().getPluginService().isXaTransactionActive()) {
-        final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-        if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
-          throw new SQLException(Messages.get(
-              "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
-        }
-      }
 
       final T result =
           pluginManager.execute(
@@ -316,14 +309,38 @@ public class WrapperUtils {
       final @Nullable Object... jdbcMethodArgs)
       throws E {
     return doExecuteWithPlugins(resultClass, exceptionClass, connectionWrapper, pluginManager,
-        methodInvokeOn, jdbcMethod, jdbcMethodFunc, null, jdbcMethodArgs);
+        methodInvokeOn, jdbcMethod, jdbcMethodFunc, null, null, jdbcMethodArgs);
+  }
+
+  /**
+   * Variant of {@link #executeWithPlugins} for a method invoked on an object bound to a connection.
+   * The {@code boundObject} is the invoking wrapper itself; it carries the connection generation
+   * recorded when it was created, which lets this method reject an object left over from a connection
+   * that has since been swapped out. Must be used by every {@link JdbcMethod} declared with
+   * {@code checkBoundedConnection}; other methods can use {@link #executeWithPlugins}.
+   */
+  public static <T, E extends Exception> T executeWithPluginsWithBoundObject(
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final ConnectionWrapper connectionWrapper,
+      final ConnectionPluginManager pluginManager,
+      final ConnectionBoundObject boundObject,
+      final Object methodInvokeOn,
+      final JdbcMethod jdbcMethod,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final @Nullable Object... jdbcMethodArgs)
+      throws E {
+    return doExecuteWithPlugins(resultClass, exceptionClass, connectionWrapper, pluginManager,
+        methodInvokeOn, jdbcMethod, jdbcMethodFunc, boundObject, null, jdbcMethodArgs);
   }
 
   /**
    * Variant of {@link #executeWithPlugins} that publishes a {@link Rebindable} handle (the invoking
    * statement wrapper) on the per-call {@link software.amazon.jdbc.PluginCallContext}, so a plugin
    * can rebind a bound plain {@code Statement} to a routed connection. Used only by the statement
-   * execute-with-SQL methods that support rerouting.
+   * execute-with-SQL methods that support rerouting. The same handle is the bound object of the call
+   * (see {@link #executeWithPluginsWithBoundObject}), since a {@link Rebindable} is bound to the
+   * connection its target statement was created on.
    */
   public static <T, E extends Exception> T executeWithPluginsWithRebindHandle(
       final Class<T> resultClass,
@@ -337,7 +354,57 @@ public class WrapperUtils {
       final @Nullable Object... jdbcMethodArgs)
       throws E {
     return doExecuteWithPlugins(resultClass, exceptionClass, connectionWrapper, pluginManager,
-        methodInvokeOn, jdbcMethod, jdbcMethodFunc, rebindHandle, jdbcMethodArgs);
+        methodInvokeOn, jdbcMethod, jdbcMethodFunc, rebindHandle, rebindHandle, jdbcMethodArgs);
+  }
+
+  /**
+   * Fails fast when a method declared with {@code checkBoundedConnection} is routed through a call
+   * path that carries no bound object, because {@link #checkNotStale} would then silently skip the
+   * check and a stale object would go undetected. Enforced with an assertion: it fails the build in
+   * tests (Gradle enables assertions for test tasks) and is a no-op in production, so no working
+   * application starts failing on an upgrade. Must be called before the connection lock is taken so
+   * a failing assertion cannot leak the lock.
+   */
+  private static void assertBoundObjectSupplied(
+      final JdbcMethod jdbcMethod, final @Nullable ConnectionBoundObject boundObject) {
+    // The message is only built when the assertion fails, so the lookup costs nothing on a normal
+    // call, and nothing at all when assertions are disabled.
+    assert !jdbcMethod.shouldLockConnection
+        || !jdbcMethod.checkBoundedConnection
+        || boundObject != null
+        : Messages.get("WrapperUtils.missingBoundObject", new Object[] {jdbcMethod.methodName});
+  }
+
+  /**
+   * Rejects a method invoked on a wrapper object that was created against a connection which has
+   * since been replaced (by failover or read/write splitting), because such an object is bound to the
+   * previous session.
+   *
+   * <p>Staleness is decided by the internal connection the object recorded when it was created, not
+   * by the connection the target driver reports for the underlying object. A driver-reported binding
+   * produces false positives whenever the wrapper's current connection is a pooled or logical handle
+   * wrapping the physical connection the driver reports: {@code Array#getResultSet} builds its result
+   * set on the physical connection, and a pooled XA connection hands out statements bound to the
+   * physical session rather than to the logical handle. Both are the same session, so they must not
+   * be rejected. It also avoids calling into the target driver ({@code Statement.getConnection()} can
+   * block) on every guarded invocation.
+   */
+  private static void checkNotStale(
+      final ConnectionWrapper connectionWrapper,
+      final @Nullable ConnectionBoundObject boundObject,
+      final Object methodInvokeOn,
+      final JdbcMethod jdbcMethod) throws SQLException {
+
+    if (boundObject == null
+        || !jdbcMethod.shouldLockConnection
+        || !jdbcMethod.checkBoundedConnection) {
+      return;
+    }
+
+    if (boundObject.getCreatedOnConnection() != connectionWrapper.getCurrentConnection()) {
+      throw new SQLException(Messages.get(
+          "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
+    }
   }
 
   private static <T, E extends Exception> T doExecuteWithPlugins(
@@ -348,9 +415,12 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
       final JdbcCallable<T, E> jdbcMethodFunc,
+      final @Nullable ConnectionBoundObject boundObject,
       final @Nullable Rebindable rebindHandle,
       final @Nullable Object... jdbcMethodArgs)
       throws E {
+
+    assertBoundObjectSupplied(jdbcMethod, boundObject);
 
     if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
@@ -372,21 +442,7 @@ public class WrapperUtils {
             .setRebindHandle(rebindHandle);
       }
 
-      // The target driver may block on Statement.getConnection().
-      // This guard detects a statement bound to a connection that was swapped out by failover or
-      // read/write splitting. On the XA path the physical connection is pinned for the branch (a
-      // swap is rejected by PluginServiceImpl.setCurrentConnection), so this can only be a false
-      // positive there: some target XA drivers (e.g. PostgreSQL's pooled XA connection) hand out a
-      // statement whose getConnection() is not reference-identical to the logical handle the wrapper
-      // holds, even though it is the same physical session. Skip while an XA transaction is active.
-      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection
-          && !connectionWrapper.getServicesContainer().getPluginService().isXaTransactionActive()) {
-        final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-        if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
-          throw new SQLException(Messages.get(
-              "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
-        }
-      }
+      checkNotStale(connectionWrapper, boundObject, methodInvokeOn, jdbcMethod);
 
       final T result =
           pluginManager.execute(resultClass,
@@ -671,29 +727,6 @@ public class WrapperUtils {
     }
 
     return target;
-  }
-
-  public static @Nullable Connection getConnectionFromSqlObject(final @Nullable Object obj) {
-    if (obj == null) {
-      return null;
-    }
-    try {
-      if (obj instanceof Connection) {
-        return (Connection) obj;
-      } else if (obj instanceof Statement) {
-        final Statement stmt = (Statement) obj;
-        return !stmt.isClosed() ? stmt.getConnection() : null;
-      } else if (obj instanceof ResultSet) {
-        final ResultSet rs = (ResultSet) obj;
-        final Statement stmt = !rs.isClosed() ? rs.getStatement() : null;
-        return stmt != null && !stmt.isClosed() ? stmt.getConnection() : null;
-      }
-    } catch (final SQLException | UnsupportedOperationException e) {
-      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by
-      // DataLocalCacheConnectionPlugin and will be triggered when getStatement is called.
-    }
-
-    return null;
   }
 
   /**
