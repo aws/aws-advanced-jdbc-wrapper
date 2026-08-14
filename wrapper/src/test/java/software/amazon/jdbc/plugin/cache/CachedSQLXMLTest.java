@@ -46,6 +46,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
+import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
@@ -249,16 +250,21 @@ public class CachedSQLXMLTest {
     assertThrows(SQLException.class, () -> sqlxml.getSource(StreamSource.class));
   }
 
-  // Standalone Xerces 2.x predates JAXP 1.5 and rejects the ACCESS_EXTERNAL_DTD / ACCESS_EXTERNAL
-  // _SCHEMA properties with IllegalArgumentException (DOM) and SAXNotRecognizedException (SAX).
-  // getSource() currently sets those properties fatally, so on such a classpath EVERY document --
-  // including benign XML with no DOCTYPE -- fails to parse. These fake factories reproduce that
-  // behavior per-test (via the JAXP system property) without pulling xercesImpl onto the whole
-  // test classpath, where its META-INF/services entry would repoint every JAXP lookup.
+  // Standalone Xerces 2.x predates JAXP 1.5 and rejects ACCESS_EXTERNAL_DTD / ACCESS_EXTERNAL_SCHEMA
+  // with IllegalArgumentException (DOM) and SAXNotRecognizedException (SAX), while still honoring
+  // disallow-doctype-decl. Before the fix, getSource() set those properties fatally, so on such a
+  // classpath EVERY document -- including benign XML with no DOCTYPE -- failed to parse.
   //
-  // Against the current (unfixed) code, assertion (1) in each test fails: getSource throws
-  // SQLException for benign XML. Assertion (2) proves the load-bearing disallow-doctype-decl
-  // control still rejects DOCTYPE payloads on this classpath.
+  // The fake factories below SIMULATE that contract rather than running real Xerces: they reject
+  // only the JAXP 1.5 properties and delegate everything else (including setFeature) to the JDK
+  // parser. So the "DOCTYPE still rejected" assertions are enforced by the JDK parser standing in
+  // for Xerces, not by Xerces bytes -- a faithful test of the API contract, not of Xerces itself.
+  // This runs per-test via the JAXP system property, avoiding xercesImpl on the whole test
+  // classpath where its META-INF/services entry would repoint every JAXP lookup.
+  //
+  // In each test, assertion (1) verifies benign XML with no DOCTYPE parses on this classpath, and
+  // assertion (2) proves the load-bearing disallow-doctype-decl control still rejects DOCTYPE
+  // payloads.
 
   @Test
   void test_getSource_DOMSource_standaloneXercesClasspath() throws Exception {
@@ -276,10 +282,14 @@ public class CachedSQLXMLTest {
       assertEquals(Node.DOCUMENT_NODE, node.getNodeType());
       validateDOMElement((Document) node, "manufacturer", "TechCorp");
 
-      // disallow-doctype-decl is NOT one of the softened properties,
-      // so a DOCTYPE payload is still rejected.
+      // disallow-doctype-decl is NOT one of the softened properties, so a DOCTYPE payload is still
+      // rejected. getSource wraps everything as "unable to decode", so assert on the underlying
+      // cause -- otherwise an unrelated failure in the fake factory would satisfy the check.
       SQLXML malicious = new CachedSQLXML(XML_WITH_DOCTYPE);
-      assertThrows(SQLException.class, () -> malicious.getSource(DOMSource.class));
+      SQLException ex =
+          assertThrows(SQLException.class, () -> malicious.getSource(DOMSource.class));
+      assertTrue(ex.getCause() instanceof SAXParseException);
+      assertTrue(ex.getCause().getMessage().contains("DOCTYPE"));
     } finally {
       if (original == null) {
         System.clearProperty(prop);
@@ -305,12 +315,15 @@ public class CachedSQLXMLTest {
       xmlReader.setContentHandler(new DefaultHandler());
       xmlReader.parse(src.getInputSource()); // benign parse must not throw
 
-      // a DOCTYPE payload is rejected when the reader runs.
+      // A DOCTYPE payload is rejected when the reader runs. Assert specifically on a DOCTYPE
+      // rejection so a stray failure in the fake harness cannot masquerade as "security holds".
       SQLXML malicious = new CachedSQLXML(XML_WITH_DOCTYPE);
       SAXSource malSrc = malicious.getSource(SAXSource.class);
       XMLReader malReader = malSrc.getXMLReader();
       malReader.setContentHandler(new DefaultHandler());
-      assertThrows(Exception.class, () -> malReader.parse(malSrc.getInputSource()));
+      SAXParseException ex =
+          assertThrows(SAXParseException.class, () -> malReader.parse(malSrc.getInputSource()));
+      assertTrue(ex.getMessage().contains("DOCTYPE"));
     } finally {
       if (original == null) {
         System.clearProperty(prop);
@@ -318,6 +331,30 @@ public class CachedSQLXMLTest {
         System.setProperty(prop, original);
       }
       XercesLikeSaxParserFactory.delegate = null;
+    }
+  }
+
+  @Test
+  void test_getSource_DOMSource_failsClosedWhenDoctypeControlUnsettable() {
+    // The security guarantee the whole fix rests on: if disallow-doctype-decl cannot be set,
+    // getSource must fail closed (refuse to parse) rather than silently parse without the control.
+    // This is a tripwire -- it goes red if anyone later makes disallow-doctype-decl best-effort
+    // like the ACCESS_EXTERNAL_* properties.
+    final String prop = "javax.xml.parsers.DocumentBuilderFactory";
+    final String original = System.getProperty(prop);
+    DoctypeControlRejectingDocumentBuilderFactory.delegate = DocumentBuilderFactory.newInstance();
+    System.setProperty(prop, DoctypeControlRejectingDocumentBuilderFactory.class.getName());
+    try {
+      // Even benign XML must be refused: the parser could not be hardened, so we do not parse.
+      SQLXML benign = new CachedSQLXML("<product><manufacturer>TechCorp</manufacturer></product>");
+      assertThrows(SQLException.class, () -> benign.getSource(DOMSource.class));
+    } finally {
+      if (original == null) {
+        System.clearProperty(prop);
+      } else {
+        System.setProperty(prop, original);
+      }
+      DoctypeControlRejectingDocumentBuilderFactory.delegate = null;
     }
   }
 
@@ -354,6 +391,63 @@ public class CachedSQLXMLTest {
     @Override
     public void setFeature(String name, boolean value) throws ParserConfigurationException {
       delegate.setFeature(name, value);
+    }
+
+    @Override
+    public boolean getFeature(String name) throws ParserConfigurationException {
+      return delegate.getFeature(name);
+    }
+
+    @Override
+    public void setNamespaceAware(boolean value) {
+      delegate.setNamespaceAware(value);
+    }
+
+    @Override
+    public void setValidating(boolean value) {
+      delegate.setValidating(value);
+    }
+
+    @Override
+    public void setXIncludeAware(boolean value) {
+      delegate.setXIncludeAware(value);
+    }
+
+    @Override
+    public void setExpandEntityReferences(boolean value) {
+      delegate.setExpandEntityReferences(value);
+    }
+  }
+
+  /**
+   * A {@link DocumentBuilderFactory} that rejects the load-bearing {@code disallow-doctype-decl}
+   * feature, to verify getSource() fails closed (refuses to parse) when the control cannot be set.
+   */
+  public static final class DoctypeControlRejectingDocumentBuilderFactory
+      extends DocumentBuilderFactory {
+    static DocumentBuilderFactory delegate;
+
+    @Override
+    public void setFeature(String name, boolean value) throws ParserConfigurationException {
+      if ("http://apache.org/xml/features/disallow-doctype-decl".equals(name)) {
+        throw new ParserConfigurationException("Feature not supported: " + name);
+      }
+      delegate.setFeature(name, value);
+    }
+
+    @Override
+    public DocumentBuilder newDocumentBuilder() throws ParserConfigurationException {
+      return delegate.newDocumentBuilder();
+    }
+
+    @Override
+    public void setAttribute(String name, Object value) {
+      delegate.setAttribute(name, value);
+    }
+
+    @Override
+    public Object getAttribute(String name) {
+      return delegate.getAttribute(name);
     }
 
     @Override
