@@ -41,6 +41,8 @@ import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.XMLReader;
 import software.amazon.jdbc.util.Messages;
 
@@ -184,8 +186,11 @@ public class CachedSQLXML implements SQLXML, Serializable {
         dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
         dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        // ACCESS_EXTERNAL_* are best-effort defense-in-depth. Standalone parsers (e.g. Apache
+        // Xerces 2.x, which predates JAXP 1.5) reject them; disallow-doctype-decl above is the
+        // load-bearing control and stays fatal, so skipping these does not weaken XXE protection.
+        setAttributeBestEffort(dbf, XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        setAttributeBestEffort(dbf, XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
         dbf.setXIncludeAware(false);
         dbf.setExpandEntityReferences(false);
         DocumentBuilder builder = dbf.newDocumentBuilder();
@@ -200,8 +205,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
         spf.setFeature("http://xml.org/sax/features/external-general-entities", false);
         spf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         SAXParser parser = spf.newSAXParser();
-        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        // Best-effort; see the note in the DOM branch. disallow-doctype-decl above stays fatal.
+        setPropertyBestEffort(parser, XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        setPropertyBestEffort(parser, XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
         XMLReader reader = parser.getXMLReader();
         return sourceClass.cast(new SAXSource(reader, new InputSource(new StringReader(xmlData))));
       }
@@ -224,6 +230,42 @@ public class CachedSQLXML implements SQLXML, Serializable {
       throw new SQLException(Messages.get("CachedSQLXML.unsupportedSourceClass", new Object[]{sourceClass.getName()}));
     } catch (Exception e) {
       throw new SQLException(Messages.get("CachedSQLXML.unableToDecodeXml"), e);
+    }
+  }
+
+  /**
+   * Sets a JAXP 1.5 factory attribute best-effort. Standalone parsers on the classpath (e.g.
+   * Apache Xerces 2.x, which predates JAXP 1.5) do not recognize {@code ACCESS_EXTERNAL_DTD}/
+   * {@code ACCESS_EXTERNAL_SCHEMA} and throw when they are set. These attributes are
+   * defense-in-depth only: the load-bearing control is {@code disallow-doctype-decl} (set fatally
+   * by the caller), which rejects DTDs and therefore external-entity resolution. If the parser
+   * rejects the attribute we skip it rather than failing an otherwise-benign parse.
+   *
+   * @param dbf the factory to configure
+   * @param name the attribute name
+   * @param value the attribute value
+   */
+  private static void setAttributeBestEffort(DocumentBuilderFactory dbf, String name, Object value) {
+    try {
+      dbf.setAttribute(name, value);
+    } catch (IllegalArgumentException e) {
+      // Property not recognized by this parser; disallow-doctype-decl remains in effect.
+    }
+  }
+
+  /**
+   * Sets a JAXP 1.5 parser property best-effort. See {@link #setAttributeBestEffort} for why this
+   * is non-fatal.
+   *
+   * @param parser the parser to configure
+   * @param name the property name
+   * @param value the property value
+   */
+  private static void setPropertyBestEffort(SAXParser parser, String name, Object value) {
+    try {
+      parser.setProperty(name, value);
+    } catch (SAXNotRecognizedException | SAXNotSupportedException e) {
+      // Property not recognized by this parser; disallow-doctype-decl remains in effect.
     }
   }
 
