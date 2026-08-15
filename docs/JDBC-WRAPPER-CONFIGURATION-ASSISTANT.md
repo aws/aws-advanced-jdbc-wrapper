@@ -897,6 +897,9 @@ Routing can be overridden per statement with SQL comment hints: `/*@reader*/`, `
 |---|---|---|
 | `queryLevelLoadBalancing` | `false` | Pick a fresh reader on **each** read-routing decision within an established read-only phase, instead of reusing one sticky reader. See §5.12b. |
 | `loadBalancingIncludeWriter` | `false` | When `queryLevelLoadBalancing` is on, also treat the writer as an eligible target in the reader-balancing pool. |
+| `assumeWriteTransaction` | `false` | Treat a transaction that was not declared read-only (`setReadOnly(true)`) as read-write and route its reads to the writer. Recommended for Spring/JPA apps: a default `@Transactional` method emits no write-intent signal, so a leading `SELECT` would otherwise start the transaction on a reader that cannot serve the write that follows. Ignored by the `setReadOnly`-driven splitters. |
+
+> **Spring/JPA:** with `assumeWriteTransaction=true`, mark read-only work with `@Transactional(readOnly = true)` so it still reaches readers; unannotated (default) transactions go to the writer. Declare the role *before* `setAutoCommit(false)` — a `setReadOnly` call made after autocommit is disabled is ignored for routing.
 
 > Per-query balancing only switches the connection **between** statements (never mid-transaction — routing is pinned while a transaction is open or autocommit is off). A re-executed statement is re-created on the newly selected reader when `allowStatementRecreationOnConnectionSwitch` is on (the default); a statement that cannot be re-created (a one-shot stream/LOB parameter or a pending batch) finishes on its original reader. See §5.12b.
 

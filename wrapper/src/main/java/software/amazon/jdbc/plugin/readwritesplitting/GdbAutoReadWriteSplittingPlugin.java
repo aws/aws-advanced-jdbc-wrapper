@@ -36,7 +36,8 @@ public class GdbAutoReadWriteSplittingPlugin extends GdbReadWriteSplittingPlugin
 
   private static RwSplitHelpers gdbAuto(final Properties props) {
     return gdbHelpers(props,
-        new CompositeSignal(new SqlRoutingSignal(), new ReadOnlyFlagSignal()),
+        new CompositeSignal(
+            new SqlRoutingSignal(ASSUME_WRITE_TRANSACTION.getBoolean(props)), new ReadOnlyFlagSignal()),
         new TransactionAwareGate(true, true));
   }
 }

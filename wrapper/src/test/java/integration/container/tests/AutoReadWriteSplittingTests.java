@@ -260,6 +260,110 @@ public class AutoReadWriteSplittingTests extends ReadWriteSplittingTests {
   }
 
   /**
+   * Reproduces the framework-managed read-write transaction shape: a transaction manager disables
+   * autocommit without declaring the transaction read-only, and its first statement is a read. With
+   * {@code assumeWriteTransaction} enabled that leading read is routed to the writer, so the write
+   * that follows in the same transaction can run.
+   */
+  @TestTemplate
+  public void test_assumeWriteTransaction_readThenWriteRunsOnWriter() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+
+    final Properties props = getProps();
+    props.setProperty("assumeWriteTransaction", "true");
+
+    try (final Connection conn = DriverManager.getConnection(url, props)) {
+      // A fresh connection starts on the writer. Create the target table there, before any routing.
+      // A regular (not TEMPORARY) table is used so that the test does not depend on the write
+      // landing on the very same physical session that created it; the primary key is required
+      // because RDS Multi-AZ clusters enforce sql_require_primary_key.
+      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
+      try (Statement stmt = conn.createStatement()) {
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS auto_rw_write_tx (id INT PRIMARY KEY)");
+      }
+
+      try {
+        // An earlier read moves the connection to a reader, which is the state a pooled connection
+        // is often handed out in.
+        try (Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1")) {
+          rs.next();
+        }
+        final String readerInstanceId = auroraUtil.queryInstanceId(conn);
+        assertNotEquals(writerInstanceId, readerInstanceId,
+            "the setup read should have routed to a reader instance");
+
+        // The transaction manager opens a read-write transaction: autocommit off, nothing else. No
+        // statement may run between here and the routed read below, or the transaction would
+        // already be in progress and the connection pinned to the reader.
+        conn.setAutoCommit(false);
+
+        try (PreparedStatement stmt = conn.prepareStatement("SELECT 1");
+            ResultSet rs = stmt.executeQuery()) {
+          rs.next();
+        }
+
+        assertEquals(writerInstanceId, auroraUtil.queryInstanceId(conn),
+            "a read opening an undeclared transaction should route to the writer");
+
+        // The write in the same transaction now runs on the writer instead of failing on a reader.
+        try (PreparedStatement stmt =
+            conn.prepareStatement("INSERT INTO auto_rw_write_tx (id) VALUES (1)")) {
+          stmt.executeUpdate();
+        }
+
+        conn.commit();
+      } finally {
+        if (!conn.getAutoCommit()) {
+          conn.rollback();
+          conn.setAutoCommit(true);
+        }
+        try (Statement stmt = conn.createStatement()) {
+          stmt.executeUpdate("DROP TABLE IF EXISTS auto_rw_write_tx");
+        }
+      }
+    }
+  }
+
+  /**
+   * With {@code assumeWriteTransaction} enabled, a transaction that <em>is</em> declared read-only
+   * still runs on a reader: an explicit {@code setReadOnly(true)} states read intent and outranks
+   * the assumption.
+   */
+  @TestTemplate
+  public void test_assumeWriteTransaction_readOnlyTransactionStaysOnReader() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+
+    final Properties props = getProps();
+    props.setProperty("assumeWriteTransaction", "true");
+
+    try (final Connection conn = DriverManager.getConnection(url, props)) {
+      final String writerInstanceId = auroraUtil.queryInstanceId(conn);
+
+      // Declare read intent before the transaction starts, as Spring does for
+      // @Transactional(readOnly = true).
+      conn.setReadOnly(true);
+      final String readerInstanceId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerInstanceId, readerInstanceId,
+          "setReadOnly(true) should route to a reader instance");
+
+      conn.setAutoCommit(false);
+
+      try (PreparedStatement stmt = conn.prepareStatement("SELECT 1");
+          ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+      }
+
+      assertEquals(readerInstanceId, auroraUtil.queryInstanceId(conn),
+          "a read-only transaction should stay on the reader even with assumeWriteTransaction");
+
+      conn.commit();
+      conn.setAutoCommit(true);
+      conn.setReadOnly(false);
+    }
+  }
+
+  /**
    * With query-level load balancing enabled, a PreparedStatement holding a plain read is expected
    * to rotate reader-to-reader on each re-execution (statement recreation). This verifies that the
    * re-execution path selects fresh readers rather than staying pinned to the reader chosen at

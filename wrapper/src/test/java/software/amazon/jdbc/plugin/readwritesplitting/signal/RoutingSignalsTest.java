@@ -18,9 +18,12 @@ package software.amazon.jdbc.plugin.readwritesplitting.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,7 @@ import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
+import software.amazon.jdbc.states.SessionStateService;
 
 /** Unit tests for the routing-signal helpers. */
 public class RoutingSignalsTest {
@@ -46,6 +50,7 @@ public class RoutingSignalsTest {
 
   @Mock private RwSplitContext ctx;
   @Mock private PluginService pluginService;
+  @Mock private SessionStateService sessionStateService;
 
   private PluginCallContext callContext;
 
@@ -161,6 +166,119 @@ public class RoutingSignalsTest {
     assertTrue(subscribed.contains(PREPARE_STATEMENT));
     assertTrue(subscribed.contains(PREPARE_CALL));
     assertTrue(subscribed.contains(STMT_EXECUTE_QUERY));
+  }
+
+  // ---- SqlRoutingSignal: assumeWriteTransaction ----
+
+  /** Stubs the session state a transaction-aware routing decision reads. */
+  private void givenSessionState(final Optional<Boolean> autoCommit, final Optional<Boolean> readOnly)
+      throws SQLException {
+    when(pluginService.getSessionStateService()).thenReturn(sessionStateService);
+    when(sessionStateService.getAutoCommit()).thenReturn(autoCommit);
+    when(sessionStateService.getReadOnly()).thenReturn(readOnly);
+  }
+
+  @Test
+  void assumeWriteTransaction_disabled_readInTransactionStillRoutesToReader() throws SQLException {
+    // Default behavior: autocommit off does not change SQL-based routing.
+    givenSessionState(Optional.of(false), Optional.empty());
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.READER, new SqlRoutingSignal().resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_autoCommitOff_readRoutesToWriter() throws SQLException {
+    // Autocommit off with no read-only declaration: the read opens a transaction that may write.
+    givenSessionState(Optional.of(false), Optional.empty());
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.WRITER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_explicitReadOnly_readRoutesToReader() throws SQLException {
+    // setReadOnly(true) states read intent, which wins over the assumption.
+    givenSessionState(Optional.of(false), Optional.of(true));
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.READER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_readOnlyFalse_readRoutesToWriter() throws SQLException {
+    // setReadOnly(false) is an explicit write declaration, so the assumption applies.
+    givenSessionState(Optional.of(false), Optional.of(false));
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.WRITER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_autoCommitOn_readRoutesToReader() throws SQLException {
+    // No transaction: normal read offloading is unaffected.
+    givenSessionState(Optional.of(true), Optional.empty());
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.READER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_autoCommitNeverSet_readRoutesToReader() throws SQLException {
+    // An empty value means the JDBC default (autocommit on) applies.
+    givenSessionState(Optional.empty(), Optional.empty());
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.READER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_openTransaction_readRoutesToWriter() throws SQLException {
+    // An explicitly opened transaction (BEGIN with autocommit on) counts too.
+    givenSessionState(Optional.of(true), Optional.empty());
+    when(pluginService.isInTransaction()).thenReturn(true);
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.WRITER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_readerHintWins() throws SQLException {
+    // An explicit hint is an application decision and outranks the inferred write intent.
+    givenSessionState(Optional.of(false), Optional.empty());
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+    callContext.setAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.READER);
+
+    assertEquals(TargetRole.READER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_unreadableSessionState_readRoutesToReader() throws SQLException {
+    // Unknown state falls back to plain SQL routing; TransactionAwareGate vetoes the switch.
+    when(pluginService.getSessionStateService()).thenReturn(sessionStateService);
+    when(sessionStateService.getReadOnly()).thenThrow(new SQLException("no session state"));
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.READER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+  }
+
+  @Test
+  void assumeWriteTransaction_writeQuery_doesNotReadSessionState() throws SQLException {
+    // Writes already route to the writer, so the transaction state is never consulted.
+    when(pluginService.getSessionStateService()).thenReturn(sessionStateService);
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.INSERT);
+
+    assertEquals(TargetRole.WRITER, new SqlRoutingSignal(true).resolve(ctx, PREPARE_STATEMENT, null));
+    verify(sessionStateService, never()).getAutoCommit();
+    verify(sessionStateService, never()).getReadOnly();
+  }
+
+  @Test
+  void assumeWriteTransaction_boundStatement_readRoutesToWriter() throws SQLException {
+    givenSessionState(Optional.of(false), Optional.empty());
+    callContext.setAttribute(SqlContextKeys.QUERY_TYPE, QueryType.SELECT);
+
+    assertEquals(TargetRole.WRITER, new SqlRoutingSignal(true).resolveForBoundStatement(ctx));
   }
 
   // ---- CompositeSignal ----

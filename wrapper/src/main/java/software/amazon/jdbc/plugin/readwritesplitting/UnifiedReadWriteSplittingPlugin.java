@@ -102,6 +102,21 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
           "When query-level load balancing is enabled, include the writer node as an eligible "
               + "target in the reader-balancing pool.");
 
+  public static final AwsWrapperProperty ASSUME_WRITE_TRANSACTION =
+      new AwsWrapperProperty(
+          "assumeWriteTransaction",
+          "false",
+          "Treat a transaction that was not explicitly declared read-only (via "
+              + "Connection.setReadOnly(true)) as a read-write transaction, routing it to the "
+              + "writer even when its first statement is a SELECT. Transaction managers announce "
+              + "read-only transactions but say nothing about read-write ones, so without this "
+              + "setting a read-write transaction whose first statement is a read starts on a "
+              + "reader and a later write in the same transaction cannot be served there. Only the "
+              + "SQL-routing (auto*) read/write splitting plugins act on this setting; the "
+              + "setReadOnly-driven plugins ignore it. Disabled by default.",
+          false,
+          new String[] {"true", "false"});
+
   static {
     PropertyDefinition.registerPluginProperties(UnifiedReadWriteSplittingPlugin.class);
   }
