@@ -334,6 +334,19 @@ public class AuroraTestUtility {
     }
   }
 
+  /**
+   * TEMPORARY - investigation of https://github.com/aws/aws-advanced-jdbc-wrapper/issues/2096.
+   *
+   * <p>When {@code test-rds-instance-no-multi-az} is set, the RDS instance is created as single-AZ
+   * instead of Multi-AZ. The reported Blue/Green switchover detection failure was observed on a
+   * single-AZ RDS for PostgreSQL DB instance, whereas CI only exercises Multi-AZ instances. This flag
+   * isolates that one variable so the deployment status metadata behavior can be compared directly.
+   *
+   * <p>Defaults to Multi-AZ, so normal runs are unaffected. Revert once the investigation concludes.
+   */
+  private static final boolean MULTI_AZ_INSTANCE_ENABLED =
+      !Boolean.parseBoolean(System.getProperty("test-rds-instance-no-multi-az", "false"));
+
   public String createMultiAzInstance(
       String username,
       String password,
@@ -350,6 +363,8 @@ public class AuroraTestUtility {
       throw new UnsupportedOperationException(deployment.toString());
     }
 
+    LOGGER.finest("Creating RDS instance " + identifier + " with multiAZ=" + MULTI_AZ_INSTANCE_ENABLED);
+
     rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
         .dbInstanceIdentifier(identifier)
         .publiclyAccessible(true)
@@ -357,7 +372,7 @@ public class AuroraTestUtility {
         .masterUsername(username)
         .masterUserPassword(password)
         .enableIAMDatabaseAuthentication(true)
-        .multiAZ(true)
+        .multiAZ(MULTI_AZ_INSTANCE_ENABLED)
         .engine(engine)
         .engineVersion(version)
         .dbInstanceClass(instanceClass)

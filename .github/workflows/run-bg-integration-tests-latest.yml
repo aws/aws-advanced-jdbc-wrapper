@@ -27,7 +27,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        testTask: [ "mysql-aurora-mariadb-driver", "mysql-aurora-mysql-driver", "mysql-rds-instance-mariadb-driver", "mysql-rds-instance-mysql-driver", "pg-aurora", "pg-rds-instance" ]
+        # TEMPORARY - investigation of issue #2096. Restricted to the single-AZ RDS instance probe so
+        # the dispatch does not consume quota for the other five environments. Restore the full list
+        # before merging: [ "mysql-aurora-mariadb-driver", "mysql-aurora-mysql-driver",
+        # "mysql-rds-instance-mariadb-driver", "mysql-rds-instance-mysql-driver", "pg-aurora",
+        # "pg-rds-instance" ]
+        testTask: [ "pg-rds-instance-single-az" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

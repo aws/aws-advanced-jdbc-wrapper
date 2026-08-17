@@ -1045,6 +1045,37 @@ tasks.register<Test>("test-bgd-pg-rds-instance") {
     }
 }
 
+// TEMPORARY - investigation of https://github.com/aws/aws-advanced-jdbc-wrapper/issues/2096.
+// Identical to test-bgd-pg-rds-instance except the RDS instance is created single-AZ, matching the
+// reporter's environment. Remove once the investigation concludes.
+tasks.register<Test>("test-bgd-pg-rds-instance-single-az") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-instances-2", "true")
+        systemProperty("test-no-instances-3", "true")
+        systemProperty("test-no-instances-5", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-bg-only", "true")
+        systemProperty("test-rds-instance-no-multi-az", "true")
+    }
+}
+
 // Debug
 
 tasks.register<Test>("debug-all-environments") {
