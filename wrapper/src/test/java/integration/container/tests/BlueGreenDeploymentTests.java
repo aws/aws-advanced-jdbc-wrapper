@@ -88,6 +88,7 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhase;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatusProvider;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
 import software.amazon.jdbc.util.CoreServicesContainer;
@@ -129,6 +130,22 @@ public class BlueGreenDeploymentTests {
   private static final String TEST_CLUSTER_ID = "test-cluster-id";
 
   private static final String RDS_SSL_CERT_PATH = "/app/test/resources/rds-ca-rsa2048-g1.pem";
+
+  /**
+   * Switchover timeout the test pins explicitly (rather than relying on the plugin default) so the
+   * traffic-suspension bound below is deterministic.
+   */
+  private static final long BG_SWITCHOVER_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(3);
+
+  /**
+   * Upper bound on how long the plugin may keep blue traffic suspended, i.e. how long it may stay in
+   * the IN_PROGRESS phase. This must stay well under {@link #BG_SWITCHOVER_TIMEOUT_MS}: the timeout
+   * is an escape hatch for a plugin that cannot observe the switchover finishing, and reaching it
+   * means detection failed. A healthy switchover leaves IN_PROGRESS within a few seconds (see the
+   * reference timeline on {@link #testSwitchover}), so a third of the timeout leaves ample headroom
+   * for a slow environment while still failing loudly when only the timer released the traffic.
+   */
+  private static final long MAX_TRAFFIC_SUSPENSION_MS = BG_SWITCHOVER_TIMEOUT_MS / 3;
 
   public static class TimeHolder {
     public long startTime;
@@ -197,6 +214,14 @@ public class BlueGreenDeploymentTests {
     public String dnsBlueError = null;
     public final AtomicLong dnsGreenRemovedTime = new AtomicLong();
     public final AtomicLong greenNodeChangeNameTime = new AtomicLong();
+    /**
+     * First time the deployment status query returned zero rows on this node after a switchover phase
+     * had already been observed there. RDS tears the status metadata down at different points
+     * depending on the deployment type, and an empty result is the only signal some deployments give
+     * that the switchover finalized. Recorded for diagnostics; not asserted, since the expected value
+     * differs between Aurora and RDS instances.
+     */
+    public final AtomicLong statusTableEmptyTime = new AtomicLong();
     public final ConcurrentHashMap<String, Long> blueStatusTime = new ConcurrentHashMap<>();
     public final ConcurrentHashMap<String, Long> greenStatusTime = new ConcurrentHashMap<>();
     public final ConcurrentLinkedDeque<TimeHolder> blueWrapperConnectTimes = new ConcurrentLinkedDeque<>();
@@ -217,6 +242,14 @@ public class BlueGreenDeploymentTests {
   private final ConcurrentLinkedDeque<Throwable> unhandledExceptions = new ConcurrentLinkedDeque<>();
   private final AtomicBoolean rollbackDetected = new AtomicBoolean(false);
   private final AtomicReference<String> rollbackDetails = new AtomicReference<>(null);
+
+  /**
+   * Wall time (nanos) at which the plugin first published each phase in its own
+   * {@link BlueGreenStatus}. Unlike the per-node status maps, which are polled straight from the
+   * database status table, this records what the <em>plugin</em> concluded, which is what determines
+   * whether client traffic is suspended or routed.
+   */
+  private final ConcurrentHashMap<BlueGreenPhase, Long> pluginPhaseFirstSeenNano = new ConcurrentHashMap<>();
 
   /**
    * NOTE: this test requires manual verification to fully verify proper B/G behavior.
@@ -245,6 +278,7 @@ public class BlueGreenDeploymentTests {
     this.unhandledExceptions.clear();
     this.rollbackDetected.set(false);
     this.rollbackDetails.set(null);
+    this.pluginPhaseFirstSeenNano.clear();
 
     boolean iamEnabled =
         TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM);
@@ -368,7 +402,7 @@ public class BlueGreenDeploymentTests {
     threadCount++;
     threadFinishCount++;
 
-    threads.add(getRollbackDetectionThread(
+    threads.add(getPluginStatusMonitoringThread(
         info.getBlueGreenDeploymentId(), startLatchAtomic, stop, finishLatchAtomic));
     threadCount++;
     threadFinishCount++;
@@ -1090,7 +1124,9 @@ public class BlueGreenDeploymentTests {
           try {
             final Statement statement = conn.createStatement();
             final ResultSet rs = statement.executeQuery(query);
+            int rowCount = 0;
             while (rs.next()) {
+              rowCount++;
               String queryRole = rs.getString("role");
               String queryVersion = rs.getString("version");
               String queryNewStatus = rs.getString("status");
@@ -1110,6 +1146,18 @@ public class BlueGreenDeploymentTests {
                 });
               }
             }
+
+            // An empty result set once a switchover status has been seen means RDS removed the
+            // deployment metadata from this node. Record when that first happened; on deployments
+            // whose metadata never advances to SWITCHOVER_COMPLETED this is the only completion
+            // signal available to the driver.
+            if (rowCount == 0
+                && !(results.blueStatusTime.isEmpty() && results.greenStatusTime.isEmpty())
+                && results.statusTableEmptyTime.compareAndSet(0, System.nanoTime())) {
+              LOGGER.finest(() -> String.format(
+                  "[DirectTopology @ %s] status table is now empty.", hostId));
+            }
+
             TimeUnit.MILLISECONDS.sleep(100);
 
           } catch (SQLException throwable) {
@@ -1368,10 +1416,12 @@ public class BlueGreenDeploymentTests {
     });
   }
 
-  // Monitors BlueGreenStatus for rollback detection
-  // A rollback is detected when the phase regresses to CREATED after reaching PREPARATION or higher
-  // (but not after COMPLETED, which is a normal reset)
-  private Thread getRollbackDetectionThread(
+  // Monitors the BlueGreenStatus the plugin publishes, for two purposes:
+  // 1. Rollback detection. A rollback is detected when the phase regresses to CREATED after reaching
+  //    PREPARATION or higher (but not after COMPLETED, which is a normal reset).
+  // 2. Recording when the plugin first reached each phase, so the test can tell whether the plugin
+  //    detected switchover progress itself or only escaped IN_PROGRESS when the timer expired.
+  private Thread getPluginStatusMonitoringThread(
       final String bgdId,
       final AtomicReference<CountDownLatch> startLatch,
       final AtomicBoolean stop,
@@ -1385,7 +1435,7 @@ public class BlueGreenDeploymentTests {
         // wait for other threads to be ready
         startLatch.get().await(5, TimeUnit.MINUTES);
 
-        LOGGER.finest("[RollbackDetection] Starting rollback monitoring for id: " + bgdId);
+        LOGGER.finest("[PluginStatus] Starting plugin status monitoring for id: " + bgdId);
 
         BlueGreenPhase highestPhaseSeen = BlueGreenPhase.NOT_CREATED;
         StorageService storageService = CoreServicesContainer.getInstance().getStorageService();
@@ -1395,6 +1445,11 @@ public class BlueGreenDeploymentTests {
 
           if (status != null && status.getCurrentPhase() != null) {
             BlueGreenPhase currentPhase = status.getCurrentPhase();
+
+            // Record the first time the plugin published this phase. The plugin resets its context
+            // after a completed switchover and starts publishing NOT_CREATED/CREATED again, so only
+            // the first observation of each phase describes the switchover under test.
+            this.pluginPhaseFirstSeenNano.putIfAbsent(currentPhase, System.nanoTime());
 
             // Check for rollback: phase went back to CREATED after reaching PREPARATION or higher,
             // but not after COMPLETED (which is a normal post-switchover reset)
@@ -1411,7 +1466,7 @@ public class BlueGreenDeploymentTests {
             // Track highest phase seen
             if (currentPhase.getValue() > highestPhaseSeen.getValue()) {
               highestPhaseSeen = currentPhase;
-              LOGGER.finest("[RollbackDetection] Phase advanced to: " + highestPhaseSeen);
+              LOGGER.finest("[PluginStatus] Phase advanced to: " + highestPhaseSeen);
             }
           }
 
@@ -1421,11 +1476,11 @@ public class BlueGreenDeploymentTests {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       } catch (Exception e) {
-        LOGGER.log(Level.FINEST, "[RollbackDetection] thread unhandled exception: ", e);
+        LOGGER.log(Level.FINEST, "[PluginStatus] thread unhandled exception: ", e);
         this.unhandledExceptions.add(e);
       } finally {
         finishLatch.get().countDown();
-        LOGGER.finest("[RollbackDetection] thread is completed.");
+        LOGGER.finest("[PluginStatus] thread is completed.");
       }
     });
   }
@@ -1589,6 +1644,11 @@ public class BlueGreenDeploymentTests {
     }
 
     props.setProperty("bgdId", TestEnvironment.getCurrent().getInfo().getBlueGreenDeploymentId());
+
+    // Pin the switchover timeout so assertTrafficSuspensionBounded() has a deterministic bound to
+    // compare against. This is the plugin default, set explicitly to decouple the assertion from it.
+    BlueGreenStatusProvider.BG_SWITCHOVER_TIMEOUT_MS.set(props, String.valueOf(BG_SWITCHOVER_TIMEOUT_MS));
+
     return props;
   }
 
@@ -1642,7 +1702,8 @@ public class BlueGreenDeploymentTests {
         "wrapper Green conn dropped (SELECT 1)",
         "Blue DNS updated",
         "Green DNS removed",
-        "Green node certificate change");
+        "Green node certificate change",
+        "Status table emptied");
     metricsTable.addRule();
 
     Comparator<Entry<String, BlueGreenResults>> entryGreenComparator =
@@ -1675,17 +1736,21 @@ public class BlueGreenDeploymentTests {
           entry.getValue().dnsGreenRemovedTime, bgTriggerTime);
       String greenNodeChangeNameTime = this.getFormattedNanoTime(
           entry.getValue().greenNodeChangeNameTime, bgTriggerTime);
+      String statusTableEmptyTime = this.getFormattedNanoTime(
+          entry.getValue().statusTableEmptyTime, bgTriggerTime);
 
       metricsTable.addRow(
           entry.getKey(),
           startTime, threadsSyncTime, directBlueIdleLostConnectionTime,
           directBlueLostConnectionTime, wrapperBlueIdleLostConnectionTime, wrapperGreenLostConnectionTime,
-          dnsBlueChangedTime, dnsGreenRemovedTime, greenNodeChangeNameTime)
+          dnsBlueChangedTime, dnsGreenRemovedTime, greenNodeChangeNameTime, statusTableEmptyTime)
         .getCells().get(0).getContext().setTextAlignment(TextAlignment.LEFT);
     }
 
     metricsTable.addRule();
     LOGGER.finest("\n" + this.renderTable(metricsTable, true));
+
+    this.printPluginPhaseTimes(bgTriggerTime);
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
       if (entry.getValue().blueStatusTime.isEmpty() && entry.getValue().greenStatusTime.isEmpty()) {
@@ -1786,6 +1851,32 @@ public class BlueGreenDeploymentTests {
 
     metricsTable.setTextAlignment(TextAlignment.CENTER);
     LOGGER.finest("\n" + node + ": Host Verification Results\n" + this.renderTable(metricsTable, false));
+  }
+
+  /**
+   * Prints when the plugin itself first published each phase. Read alongside the per-node status
+   * tables: those show what the database reported, this shows what the plugin concluded. A large gap
+   * between IN_PROGRESS and the next phase here is the signature of the plugin failing to detect the
+   * switchover finishing and being released by the switchover timer instead.
+   */
+  private void printPluginPhaseTimes(long timeZeroNano) {
+
+    AsciiTable metricsTable = new AsciiTable();
+    metricsTable.addRule();
+    metricsTable.addRow("Plugin phase", "First published at (ms)");
+    metricsTable.addRule();
+
+    if (this.pluginPhaseFirstSeenNano.isEmpty()) {
+      metricsTable.addRow("No entries", "");
+    } else {
+      this.pluginPhaseFirstSeenNano.entrySet().stream()
+          .sorted(Entry.comparingByValue())
+          .forEach(entry -> metricsTable.addRow(
+              entry.getKey(), getTimeOffsetMs(entry.getValue(), timeZeroNano)));
+    }
+
+    metricsTable.addRule();
+    LOGGER.finest("\nPlugin published phases:\n" + this.renderTable(metricsTable, true));
   }
 
   private String getFormattedNanoTime(AtomicLong timeNanoAtomic, long timeZeroNano) {
@@ -1905,7 +1996,96 @@ public class BlueGreenDeploymentTests {
   private void assertTest() {
     assertNoRollback();
     assertSwitchoverCompleted();
+    assertTrafficSuspensionBounded();
     assertWrapperBehavior();
+  }
+
+  /**
+   * Validates that the plugin released suspended traffic promptly, i.e. that it observed the active
+   * switchover phase ending instead of falling back to the {@code bgSwitchoverTimeoutMs} escape hatch.
+   *
+   * <p>While the plugin publishes {@link BlueGreenPhase#IN_PROGRESS} it suspends every blue connect
+   * and every JDBC call on a blue connection, so the length of that window is the outage the plugin
+   * imposes on the application. The plugin has only two ways out of IN_PROGRESS: reading a later phase
+   * from the deployment metadata, or the switchover timer expiring. The timer path is strictly worse -
+   * it publishes COMPLETED with no routing at all, so clients are released onto whatever DNS returns
+   * and the outage is exactly {@code bgSwitchoverTimeoutMs} regardless of how fast the database
+   * actually switched over. Bounding the window well below the timeout is what distinguishes the two.
+   *
+   * <p>Checks:
+   * <ol>
+   *   <li>The plugin advanced past IN_PROGRESS at all.</li>
+   *   <li>It did so within {@link #MAX_TRAFFIC_SUSPENSION_MS}.</li>
+   *   <li>No individual connect or JDBC call was held longer than that same bound. Individual holds
+   *       are also capped by {@code bgConnectTimeoutMs}, so this mainly guards against a suspend
+   *       routing that stops re-checking the published status.</li>
+   * </ol>
+   */
+  private void assertTrafficSuspensionBounded() {
+    final long bgTriggerTime = getBgTriggerTime();
+
+    final Long inProgressNano = this.pluginPhaseFirstSeenNano.get(BlueGreenPhase.IN_PROGRESS);
+    assertNotNull(inProgressNano,
+        "The plugin never published the IN_PROGRESS phase, so traffic suspension can't be measured. "
+            + "Either the switchover was not observed by the plugin at all, or the status poller "
+            + "missed the phase.");
+
+    // Phases are monotonic within a switchover, so POST is the end of the suspension window whenever
+    // it was observed; COMPLETED is the fallback for a switchover that skipped straight to it.
+    final Long postNano = this.pluginPhaseFirstSeenNano.get(BlueGreenPhase.POST);
+    final Long completedNano = this.pluginPhaseFirstSeenNano.get(BlueGreenPhase.COMPLETED);
+    final Long suspensionEndNano = postNano != null ? postNano : completedNano;
+
+    assertNotNull(suspensionEndNano, String.format(
+        "The plugin never advanced past IN_PROGRESS (first published at %d ms after the switchover was "
+            + "triggered). It stayed in the phase that suspends all blue traffic, which means it never "
+            + "detected the switchover finishing from the deployment metadata.",
+        getTimeOffsetMs(inProgressNano, bgTriggerTime)));
+
+    final long suspensionMs = TimeUnit.NANOSECONDS.toMillis(suspensionEndNano - inProgressNano);
+    LOGGER.info(() -> String.format(
+        "Plugin traffic suspension window: %d ms (IN_PROGRESS at %d ms, released at %d ms; bound %d ms, "
+            + "bgSwitchoverTimeoutMs %d ms)",
+        suspensionMs,
+        getTimeOffsetMs(inProgressNano, bgTriggerTime),
+        getTimeOffsetMs(suspensionEndNano, bgTriggerTime),
+        MAX_TRAFFIC_SUSPENSION_MS,
+        BG_SWITCHOVER_TIMEOUT_MS));
+
+    assertTrue(suspensionMs < MAX_TRAFFIC_SUSPENSION_MS, String.format(
+        "The plugin held blue traffic suspended for %d ms, over the %d ms bound. bgSwitchoverTimeoutMs "
+            + "is %d ms, so a window this long means the plugin most likely did not detect the "
+            + "switchover finishing and was released by the timer instead.",
+        suspensionMs, MAX_TRAFFIC_SUSPENSION_MS, BG_SWITCHOVER_TIMEOUT_MS));
+
+    final long maxHoldMs = TimeUnit.NANOSECONDS.toMillis(getMaxHoldTimeNano());
+    LOGGER.info(() -> String.format("Max time a single call was held by the plugin: %d ms", maxHoldMs));
+
+    assertTrue(maxHoldMs < MAX_TRAFFIC_SUSPENSION_MS, String.format(
+        "A single connect or JDBC call was held by the plugin for %d ms, over the %d ms bound.",
+        maxHoldMs, MAX_TRAFFIC_SUSPENSION_MS));
+  }
+
+  /**
+   * Returns the longest time (nanos) the plugin held any single wrapper connect or JDBC call, across
+   * every monitored node. {@code holdNano} is reset by the plugin per call, so each sample is the
+   * delay that one call experienced.
+   */
+  private long getMaxHoldTimeNano() {
+    long maxHoldNano = 0;
+    for (BlueGreenResults nodeResults : this.results.values()) {
+      final List<ConcurrentLinkedDeque<TimeHolder>> allTimes = Arrays.asList(
+          nodeResults.blueWrapperConnectTimes,
+          nodeResults.blueWrapperPreSwitchoverExecuteTimes,
+          nodeResults.blueWrapperPostSwitchoverExecuteTimes,
+          nodeResults.greenWrapperExecuteTimes);
+      for (ConcurrentLinkedDeque<TimeHolder> times : allTimes) {
+        for (TimeHolder timeHolder : times) {
+          maxHoldNano = Math.max(maxHoldNano, timeHolder.holdNano);
+        }
+      }
+    }
+    return maxHoldNano;
   }
 
   /**
