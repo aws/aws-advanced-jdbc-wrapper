@@ -41,11 +41,41 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 | `secretsManagerSecretId`               | String  |                           Yes                            | Set this value to be the secret name or the secret ARN.                                                                                                                                                                          | `secretId`              | `null`        |
 | `secretsManagerRegion`                 | String  | Yes unless the `secretsManagerSecretId` is a Secret ARN. | Set this value to be the region your secret is in.                                                                                                                                                                               | `us-east-2`             | `us-east-1`   |
 | `secretsManagerEndpoint`               | String  |                            No                            | Set this value to be the endpoint override to retrieve your secret from. This parameter value should be in the form of a URL, with a valid protocol (ex. `http://`) and domain (ex. `localhost`). A port number is not required. | `http://localhost:1234` | `null`        |
-| `secretsManagerExpirationSec`          | Integer |                            No                            | This property sets the time in seconds that secrets are cached before it is re-fetched.                                                                                                                                          | `600`                   | `870`         |
+| `secretsManagerExpirationTimeSec`      | Integer |                            No                            | This property sets the time in seconds that secrets are cached before it is re-fetched.                                                                                                                                          | `600`                   | `870`         |
 | `secretsManagerSecretUsernameProperty` | String  |                            No                            | Set this value to be the key in the JSON secret that contains the username for database connection.                                                                                                                              | `writerUsername`        | `username`    |
 | `secretsManagerSecretPasswordProperty` | String  |                            No                            | Set this value to be the key in the JSON secret that contains the password for database connection.                                                                                                                              | `readerPassword`        | `password`    |
+| `secretsManagerConnectRetryTimeoutMs`  | Long    |                            No                            | Total time budget, in milliseconds, for retrying a connection that failed to log in, re-fetching the credentials before each retry. `0` disables retrying. See [Bridging a credential rotation window](#bridging-a-credential-rotation-window). | `90000`                 | `0`           |
+| `secretsManagerConnectRetryIntervalMs` | Long    |                            No                            | Initial delay, in milliseconds, before a failed connection is retried. The delay doubles after every failed attempt, capped at 30000ms and at the remaining time budget. Only used when `secretsManagerConnectRetryTimeoutMs` is greater than `0`. | `2000`                  | `1000`        |
 
 *NOTE* A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
+
+## Bridging a credential rotation window
+
+A Secrets Manager rotation runs as `createSecret` -> `setSecret` -> `testSecret` -> `finishSecret`. Between `setSecret` (the database password has already been changed) and `finishSecret` (`AWSCURRENT` is promoted to the new version) there is a window in which the database expects the new password but `GetSecretValue` still returns the old one. With RDS managed rotation this window has been observed to last around a minute.
+
+By default the plugin cannot bridge that window. It re-fetches the credentials and retries at most once, and that single retry still resolves `AWSCURRENT` to the old secret, so it fails too. Existing connections keep working, but every *new* physical connection fails for the duration of the window: application startup, connection pool growth, and pool max-lifetime recycling. The failure surfaces as a login error (`28P01` on PostgreSQL, `28000` on MySQL).
+
+Set `secretsManagerConnectRetryTimeoutMs` to a value that comfortably covers your rotation window to have the plugin poll instead of giving up:
+
+```java
+final Properties properties = new Properties();
+properties.setProperty(PropertyDefinition.PLUGINS.name, "awsSecretsManager");
+properties.setProperty("secretsManagerSecretId", "secretId");
+properties.setProperty("secretsManagerRegion", "us-east-2");
+// Keep retrying for up to 2 minutes, starting at 2s between attempts.
+properties.setProperty("secretsManagerConnectRetryTimeoutMs", "120000");
+properties.setProperty("secretsManagerConnectRetryIntervalMs", "2000");
+```
+
+With a budget configured, the plugin repeats "force a re-fetch, then reconnect" until the connection succeeds or the budget runs out, backing off exponentially between attempts. Retries also apply to the first connection opened against an empty cache, which the default single-retry behavior skips.
+
+Only login failures are retried. Any other error (a network failure, an unavailable host) is reported immediately, as re-fetching the credentials would not help.
+
+> [!NOTE]\
+> Each retry issues one `GetSecretValue` call and each attempt blocks the calling thread for the backoff interval. Choose the interval with the [Secrets Manager request quota](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_limits.html) in mind, and keep the budget below the connection timeout your application or pool is willing to wait for.
+
+> [!NOTE]\
+> This is a client-side mitigation. Routing connections through [RDS Proxy](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/rds-proxy.html), which manages the credentials on your behalf, or using a multi-user rotation strategy where the previous password stays valid, avoids the window instead of waiting it out.
 
 ## AWS Secrets Manager Connection Plugin v2 (Stale-While-Revalidate)
 An alternative version of this plugin, `awsSecretsManager2`, is available. It uses a **Stale-While-Revalidate (SWR)** caching strategy that connects immediately using stale cached credentials while refreshing them asynchronously in the background. This eliminates connection latency spikes during credential refresh on cache expiry and allows the driver to remain functional during temporary AWS Secrets Manager outages.

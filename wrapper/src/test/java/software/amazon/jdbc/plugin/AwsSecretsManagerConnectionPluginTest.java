@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -29,6 +30,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.REGION_PROPERTY;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_CONNECT_RETRY_INTERVAL_MS_PROPERTY;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_CONNECT_RETRY_TIMEOUT_MS_PROPERTY;
 import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY;
 
 import com.mysql.cj.exceptions.CJException;
@@ -100,6 +103,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final String TEST_HOST = "test-domain";
   private static final String TEST_SQL_ERROR = "SQL exception error message";
   private static final String UNHANDLED_ERROR_CODE = "HY000";
+  private static final String PG_ACCESS_ERROR = "28P01";
   private static final int TEST_PORT = 5432;
   private static final long EXPIRATION_TIME = 900;
   private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
@@ -123,6 +127,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock SecretsManagerClient mockSecretsManagerClient;
   @Mock GetSecretValueRequest mockGetValueRequest;
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
+  @Mock Connection mockConnection;
   @Mock PluginServiceImpl mockService;
   @Mock StorageService mockStorageService;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
@@ -547,6 +552,165 @@ public class AwsSecretsManagerConnectionPluginTest {
     // The region specified in `secretsManagerRegion` should override the region parsed from ARN.
     assertNotEquals(regionParsedFromARN, Region.of(secret.getValue2()));
     assertEquals(expectedRegion, Region.of(secret.getValue2()));
+  }
+
+  /**
+   * With a connect retry budget configured, the plugin keeps re-fetching the credentials and
+   * retrying while the login keeps failing, and returns the connection as soon as one attempt
+   * succeeds.
+   */
+  @Test
+  public void testConnectRetryBudgetRetriesUntilLoginSucceeds() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin retryingPlugin = createRetryingPlugin(5000, 1);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+    when(this.connectFunc.call())
+        .thenThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR))
+        .thenThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR))
+        .thenReturn(mockConnection);
+
+    assertEquals(
+        mockConnection,
+        retryingPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    verify(this.connectFunc, times(3)).call();
+    // Every attempt after the first forces a re-fetch so a newly promoted secret is picked up.
+    verify(this.mockSecretsManagerClient, times(2)).getSecretValue(this.mockGetValueRequest);
+  }
+
+  /**
+   * The retry budget also applies when the very first attempt already fetched the credentials from
+   * the service, which is the case for the first connection opened with an empty cache. The
+   * non-retrying path skips its single retry in that situation.
+   */
+  @Test
+  public void testConnectRetryBudgetRetriesWithEmptyCache() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin retryingPlugin = createRetryingPlugin(5000, 1);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(null);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+    when(this.connectFunc.call())
+        .thenThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR))
+        .thenReturn(mockConnection);
+
+    assertEquals(
+        mockConnection,
+        retryingPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    verify(this.connectFunc, times(2)).call();
+  }
+
+  /**
+   * When the login keeps failing for the whole time budget the last login exception is rethrown.
+   */
+  @Test
+  public void testConnectRetryBudgetExhausted() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin retryingPlugin = createRetryingPlugin(150, 20);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+    doThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR)).when(this.connectFunc).call();
+
+    final SQLException exception = assertThrows(
+        SQLException.class,
+        () -> retryingPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    assertEquals(TEST_SQL_ERROR, exception.getMessage());
+    assertEquals(PG_ACCESS_ERROR, exception.getSQLState());
+    verify(this.connectFunc, atLeast(2)).call();
+  }
+
+  /**
+   * A failure to re-fetch the credentials mid-retry must not end the retry budget, and the login
+   * failure stays the reported cause.
+   */
+  @Test
+  public void testConnectRetryBudgetSurvivesFetchFailure() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin retryingPlugin = createRetryingPlugin(150, 20);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    doThrow(SecretsManagerException.class).when(this.mockSecretsManagerClient)
+        .getSecretValue(this.mockGetValueRequest);
+    doThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR)).when(this.connectFunc).call();
+
+    final SQLException exception = assertThrows(
+        SQLException.class,
+        () -> retryingPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    // The login failure is reported, not the Secrets Manager fetch failure.
+    assertEquals(TEST_SQL_ERROR, exception.getMessage());
+    verify(this.mockSecretsManagerClient, atLeast(1)).getSecretValue(this.mockGetValueRequest);
+  }
+
+  /**
+   * A failure that is not a login failure is not caused by stale credentials, so it is rethrown
+   * immediately even when a retry budget is configured.
+   */
+  @Test
+  public void testConnectRetryBudgetIgnoresNonLoginError() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin retryingPlugin = createRetryingPlugin(5000, 1);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    doThrow(new SQLException(TEST_SQL_ERROR, UNHANDLED_ERROR_CODE)).when(this.connectFunc).call();
+
+    final SQLException exception = assertThrows(
+        SQLException.class,
+        () -> retryingPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    assertEquals(TEST_SQL_ERROR, exception.getMessage());
+    verify(this.connectFunc, times(1)).call();
+    verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
+  }
+
+  /**
+   * Retrying is opt-in: the default configuration keeps the single-retry behavior, so a login
+   * failure on an attempt that already fetched fresh credentials is not retried at all.
+   */
+  @Test
+  public void testConnectRetryDisabledByDefault() throws SQLException {
+    final PluginServiceImpl pluginServiceImpl = getPluginService(TEST_PG_PROTOCOL);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
+    final AwsSecretsManagerConnectionPlugin defaultPlugin = new AwsSecretsManagerConnectionPlugin(
+        mockServicesContainer,
+        TEST_PROPS,
+        (host, r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(null);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+    doThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR)).when(this.connectFunc).call();
+
+    assertThrows(
+        SQLException.class,
+        () -> defaultPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    verify(this.connectFunc, times(1)).call();
+  }
+
+  private AwsSecretsManagerConnectionPlugin createRetryingPlugin(
+      final long retryTimeoutMs, final long retryIntervalMs) throws SQLException {
+    SECRETS_MANAGER_CONNECT_RETRY_TIMEOUT_MS_PROPERTY.set(TEST_PROPS, String.valueOf(retryTimeoutMs));
+    SECRETS_MANAGER_CONNECT_RETRY_INTERVAL_MS_PROPERTY.set(TEST_PROPS, String.valueOf(retryIntervalMs));
+
+    final PluginServiceImpl pluginServiceImpl = getPluginService(TEST_PG_PROTOCOL);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
+
+    return new AwsSecretsManagerConnectionPlugin(
+        mockServicesContainer,
+        TEST_PROPS,
+        (host, r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
   }
 
   private static Stream<Arguments> provideExceptionCodeForDifferentDrivers() {

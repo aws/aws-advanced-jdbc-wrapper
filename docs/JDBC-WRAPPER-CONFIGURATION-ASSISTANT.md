@@ -801,6 +801,8 @@ Reads `username`/`password` from an AWS Secrets Manager secret (JSON format).
 | `secretsManagerSecretUsernameProperty` | `username` | Key in JSON secret containing username. |
 | `secretsManagerSecretPasswordProperty` | `password` | Key in JSON secret containing password. |
 | `secretsManagerExpirationTimeSec` | (driver-defined) | Secret cache TTL. |
+| `secretsManagerConnectRetryTimeoutMs` | `0` | Time budget for retrying a login failure while re-fetching the secret. Set above `0` to bridge a rotation window. |
+| `secretsManagerConnectRetryIntervalMs` | `1000` | Initial backoff between those retries; doubles per attempt, capped at 30s. |
 
 ### 5.8 `federatedAuth` — SAML federated auth (ADFS, Azure AD, Ping)
 
