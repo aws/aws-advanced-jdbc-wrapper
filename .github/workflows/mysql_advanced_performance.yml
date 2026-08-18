@@ -31,7 +31,9 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
@@ -43,7 +45,7 @@ jobs:
           output-credentials: true
       - name: 'Run performance tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-aurora-mysql-advanced-performance
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-suite=advanced-performance -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=3
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
