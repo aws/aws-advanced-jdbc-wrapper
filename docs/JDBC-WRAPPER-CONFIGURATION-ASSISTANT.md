@@ -801,6 +801,10 @@ Reads `username`/`password` from an AWS Secrets Manager secret (JSON format).
 | `secretsManagerSecretUsernameProperty` | `username` | Key in JSON secret containing username. |
 | `secretsManagerSecretPasswordProperty` | `password` | Key in JSON secret containing password. |
 | `secretsManagerExpirationTimeSec` | (driver-defined) | Secret cache TTL. |
+| `secretsManagerConnectRetryTimeoutMs` | `0` | Available since version 4.4.0. Time budget, in milliseconds, for retrying a login failure while re-fetching the secret. Set above `0` to bridge a rotation window. |
+| `secretsManagerConnectRetryIntervalMs` | `1000` | Available since version 4.4.0. Initial backoff, in milliseconds, between those retries; doubles per attempt, capped at 30s and at the remaining budget. |
+
+> **Secret rotation:** by default a new connection cannot be established during the window between `setSecret` (the database password has changed) and `finishSecret` (`AWSCURRENT` is promoted), because the single re-fetch still returns the pre-rotation secret. Set `secretsManagerConnectRetryTimeoutMs` above `0` to poll across that window. Only login failures are retried, each retry costs one `GetSecretValue` call, and each attempt blocks the calling thread for the backoff interval. See [Bridging a credential rotation window](./using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md#bridging-a-credential-rotation-window).
 
 ### 5.8 `federatedAuth` — SAML federated auth (ADFS, Azure AD, Ping)
 

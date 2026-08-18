@@ -55,7 +55,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  *       asynchronous background refresh. The connection is never blocked.</li>
  *   <li><b>Cache miss (first connection):</b> fetch synchronously (same as v1).</li>
  *   <li><b>Login failure with stale credentials:</b> the inherited connect logic performs a
- *       synchronous re-fetch and retries the connection.</li>
+ *       synchronous re-fetch and retries the connection. When
+ *       {@code secretsManagerConnectRetryTimeoutMs} is configured, it keeps re-fetching and retrying
+ *       within that time budget, which also applies here.</li>
  * </ul>
  *
  * <p>At most one in-flight refresh exists per {@code (secretId, region)} key
