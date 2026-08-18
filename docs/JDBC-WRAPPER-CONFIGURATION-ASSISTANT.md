@@ -1077,6 +1077,7 @@ Tracks Blue/Green deployment status and routes connections to the right side dur
 | `bgHighMs` | `100` | High-frequency interval (during switchover). |
 | `bgSwitchoverTimeoutMs` | `180000` | Switchover timeout. |
 | `bgDropBlueConnections` | `true` | Drop all blue connections at switchover start. |
+| `bgReleaseOnBlueDnsUpdate` | `true` | Release held traffic once all blue endpoints resolve to new IPs, without waiting for a post-`SWITCHOVER_IN_PROGRESS` status. |
 
 ### 5.17 `customEndpoint` — Aurora Custom Endpoint awareness
 
