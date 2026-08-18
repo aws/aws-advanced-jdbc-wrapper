@@ -1,0 +1,7 @@
+# The root .gitignore excludes *.jar, which is right for build output and wrong for these: Orchestra is not
+# published yet, so its jars are vendored here and have to be tracked or a fresh clone cannot build the
+# migrated integration tests.
+#
+# Scoped to this directory rather than adding an exception to the root file, so the exception cannot
+# accidentally re-include a build artifact somewhere else.
+!*.jar

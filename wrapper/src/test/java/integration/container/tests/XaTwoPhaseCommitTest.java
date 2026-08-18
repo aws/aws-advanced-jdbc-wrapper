@@ -235,6 +235,9 @@ public class XaTwoPhaseCommitTest {
   private void recreateTables() throws SQLException {
     try (final Connection conn = openPlainConnection();
         final Statement stmt = conn.createStatement()) {
+      // Bounded: a branch left prepared by an earlier failure holds these tables' locks, and waiting for it
+      // is waiting forever. See XaTestUtility.boundLockWait.
+      XaTestUtility.boundLockWait(stmt);
       stmt.execute("DROP TABLE IF EXISTS " + TABLE_1);
       stmt.execute("DROP TABLE IF EXISTS " + TABLE_2);
       stmt.execute("CREATE TABLE " + TABLE_1 + " (id INT NOT NULL PRIMARY KEY)");
