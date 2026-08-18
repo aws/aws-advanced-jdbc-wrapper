@@ -40,7 +40,9 @@ jobs:
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         id: creds
@@ -52,7 +54,16 @@ jobs:
           output-credentials: true
       - name: Run Blue/Green integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-bgd-${{ matrix.testTask }}
+          case "${{ matrix.testTask }}" in
+            mysql-aurora-mariadb-driver)       ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=2" ;;
+            mysql-aurora-mysql-driver)         ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=2" ;;
+            mysql-rds-instance-mariadb-driver) ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=1" ;;
+            mysql-rds-instance-mysql-driver)   ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=1" ;;
+            pg-aurora)                         ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=2" ;;
+            pg-rds-instance)                   ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=1" ;;
+            *) echo "Unknown testTask ${{ matrix.testTask }}"; exit 1 ;;
+          esac
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-bluegreen=true $ARGS
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}

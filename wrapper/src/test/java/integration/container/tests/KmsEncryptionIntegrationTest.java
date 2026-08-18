@@ -55,6 +55,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
@@ -693,7 +694,11 @@ public class KmsEncryptionIntegrationTest {
       throws Exception {
     // Generate KMS data key. KMS accepts a key ID, key ARN or alias.
     final String encryptedDataKeyBase64;
-    try (KmsClient kmsClient = KmsClient.builder().region(Region.of(region)).build()) {
+    // Keep credentials refreshable for runs that outlive their initial session token.
+    try (KmsClient kmsClient = KmsClient.builder()
+        .region(Region.of(region))
+        .credentialsProvider(DefaultCredentialsProvider.create())
+        .build()) {
       GenerateDataKeyRequest dataKeyRequest =
           GenerateDataKeyRequest.builder().keyId(kmsKeyId).keySpec("AES_256").build();
       GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);

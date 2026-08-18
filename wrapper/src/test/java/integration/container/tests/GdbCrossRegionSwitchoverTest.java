@@ -1,0 +1,243 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package integration.container.tests;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
+import integration.DriverHelper;
+import integration.TestEnvironmentFeatures;
+import integration.TestGlobalDatabaseInfo;
+import integration.TestRegionalClusterInfo;
+import integration.TestTags;
+import integration.container.ConnectionStringHelper;
+import integration.container.TestDriver;
+import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.container.condition.EnableOnTestFeature;
+import integration.util.AuroraTestUtility;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Duration;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
+import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
+
+/**
+ * Moves an Aurora global database's writer to another region under an open connection.
+ *
+ * <p>The behaviour the {@code gdbFailover} plugin exists for, and the one thing no single-region environment can
+ * test: the writer leaves the region the connection is in. Everything else the plugin does - home and out-of-home
+ * modes, region-filtered reader selection - is a decision made <em>about</em> this event, so this is the test the
+ * rest are shaped by.
+ *
+ * <p>A planned switchover rather than an unplanned failover, deliberately. {@code SwitchoverGlobalCluster} waits
+ * for the target to catch up and then swaps the roles, so no data is lost and the topology survives; an
+ * unplanned {@code FailoverGlobalCluster} detaches the old primary and leaves it to be rebuilt, which a shared
+ * environment can absorb once and then not again. Testing the graceful path repeatedly is worth more than
+ * testing the destructive one once.
+ *
+ * <h2>Ordered last, and put back afterwards</h2>
+ *
+ * <p>This class changes the environment: after it runs, the region that was primary is not. Every other GDB class
+ * assumes the layout the topology was published with - which region holds the writer, and therefore which
+ * regions hold only readers - so this runs after them and switches back when it is done. The switch back is
+ * best-effort: if it fails, the environment is still valid, just mirrored, and it is deleted at the end of the
+ * run anyway.
+ */
+@TestMethodOrder(MethodOrderer.MethodName.class)
+@ExtendWith(TestDriverProvider.class)
+@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA_GLOBAL)
+@EnableOnTestFeature(TestEnvironmentFeatures.GLOBAL_DATABASE)
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+@Tag(TestTags.GDB)
+@Order(90)
+public class GdbCrossRegionSwitchoverTest {
+
+  private static final Logger LOGGER = Logger.getLogger(GdbCrossRegionSwitchoverTest.class.getName());
+
+  /**
+   * How long a switchover may take.
+   *
+   * <p>Generous because the operation is not only a role swap: RDS stops writes and waits for the target region
+   * to catch up first, and how long that takes depends on replication lag across a continent. A tighter timeout
+   * would fail runs for being slow rather than for being wrong.
+   */
+  private static final Duration SWITCHOVER_TIMEOUT = Duration.ofMinutes(20);
+
+  private static final String TABLE = "gdb_switchover_test";
+
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+
+  private static TestGlobalDatabaseInfo global() {
+    final TestGlobalDatabaseInfo info = TestEnvironment.getCurrent().getInfo().getGlobalDatabaseInfo();
+    assertNotNull(info, "this environment published no global database topology");
+    return info;
+  }
+
+  @TestTemplate
+  public void test_switchover_movesTheWriterToAnotherRegion(final TestDriver testDriver) throws SQLException {
+    final TestGlobalDatabaseInfo info = global();
+    final String homeRegion = info.getPrimaryRegion();
+    final TestRegionalClusterInfo target = info.getFirstSecondaryRegion();
+
+    LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " from " + homeRegion
+        + " to " + target.getRegion());
+
+    // strict-writer in both modes: this connection wants a writer wherever it ends up, which is the
+    // configuration a write workload uses and the one that makes the assertion below meaningful. The home region
+    // is the region we start in, so the switchover takes us out of home - inactiveHomeFailoverMode is the mode
+    // that then applies.
+    final Properties props = gdbProps(testDriver, info, homeRegion);
+    props.setProperty(GlobalDbFailoverConnectionPlugin.ACTIVE_HOME_FAILOVER_MODE.name, "strict-writer");
+    props.setProperty(GlobalDbFailoverConnectionPlugin.INACTIVE_HOME_FAILOVER_MODE.name, "strict-writer");
+
+    final String url = ConnectionStringHelper.getWrapperUrl(
+        info.getRegion(homeRegion).getClusterEndpoint(),
+        info.getRegion(homeRegion).getPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+
+    try (Connection conn = DriverManager.getConnection(url, props)) {
+      final String before = auroraUtil.queryInstanceId(conn);
+      assertTrue(info.getRegion(homeRegion).getInstanceIdentifiers().contains(before),
+          "expected to start on an instance in " + homeRegion + ", but " + before + " is not one of "
+              + info.getRegion(homeRegion).getInstanceIdentifiers());
+
+      switchover(info, target.getRegion());
+
+      // The first use of the connection after the writer moved must report failover rather than silently
+      // continuing against a server that is now a reader. That is the plugin's contract, and the reason a
+      // driver is needed here at all: the endpoint did not change, only what is behind it.
+      assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
+
+      final String after = auroraUtil.queryInstanceId(conn);
+      LOGGER.info("After switchover the connection is on " + after);
+
+      assertTrue(target.getInstanceIdentifiers().contains(after),
+          "after the switchover the connection should be on an instance in " + target.getRegion()
+              + ", but it is on " + after);
+
+      // And it must be usable as a writer, which is what strict-writer asked for. A connection that failed over
+      // to a reader would pass every assertion above and fail the first write a real application made.
+      assertWritable(conn);
+
+    } finally {
+      switchBack(info, homeRegion);
+    }
+  }
+
+  /**
+   * Builds the properties a connection to a global database needs.
+   *
+   * <p>{@code globalClusterInstanceHostPatterns} is not optional: without it the driver refuses to connect to a
+   * global database at all, because it cannot turn the instance identifiers the topology query returns into
+   * addressable hosts. The dialect is named explicitly rather than left to detection, since that is what the
+   * plugin's own documentation configures for a global database.
+   */
+  private Properties gdbProps(
+      final TestDriver testDriver, final TestGlobalDatabaseInfo info, final String homeRegion) {
+
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    PropertyDefinition.PLUGINS.set(props, "initialConnection,gdbFailover,efm2");
+    DialectManager.DIALECT.set(props, dialect());
+
+    GlobalAuroraHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.set(
+        props, info.getInstanceHostPatterns());
+    props.setProperty(GlobalDbFailoverConnectionPlugin.FAILOVER_HOME_REGION.name, homeRegion);
+
+    DriverHelper.setConnectTimeout(testDriver, props, 20, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(testDriver, props, 20, TimeUnit.SECONDS);
+    return props;
+  }
+
+  private String dialect() {
+    return TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG
+        ? DialectCodes.GLOBAL_AURORA_PG
+        : DialectCodes.GLOBAL_AURORA_MYSQL;
+  }
+
+  private void switchover(final TestGlobalDatabaseInfo info, final String toRegion) {
+    final String targetArn =
+        auroraUtil.getGlobalClusterMemberArn(info.getGlobalClusterIdentifier(), toRegion);
+
+    auroraUtil.switchoverGlobalCluster(info.getGlobalClusterIdentifier(), targetArn);
+    auroraUtil.waitUntilGlobalClusterPrimaryRegionIs(
+        info.getGlobalClusterIdentifier(), toRegion, SWITCHOVER_TIMEOUT);
+  }
+
+  /**
+   * Returns the primary region to where it started.
+   *
+   * <p>Best-effort, and logged rather than asserted. The environment is valid either way - it is a global
+   * database with a writer somewhere - and it is deleted at the end of the run; failing teardown here would
+   * replace whatever the test found with a message about a switchover.
+   */
+  private void switchBack(final TestGlobalDatabaseInfo info, final String homeRegion) {
+    try {
+      if (homeRegion.equals(auroraUtil.getGlobalClusterPrimaryRegion(info.getGlobalClusterIdentifier()))) {
+        return;
+      }
+      LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " back to " + homeRegion);
+      switchover(info, homeRegion);
+
+    } catch (final RuntimeException e) {
+      LOGGER.warning("Could not switch " + info.getGlobalClusterIdentifier() + " back to " + homeRegion
+          + ": " + e.getMessage() + ". The environment is still usable, with its writer in another region.");
+    }
+  }
+
+  private void assertWritable(final Connection conn) throws SQLException {
+    try (Statement statement = conn.createStatement()) {
+      statement.execute("DROP TABLE IF EXISTS " + TABLE);
+      statement.execute("CREATE TABLE " + TABLE + " (id INT NOT NULL PRIMARY KEY)");
+      statement.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (1)");
+
+      try (ResultSet rs = statement.executeQuery("SELECT COUNT(*) FROM " + TABLE)) {
+        rs.next();
+        assertEquals(1, rs.getInt(1), "the connection could not write after the switchover");
+      }
+
+      statement.execute("DROP TABLE IF EXISTS " + TABLE);
+    }
+  }
+}

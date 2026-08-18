@@ -34,5 +34,15 @@ public enum TestEnvironmentFeatures {
   BLUE_GREEN_DEPLOYMENT,
   VALKEY_CACHE,
   RUN_DB_METRICS_ONLY,
-  RUN_ENCRYPTION_TESTS_ONLY
+  RUN_ENCRYPTION_TESTS_ONLY,
+
+  /**
+   * The environment is an Aurora global database, with a regional cluster in more than one region.
+   *
+   * <p>What the GDB tests gate on. Separate from the {@code AURORA_GLOBAL} deployment even though they always
+   * arrive together, because the two answer different questions: the deployment says what was provisioned, and
+   * this says the environment can support a cross-region test - which is also what makes the gate readable in a
+   * class that has nothing else to say about deployments.
+   */
+  GLOBAL_DATABASE
 }

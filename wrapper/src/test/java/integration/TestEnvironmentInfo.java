@@ -41,6 +41,10 @@ public class TestEnvironmentInfo {
 
   private String blueGreenDeploymentId;
 
+  // The multi-region topology, on a global database environment only. Null everywhere else, which is what
+  // GLOBAL_DATABASE gates on: a test that reads this without that feature has asked the wrong environment.
+  private TestGlobalDatabaseInfo globalDatabaseInfo;
+
   private String clusterParameterGroupName = null;
 
   // Instance-level parameter group, used by the RDS (non-Aurora) deployments.
@@ -51,6 +55,19 @@ public class TestEnvironmentInfo {
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
+  }
+
+  /**
+   * Returns the multi-region topology of a global database environment.
+   *
+   * @return the topology, or {@code null} when this environment is not a global database
+   */
+  public TestGlobalDatabaseInfo getGlobalDatabaseInfo() {
+    return this.globalDatabaseInfo;
+  }
+
+  public void setGlobalDatabaseInfo(final TestGlobalDatabaseInfo globalDatabaseInfo) {
+    this.globalDatabaseInfo = globalDatabaseInfo;
   }
 
   public TestDatabaseInfo getValkeyServerInfo() {
