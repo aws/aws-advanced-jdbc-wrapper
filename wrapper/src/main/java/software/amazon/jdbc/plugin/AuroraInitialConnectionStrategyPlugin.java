@@ -596,8 +596,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     final HostRole targetRole = InstanceSubstitutionStrategy.toTargetRole(substitutionStrategy);
+    // targetRole may by null if the url is a RDS Custom Endpoint.
     final String selectionStrategy = this.selectionStrategyPropValue;
-    if (targetRole == null || selectionStrategy == null
+    if (selectionStrategy == null
+        || (targetRole == null && urlType != RdsUrlType.RDS_CUSTOM_CLUSTER)
         || !this.pluginService.acceptsStrategy(targetRole, selectionStrategy)) {
       throw new UnsupportedOperationException(
           Messages.get(
@@ -679,7 +681,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         return HostRole.WRITER;
       }
 
-      if (substitutionStrategy == SUBSTITUTE_WITH_READER) {
+      if (substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_READER) {
         return HostRole.READER;
       }
 
