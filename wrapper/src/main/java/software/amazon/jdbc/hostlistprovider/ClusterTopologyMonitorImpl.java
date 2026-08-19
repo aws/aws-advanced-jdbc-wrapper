@@ -164,6 +164,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
     this.monitoringConnection = new AtomicConnection(this, this.logUnclosedConnections);
 
     this.monitoringProperties = PropertyUtils.copyProperties(properties);
+
+    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
+    // '<prefix>' value below still takes effect. Topology is read from whichever node this monitor is
+    // pointed at, readers included, so a target driver setting that rejects read-only servers would
+    // prevent those connections.
+    PropertyUtils.removeHostSelectionProperties(
+        this.monitoringProperties, servicesContainer.getPluginService().getTargetDriverDialect());
+
     this.properties.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
@@ -186,11 +194,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       PropertyDefinition.CONNECT_TIMEOUT.set(
           this.monitoringProperties, String.valueOf(defaultConnectionTimeoutMs));
     }
-
-    // Topology is read from whichever node this monitor is pointed at, readers included, so a target
-    // driver setting that rejects read-only servers would prevent those connections.
-    PropertyUtils.removeHostSelectionProperties(
-        this.monitoringProperties, servicesContainer.getPluginService().getTargetDriverDialect());
   }
 
   /**

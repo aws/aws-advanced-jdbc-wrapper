@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -36,6 +37,10 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
+
+  // Node-selection property names already reported by removeHostSelectionProperties, so the warning is
+  // emitted once per property per JVM rather than once per monitor created.
+  private static final Set<String> reportedHostSelectionProperties = ConcurrentHashMap.newKeySet();
   private static final Set<Object> SECRET_PROPERTIES = Collections.unmodifiableSet(
       new HashSet<>(Collections.singletonList(PropertyDefinition.PASSWORD.name))
   );
@@ -184,9 +189,16 @@ public class PropertyUtils {
     }
 
     final Set<String> removed = targetDriverDialect.removeHostSelectionProperties(monitoringProps);
-    if (!removed.isEmpty()) {
+
+    // Report each property once per JVM. This runs for every monitor that gets created - one per node
+    // for host monitoring, and again whenever monitors are recreated - while the message describes a
+    // static configuration problem, so repeating it per monitor would be noise.
+    final Set<String> notYetReported = new HashSet<>(removed);
+    notYetReported.removeAll(reportedHostSelectionProperties);
+    if (!notYetReported.isEmpty()) {
+      reportedHostSelectionProperties.addAll(notYetReported);
       LOGGER.warning(() -> Messages.get("PropertyUtils.hostSelectionPropertiesRemoved",
-          new Object[] {String.join(", ", removed)}));
+          new Object[] {String.join(", ", notYetReported)}));
     }
   }
 

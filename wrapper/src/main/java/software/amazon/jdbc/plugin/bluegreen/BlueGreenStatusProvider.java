@@ -217,6 +217,14 @@ public class BlueGreenStatusProvider {
   @SuppressWarnings("argument")
   protected Properties getMonitoringProperties() {
     final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.props);
+
+    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
+    // '<prefix>' value below still takes effect. The green node is a replica until it gets promoted,
+    // so a target driver setting that rejects read-only servers would stop the green monitor from
+    // ever reading the deployment status.
+    PropertyUtils.removeHostSelectionProperties(
+        monitoringConnProperties, this.pluginService.getTargetDriverDialect());
+
     this.props.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
@@ -231,11 +239,6 @@ public class BlueGreenStatusProvider {
     monitoringConnProperties.putIfAbsent(PropertyDefinition.SOCKET_TIMEOUT.name, DEFAULT_SOCKET_TIMEOUT_MS);
 
     monitoringConnProperties.put(BlueGreenConnectionPlugin.BG_SKIP_ROUTING_IN_FORCE_CONNECT, "true");
-
-    // The green node is a replica until it gets promoted, so a target driver setting that rejects
-    // read-only servers would stop the green monitor from ever reading the deployment status.
-    PropertyUtils.removeHostSelectionProperties(
-        monitoringConnProperties, this.pluginService.getTargetDriverDialect());
 
     return monitoringConnProperties;
   }

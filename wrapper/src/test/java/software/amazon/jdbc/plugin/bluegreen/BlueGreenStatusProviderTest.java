@@ -126,6 +126,23 @@ class BlueGreenStatusProviderTest {
         "The prefixed key itself must not be passed to the target driver.");
   }
 
+  /**
+   * Removing inherited restrictions must not defeat an explicit monitoring override. Someone who has
+   * deliberately set a monitoring value for a node-selection property means it, so the removal has to
+   * happen before the prefixed values are applied, not after.
+   */
+  @Test
+  void explicitMonitoringOverrideSurvivesRemoval() {
+    props.setProperty("targetServerType", "primary");
+    props.setProperty("blue-green-monitoring-targetServerType", "preferSecondary");
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+
+    final Properties monitoringProps = newProvider().getMonitoringProperties();
+
+    assertEquals("preferSecondary", monitoringProps.getProperty("targetServerType"),
+        "An explicit monitoring override must win over both the inherited value and the removal.");
+  }
+
   @Test
   void inProgressSuspendsTrafficWhileBlueDnsStillPointsAtOldTopology() {
     final BlueGreenStatusProvider provider = newProvider();
