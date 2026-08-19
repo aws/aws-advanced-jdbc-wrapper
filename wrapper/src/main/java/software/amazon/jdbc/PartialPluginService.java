@@ -183,7 +183,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
   }

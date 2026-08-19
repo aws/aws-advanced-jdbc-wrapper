@@ -596,7 +596,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     final HostRole targetRole = InstanceSubstitutionStrategy.toTargetRole(substitutionStrategy);
-    // targetRole may by null if the url is a RDS Custom Endpoint.
+    // targetRole may be null if the url is a RDS Custom Endpoint.
     final String selectionStrategy = this.selectionStrategyPropValue;
     if (selectionStrategy == null
         || (targetRole == null && urlType != RdsUrlType.RDS_CUSTOM_CLUSTER)
