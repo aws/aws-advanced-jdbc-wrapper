@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.bluegreen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +34,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.storage.StorageService;
 
@@ -86,6 +88,42 @@ class BlueGreenStatusProviderTest {
         false,
         false,
         false);
+  }
+
+  /**
+   * The regression this guards (issue #2096): a target driver property restricting which node may be
+   * connected to must not reach the monitoring connections. The green node is a replica until it is
+   * promoted, so inheriting {@code targetServerType=primary} stopped the green monitor from ever
+   * connecting, and the plugin never observed the switchover finishing.
+   */
+  @Test
+  void monitoringPropertiesDropNodeSelectionRestrictions() {
+    props.setProperty("targetServerType", "primary");
+    props.setProperty("socketTimeout", "3000");
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+
+    final Properties monitoringProps = newProvider().getMonitoringProperties();
+
+    assertNull(monitoringProps.getProperty("targetServerType"));
+    assertEquals("3000", monitoringProps.getProperty("socketTimeout"),
+        "Unrelated properties must still be inherited by monitoring connections.");
+  }
+
+  /**
+   * The documented workaround for the above on released versions: the monitoring prefix overrides the
+   * inherited value, so the restriction can be neutralized without touching application connections.
+   */
+  @Test
+  void monitoringPrefixOverridesInheritedProperty() {
+    props.setProperty("someProperty", "applicationValue");
+    props.setProperty("blue-green-monitoring-someProperty", "monitoringValue");
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+
+    final Properties monitoringProps = newProvider().getMonitoringProperties();
+
+    assertEquals("monitoringValue", monitoringProps.getProperty("someProperty"));
+    assertNull(monitoringProps.getProperty("blue-green-monitoring-someProperty"),
+        "The prefixed key itself must not be passed to the target driver.");
   }
 
   @Test

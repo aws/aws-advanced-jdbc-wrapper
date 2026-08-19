@@ -32,6 +32,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
@@ -152,6 +153,41 @@ public class PropertyUtils {
       dest.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
     return dest;
+  }
+
+  /**
+   * Strips properties that restrict which database node the target driver will accept, from properties
+   * about to be used for an internal monitoring connection.
+   *
+   * <p>Monitoring connections are opened against one specific node that the wrapper has already
+   * chosen, and often against a reader or a replica deliberately. A target driver setting that makes
+   * the driver reject a node by role would make those connections fail, silently disabling whichever
+   * monitor relies on them. Which properties qualify is decided by the target driver dialect, so no
+   * driver-specific property name is needed here.
+   *
+   * <p>A warning is logged when something is removed, so the configuration issue is visible rather
+   * than silently corrected.
+   *
+   * <p>This is best-effort hygiene called while monitors are being constructed, so a missing dialect
+   * is tolerated and simply skipped. Failing to strip a property must never be the reason a monitor
+   * cannot be created.
+   *
+   * @param monitoringProps      the monitoring connection properties to adjust in place.
+   * @param targetDriverDialect  the dialect that knows which properties restrict node selection.
+   */
+  public static void removeHostSelectionProperties(
+      final @NonNull Properties monitoringProps,
+      final @Nullable TargetDriverDialect targetDriverDialect) {
+
+    if (targetDriverDialect == null) {
+      return;
+    }
+
+    final Set<String> removed = targetDriverDialect.removeHostSelectionProperties(monitoringProps);
+    if (!removed.isEmpty()) {
+      LOGGER.warning(() -> Messages.get("PropertyUtils.hostSelectionPropertiesRemoved",
+          new Object[] {String.join(", ", removed)}));
+    }
   }
 
   private static boolean isSecretProperty(final Object propertyKey) {

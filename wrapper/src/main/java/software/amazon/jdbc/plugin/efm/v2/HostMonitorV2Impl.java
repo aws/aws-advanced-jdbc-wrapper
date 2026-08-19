@@ -158,6 +158,11 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
               }
               this.monitoringProperties.remove(p);
             });
+
+    // This monitor watches one specific node, which may be a reader, so a target driver setting that
+    // rejects read-only servers would stop it from connecting.
+    PropertyUtils.removeHostSelectionProperties(
+        this.monitoringProperties, servicesContainer.getPluginService().getTargetDriverDialect());
   }
 
   @Override

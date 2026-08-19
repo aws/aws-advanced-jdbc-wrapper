@@ -83,6 +83,11 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
             });
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
 
+    // Router info is queried from one specific node chosen by the wrapper, so a target driver setting
+    // that rejects a node by role would stop this monitor from connecting.
+    PropertyUtils.removeHostSelectionProperties(
+        this.props, servicesContainer.getPluginService().getTargetDriverDialect());
+
     this.intervalMs = intervalMs;
     this.queryHelper = new LimitlessQueryHelper(servicesContainer.getPluginService());
   }

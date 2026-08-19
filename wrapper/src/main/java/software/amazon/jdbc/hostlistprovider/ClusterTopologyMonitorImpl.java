@@ -186,6 +186,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       PropertyDefinition.CONNECT_TIMEOUT.set(
           this.monitoringProperties, String.valueOf(defaultConnectionTimeoutMs));
     }
+
+    // Topology is read from whichever node this monitor is pointed at, readers included, so a target
+    // driver setting that rejects read-only servers would prevent those connections.
+    PropertyUtils.removeHostSelectionProperties(
+        this.monitoringProperties, servicesContainer.getPluginService().getTargetDriverDialect());
   }
 
   /**

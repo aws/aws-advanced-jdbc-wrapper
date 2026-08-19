@@ -116,6 +116,11 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
               monitoringConnProperties.remove(p);
             });
 
+    // Response time is measured against one specific node, usually a reader, so a target driver
+    // setting that rejects read-only servers would stop this monitor from connecting.
+    PropertyUtils.removeHostSelectionProperties(
+        this.monitoringConnProperties, this.pluginService.getTargetDriverDialect());
+
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
     this.responseTimeMsGauge = telemetryFactory.createGauge(

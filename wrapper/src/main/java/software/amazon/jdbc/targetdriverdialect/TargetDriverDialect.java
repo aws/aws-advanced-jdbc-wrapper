@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -129,4 +130,30 @@ public interface TargetDriverDialect {
   void updateInternalState(
       final @NonNull PluginService pluginService,
       final @NonNull Properties props) throws SQLException;
+
+  /**
+   * Removes properties that restrict which database node the target driver is willing to accept a
+   * connection to, and returns the names of the properties that were removed.
+   *
+   * <p>Some target drivers can be told to reject a node that does not match a role, for example
+   * PostgreSQL's {@code targetServerType}, which makes the driver verify the server is writable and
+   * fail the connection otherwise. Such a setting is meaningful for an application connection, where
+   * the driver performs its own host selection, but not for the wrapper's internal monitoring
+   * connections: those are opened against one specific node that the wrapper has already chosen, and
+   * frequently against a reader or a replica on purpose. Inheriting the restriction there makes those
+   * connections fail, silently disabling the monitor that depends on them.
+   *
+   * <p>Implementations must only remove properties that constrain <em>node selection</em>. Properties
+   * affecting authentication, encryption, timeouts, or session state must be left untouched so a
+   * monitoring connection keeps behaving like an application connection in every other respect.
+   *
+   * <p>The default implementation removes nothing and returns an empty set, so a target driver with
+   * no such property, and any implementation outside this library, needs no change.
+   *
+   * @param props the properties to adjust in place; typically a copy made for a monitoring connection.
+   * @return the names of the removed properties, empty if none applied.
+   */
+  default Set<String> removeHostSelectionProperties(final @NonNull Properties props) {
+    return Collections.emptySet();
+  }
 }

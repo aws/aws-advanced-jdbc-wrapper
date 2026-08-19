@@ -100,6 +100,13 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 > [!WARNING]\
 > **Always ensure you provide a non-zero socket timeout value or a connect timeout value to the Blue/Green Deployment Plugin**
 
+Monitoring connections do **not** inherit target driver parameters that restrict which database node a
+connection is accepted against, such as the PostgreSQL JDBC driver's `targetServerType`. These
+connections are opened against a specific node chosen by the driver, and the green node is a replica
+until it is promoted, so such a restriction would prevent the plugin from reading the deployment status
+and it would hold traffic until `bgSwitchoverTimeoutMs` elapsed. The parameters are still applied to
+your application connections; a warning is logged when one is removed from the monitoring connections.
+
 ## Connecting with non-admin users
 
 > [!WARNING]\

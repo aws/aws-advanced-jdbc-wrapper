@@ -59,6 +59,15 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       CP_DS_CLASS_NAME,
       XA_DS_CLASS_NAME));
 
+  /**
+   * Properties that make the PostgreSQL driver reject a node whose role does not match. {@code
+   * targetServerType} makes the driver run {@code SHOW transaction_read_only} after authenticating and
+   * fail the connection when the server is read-only, so a monitoring connection aimed at a reader or
+   * at a not-yet-promoted Blue/Green replica would be refused.
+   */
+  private static final Set<String> HOST_SELECTION_PROPERTY_NAMES =
+      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("targetServerType")));
+
   private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
         {
@@ -264,5 +273,16 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       pluginService.getSessionStateService().setupPristineReadOnly(readOnly);
       pluginService.getSessionStateService().setReadOnly(readOnly);
     }
+  }
+
+  @Override
+  public Set<String> removeHostSelectionProperties(final @NonNull Properties props) {
+    final Set<String> removed = new HashSet<>();
+    for (final String propertyName : HOST_SELECTION_PROPERTY_NAMES) {
+      if (props.remove(propertyName) != null) {
+        removed.add(propertyName);
+      }
+    }
+    return removed;
   }
 }

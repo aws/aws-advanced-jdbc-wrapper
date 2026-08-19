@@ -232,6 +232,11 @@ public class BlueGreenStatusProvider {
 
     monitoringConnProperties.put(BlueGreenConnectionPlugin.BG_SKIP_ROUTING_IN_FORCE_CONNECT, "true");
 
+    // The green node is a replica until it gets promoted, so a target driver setting that rejects
+    // read-only servers would stop the green monitor from ever reading the deployment status.
+    PropertyUtils.removeHostSelectionProperties(
+        monitoringConnProperties, this.pluginService.getTargetDriverDialect());
+
     return monitoringConnProperties;
   }
 
