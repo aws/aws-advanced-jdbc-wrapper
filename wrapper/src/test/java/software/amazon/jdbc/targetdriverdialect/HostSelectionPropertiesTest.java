@@ -20,9 +20,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.util.PropertyUtils;
 
@@ -35,6 +43,45 @@ import software.amazon.jdbc.util.PropertyUtils;
 class HostSelectionPropertiesTest {
 
   private static final String TARGET_SERVER_TYPE = "targetServerType";
+
+  private final List<LogRecord> warnings = new ArrayList<>();
+  private Logger propertyUtilsLogger;
+  private Handler warningCollector;
+
+  @BeforeEach
+  void setUp() {
+    // The report of already-warned properties is static and lives for the JVM, so clear it to keep
+    // tests independent of each other and of execution order.
+    PropertyUtils.clearReportedHostSelectionProperties();
+
+    warnings.clear();
+    warningCollector = new Handler() {
+      @Override
+      public void publish(final LogRecord record) {
+        if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
+          warnings.add(record);
+        }
+      }
+
+      @Override
+      public void flush() {
+        // nothing to flush
+      }
+
+      @Override
+      public void close() {
+        // nothing to close
+      }
+    };
+    propertyUtilsLogger = Logger.getLogger(PropertyUtils.class.getName());
+    propertyUtilsLogger.addHandler(warningCollector);
+  }
+
+  @AfterEach
+  void tearDown() {
+    propertyUtilsLogger.removeHandler(warningCollector);
+    PropertyUtils.clearReportedHostSelectionProperties();
+  }
 
   @Test
   void pgDialectRemovesTargetServerType() {
@@ -99,5 +146,45 @@ class HostSelectionPropertiesTest {
     PropertyUtils.removeHostSelectionProperties(props, new MysqlConnectorJTargetDriverDialect());
 
     assertEquals("primary", props.getProperty(TARGET_SERVER_TYPE));
+    assertTrue(warnings.isEmpty(), "Nothing was removed, so there is nothing to warn about.");
+  }
+
+  @Test
+  void removalIsReportedOnce() {
+    PropertyUtils.removeHostSelectionProperties(propsWithTargetServerType(), new PgTargetDriverDialect());
+    assertEquals(1, warnings.size(), "The first removal must be reported.");
+
+    // A monitor is created per node, and monitors are recreated over time. The message describes a
+    // static configuration problem, so it must not repeat for every one of them.
+    PropertyUtils.removeHostSelectionProperties(propsWithTargetServerType(), new PgTargetDriverDialect());
+    PropertyUtils.removeHostSelectionProperties(propsWithTargetServerType(), new PgTargetDriverDialect());
+
+    assertEquals(1, warnings.size(), "Later removals of the same property must stay quiet.");
+  }
+
+  @Test
+  void removalIsReportedAgainAfterTheRecordIsCleared() {
+    PropertyUtils.removeHostSelectionProperties(propsWithTargetServerType(), new PgTargetDriverDialect());
+    PropertyUtils.clearReportedHostSelectionProperties();
+    PropertyUtils.removeHostSelectionProperties(propsWithTargetServerType(), new PgTargetDriverDialect());
+
+    assertEquals(2, warnings.size());
+  }
+
+  @Test
+  void nullDialectIsToleratedAndChangesNothing() {
+    final Properties props = propsWithTargetServerType();
+
+    // Best-effort hygiene: failing to strip a property must never stop a monitor being constructed.
+    PropertyUtils.removeHostSelectionProperties(props, null);
+
+    assertEquals("primary", props.getProperty(TARGET_SERVER_TYPE));
+    assertTrue(warnings.isEmpty());
+  }
+
+  private Properties propsWithTargetServerType() {
+    final Properties props = new Properties();
+    props.setProperty(TARGET_SERVER_TYPE, "primary");
+    return props;
   }
 }

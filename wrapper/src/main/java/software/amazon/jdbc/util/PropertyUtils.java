@@ -27,8 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -193,13 +195,26 @@ public class PropertyUtils {
     // Report each property once per JVM. This runs for every monitor that gets created - one per node
     // for host monitoring, and again whenever monitors are recreated - while the message describes a
     // static configuration problem, so repeating it per monitor would be noise.
-    final Set<String> notYetReported = new HashSet<>(removed);
-    notYetReported.removeAll(reportedHostSelectionProperties);
-    if (!notYetReported.isEmpty()) {
-      reportedHostSelectionProperties.addAll(notYetReported);
+    //
+    // Set.add returns true only for the caller that actually inserted the name, so filtering on it
+    // claims the reporting slot atomically: concurrent monitor creation cannot log the same property
+    // twice. Collected into a sorted set so the message reads the same regardless of iteration order.
+    final Set<String> newlyReported = removed.stream()
+        .filter(reportedHostSelectionProperties::add)
+        .collect(Collectors.toCollection(TreeSet::new));
+
+    if (!newlyReported.isEmpty()) {
       LOGGER.warning(() -> Messages.get("PropertyUtils.hostSelectionPropertiesRemoved",
-          new Object[] {String.join(", ", notYetReported)}));
+          new Object[] {String.join(", ", newlyReported)}));
     }
+  }
+
+  /**
+   * Forgets which node-selection properties have already been reported, so the once-per-JVM warning in
+   * {@link #removeHostSelectionProperties} can be exercised in isolation. Intended for tests.
+   */
+  public static void clearReportedHostSelectionProperties() {
+    reportedHostSelectionProperties.clear();
   }
 
   private static boolean isSecretProperty(final Object propertyKey) {
