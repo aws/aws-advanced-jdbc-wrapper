@@ -27,14 +27,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
+
+  // Node-selection property names already reported by removeHostSelectionProperties, so the warning is
+  // emitted once per property per JVM rather than once per monitor created.
+  private static final Set<String> reportedHostSelectionProperties = ConcurrentHashMap.newKeySet();
   private static final Set<Object> SECRET_PROPERTIES = Collections.unmodifiableSet(
       new HashSet<>(Collections.singletonList(PropertyDefinition.PASSWORD.name))
   );
@@ -152,6 +160,61 @@ public class PropertyUtils {
       dest.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
     return dest;
+  }
+
+  /**
+   * Strips properties that restrict which database node the target driver will accept, from properties
+   * about to be used for an internal monitoring connection.
+   *
+   * <p>Monitoring connections are opened against one specific node that the wrapper has already
+   * chosen, and often against a reader or a replica deliberately. A target driver setting that makes
+   * the driver reject a node by role would make those connections fail, silently disabling whichever
+   * monitor relies on them. Which properties qualify is decided by the target driver dialect, so no
+   * driver-specific property name is needed here.
+   *
+   * <p>A warning is logged when something is removed, so the configuration issue is visible rather
+   * than silently corrected.
+   *
+   * <p>This is best-effort hygiene called while monitors are being constructed, so a missing dialect
+   * is tolerated and simply skipped. Failing to strip a property must never be the reason a monitor
+   * cannot be created.
+   *
+   * @param monitoringProps      the monitoring connection properties to adjust in place.
+   * @param targetDriverDialect  the dialect that knows which properties restrict node selection.
+   */
+  public static void removeHostSelectionProperties(
+      final @NonNull Properties monitoringProps,
+      final @Nullable TargetDriverDialect targetDriverDialect) {
+
+    if (targetDriverDialect == null) {
+      return;
+    }
+
+    final Set<String> removed = targetDriverDialect.removeHostSelectionProperties(monitoringProps);
+
+    // Report each property once per JVM. This runs for every monitor that gets created - one per node
+    // for host monitoring, and again whenever monitors are recreated - while the message describes a
+    // static configuration problem, so repeating it per monitor would be noise.
+    //
+    // Set.add returns true only for the caller that actually inserted the name, so filtering on it
+    // claims the reporting slot atomically: concurrent monitor creation cannot log the same property
+    // twice. Collected into a sorted set so the message reads the same regardless of iteration order.
+    final Set<String> newlyReported = removed.stream()
+        .filter(reportedHostSelectionProperties::add)
+        .collect(Collectors.toCollection(TreeSet::new));
+
+    if (!newlyReported.isEmpty()) {
+      LOGGER.warning(() -> Messages.get("PropertyUtils.hostSelectionPropertiesRemoved",
+          new Object[] {String.join(", ", newlyReported)}));
+    }
+  }
+
+  /**
+   * Forgets which node-selection properties have already been reported, so the once-per-JVM warning in
+   * {@link #removeHostSelectionProperties} can be exercised in isolation. Intended for tests.
+   */
+  public static void clearReportedHostSelectionProperties() {
+    reportedHostSelectionProperties.clear();
   }
 
   private static boolean isSecretProperty(final Object propertyKey) {

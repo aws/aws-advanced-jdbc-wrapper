@@ -85,6 +85,12 @@ public class BlueGreenStatusProvider {
       "bgSwitchoverTimeoutMs", "180000", // 3min
       "Blue/Green Deployment switchover timeout (in msec).");
 
+  public static final AwsWrapperProperty BG_RELEASE_ON_BLUE_DNS_UPDATE = new AwsWrapperProperty(
+      "bgReleaseOnBlueDnsUpdate", "true",
+      "If set to true, allows to stop holding traffic as soon as all blue endpoints resolve to new "
+          + "IP addresses, without waiting for the deployment to report a status after "
+          + "SWITCHOVER_IN_PROGRESS.");
+
   public static final AwsWrapperProperty BG_DROP_BLUE_CONNECTIONS = new AwsWrapperProperty(
       "bgDropBlueConnections", "true",
       "If set to true, allows to drops all connections to blue cluster when Blue/Green switchover starts.");
@@ -113,6 +119,9 @@ public class BlueGreenStatusProvider {
 
   protected boolean rollback = false;
   protected boolean blueDnsUpdateCompleted = false;
+  // Tracks whether traffic has already been released based on the blue DNS update, so the event is
+  // logged and timed once per switchover instead of on every status update.
+  protected final AtomicBoolean releasedOnBlueDnsUpdate = new AtomicBoolean(false);
   protected boolean greenDnsRemoved = false;
   protected boolean greenTopologyChanged = false;
   protected AtomicBoolean monitorResetOnInProgressCompleted = new AtomicBoolean(false);
@@ -208,6 +217,14 @@ public class BlueGreenStatusProvider {
   @SuppressWarnings("argument")
   protected Properties getMonitoringProperties() {
     final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.props);
+
+    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
+    // '<prefix>' value below still takes effect. The green node is a replica until it gets promoted,
+    // so a target driver setting that rejects read-only servers would stop the green monitor from
+    // ever reading the deployment status.
+    PropertyUtils.removeHostSelectionProperties(
+        monitoringConnProperties, this.pluginService.getTargetDriverDialect());
+
     this.props.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
@@ -290,6 +307,13 @@ public class BlueGreenStatusProvider {
     if (role == BlueGreenRole.TARGET // Only roll back based on TARGET.
         && latestInterimPhase != null
         && interimStatus.blueGreenPhase != null
+        // NOT_CREATED does not indicate a rollback. A monitor reports it both when the deployment is
+        // genuinely absent and when the status can't be read at all: the metadata view is missing, the
+        // query fails to parse, or the server reports an error retrieving it. Those are all expected
+        // once a switchover tears the deployment down. Treating them as a rollback would reinstate the
+        // pre-switchover routing and send traffic back to the old topology. An actual rollback reports
+        // the deployment as AVAILABLE again, which maps to CREATED.
+        && interimStatus.blueGreenPhase != BlueGreenPhase.NOT_CREATED
         && latestStatusPhase != BlueGreenPhase.COMPLETED
         && interimStatus.blueGreenPhase.getValue() < latestInterimPhase.getValue()) {
       this.rollback = true;
@@ -751,6 +775,28 @@ public class BlueGreenStatusProvider {
       return this.getStatusOfCompleted();
     }
 
+    // Every blue endpoint now resolves to a different IP address than it did when the switchover
+    // started, which means the deployment has already repointed those endpoints at the new topology.
+    // Holding traffic past this point protects nothing: a new connection to a blue endpoint would
+    // reach the new instance anyway. Proceed as if the POST status had been reported, which releases
+    // the suspended calls and routes blue endpoints to their corresponding nodes.
+    //
+    // This matters because reading a status after SWITCHOVER_IN_PROGRESS is not guaranteed. The
+    // metadata on the old node stops being updated once it is detached from the deployment, and the
+    // metadata on the new node is eventually removed, so some deployments never expose
+    // SWITCHOVER_IN_POST_PROCESSING or SWITCHOVER_COMPLETED to a monitor. Without this check the only
+    // remaining exit is the switchover timer, which holds all traffic for bgSwitchoverTimeoutMs even
+    // though the database finished switching over seconds earlier.
+    if (this.blueDnsUpdateCompleted && !this.rollback
+        && BG_RELEASE_ON_BLUE_DNS_UPDATE.getBoolean(this.props)) {
+      // Log once per switchover rather than on every status update; this runs on the monitoring path.
+      if (this.releasedOnBlueDnsUpdate.compareAndSet(false, true)) {
+        LOGGER.fine(() -> Messages.get("bgd.releaseTrafficOnBlueDnsUpdate", new Object[] {this.bgdId}));
+        this.storeReleasedOnBlueDnsUpdateTime();
+      }
+      return this.getStatusOfPost();
+    }
+
     List<ConnectRouting> connectRouting = new ArrayList<>();
     connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.SOURCE, this.bgdId));
     connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.TARGET, this.bgdId));
@@ -1108,6 +1154,12 @@ public class BlueGreenStatusProvider {
         new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
   }
 
+  protected void storeReleasedOnBlueDnsUpdateTime() {
+    this.phaseTimeNano.putIfAbsent(
+        "Traffic released on blue DNS update",
+        new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
+  }
+
   protected void storeGreenDnsRemoveTime() {
     this.phaseTimeNano.putIfAbsent(
         "Green DNS removed" + (this.rollback ? " (rollback)" : ""),
@@ -1224,6 +1276,7 @@ public class BlueGreenStatusProvider {
       this.latestStatusPhase = BlueGreenPhase.NOT_CREATED;
       this.phaseTimeNano.clear();
       this.blueDnsUpdateCompleted = false;
+      this.releasedOnBlueDnsUpdate.set(false);
       this.greenDnsRemoved = false;
       this.greenTopologyChanged = false;
       this.allGreenNodesChangedName.set(false);

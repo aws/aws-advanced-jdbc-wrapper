@@ -106,6 +106,13 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
 
     this.monitoringConnProperties = PropertyUtils.copyProperties(this.props);
 
+    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
+    // '<prefix>' value below still takes effect. Response time is measured against one specific node,
+    // usually a reader, so a target driver setting that rejects read-only servers would stop this
+    // monitor from connecting.
+    PropertyUtils.removeHostSelectionProperties(
+        this.monitoringConnProperties, this.pluginService.getTargetDriverDialect());
+
     this.props.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(

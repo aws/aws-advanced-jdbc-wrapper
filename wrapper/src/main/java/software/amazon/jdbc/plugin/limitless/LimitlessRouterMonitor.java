@@ -69,6 +69,14 @@ public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnap
     this.hostSpec = hostSpec;
     this.limitlessRouterCacheKey = limitlessRouterCacheKey;
     this.props = PropertyUtils.copyProperties(props);
+
+    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
+    // '<prefix>' value below still takes effect. Router info is queried from one specific node chosen
+    // by the wrapper, so a target driver setting that rejects a node by role would stop this monitor
+    // from connecting.
+    PropertyUtils.removeHostSelectionProperties(
+        this.props, servicesContainer.getPluginService().getTargetDriverDialect());
+
     props.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(

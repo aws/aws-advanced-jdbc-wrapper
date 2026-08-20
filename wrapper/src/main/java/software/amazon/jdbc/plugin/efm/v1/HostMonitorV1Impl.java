@@ -99,6 +99,13 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
         this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
 
     this.monitoringProperties = PropertyUtils.copyProperties(this.properties);
+
+    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
+    // '<prefix>' value below still takes effect. This monitor watches one specific node, which may be
+    // a reader, so a target driver setting that rejects read-only servers would stop it connecting.
+    PropertyUtils.removeHostSelectionProperties(
+        this.monitoringProperties, servicesContainer.getPluginService().getTargetDriverDialect());
+
     this.properties.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
