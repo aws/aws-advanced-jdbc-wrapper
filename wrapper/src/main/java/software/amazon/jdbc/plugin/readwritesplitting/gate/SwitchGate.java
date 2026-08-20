@@ -34,6 +34,7 @@ public interface SwitchGate {
    * @param ctx     the read/write splitting context
    * @param desired the desired target role
    * @return {@code true} if switching is allowed, {@code false} to pin the current connection
+   * @throws SQLException if the transition is illegal or the gate cannot be evaluated
    */
   boolean canSwitch(RwSplitContext ctx, TargetRole desired) throws SQLException;
 }

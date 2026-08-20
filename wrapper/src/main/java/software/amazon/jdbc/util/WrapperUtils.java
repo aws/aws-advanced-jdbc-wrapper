@@ -231,6 +231,16 @@ public class WrapperUtils {
    * bound object, so no stale-object check can be performed; a {@link JdbcMethod} declared with
    * {@code checkBoundedConnection} must use {@link #executeWithPluginsWithBoundObject} instead, which
    * is asserted at runtime while assertions are enabled.
+   *
+   * @param resultClass       the expected result type
+   * @param connectionWrapper the wrapper connection the call belongs to
+   * @param pluginManager     the plugin manager driving the pipeline
+   * @param methodInvokeOn    the target object the method is invoked on
+   * @param jdbcMethod        the JDBC method being invoked
+   * @param jdbcMethodFunc    the call to the target JDBC method
+   * @param jdbcMethodArgs    the arguments passed to the JDBC method
+   * @param <T>               the result type
+   * @return the (possibly wrapped) result of the JDBC method
    */
   public static <T> T executeWithPlugins(
       final Class<T> resultClass,
@@ -318,6 +328,20 @@ public class WrapperUtils {
    * recorded when it was created, which lets this method reject an object left over from a connection
    * that has since been swapped out. Must be used by every {@link JdbcMethod} declared with
    * {@code checkBoundedConnection}; other methods can use {@link #executeWithPlugins}.
+   *
+   * @param resultClass       the expected result type
+   * @param exceptionClass    the checked exception type the JDBC method may throw
+   * @param connectionWrapper the wrapper connection the call belongs to
+   * @param pluginManager     the plugin manager driving the pipeline
+   * @param boundObject       the invoking wrapper, carrying its connection generation
+   * @param methodInvokeOn    the target object the method is invoked on
+   * @param jdbcMethod        the JDBC method being invoked
+   * @param jdbcMethodFunc    the call to the target JDBC method
+   * @param jdbcMethodArgs    the arguments passed to the JDBC method
+   * @param <T>               the result type
+   * @param <E>               the checked exception type
+   * @return the (possibly wrapped) result of the JDBC method
+   * @throws E if the JDBC method or a plugin throws it
    */
   public static <T, E extends Exception> T executeWithPluginsWithBoundObject(
       final Class<T> resultClass,
@@ -341,6 +365,21 @@ public class WrapperUtils {
    * execute-with-SQL methods that support rerouting. The same handle is the bound object of the call
    * (see {@link #executeWithPluginsWithBoundObject}), since a {@link Rebindable} is bound to the
    * connection its target statement was created on.
+   *
+   * @param resultClass       the expected result type
+   * @param exceptionClass    the checked exception type the JDBC method may throw
+   * @param connectionWrapper the wrapper connection the call belongs to
+   * @param pluginManager     the plugin manager driving the pipeline
+   * @param methodInvokeOn    the target object the method is invoked on
+   * @param jdbcMethod        the JDBC method being invoked
+   * @param jdbcMethodFunc    the call to the target JDBC method
+   * @param rebindHandle      the invoking statement wrapper, published for the call, or
+   *                          {@code null} when rebinding is not enabled for it
+   * @param jdbcMethodArgs    the arguments passed to the JDBC method
+   * @param <T>               the result type
+   * @param <E>               the checked exception type
+   * @return the (possibly wrapped) result of the JDBC method
+   * @throws E if the JDBC method or a plugin throws it
    */
   public static <T, E extends Exception> T executeWithPluginsWithRebindHandle(
       final Class<T> resultClass,

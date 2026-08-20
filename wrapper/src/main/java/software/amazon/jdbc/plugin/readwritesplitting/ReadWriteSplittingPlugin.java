@@ -59,7 +59,13 @@ public class ReadWriteSplittingPlugin extends UnifiedReadWriteSplittingPlugin {
     super(pluginService, properties, topology(properties));
   }
 
-  /** Constructor for subclasses that supply their own helper assembly. */
+  /**
+   * Constructor for subclasses that supply their own helper assembly.
+   *
+   * @param pluginService the plugin service this plugin operates through
+   * @param properties the connection properties
+   * @param helpers the helper assembly that drives routing decisions
+   */
   protected ReadWriteSplittingPlugin(
       final PluginService pluginService, final Properties properties, final RwSplitHelpers helpers) {
     super(pluginService, properties, helpers);
@@ -73,7 +79,12 @@ public class ReadWriteSplittingPlugin extends UnifiedReadWriteSplittingPlugin {
     return READER_HOST_SELECTOR_STRATEGY.getString(props);
   }
 
-  /** Builds the topology-aware, {@code setReadOnly}-driven, sticky-reader assembly. */
+  /**
+   * Builds the topology-aware, {@code setReadOnly}-driven, sticky-reader assembly.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @return the helper assembly used by this plugin
+   */
   protected static RwSplitHelpers topology(final Properties props) {
     final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
     final String strategy = readerHostSelectorStrategy(props);

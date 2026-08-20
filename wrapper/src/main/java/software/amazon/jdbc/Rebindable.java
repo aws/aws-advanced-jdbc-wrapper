@@ -31,7 +31,12 @@ import java.sql.SQLException;
  */
 public interface Rebindable extends ConnectionBoundObject {
 
-  /** The connection the current target statement is bound to. */
+  /**
+   * The connection the current target statement is bound to.
+   *
+   * @return the underlying (target) connection the current target statement is bound to
+   * @throws SQLException if the bound connection cannot be determined
+   */
   Connection getBoundConnection() throws SQLException;
 
   /**
@@ -52,6 +57,7 @@ public interface Rebindable extends ConnectionBoundObject {
    * against the new target statement.
    *
    * @param newConnection the underlying (target) connection to rebind to
+   * @throws SQLException if the target statement cannot be re-created on {@code newConnection}
    */
   void rebind(Connection newConnection) throws SQLException;
 }

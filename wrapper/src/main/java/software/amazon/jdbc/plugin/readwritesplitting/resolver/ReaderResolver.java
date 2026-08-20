@@ -33,6 +33,7 @@ public interface ReaderResolver {
    * switching the current connection to it). Mirrors the legacy {@code initializeReaderConnection}.
    *
    * @param ctx the read/write splitting context
+   * @throws SQLException if no reader connection could be established
    */
   void switchToReader(RwSplitContext ctx) throws SQLException;
 

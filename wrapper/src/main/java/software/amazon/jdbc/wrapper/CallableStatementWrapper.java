@@ -92,6 +92,8 @@ public class CallableStatementWrapper implements CallableStatement, Rebindable {
    * {@link PreparedStatementWrapper.Repreparer} used to re-create the statement on a routed
    * connection. Called by {@code ConnectionWrapper} only when query-level load balancing with
    * rebinding is configured.
+   *
+   * @param repreparer re-creates the target statement on a routed connection
    */
   public void enableRebind(final PreparedStatementWrapper.Repreparer repreparer) {
     final PreparedStatementRecorder.Installed<CallableStatement> installed =

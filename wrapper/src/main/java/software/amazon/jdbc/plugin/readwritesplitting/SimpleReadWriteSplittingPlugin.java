@@ -91,13 +91,24 @@ public class SimpleReadWriteSplittingPlugin extends UnifiedReadWriteSplittingPlu
     super(pluginService, properties, simple(properties));
   }
 
-  /** Constructor for subclasses that supply their own helper assembly. */
+  /**
+   * Constructor for subclasses that supply their own helper assembly.
+   *
+   * @param pluginService the plugin service this plugin operates through
+   * @param properties the connection properties
+   * @param helpers the helper assembly that drives routing decisions
+   */
   protected SimpleReadWriteSplittingPlugin(
       final PluginService pluginService, final Properties properties, final RwSplitHelpers helpers) {
     super(pluginService, properties, helpers);
   }
 
-  /** Builds the endpoint-based assembly with {@code setReadOnly} routing. */
+  /**
+   * Builds the endpoint-based assembly with {@code setReadOnly} routing.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @return the helper assembly used by this plugin
+   */
   protected static RwSplitHelpers simple(final Properties props) {
     return endpointHelpers(props, new ReadOnlyFlagSignal(), new TransactionAwareGate(), new NoOpTopologyRefresher());
   }
@@ -105,6 +116,12 @@ public class SimpleReadWriteSplittingPlugin extends UnifiedReadWriteSplittingPlu
   /**
    * Shared endpoint assembly builder, parameterized by routing signal and switch gate so the
    * SQL-routed variant can reuse it. Fails fast when a required endpoint is missing.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @param routingSignal the signal that decides whether a reader or a writer is required
+   * @param switchGate the gate that decides when a connection switch is allowed
+   * @param topologyRefresher the topology refresher to use; endpoint mode does not refresh topology
+   * @return the helper assembly built from the given parts
    */
   protected static RwSplitHelpers endpointHelpers(
       final Properties props,

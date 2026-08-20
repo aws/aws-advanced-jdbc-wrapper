@@ -200,6 +200,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
    * Returns the connection handler, creating it lazily on first access.
    * Lazy initialization is required so that subclass state (e.g., shadowed fields) is fully initialized
    * before {@link #createConnectionHandler()} is invoked.
+   *
+   * @return the monitoring connection handler for this monitor
    */
   protected MonitoringConnectionHandler getConnectionHandler() {
     if (this.connectionHandler == null) {
@@ -285,6 +287,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
    * instead of blocking until the failover timeout. Used for non-recoverable configuration problems.
    * A new exception instance is thrown so the stack trace reflects the waiting thread while the original
    * message, SQL state, and cause are preserved.
+   *
+   * @throws SQLException if a fatal error was recorded by a node monitor
    */
   protected void throwIfFatalError() throws SQLException {
     final SQLException fatal = this.fatalError.get();
@@ -296,6 +300,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   /**
    * Records a non-recoverable configuration error detected by a node monitor and wakes any threads
    * waiting for a topology update so they can fail fast instead of blocking until the failover timeout.
+   *
+   * @param ex the non-recoverable configuration error to record
    */
   protected void recordFatalError(final SQLException ex) {
     if (this.fatalError.compareAndSet(null, ex)) {
@@ -313,6 +319,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
    * connection host is not a recognized RDS endpoint and no clusterInstanceHostPattern was supplied),
    * and the underlying cause is an {@link UnknownHostException}. In that case the derived instance
    * endpoints can never resolve, so retrying until the failover timeout is pointless.
+   *
+   * @param t the connection failure to inspect
+   * @return {@code true} if the failure is a permanent, misconfiguration-caused DNS failure
    */
   protected boolean isUnresolvableDueToMisconfiguration(final Throwable t) {
     if (!"?".equals(this.instanceTemplate.getHost())) {
@@ -775,6 +784,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
    * Submits a node-monitoring worker for {@code hostSpec} unless one has already been submitted for that host.
    * Any {@link SQLException} raised while creating the worker is collected into {@code exceptionList} and the host
    * is left unsubmitted so it can be retried on a later cycle.
+   *
+   * @param hostSpec                the host to monitor
+   * @param baselineWriter          the writer known at submission time, or {@code null} if unknown
+   * @param someRegionsInaccessible whether some regions were found inaccessible
+   * @param exceptionList           collects exceptions raised while creating the worker
    */
   // ConcurrentHashMap.computeIfAbsent permits the mapping function to return null (meaning "record no mapping"),
   // but the annotated JDK stub types the function as returning @NonNull; suppress that stub asymmetry here.

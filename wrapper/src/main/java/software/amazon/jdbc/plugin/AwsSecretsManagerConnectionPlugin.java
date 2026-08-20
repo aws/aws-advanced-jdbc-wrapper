@@ -446,8 +446,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   /**
    * Called to update credentials from the cache, or from the AWS Secrets Manager service.
    *
+   * @param hostSpec     the host the credentials are being resolved for.
    * @param forceReFetch Allows ignoring cached credentials and force fetches the latest credentials from the service.
    * @return true, if credentials were fetched from the service.
+   * @throws SQLException if the secret could not be fetched or parsed.
    */
   protected boolean updateSecret(final HostSpec hostSpec, final boolean forceReFetch) throws SQLException {
 

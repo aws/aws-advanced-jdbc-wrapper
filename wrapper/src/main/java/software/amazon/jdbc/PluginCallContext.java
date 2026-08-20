@@ -51,12 +51,21 @@ public class PluginCallContext {
     this.rebindHandle = null;
   }
 
-  /** Sets the rebind handle for the current call (see {@link #rebindHandle}). */
+  /**
+   * Sets the rebind handle for the current call (see {@link #rebindHandle}).
+   *
+   * @param rebindHandle the handle to the statement wrapper for the current call, or {@code null}
+   *     to clear it
+   */
   public void setRebindHandle(final @Nullable Rebindable rebindHandle) {
     this.rebindHandle = rebindHandle;
   }
 
-  /** Returns the rebind handle for the current call, or {@code null} if none. */
+  /**
+   * Returns the rebind handle for the current call, or {@code null} if none.
+   *
+   * @return the handle to the statement wrapper for the current call, or {@code null} if none
+   */
   public @Nullable Rebindable getRebindHandle() {
     return this.rebindHandle;
   }

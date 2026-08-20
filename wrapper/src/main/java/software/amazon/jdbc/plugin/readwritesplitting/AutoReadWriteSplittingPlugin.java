@@ -42,7 +42,12 @@ public class AutoReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     super(pluginService, properties, auto(properties));
   }
 
-  /** Builds the SQL-driven (prepare-time) routing assembly with a sticky reader. */
+  /**
+   * Builds the SQL-driven (prepare-time) routing assembly with a sticky reader.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @return the helper assembly used by this plugin
+   */
   protected static RwSplitHelpers auto(final Properties props) {
     final TopologyRoleClassifier roleClassifier = new TopologyRoleClassifier();
     final String strategy = readerHostSelectorStrategy(props);
