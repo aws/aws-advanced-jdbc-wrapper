@@ -53,13 +53,24 @@ public class GdbSimpleReadWriteSplittingPlugin extends SimpleReadWriteSplittingP
     super(pluginService, properties, gdbSimple(properties));
   }
 
-  /** Constructor for subclasses that supply their own helper assembly. */
+  /**
+   * Constructor for subclasses that supply their own helper assembly.
+   *
+   * @param pluginService the plugin service this plugin operates through
+   * @param properties the connection properties
+   * @param helpers the helper assembly that drives routing decisions
+   */
   protected GdbSimpleReadWriteSplittingPlugin(
       final PluginService pluginService, final Properties properties, final RwSplitHelpers helpers) {
     super(pluginService, properties, helpers);
   }
 
-  /** Builds the endpoint-based Global Database assembly with {@code setReadOnly} routing. */
+  /**
+   * Builds the endpoint-based Global Database assembly with {@code setReadOnly} routing.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @return the helper assembly used by this plugin
+   */
   protected static RwSplitHelpers gdbSimple(final Properties props) {
     return gdbEndpointHelpers(props, new ReadOnlyFlagSignal(), new TransactionAwareGate());
   }
@@ -70,6 +81,11 @@ public class GdbSimpleReadWriteSplittingPlugin extends SimpleReadWriteSplittingP
    * missing. The write endpoint host is seeded before writer resolution (via
    * {@link EndpointWriterHostRefresher}) so the {@link GdbWriterResolver} can evaluate its region
    * for accessible-region / home-region rules and Global Write Forwarding.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @param routingSignal the signal that decides whether a reader or a writer is required
+   * @param switchGate the gate that decides when a connection switch is allowed
+   * @return the helper assembly built from the given parts
    */
   protected static RwSplitHelpers gdbEndpointHelpers(
       final Properties props, final RoutingSignal routingSignal, final SwitchGate switchGate) {

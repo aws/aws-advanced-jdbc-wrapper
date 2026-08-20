@@ -46,6 +46,7 @@ public interface RoutingSignal {
    * @param methodName the JDBC method being invoked
    * @param args       the method arguments (may be {@code null})
    * @return the desired target role
+   * @throws SQLException if the desired role cannot be resolved
    */
   TargetRole resolve(RwSplitContext ctx, String methodName, @Nullable Object[] args)
       throws SQLException;
@@ -57,6 +58,7 @@ public interface RoutingSignal {
    *
    * @param ctx the read/write splitting context
    * @return the desired role, or {@link TargetRole#NO_DECISION} if this signal does not apply
+   * @throws SQLException if the desired role cannot be resolved
    */
   default TargetRole resolveForBoundStatement(RwSplitContext ctx) throws SQLException {
     return TargetRole.NO_DECISION;

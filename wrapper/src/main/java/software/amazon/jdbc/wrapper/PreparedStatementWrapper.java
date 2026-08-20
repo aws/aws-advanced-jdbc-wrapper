@@ -98,6 +98,8 @@ public class PreparedStatementWrapper implements PreparedStatement, Rebindable {
    * configuration setters are captured, and stores the {@link Repreparer} used to re-create the
    * statement on a routed connection. Called by {@code ConnectionWrapper} only when query-level
    * load balancing with rebinding is configured.
+   *
+   * @param repreparer re-creates the target statement on a routed connection
    */
   public void enableRebind(final Repreparer repreparer) {
     final PreparedStatementRecorder.Installed<PreparedStatement> installed =

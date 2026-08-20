@@ -77,7 +77,13 @@ public class GdbSettings {
     this.enableGwf = ENABLE_GWF.getBoolean(properties);
   }
 
-  /** Resolves and validates the home region and accessible regions (idempotent). */
+  /**
+   * Resolves and validates the home region and accessible regions (idempotent).
+   *
+   * @param initHostSpec the host the region is inferred from when not configured explicitly
+   * @param props the connection properties holding the region configuration
+   * @throws SQLException if the home region cannot be determined or is not accessible
+   */
   public void init(final HostSpec initHostSpec, final Properties props) throws SQLException {
     if (this.isInit) {
       return;
@@ -157,7 +163,11 @@ public class GdbSettings {
     return region != null && this.homeRegion != null && region.equalsIgnoreCase(this.homeRegion);
   }
 
-  /** Snapshot fragment fields shared by GDB helpers. */
+  /**
+   * Snapshot fragment fields shared by GDB helpers.
+   *
+   * @param state the snapshot state list the fields are appended to
+   */
   // Checker Framework: snapshot values are intentionally nullable, but the
   // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
   // Fixing this properly means widening that interface to Pair<String, @Nullable Object>

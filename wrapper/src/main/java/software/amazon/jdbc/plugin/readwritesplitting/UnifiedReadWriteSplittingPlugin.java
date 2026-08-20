@@ -211,6 +211,10 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
    * Builds the reader load-balancing policy for an assembly: {@link PerQueryBalancedReaderPolicy}
    * when {@code queryLevelLoadBalancing} is enabled (honoring {@code loadBalancingIncludeWriter}),
    * otherwise a {@link StickyReaderPolicy}.
+   *
+   * @param props the connection properties the policy is configured from
+   * @param strategy the host selector strategy used to pick a reader
+   * @return the reader load-balancing policy for the assembly
    */
   protected static LoadBalancingPolicy readerLoadBalancer(final Properties props, final String strategy) {
     if (QUERY_LEVEL_LOAD_BALANCING.getBoolean(props)) {

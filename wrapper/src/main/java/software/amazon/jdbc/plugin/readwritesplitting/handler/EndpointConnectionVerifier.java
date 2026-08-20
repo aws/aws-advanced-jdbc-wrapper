@@ -56,6 +56,15 @@ public class EndpointConnectionVerifier {
   /**
    * Opens a verified connection to {@code hostSpec} (or via {@code connectFunc} when non-null),
    * retrying until the timeout. Returns {@code null} if verification could not be completed.
+   *
+   * @param ctx the read/write splitting context
+   * @param props the connection properties to connect with
+   * @param hostSpec the host to connect to, or {@code null} when {@code connectFunc} is used
+   * @param hostRole the role the opened connection is verified against
+   * @param connectFunc the downstream connect function, or {@code null} to connect to
+   *     {@code hostSpec} through the plugin service
+   * @return a verified connection, or {@code null} if verification could not be completed
+   * @throws SQLException if connecting fails in a non-retryable way
    */
   public @Nullable Connection getVerifiedConnection(
       final RwSplitContext ctx,

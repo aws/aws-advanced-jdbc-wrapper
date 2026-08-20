@@ -175,6 +175,8 @@ public abstract class TopologyUtils {
    * @param instanceName     the database instance name.
    * @param isWriter         true if this is a writer instance, false for reader.
    * @param weight           the instance weight for load balancing.
+   * @param cpuPercent       the instance CPU utilization, in percent, or {@code null} if unknown.
+   * @param lag              the instance replication lag, in milliseconds, or {@code null} if unknown.
    * @param lastUpdateTime   the timestamp of the last update to this instance's information.
    * @param initialHostSpec  the original host specification used for connecting.
    * @param instanceTemplate the template used to construct the new {@link HostSpec}.

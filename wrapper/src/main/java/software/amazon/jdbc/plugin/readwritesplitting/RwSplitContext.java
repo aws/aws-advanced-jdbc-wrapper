@@ -51,19 +51,48 @@ public interface RwSplitContext {
 
   @Nullable HostSpec readerHostSpec();
 
-  /** Records the writer connection and host, preserving the legacy {@code setWriterConnection} log. */
+  /**
+   * Records the writer connection and host, preserving the legacy {@code setWriterConnection} log.
+   *
+   * @param conn the writer connection to record
+   * @param host the host the writer connection is established to
+   * @throws SQLException if the writer connection cannot be recorded
+   */
   void bindWriter(Connection conn, HostSpec host) throws SQLException;
 
-  /** Records the resolved writer host (without a connection), e.g. after a topology refresh. */
+  /**
+   * Records the resolved writer host (without a connection), e.g. after a topology refresh.
+   *
+   * @param host the resolved writer host
+   */
   void setWriterHostSpec(HostSpec host);
 
-  /** Records (caches) the reader connection and host, preserving the legacy {@code setReaderConnection} log. */
+  /**
+   * Records (caches) the reader connection and host, preserving the legacy
+   * {@code setReaderConnection} log.
+   *
+   * @param conn the reader connection to cache
+   * @param host the host the reader connection is established to
+   */
   void bindReader(Connection conn, HostSpec host);
 
-  /** Switches the wrapper's current connection to the given connection/host. */
+  /**
+   * Switches the wrapper's current connection to the given connection/host.
+   *
+   * @param conn the connection to switch to
+   * @param host the host the connection is established to
+   * @throws SQLException if the current connection cannot be switched
+   */
   void switchCurrentConnectionTo(Connection conn, HostSpec host) throws SQLException;
 
-  /** Opens a connection to the given host via the plugin service (using this plugin as the caller). */
+  /**
+   * Opens a connection to the given host via the plugin service (using this plugin as the caller).
+   *
+   * @param host the host to connect to
+   * @param props the connection properties to connect with
+   * @return the newly opened connection
+   * @throws SQLException if the connection cannot be opened
+   */
   Connection connect(HostSpec host, Properties props) throws SQLException;
 
   /** Marks that the plugin is actively read/write splitting (sets {@code inReadWriteSplit}). */
@@ -85,9 +114,21 @@ public interface RwSplitContext {
 
   boolean isWriterFromPool();
 
-  /** Logs the message at SEVERE and throws a {@link ReadWriteSplittingSQLException}. */
+  /**
+   * Logs the message at SEVERE and throws a {@link ReadWriteSplittingSQLException}.
+   *
+   * @param message the message to log and to report in the exception
+   * @throws SQLException always, as a {@link ReadWriteSplittingSQLException}
+   */
   void logAndThrow(String message) throws SQLException;
 
-  /** Logs the message at SEVERE and throws a {@link ReadWriteSplittingSQLException} with the SQL state. */
+  /**
+   * Logs the message at SEVERE and throws a {@link ReadWriteSplittingSQLException} with the SQL
+   * state.
+   *
+   * @param message the message to log and to report in the exception
+   * @param sqlState the SQL state to report in the exception
+   * @throws SQLException always, as a {@link ReadWriteSplittingSQLException}
+   */
   void logAndThrow(String message, SqlState sqlState) throws SQLException;
 }

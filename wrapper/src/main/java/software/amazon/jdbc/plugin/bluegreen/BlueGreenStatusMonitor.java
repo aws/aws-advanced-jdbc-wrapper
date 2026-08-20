@@ -784,6 +784,10 @@ public class BlueGreenStatusMonitor {
 
   /**
    * Attempts a single IP connection. Used as a fallback when only one IP is known.
+   *
+   * @param ip the IP address to connect to
+   * @param connectionHostSpecCopy the host spec the IP host spec is derived from
+   * @return the opened connection, or {@code null} if the attempt failed
    */
   protected @Nullable Connection tryConnectToSingleIp(String ip, HostSpec connectionHostSpecCopy) {
     try {

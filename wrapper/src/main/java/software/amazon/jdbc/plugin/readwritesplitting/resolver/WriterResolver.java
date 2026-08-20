@@ -33,6 +33,7 @@ public interface WriterResolver {
    *
    * @param ctx the read/write splitting context
    * @return the writer resolution
+   * @throws SQLException if the writer cannot be resolved or connected to
    */
   WriterResolution resolveWriter(RwSplitContext ctx) throws SQLException;
 }

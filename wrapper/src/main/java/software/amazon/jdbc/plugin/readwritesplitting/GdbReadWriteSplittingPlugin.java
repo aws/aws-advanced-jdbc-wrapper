@@ -46,13 +46,24 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     super(pluginService, properties, gdb(properties));
   }
 
-  /** Constructor for subclasses that supply their own helper assembly. */
+  /**
+   * Constructor for subclasses that supply their own helper assembly.
+   *
+   * @param pluginService the plugin service this plugin operates through
+   * @param properties the connection properties
+   * @param helpers the helper assembly that drives routing decisions
+   */
   protected GdbReadWriteSplittingPlugin(
       final PluginService pluginService, final Properties properties, final RwSplitHelpers helpers) {
     super(pluginService, properties, helpers);
   }
 
-  /** Builds the Global Database assembly (region rules + GWF) with {@code setReadOnly} routing. */
+  /**
+   * Builds the Global Database assembly (region rules + GWF) with {@code setReadOnly} routing.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @return the helper assembly used by this plugin
+   */
   protected static RwSplitHelpers gdb(final Properties props) {
     return gdbHelpers(props, new ReadOnlyFlagSignal(), new TransactionAwareGate());
   }
@@ -60,6 +71,11 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
   /**
    * Shared Global Database assembly builder, parameterized by routing signal and switch gate so
    * the SQL-routed variant can reuse it.
+   *
+   * @param props the connection properties the assembly is configured from
+   * @param routingSignal the signal that decides whether a reader or a writer is required
+   * @param switchGate the gate that decides when a connection switch is allowed
+   * @return the helper assembly built from the given parts
    */
   protected static RwSplitHelpers gdbHelpers(
       final Properties props,

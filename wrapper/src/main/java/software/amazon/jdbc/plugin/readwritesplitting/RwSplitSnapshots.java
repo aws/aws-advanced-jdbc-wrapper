@@ -28,7 +28,12 @@ public final class RwSplitSnapshots {
   private RwSplitSnapshots() {
   }
 
-  /** Fragment exposing the reader host selector strategy (topology-based codes). */
+  /**
+   * Fragment exposing the reader host selector strategy (topology-based codes).
+   *
+   * @param strategy the reader host selector strategy to expose
+   * @return a contributor exposing the reader host selector strategy
+   */
   public static SnapshotContributor readerStrategy(final String strategy) {
     return () -> {
       final List<Pair<String, Object>> state = new ArrayList<>();
@@ -37,7 +42,18 @@ public final class RwSplitSnapshots {
     };
   }
 
-  /** Fragment exposing the endpoint (Simple) configuration. */
+  /**
+   * Fragment exposing the endpoint (Simple) configuration.
+   *
+   * @param verifyNewConnections whether newly opened connections have their role verified
+   * @param writeEndpoint the configured write endpoint
+   * @param readEndpoint the configured read endpoint
+   * @param verifyOpenedConnectionType the role newly opened connections are verified against,
+   *     or {@code null} when no role is enforced
+   * @param retryIntervalMs the interval between connection attempts, in milliseconds
+   * @param retryTimeoutMs the overall connection attempt timeout, in milliseconds
+   * @return a contributor exposing the endpoint configuration
+   */
   // Checker Framework: snapshot values are intentionally nullable, but the
   // StateSnapshotProvider contract types them as Pair<String, Object> (non-null Object).
   // Fixing this properly means widening that interface to Pair<String, @Nullable Object>

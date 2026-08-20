@@ -325,6 +325,15 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
    * topology when available; if the topology isn't available yet, a connection is opened via the initial endpoint
    * (which also confirms the dialect and acts as a fallback) and, when {@code waitForInitialTopologyMs > 0}, the
    * topology fetch is awaited before re-attempting instance selection.
+   *
+   * @param originalConnectHost  the host the caller originally asked to connect to
+   * @param urlType              the RDS URL type of {@code originalConnectHost}
+   * @param substitutionStrategy the instance substitution strategy to apply
+   * @param props                the connection properties to connect with
+   * @param connectFunc          the downstream connect function for the original endpoint
+   * @param candidateConnHolder  receives the opened candidate connection
+   * @return the host the candidate connection was established to
+   * @throws SQLException if no candidate connection could be opened
    */
   protected HostSpec openCandidateConnection(
       final @NonNull HostSpec originalConnectHost,
@@ -372,6 +381,14 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
    * <p>Returns the selected instance host if the topology was fetched and the instance connection succeeded; the
    * connection is then held in {@code candidateConnHolder}. Otherwise returns {@code originalConnectHost} and the
    * already-opened initial-endpoint connection (still held in {@code candidateConnHolder}) is kept as a fallback.
+   *
+   * @param originalConnectHost  the host the caller originally asked to connect to
+   * @param urlType              the RDS URL type of {@code originalConnectHost}
+   * @param substitutionStrategy the instance substitution strategy to apply
+   * @param props                the connection properties to connect with
+   * @param candidateConnHolder  holds the fallback connection and receives the instance connection
+   * @return the selected instance host, or {@code originalConnectHost} when the fallback is kept
+   * @throws SQLException if waiting for the topology fails
    */
   protected HostSpec waitForTopologyAndConnectToInstance(
       final @NonNull HostSpec originalConnectHost,

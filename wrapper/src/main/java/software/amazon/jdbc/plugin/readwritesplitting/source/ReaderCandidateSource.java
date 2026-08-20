@@ -33,6 +33,7 @@ public interface ReaderCandidateSource {
    *
    * @param ctx the read/write splitting context
    * @return the candidate hosts (never {@code null}; may be empty)
+   * @throws SQLException if the candidates cannot be determined
    */
   List<HostSpec> candidates(RwSplitContext ctx) throws SQLException;
 }

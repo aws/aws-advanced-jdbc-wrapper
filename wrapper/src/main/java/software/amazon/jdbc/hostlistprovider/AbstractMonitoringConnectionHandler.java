@@ -89,21 +89,30 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
    *
    * @param host     the host being considered
    * @param isWriter whether the connection is to a writer
+   * @return the matching priority index, or {@code -1} if no priority matches
    */
   protected abstract int getPriorityIndex(HostSpec host, boolean isWriter);
 
   /**
    * Returns all hosts in {@code hosts} that match the priority at {@code priorityIndex} of {@link #priorities}.
+   *
+   * @param priorityIndex the index into {@link #priorities} to match against
+   * @param hosts         the hosts to filter
+   * @return the hosts matching the given priority
    */
   protected abstract List<HostSpec> findHostsForPriority(int priorityIndex, List<HostSpec> hosts);
 
   /**
    * Returns the thread-name prefix used for the async upgrade executor (e.g., {@code "atmu"} or {@code "gatmu"}).
+   *
+   * @return the thread-name prefix for the async upgrade executor
    */
   protected abstract String getUpgradeThreadName();
 
   /**
    * Hook for subclasses to publish additional snapshot state (e.g., GDB primary region). Returns null when none.
+   *
+   * @return additional snapshot state, or {@code null} when the subclass publishes none
    */
   protected @Nullable List<Pair<String, Object>> getAdditionalSnapshotState() {
     return null;
@@ -114,6 +123,9 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
   /**
    * Formats a priority index for logging. {@link Integer#MAX_VALUE} is shown as {@code <none>}
    * to avoid confusing users with a 10-digit number.
+   *
+   * @param index the priority index to format
+   * @return the formatted priority index
    */
   protected static String formatPriorityIndex(final int index) {
     return index == Integer.MAX_VALUE ? "<none>" : Integer.toString(index);
@@ -345,6 +357,9 @@ public abstract class AbstractMonitoringConnectionHandler<P> implements Monitori
    * Returns candidates grouped by priority, with the highest priority bucket first. The caller is responsible
    * for shuffling each bucket before iterating, so that different hosts within the same priority are tried first
    * on different upgrade cycles.
+   *
+   * @param hosts the hosts to group into priority buckets
+   * @return the candidate buckets, highest priority first
    */
   protected List<List<HostSpec>> findUpgradeCandidates(List<HostSpec> hosts) {
     List<List<HostSpec>> candidatesByPriority = new ArrayList<>();

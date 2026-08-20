@@ -36,6 +36,7 @@ public interface LoadBalancingPolicy {
    * @param ctx        the read/write splitting context
    * @param candidates the eligible reader candidates
    * @return the chosen reader host, or {@code null} if none is available
+   * @throws SQLException if the candidates cannot be evaluated
    */
   @Nullable HostSpec pickReader(RwSplitContext ctx, List<HostSpec> candidates) throws SQLException;
 

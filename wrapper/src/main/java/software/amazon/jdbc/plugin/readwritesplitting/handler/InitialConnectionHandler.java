@@ -41,6 +41,7 @@ public interface InitialConnectionHandler {
    * @param isInitialConnection whether this is the initial connection
    * @param connectFunc         the downstream connect function
    * @return the established connection
+   * @throws SQLException if the connection cannot be established or fails verification
    */
   Connection onConnect(
       RwSplitContext ctx,
