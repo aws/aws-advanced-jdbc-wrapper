@@ -243,7 +243,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) throws SQLException {
     return this.pluginManager.acceptsStrategy(role, strategy);
   }
 

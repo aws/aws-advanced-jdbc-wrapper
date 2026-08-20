@@ -97,14 +97,14 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    * {@link ConnectionPlugin} instances support the selection of a host with the requested role and
    * strategy via {@link #getHostSpecByStrategy}.
    *
-   * @param role     the desired host role
+   * @param role     the desired host role, or null if any role is acceptable
    * @param strategy the strategy that should be used to pick a host (eg "random")
    * @return true if the available {@link ConnectionProvider} or {@link ConnectionPlugin} instances
    *     support the selection of a host with the requested role and strategy via
    *     {@link #getHostSpecByStrategy}. Otherwise, return false.
    * @throws SQLException if there's an error processing this method.
    */
-  boolean acceptsStrategy(HostRole role, String strategy) throws SQLException;
+  boolean acceptsStrategy(@Nullable HostRole role, String strategy) throws SQLException;
 
   /**
    * Selects a {@link HostSpec} with the requested role from available hosts using the requested
