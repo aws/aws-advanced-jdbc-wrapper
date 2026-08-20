@@ -107,6 +107,13 @@ until it is promoted, so such a restriction would prevent the plugin from readin
 and it would hold traffic until `bgSwitchoverTimeoutMs` elapsed. The parameters are still applied to
 your application connections; a warning is logged when one is removed from the monitoring connections.
 
+On **4.3.0 and earlier** these parameters were inherited. If you cannot upgrade, neutralize the
+restriction for the monitoring connections only, by prefixing it as described above:
+
+```java
+properties.setProperty("blue-green-monitoring-targetServerType", "any");
+```
+
 ## Connecting with non-admin users
 
 > [!WARNING]\
