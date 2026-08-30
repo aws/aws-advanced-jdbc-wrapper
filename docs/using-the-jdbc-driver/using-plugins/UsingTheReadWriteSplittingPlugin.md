@@ -38,6 +38,7 @@ When using the Read/Write Splitting Plugin against Aurora clusters, you do not h
 | `queryLevelLoadBalancing`        | Boolean |                                                                     No                                                                      | When `true`, select a fresh reader on each read-routing decision within an established read-only phase (query-level load balancing) instead of reusing a single sticky reader. See the [Query-level load balancing](#query-level-load-balancing) section.                                                                                                                                                                                                                                                                                        | `false`                                                                                                                          |
 | `loadBalancingIncludeWriter`     | Boolean |                                                                     No                                                                      | When query-level load balancing is enabled, include the writer node as an eligible target in the reader-balancing pool.                                                                                                                                                                                                                                                                                                                                                                                                                          | `false`                                                                                                                          |
 | `allowStatementRecreationOnConnectionSwitch`       | Boolean |                                                                     No                                                                      | When a read-routing decision moves execution to a different connection, re-create the already-created `Statement`/`PreparedStatement`/`CallableStatement` on the routed connection (replaying its recorded settings and, for prepared/callable statements, bound parameters and registered OUT parameters) so the query actually runs there. A statement carrying a stream/`Reader`/LOB parameter or a pending batch cannot be rebound and falls back to the current connection with a one-time warning. Set to `false` to disable rebinding. See the [Query-level load balancing](#query-level-load-balancing) section.                                                                                                                                                                                                                                                                                                                       | `true`                                                                                                                           |
+| `replicaLagThresholdMs`          | Integer |                                                                     No                                                                      | Maximum acceptable reader replication lag in milliseconds. A non-negative value routes a read to the writer when the reader that would serve it exceeds this value; `-1` disables the feature. Needs the cluster to report replication lag — Aurora publishes it via its topology monitor, any other database that reports lag on its host specs is also supported; databases that do not report lag are unaffected. When a fresh reader is selected, lag is aggregated across eligible readers: the *lowest* lag for the `lowestLoad`/`lowestLoadByLag` reader selection strategies, the *highest* lag for all others. See [Replica lag fallback](#replica-lag-fallback).                                                                                                                                                                                                                                                                   | `-1`                                                                                                                              |
 
 ## Using the Read/Write Splitting Plugin against non-Aurora clusters
 
@@ -59,6 +60,37 @@ This role check can also be safely disabled if the [Aurora Initial Connection St
 
 See the [endpoint compatibility matrix](../CompatibilityEndpoints.md) for details on which endpoint types may require this check.
 
+## Replica lag fallback
+
+Set `replicaLagThresholdMs` to a non-negative maximum lag, in milliseconds, to keep reads that could observe stale replica data on the writer. The default, `-1`, disables the feature.
+
+```java
+properties.setProperty("replicaLagThresholdMs", "1000");
+```
+
+This feature requires the cluster to publish reader replication lag. Aurora (MySQL and PostgreSQL) reports lag through its topology background monitor, which keeps an in-memory cache the driver reads without issuing a blocking topology query. Any other database or cluster whose published host specs carry lag values (e.g. a custom host-list provider) is also supported. If no lag data is available — including databases that do not report lag — routing is left unchanged and a warning is logged.
+
+### How a read is evaluated
+
+For a sticky reader or a reusable cached reader, the driver checks the lag of that specific reader only. When the next read can select a fresh reader — including query-level load balancing and reader endpoints — the lag is aggregated across all eligible backend readers according to the configured [reader selection strategy](../HostSelectionStrategies.md):
+
+| Reader selection strategy | Aggregation | A read falls back to the writer when |
+|---|---|---|
+| `lowestLoad` / `lowestLoadByLag` (lag-minimizing) | **Lowest** lag (`Math.min`) | *every* eligible reader exceeds the threshold — even the best available reader is too stale |
+| any other strategy (`random`, `roundRobin`, `lowestLoadByCpu`, custom) | **Highest** lag (`Math.max`) | *any one* eligible reader exceeds the threshold |
+
+The pessimistic `Math.max` aggregation is intentional: host-selector metrics may be stale even when the topology monitor has already seen a high lag, so the driver cannot safely assume that the selector will pick the least-lagging reader. One lagging eligible replica can therefore route a read to the writer. With `lowestLoad`/`lowestLoadByLag`, which weight lag heavily and are expected to pick the least-lagging reader, a read only falls back when every eligible reader is too stale.
+
+> [!NOTE]
+> Reader endpoints and RDS Proxy routes go through an **opaque endpoint**, so the reader selection strategy never applies there. The driver always evaluates the worst backend-reader lag — sourced from the cached Aurora topology when available, otherwise from the published host specs (the `Math.max` row above). The pinned-reader fast path also does not apply because the endpoint host does not identify the backend instance.
+
+A read inside an active local or XA transaction remains pinned to its existing connection. In an Aurora Global Database with Global Write Forwarding, a fallback can remain on a secondary-region reader because write forwarding does not make reads fresh; connect to the primary region when freshness is required.
+
+> [!WARNING]
+> When replica lag rises above the threshold, **all** reads that would normally go to readers are redirected to the writer for as long as the lag persists. In a read-heavy cluster this can instantly concentrate the full read load on the single writer, potentially overwhelming it — a connection storm, CPU/I/O overload, and even a cascading failure as the slowed writer increases lag further. Mitigations:
+> - Start with a generous threshold (e.g. several seconds). Do not set `0` in production — any positive lag, even 1 ms, will then redirect every read.
+> - Add circuit-breaking or rate-limiting at the load balancer / application level so redirected read traffic cannot overwhelm the writer during a lag spike.
+ 
 ## Query-level load balancing
 
 By default the plugin uses a **sticky reader**: once `setReadOnly(true)` establishes a reader connection, subsequent reads reuse that same reader. Setting `queryLevelLoadBalancing` to `true` switches to **query-level load balancing**: within an established read-only phase, the plugin selects a fresh reader (using the configured [reader selection strategy](../HostSelectionStrategies.md)) on each read-routing decision, distributing reads across the available readers.
