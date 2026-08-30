@@ -84,7 +84,13 @@ The pessimistic `Math.max` aggregation is intentional: host-selector metrics may
 > [!NOTE]
 > Reader endpoints and RDS Proxy routes go through an **opaque endpoint**, so the reader selection strategy never applies there. The driver always evaluates the worst backend-reader lag — sourced from the cached Aurora topology when available, otherwise from the published host specs (the `Math.max` row above). The pinned-reader fast path also does not apply because the endpoint host does not identify the backend instance.
 
-A read inside an active local or XA transaction remains pinned to its existing connection. In an Aurora Global Database with Global Write Forwarding, a fallback can remain on a secondary-region reader because write forwarding does not make reads fresh; connect to the primary region when freshness is required.
+The fallback never overrides explicit application intent; it is skipped entirely — no lag measurement, no topology refresh, no warning — when:
+
+- the current statement carries an explicit routing hint (for example `/*@reader*/`),
+- the session is declared read-only (`Connection.setReadOnly(true)`), which also covers read-only transactions,
+- an active local or XA transaction is in progress, since the connection is pinned to its existing connection regardless.
+
+In an Aurora Global Database with Global Write Forwarding, a fallback can remain on a secondary-region reader because write forwarding does not make reads fresh; connect to the primary region when freshness is required.
 
 > [!WARNING]
 > When replica lag rises above the threshold, **all** reads that would normally go to readers are redirected to the writer for as long as the lag persists. In a read-heavy cluster this can instantly concentrate the full read load on the single writer, potentially overwhelming it — a connection storm, CPU/I/O overload, and even a cascading failure as the slowed writer increases lag further. Mitigations:

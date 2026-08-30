@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -48,6 +49,8 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.parser.RoutingHint;
+import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.LoadBalancingPolicy;
@@ -192,6 +195,11 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
    * it from an in-memory cache. Any other database that reports lag on its published host specs
    * (non-null {@link HostSpec#getLagMs()}) is also supported. Databases that do not report lag
    * leave routing unchanged.
+   *
+   * <p>The fallback never overrides explicit application intent: it is skipped entirely (no lag
+   * measurement, no topology refresh) when the current statement carries an explicit routing hint
+   * (e.g. {@code /*@reader* /}), when the session is declared read-only
+   * ({@code Connection.setReadOnly(true)}), or when a transaction is in progress.
    */
   public static final AwsWrapperProperty REPLICA_LAG_THRESHOLD_MS =
       new AwsWrapperProperty(
@@ -689,6 +697,10 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
    * no hysteresis. All wrapper connections that are routing reads will simultaneously redirect to
    * the writer for as long as lag stays above the threshold. Callers should be aware that this
    * creates a potential connection storm and CPU spike on the writer during lag events.
+   *
+   * <p>The fallback is a no-op when {@link #replicaLagFallbackCouldApply} returns {@code false}
+   * (explicit routing hint, read-only session, or open transaction): in those cases {@code desired}
+   * is returned unchanged without measuring lag.
    */
   private TargetRole applyReplicaLagFallback(final TargetRole desired) throws SQLException {
     if (!this.replicaLagFallbackCouldApply(desired)) {
@@ -716,15 +728,52 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   }
 
   /**
-   * Returns {@code true} when the replica-lag fallback is enabled and the routing decision is for
-   * a reader (the only role the fallback can redirect away from).
+   * Returns {@code true} when the replica-lag fallback is enabled, the routing decision is for a
+   * reader (the only role the fallback can redirect away from), and the application has not pinned
+   * the read to a specific destination.
    *
    * <p>The threshold check uses {@code >= 0} so that {@code replicaLagThresholdMs = 0} is a valid
    * "reject any positive lag" configuration. Only {@code -1} (or any negative value) disables the
    * feature entirely.
+   *
+   * <p>The fallback — and with it the lag measurement, the topology refresh that a reroute would
+   * trigger, and the "routed to writer" warning — is skipped entirely when application intent is
+   * explicit:
+   * <ul>
+   *   <li><b>an explicit {@link RoutingHint}</b> is attached to the current statement (any hint;
+   *       only {@code READER} reaches this method) — the hint is the application overriding
+   *       automatic routing for this statement, so the fallback must not override it back;</li>
+   *   <li><b>a transaction (local or XA) is in progress</b> — {@link TransactionAwareGate}
+   *       pins the connection regardless, so measuring lag here would only add wasted work and a
+   *       misleading "routed to writer" warning;</li>
+   *   <li><b>the session is read-only</b> (declared via {@code Connection.setReadOnly(true)},
+   *       which also covers read-only transactions) — the application asked for reads and nothing
+   *       but reads, and redirecting to the writer would violate that.</li>
+   * </ul>
    */
   private boolean replicaLagFallbackCouldApply(final TargetRole desired) {
-    return this.replicaLagThresholdMs >= 0 && desired == TargetRole.READER;
+    if (this.replicaLagThresholdMs < 0 || desired != TargetRole.READER) {
+      return false;
+    }
+
+    final PluginCallContext callContext = this.pluginService.getCallContext();
+    if (callContext != null
+        && callContext.getAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.class) != null) {
+      return false;
+    }
+
+    if (this.pluginService.isInTransaction() || this.pluginService.isXaTransactionActive()) {
+      return false;
+    }
+
+    try {
+      final Optional<Boolean> readOnly = this.pluginService.getSessionStateService().getReadOnly();
+      return !(readOnly.isPresent() && readOnly.get());
+    } catch (final SQLException e) {
+      // The read-only state could not be read. Refuse to apply the fallback rather than throw into
+      // the routing path: routing intent is unknown, so lag must not redirect the read anywhere.
+      return false;
+    }
   }
 
   /**

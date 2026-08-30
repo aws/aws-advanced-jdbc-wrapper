@@ -482,9 +482,9 @@ class ReplicaLagFallbackTest {
   }
 
   @Test
-  void enabled_explicitReaderHintStillUsesWriterWhenLagging() throws SQLException {
-    // An explicit /*@reader*/ routing hint on a plain statement still goes to writer when
-    // the lag fallback kicks in (lag threshold overrides the hint on safety grounds).
+  void enabled_explicitReaderHint_skipsFallbackAndStaysOnReader() throws SQLException {
+    // An explicit /*@reader*/ routing hint pins the read to a reader: the lag fallback must not
+    // override it, so the statement stays on the reader even though lag is above the threshold.
     startOn(readerConnection, readerOne);
     givenTopology(Arrays.asList(writer, readerOne), Arrays.asList(writer, reader("reader-one", 5000f)));
 
@@ -499,8 +499,9 @@ class ReplicaLagFallbackTest {
         JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
         () -> null, new Object[] {"select 1"});
 
-    assertEquals(writerConnection, currentConnection.get());
-    verify(rebindable).rebind(writerConnection);
+    assertEquals(readerConnection, currentConnection.get());
+    verify(rebindable, never()).rebind(writerConnection);
+    verify(hostListProvider, never()).getStoredTopology();
   }
 
   @Test
@@ -998,6 +999,52 @@ class ReplicaLagFallbackTest {
     // refresh occurs (from performSwitch) but zero calls to getStoredTopology beyond the
     // single lag-check call that returns null.
     verify(hostListProvider, times(1)).getStoredTopology();
+  }
+
+  // -------------------------------------------------------------------------
+  // Group 9 – Fallback skipped under explicit routing intent (3 tests)
+  // -------------------------------------------------------------------------
+
+  @Test
+  void enabled_explicitReaderHint_skipsFallbackDespiteHighLag() throws SQLException {
+    // An explicit /*@reader*/ hint pins the read to a reader: lag must not redirect it to the
+    // writer, and the lag topology must not even be consulted.
+    givenTopology(Arrays.asList(writer, readerOne), Arrays.asList(writer, reader("reader-one", 5000f)));
+
+    final PluginCallContext callContext = new PluginCallContext();
+    callContext.setAttribute(SqlContextKeys.ROUTING_HINT, RoutingHint.READER);
+    when(pluginService.getCallContext()).thenReturn(callContext);
+
+    read(newTopologyPlugin(enabledProps()));
+
+    assertEquals(readerConnection, currentConnection.get());
+    verify(hostListProvider, never()).getStoredTopology();
+  }
+
+  @Test
+  void enabled_readOnlySession_skipsFallbackDespiteHighLag() throws SQLException {
+    // Connection.setReadOnly(true) means "reads only": the fallback must not push the connection
+    // to the writer, and no lag evaluation may happen.
+    givenTopology(Arrays.asList(writer, readerOne), Arrays.asList(writer, reader("reader-one", 5000f)));
+    when(sessionStateService.getReadOnly()).thenReturn(Optional.of(true));
+
+    read(newTopologyPlugin(enabledProps()));
+
+    assertEquals(readerConnection, currentConnection.get());
+    verify(hostListProvider, never()).getStoredTopology();
+  }
+
+  @Test
+  void enabled_transactionInProgress_skipsFallbackAndStaysPinned() throws SQLException {
+    // An open transaction pins the connection. Lag must not be evaluated at all (the switch would
+    // be vetoed by the gate anyway, so measuring it is pure waste and would log a false warning).
+    givenTopology(Arrays.asList(writer, readerOne), Arrays.asList(writer, reader("reader-one", 5000f)));
+    when(pluginService.isInTransaction()).thenReturn(true);
+
+    read(newTopologyPlugin(enabledProps()));
+
+    assertEquals(writerConnection, currentConnection.get());
+    verify(hostListProvider, never()).getStoredTopology();
   }
 
   // -------------------------------------------------------------------------
