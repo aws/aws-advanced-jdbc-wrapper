@@ -175,7 +175,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   protected ClusterTopologyMonitor getOrCreateMonitor() throws SQLException {
-    return this.servicesContainer.getMonitorService().runIfAbsent(
+    final ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
         this.servicesContainer,
@@ -189,6 +189,21 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
             this.instanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano));
+    this.offerRecoveryContextIfNeeded(monitor);
+    return monitor;
+  }
+
+  /**
+   * Offers this provider's connection context as a recovery option to the given monitor if it is
+   * in panic mode. When the monitor already has an active monitoring connection this is a no-op.
+   *
+   * @param monitor the monitor to offer recovery context to
+   */
+  protected void offerRecoveryContextIfNeeded(final ClusterTopologyMonitor monitor) {
+    if (monitor instanceof ClusterTopologyMonitorImpl) {
+      ((ClusterTopologyMonitorImpl) monitor).offerRecoveryContext(
+          this.initialHostSpec, this.properties, this.servicesContainer);
+    }
   }
 
   @Override

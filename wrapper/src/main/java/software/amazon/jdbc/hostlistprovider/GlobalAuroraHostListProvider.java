@@ -66,7 +66,7 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
   }
 
   protected ClusterTopologyMonitor getOrCreateMonitor() throws SQLException {
-    return this.servicesContainer.getMonitorService().runIfAbsent(
+    final ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
         this.servicesContainer,
@@ -82,6 +82,8 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
                 this.refreshRateNano,
                 this.highRefreshRateNano,
                 this.instanceTemplatesByRegion));
+    this.offerRecoveryContextIfNeeded(monitor);
+    return monitor;
   }
 
   @Override

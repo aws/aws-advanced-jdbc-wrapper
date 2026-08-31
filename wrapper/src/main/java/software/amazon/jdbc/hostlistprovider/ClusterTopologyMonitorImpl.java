@@ -125,11 +125,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
   protected final TopologyUtils topologyUtils;
-  protected final FullServicesContainer servicesContainer;
-  protected final Properties properties;
-  protected final Properties monitoringProperties;
-  protected final HostSpec initialHostSpec;
+  protected volatile FullServicesContainer servicesContainer;
+  protected volatile Properties properties;
+  protected volatile Properties monitoringProperties;
+  protected volatile HostSpec initialHostSpec;
   protected final HostSpec instanceTemplate;
+
+  // Recovery context offered by a later provider when the monitor is in panic mode.
+  protected final AtomicReference<@Nullable RecoveryContext> pendingRecoveryContext = new AtomicReference<>(null);
 
   protected @Nullable ExecutorService nodeExecutorService = null;
   protected long highRefreshRateEndTimeNano = 0;
@@ -208,6 +211,178 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
       this.connectionHandler = this.createConnectionHandler();
     }
     return this.connectionHandler;
+  }
+
+  /**
+   * Builds a monitoring properties set from the given source properties and services container.
+   * This applies the same transformations as the constructor: copy, strip host-selection properties,
+   * apply monitoring-prefix overrides, and set timeout defaults.
+   *
+   * @param sourceProperties the source properties (e.g., from a provider)
+   * @param container        the services container for target-driver-dialect access
+   * @return a new Properties instance suitable for monitoring connections
+   */
+  protected static Properties buildMonitoringProperties(
+      final Properties sourceProperties,
+      final FullServicesContainer container) {
+    final Properties result = PropertyUtils.copyProperties(sourceProperties);
+    PropertyUtils.removeHostSelectionProperties(
+        result, container.getPluginService().getTargetDriverDialect());
+
+    sourceProperties.stringPropertyNames().stream()
+        .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
+        .forEach(p -> {
+          final String value = sourceProperties.getProperty(p);
+          if (value != null) {
+            result.put(p.substring(MONITORING_PROPERTY_PREFIX.length()), value);
+          }
+          result.remove(p);
+        });
+
+    if (PropertyDefinition.SOCKET_TIMEOUT.getString(result) == null) {
+      PropertyDefinition.SOCKET_TIMEOUT.set(result, String.valueOf(defaultSocketTimeoutMs));
+    }
+    if (PropertyDefinition.CONNECT_TIMEOUT.getString(result) == null) {
+      PropertyDefinition.CONNECT_TIMEOUT.set(result, String.valueOf(defaultConnectionTimeoutMs));
+    }
+    return result;
+  }
+
+  /**
+   * Offers a recovery context to this monitor. If the monitor is currently in panic mode
+   * (no active monitoring connection), the offered context will replace the current connection
+   * context on the next monitoring cycle, allowing recovery with fresh credentials or host.
+   * If the monitor is healthy, this is a no-op.
+   *
+   * <p>This method is safe to call from any thread. The actual context replacement happens
+   * atomically on the monitoring thread.
+   *
+   * <p><strong>Concurrency note:</strong> concurrent offers are last-writer-wins. A failed
+   * candidate simply leaves the monitor in panic mode so a subsequent offer can be attempted.
+   *
+   * @param newInitialHostSpec  the host to use for recovery connection attempts
+   * @param newProperties       the connection properties (credentials, etc.)
+   * @param newServicesContainer the services container (plugin chain, connection provider, etc.)
+   * @return {@code true} if the context was accepted for recovery; {@code false} if the monitor
+   *     is healthy and does not need a new context
+   */
+  public boolean offerRecoveryContext(
+      final HostSpec newInitialHostSpec,
+      final Properties newProperties,
+      final FullServicesContainer newServicesContainer) {
+    if (!this.isInPanicMode()) {
+      return false;
+    }
+
+    this.pendingRecoveryContext.set(
+        new RecoveryContext(newInitialHostSpec, newProperties, newServicesContainer));
+
+    // Wake the monitoring loop so it picks up the context promptly.
+    synchronized (this.requestToUpdateTopology) {
+      this.requestToUpdateTopology.set(true);
+      this.requestToUpdateTopology.notifyAll();
+    }
+    return true;
+  }
+
+  /**
+   * Applies a pending recovery context, if one has been offered and the monitor is still in panic
+   * mode. Called on the monitoring thread at the start of each panic-mode iteration.
+   */
+  protected void applyPendingRecoveryContext() {
+    final RecoveryContext recovery = this.pendingRecoveryContext.getAndSet(null);
+    if (recovery == null || !this.isInPanicMode()) {
+      return;
+    }
+
+    // Build the minimal container first, before any destructive state changes. If creation
+    // fails, existing panic-mode workers and state remain untouched.
+    FullServicesContainer minimalContainer;
+    try {
+      minimalContainer = this.createRecoveryServiceContainer(
+          recovery.servicesContainer, recovery.properties);
+    } catch (SQLException ex) {
+      LOGGER.warning(() -> Messages.get(
+          "ClusterTopologyMonitorImpl.recoveryContextContainerFailed",
+          new Object[]{ex.getMessage()}));
+      return;
+    }
+
+    LOGGER.fine(() -> Messages.get(
+        "ClusterTopologyMonitorImpl.recoveryContextApplied",
+        new Object[]{recovery.initialHostSpec.getHost(), this.initialHostSpec.getHost()}));
+
+    // Stop any running node workers so they don't use stale context.
+    this.nodeThreadsStop.set(true);
+    this.closeNodeMonitors();
+    this.nodeThreadConnectionCleanUp();
+    this.submittedNodes.clear();
+    this.stableTopologiesStartNano = 0;
+    this.readerTopologiesById.clear();
+    this.completedOneCycle.clear();
+    this.nodeThreadsWriterHostSpec.set(null);
+    this.nodeThreadsLatestTopology.set(null);
+    this.nodeThreadsStop.set(false);
+
+    // Replace connection context fields. Safe: only the monitoring thread reads these.
+    this.initialHostSpec = recovery.initialHostSpec;
+    this.properties = recovery.properties;
+    this.servicesContainer = minimalContainer;
+    this.monitoringProperties = buildMonitoringProperties(recovery.properties, minimalContainer);
+    this.logUnclosedConnections = PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(recovery.properties);
+
+    // Recreate the connection handler with the new context.
+    if (this.connectionHandler != null) {
+      this.connectionHandler.close();
+      this.connectionHandler = null;
+    }
+  }
+
+  /**
+   * Creates a minimal service container from the given source container and properties.
+   * This provides the same isolation as the initial monitor creation performed by
+   * {@link software.amazon.jdbc.util.monitoring.MonitorServiceImpl}: the provider's full plugin
+   * chain is replaced with a lightweight monitoring-only service layer.
+   *
+   * <p>Extracted into a separate method so that tests can override or spy on it without
+   * requiring deep integration infrastructure.
+   *
+   * @param sourceContainer the provider's full services container
+   * @param props           the connection properties
+   * @return a new minimal service container
+   * @throws SQLException if container creation fails
+   */
+  protected FullServicesContainer createRecoveryServiceContainer(
+      final FullServicesContainer sourceContainer,
+      final Properties props) throws SQLException {
+    return ServiceUtility.getInstance().createMinimalServiceContainer(sourceContainer, props);
+  }
+
+  /**
+   * Discards any pending recovery context that was offered while the monitor was in panic mode.
+   * Called when the monitor transitions to (or runs in) regular mode so that a stale context
+   * cannot be incorrectly applied during a future panic episode.
+   */
+  protected void discardPendingRecoveryContext() {
+    this.pendingRecoveryContext.set(null);
+  }
+
+  /**
+   * Immutable holder for recovery context offered by a later provider.
+   */
+  protected static class RecoveryContext {
+    final HostSpec initialHostSpec;
+    final Properties properties;
+    final FullServicesContainer servicesContainer;
+
+    RecoveryContext(
+        final HostSpec initialHostSpec,
+        final Properties properties,
+        final FullServicesContainer servicesContainer) {
+      this.initialHostSpec = initialHostSpec;
+      this.properties = properties;
+      this.servicesContainer = servicesContainer;
+    }
   }
 
   @Override
@@ -391,6 +566,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
         this.lastActivityTimestampNanos.set(System.nanoTime());
 
         if (this.isInPanicMode()) {
+          this.applyPendingRecoveryContext();
+
           if (this.submittedNodes.isEmpty()) {
             LOGGER.finest(() -> Messages.get("ClusterTopologyMonitorImpl.startingNodeMonitoringThreads"));
 
@@ -490,6 +667,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
 
         } else {
           // We are in regular mode (not panic mode).
+          // Discard any pending recovery context — it was offered while the monitor was in panic mode
+          // and is now stale. Without this, a context offered after applyPendingRecoveryContext() but
+          // before recovery completes would survive and be incorrectly applied during a future panic
+          // episode with potentially expired credentials.
+          this.discardPendingRecoveryContext();
+
           if (!this.submittedNodes.isEmpty()) {
             this.closeNodeMonitors();
             this.nodeThreadConnectionCleanUp();
