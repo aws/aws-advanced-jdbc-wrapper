@@ -32,7 +32,7 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:1.62.0")
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.62.0")
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.1")
-    implementation("org.jsoup:jsoup:1.23.1")
+    implementation("org.jsoup:jsoup:1.23.2")
     implementation("com.mchange:c3p0:0.14.1")
     implementation("org.apache.commons:commons-pool2:2.13.1")
     implementation("io.github.cdimascio:dotenv-java:2.3.2")
