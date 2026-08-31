@@ -62,7 +62,7 @@ dependencies {
     optionalImplementation("com.mchange:c3p0:0.14.1")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
     optionalImplementation("org.apache.commons:commons-pool2:2.13.1")
-    optionalImplementation("org.jsoup:jsoup:1.23.1")
+    optionalImplementation("org.jsoup:jsoup:1.23.2")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.1")
     optionalImplementation("io.opentelemetry:opentelemetry-api:$openTelemetryVersion")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:$openTelemetryVersion")
@@ -81,7 +81,7 @@ dependencies {
     federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
     federatedAuthBundleImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
     federatedAuthBundleImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
-    federatedAuthBundleImplementation("org.jsoup:jsoup:1.23.1")
+    federatedAuthBundleImplementation("org.jsoup:jsoup:1.23.2")
 
     testImplementation("org.checkerframework:checker-qual:3.55.1")
     testImplementation("org.junit.platform:junit-platform-commons:$junitPlatformVersion")
@@ -126,7 +126,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:$openTelemetryVersion")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:$openTelemetryVersion")
     testImplementation("org.apache.commons:commons-pool2:2.13.1")
-    testImplementation("org.jsoup:jsoup:1.23.1")
+    testImplementation("org.jsoup:jsoup:1.23.2")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2")
     testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
