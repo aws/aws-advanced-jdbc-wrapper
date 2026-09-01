@@ -105,7 +105,7 @@ One topology monitor exists per [`clusterId`](../ClusterId.md), and it is create
 
 This is invisible when all connections sharing a `clusterId` use the same credentials and database. It matters when they do not, for example when one application process connects to several databases on one cluster, each with its own database user. If the user or database captured by the monitor is later removed or loses access, the monitor cannot open connections, and every connection that shares the `clusterId` waits for a topology refresh that cannot complete.
 
-Give the monitor its own long-lived credentials and database so its context does not depend on any single application connection:
+Configuring credentials for the monitor is **optional**. If you do not set them, the monitor uses the credentials and database of the connection that created it, which is the right behavior when every connection sharing the `clusterId` connects as the same user to the same database. Set them only when that is not true, to give the monitor a context that does not depend on any single application connection:
 
 ```java
 properties.setProperty("topology-monitoring-user", "topology_monitor");
