@@ -164,7 +164,7 @@ Scope the IAM policy to the **cluster** resource id rather than to a single inst
 
 Any database that is guaranteed never to be dropped works as the monitoring target; `postgres` is a reasonable choice.
 
-For the general behavior of the `topology-monitoring-` prefix, see [Configuring the topology monitor's connections](./UsingTheFailover2Plugin.md#configuring-the-topology-monitors-connections).
+For the general behavior of the `topology-monitoring-` prefix, see [Configuring the topology monitor's connections](./UsingTheFailover2Plugin.md#configuring-the-topology-monitors-connections-optional).
 
 ## Telemetry Metrics
 

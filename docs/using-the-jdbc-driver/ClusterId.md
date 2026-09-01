@@ -216,13 +216,13 @@ If the user or database captured by the monitor is later removed or loses access
 ```java
 // ✅ Monitoring context that does not depend on any single application connection.
 props.setProperty("topology-monitoring-user", "topology_monitor");
-props.setProperty("topology-monitoring-password", "***");
+props.setProperty("topology-monitoring-password", "<password>");
 props.setProperty("topology-monitoring-database", "postgres");
 ```
 
 With the [IAM Authentication Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md), omit `topology-monitoring-password` and let the plugin generate the token for `topology-monitoring-user`.
 
-Set the same values on every connection in the process. See [Configuring the topology monitor's connections](./using-plugins/UsingTheFailover2Plugin.md#configuring-the-topology-monitors-connections) for details, and [Multi-tenant clusters](./using-plugins/UsingTheIamAuthenticationPlugin.md#multi-tenant-clusters-per-tenant-databases-or-iam-users) for an IAM example with the permissions the monitoring principal needs.
+Set the same values on every connection in the process. See [Configuring the topology monitor's connections](./using-plugins/UsingTheFailover2Plugin.md#configuring-the-topology-monitors-connections-optional) for details, and [Multi-tenant clusters](./using-plugins/UsingTheIamAuthenticationPlugin.md#multi-tenant-clusters-per-tenant-databases-or-iam-users) for an IAM example with the permissions the monitoring principal needs.
 
 ## Summary
 
