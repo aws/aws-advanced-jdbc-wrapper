@@ -674,7 +674,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     }
 
     final Connection current = this.pluginService.getCurrentConnection();
-    if (current != null) {
+    if (current != null && rebindHandle != null) {
       try {
         rebindHandle.rebind(current);
       } catch (final SQLException e) {
@@ -843,11 +843,12 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     // Build a URL→lag map from whichever source is available. This allocation is only incurred
     // when a fresh reader is actually going to be selected (the pinned path already returned).
     final Map<String, Float> lagByUrl = new HashMap<>();
-    if (usingTopologyCache) {
+    if (latestTopology != null) {
       // Aurora: topology snapshot has the freshest lag reported by the background monitor.
       for (final HostSpec host : latestTopology) {
-        if (host.getRole() == HostRole.READER) {
-          lagByUrl.put(host.getUrl(), host.getLagMs());
+        final Float lagMs = host.getLagMs();
+        if (host.getRole() == HostRole.READER && lagMs != null) {
+          lagByUrl.put(host.getUrl(), lagMs);
         }
       }
     } else {
@@ -856,8 +857,9 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       final List<HostSpec> publishedHosts = this.pluginService.getHosts();
       if (publishedHosts != null) {
         for (final HostSpec host : publishedHosts) {
-          if (host.getRole() == HostRole.READER && host.getLagMs() != null) {
-            lagByUrl.put(host.getUrl(), host.getLagMs());
+          final Float lagMs = host.getLagMs();
+          if (host.getRole() == HostRole.READER && lagMs != null) {
+            lagByUrl.put(host.getUrl(), lagMs);
           }
         }
       }
