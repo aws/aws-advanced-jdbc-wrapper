@@ -587,6 +587,125 @@ public class PluginServiceImplTests {
   }
 
   @Test
+  public void testSetNodeListMeasuredDetailsChanged() throws SQLException {
+    doNothing().when(pluginManager).notifyNodeListChanged(any());
+
+    when(hostListProvider.refresh()).thenReturn(
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER)
+            .weight(200).cpuPercent(90.0F).lagMs(800.0F).build()));
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER)
+        .weight(100).cpuPercent(10.0F).lagMs(5.0F).build());
+    target.hostListProvider = hostListProvider;
+
+    target.refreshHostList();
+
+    // The host list carries no structural change, but the refreshed measured details must still be published.
+    assertEquals(1, target.getAllHosts().size());
+    final HostSpec updatedHost = target.getAllHosts().get(0);
+    assertEquals("hostA", updatedHost.getHost());
+    assertEquals(200, updatedHost.getWeight());
+    assertEquals(90.0F, updatedHost.getCpuPercent(), 0.0001F);
+    assertEquals(800.0F, updatedHost.getLagMs(), 0.0001F);
+
+    // A measured detail change is not a node change, so no notification is expected.
+    verify(pluginManager, times(0)).notifyNodeListChanged(any());
+  }
+
+  @Test
+  public void testForceRefreshHostListMeasuredDetailsChanged() throws SQLException, TimeoutException {
+    doNothing().when(pluginManager).notifyNodeListChanged(any());
+
+    when(hostListProvider.forceRefresh(anyBoolean(), anyLong())).thenReturn(
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER)
+            .weight(200).cpuPercent(90.0F).lagMs(800.0F).build()));
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER)
+        .weight(100).cpuPercent(10.0F).lagMs(5.0F).build());
+    target.hostListProvider = hostListProvider;
+
+    assertTrue(target.forceRefreshHostList(true, 5000));
+
+    assertEquals(1, target.getAllHosts().size());
+    final HostSpec updatedHost = target.getAllHosts().get(0);
+    assertEquals(200, updatedHost.getWeight());
+    assertEquals(90.0F, updatedHost.getCpuPercent(), 0.0001F);
+    assertEquals(800.0F, updatedHost.getLagMs(), 0.0001F);
+    verify(pluginManager, times(0)).notifyNodeListChanged(any());
+  }
+
+  @Test
+  public void testLoadAwareSelectionUsesRefreshedMeasuredDetails() throws SQLException {
+    doNothing().when(pluginManager).notifyNodeListChanged(any());
+
+    final HostSpec staleReaderB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostB").port(HostSpec.NO_PORT).role(HostRole.READER)
+        .availability(HostAvailability.AVAILABLE).cpuPercent(10.0F).lagMs(5.0F).build();
+    final HostSpec staleReaderC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostC").port(HostSpec.NO_PORT).role(HostRole.READER)
+        .availability(HostAvailability.AVAILABLE).cpuPercent(10.0F).lagMs(500.0F).build();
+
+    // hostB is now the lagging reader; membership, roles and availability are unchanged.
+    final HostSpec freshReaderB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostB").port(HostSpec.NO_PORT).role(HostRole.READER)
+        .availability(HostAvailability.AVAILABLE).cpuPercent(10.0F).lagMs(900.0F).build();
+    final HostSpec freshReaderC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostC").port(HostSpec.NO_PORT).role(HostRole.READER)
+        .availability(HostAvailability.AVAILABLE).cpuPercent(10.0F).lagMs(5.0F).build();
+
+    when(hostListProvider.refresh()).thenReturn(Arrays.asList(freshReaderB, freshReaderC));
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.allHosts = Arrays.asList(staleReaderB, staleReaderC);
+    target.hostListProvider = hostListProvider;
+
+    final HostSelector selector = LowestLoadHostSelector.byLag();
+    assertEquals("hostB",
+        Objects.requireNonNull(selector.getHost(target.getAllHosts(), HostRole.READER, PROPERTIES)).getHost());
+
+    target.refreshHostList();
+
+    assertEquals("hostC",
+        Objects.requireNonNull(selector.getHost(target.getAllHosts(), HostRole.READER, PROPERTIES)).getHost());
+  }
+
+  @Test
   public void testNodeAvailabilityNotChanged() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 

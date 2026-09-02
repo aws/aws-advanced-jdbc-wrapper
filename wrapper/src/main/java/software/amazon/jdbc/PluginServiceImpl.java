@@ -628,8 +628,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       }
     }
 
+    // Always publish the new host list, even when no structural change was detected. Measured host
+    // details such as weight, CPU utilization and replication lag are carried by freshly created
+    // HostSpec objects and are not considered by compare(), so keeping the previous list would make
+    // getHosts() report those details indefinitely on a cluster with a stable membership.
+    this.allHosts = newHosts != null ? newHosts : new ArrayList<>();
+
     if (!changes.isEmpty()) {
-      this.allHosts = newHosts != null ? newHosts : new ArrayList<>();
       this.pluginManager.notifyNodeListChanged(changes);
     }
   }
