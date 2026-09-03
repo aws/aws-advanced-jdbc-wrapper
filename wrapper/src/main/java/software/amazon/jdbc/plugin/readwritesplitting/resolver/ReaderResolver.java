@@ -17,6 +17,9 @@
 package software.amazon.jdbc.plugin.readwritesplitting.resolver;
 
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.List;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
 
 /**
@@ -55,6 +58,28 @@ public interface ReaderResolver {
    * @return {@code true} for per-query reader balancing; {@code false} (default) for sticky
    */
   default boolean isPerQuery() {
+    return false;
+  }
+
+  /**
+   * Returns the reader candidates that could serve a fresh reader route, for optional
+   * replica-lag evaluation. The default has no topology-backed candidates.
+   *
+   * @param ctx the read/write splitting context
+   * @return reader candidates eligible for this resolver's routing policy
+   * @throws SQLException if candidate resolution fails
+   */
+  default List<HostSpec> getReaderCandidatesForLag(final RwSplitContext ctx) throws SQLException {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Whether the resolver routes through an endpoint whose host does not identify the backend
+   * database instance. Such resolvers must evaluate replica lag from cached Aurora topology.
+   *
+   * @return {@code true} when the route uses an opaque endpoint
+   */
+  default boolean routesThroughOpaqueEndpoint() {
     return false;
   }
 }
