@@ -81,6 +81,40 @@ In addition to the parameters that you can configure for the underlying driver, 
 | `skipFailoverOnInterruptedThread`     | Boolean  |                                                                                                                             No                                                                                                                              | Enable to skip failover if the current thread is interrupted. This may leave the Connection in an invalid state so the Connection should be disposed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `false`                                                                                                                                                                                             |
 
 
+### Configuring the topology monitor's connections (optional)
+
+The topology monitor opens its own connections to query topology and verify the writer: one long-lived monitoring connection, plus one connection per instance while it is re-discovering the cluster. To apply specific configurations to these connections, add the `topology-monitoring-` prefix to any configuration parameter, as shown in the following example:
+
+```java
+final Properties properties = new Properties();
+// Configure the timeout values for all, non-monitoring connections.
+properties.setProperty("connectTimeout", "30000");
+properties.setProperty("socketTimeout", "30000");
+// Configure different timeout values for the topology monitoring connections.
+properties.setProperty("topology-monitoring-connectTimeout", "10000");
+properties.setProperty("topology-monitoring-socketTimeout", "10000");
+```
+
+Unlike the [Host Monitoring Plugin](./UsingTheHostMonitoringPlugin.md), the topology monitor applies its own defaults of `5000` ms for both `connectTimeout` and `socketTimeout` when neither the prefixed nor the unprefixed value is set, so it will not wait indefinitely for an unavailable node.
+
+Monitoring connections do **not** inherit target driver parameters that restrict which database node a connection is accepted against, such as the PostgreSQL JDBC driver's `targetServerType`. Topology is read from whichever node the monitor is pointed at, readers included, so such a restriction would prevent the monitor from connecting at all. The parameters are still applied to your application connections; a warning is logged when one is removed from the monitoring connections. An explicit `topology-monitoring-targetServerType` still takes effect.
+
+#### The monitor is shared per clusterId, and so is its connection context
+
+One topology monitor exists per [`clusterId`](../ClusterId.md), and it is created by whichever connection needs topology first. The monitor keeps the `user`, `password`, and `database` of that first connection for as long as it lives, and uses them for every connection it opens. Later connections that share the `clusterId` reuse the same monitor and cannot change that context.
+
+This is invisible when all connections sharing a `clusterId` use the same credentials and database. It matters when they do not, for example when one application process connects to several databases on one cluster, each with its own database user. If the user or database captured by the monitor is later removed or loses access, the monitor cannot open connections, and every connection that shares the `clusterId` waits for a topology refresh that cannot complete.
+
+Configuring credentials for the monitor is **optional**. If you do not set them, the monitor uses the credentials and database of the connection that created it, which is the right behavior when every connection sharing the `clusterId` connects as the same user to the same database. Set them only when that is not true, to give the monitor a context that does not depend on any single application connection:
+
+```java
+properties.setProperty("topology-monitoring-user", "topology_monitor");
+properties.setProperty("topology-monitoring-password", "<password>");
+properties.setProperty("topology-monitoring-database", "postgres");
+```
+
+Set the same values on **every** connection in the process. Any connection can be the one that creates the monitor, so a connection that omits them can still bind the monitor to its own context. For an IAM example, including the least-privilege grants the monitoring principal needs, see [Multi-tenant clusters](./UsingTheIamAuthenticationPlugin.md#multi-tenant-clusters-per-tenant-databases-or-iam-users) in the IAM Authentication Plugin documentation.
+
 Please refer to the original [Failover Plugin](./UsingTheFailoverPlugin.md) for more details about error codes, configurations, connection pooling and sample codes. 
 
 ### Sample Code

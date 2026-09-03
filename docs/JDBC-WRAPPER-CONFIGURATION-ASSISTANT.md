@@ -152,6 +152,7 @@ There are eight read/write splitting codes, and users routinely pick the wrong o
 4. **AWS SDK version?** (the wrapper expects `software.amazon.awssdk:rds`, `:sts`, `:secretsmanager` v2 — confirm declared)
 5. **Federated only:** which IdP (ADFS, Azure AD, Ping use `federatedAuth`; Okta uses `okta`)
 6. **Bundle JAR?** (federated auth path can use the `-bundle-federated-auth` Uber JAR; recommend the regular JAR otherwise)
+7. **One identity for the whole cluster, or per-tenant databases / DB users?** (several logical databases or DB users on one cluster → the shared topology monitor needs its own identity; see §3.4a and §6.11)
 
 ### 2.6 Track F — Aurora Global Database
 
@@ -285,6 +286,42 @@ Add SDK deps:
 <dependency><groupId>software.amazon.awssdk</groupId><artifactId>rds</artifactId></dependency>
 <dependency><groupId>software.amazon.awssdk</groupId><artifactId>sts</artifactId></dependency>
 ```
+
+### 3.4a IAM multi-tenant — per-tenant database and IAM user on one cluster
+
+Use this when one process serves several tenants on the **same** Aurora cluster, each tenant with its own logical database and its own IAM DB user. Tenants are onboarded and offboarded, so a tenant's database and IAM user are shorter-lived than the cluster and the process.
+
+The problem this avoids: one topology monitor exists per `clusterId`, created by whichever connection needs topology first, and it keeps that connection's `user`/`database` for its whole lifetime. If the tenant that created the monitor is removed, the monitor can no longer connect and **every** tenant sharing the `clusterId` pays a topology-refresh wait on each connection. Splitting `clusterId` per tenant "fixes" it but duplicates monitors, caches, and topology queries against one physical cluster — don't recommend that. `wrapperDialect=pg` also avoids it but gives up topology-aware failover and read/write splitting.
+
+```java
+Properties props = new Properties();
+props.setProperty("wrapperPlugins", "initialConnection,auroraConnectionTracker,iam,failover2,efm2");
+props.setProperty("wrapperDialect", "aurora-pg");
+props.setProperty("iamRegion", "us-east-2");
+
+// Tenant context — differs per tenant.
+props.setProperty("user", tenant.getIamUser());
+
+// Monitoring context — a dedicated, long-lived identity.
+// Must be IDENTICAL on every connection in the process.
+props.setProperty("topology-monitoring-user", "topology_monitor");
+props.setProperty("topology-monitoring-database", "postgres");
+
+Connection conn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:postgresql://db-cluster.cluster-XYZ.us-east-2.rds.amazonaws.com/"
+        + tenant.getDatabase(),
+    props);
+```
+
+Points to state when you recommend this:
+
+- The database in the URL becomes the `database` property, so `topology-monitoring-database` redirects only the monitoring connections; app connections still reach the tenant's database.
+- The `iam` plugin reads `user` and `iam*` from the properties of the connection being opened, so the prefixed values are used when it generates the monitoring token. If a custom `AwsCredentialsProviderHandler` picks credentials from a connection property, prefix that property too.
+- **Every** connection in the process must carry the overrides — pool warm-up, health checks, migrations included. Any connection can be the one that creates the monitor.
+- Least privilege for the monitoring role (Aurora PG): `CREATE ROLE topology_monitor LOGIN; GRANT rds_iam TO topology_monitor; GRANT CONNECT ON DATABASE postgres TO topology_monitor;`. No `rds_superuser`, no table grants.
+- Scope `rds-db:connect` to the **cluster** resource id (`...:dbuser:cluster-XXXX/topology_monitor`), not one instance's DBI resource id — the monitor connects to each instance endpoint while re-discovering topology.
+
+Full details: `UsingTheIamAuthenticationPlugin.md` → "Multi-tenant clusters".
 
 ### 3.5 Secrets Manager (Aurora MySQL + HikariCP)
 
@@ -781,6 +818,8 @@ Generates IAM auth tokens (~15 min lifetime) and uses them as the password.
 | `iamAccessTokenPropertyName` | `password` | Property name to set the token on. Some target drivers want a different key. |
 
 > **Pool interaction:** Set HikariCP `maxLifetime` < 15 min (e.g., `840000` ms = 14 min) so connections rotate before tokens expire.
+
+> **Multi-tenant clusters:** if different connections in the same process use different IAM DB users or different logical databases on one cluster, give the shared topology monitor its own identity with `topology-monitoring-user` / `topology-monitoring-database`. See §3.4a and §6.11.
 
 ### 5.7 `awsSecretsManager` — AWS Secrets Manager auth
 
@@ -1347,6 +1386,23 @@ Are queries on this datasource short (< a few seconds)?
 **Don't combine `socketTimeout` < EFM detection window with `efm2`.** With defaults, EFM detects after `failureDetectionTime` (30 s) + `failureDetectionInterval × failureDetectionCount` (5 s × 3) ≈ 45 s. If `socketTimeout` is shorter, the socket times out first and EFM never fires. Either widen `socketTimeout` past the EFM window or set `socketTimeout=0` when using `efm2`.
 
 **`tcpKeepAlive` + `efm2` together** is allowed but redundant for most cases. If you do stack them, `tcpKeepAlive` will usually fire first on a clean network drop, and `efm2` provides backup for cases where TCP keep-alive isn't tuned aggressively enough.
+
+### 6.11 Monitoring-connection property overrides (prefixes)
+
+Several wrapper components open their own connections, separate from the application's. Each reads a prefix that overrides **any** connection property for its own connections only. The value is copied from `<prefix><name>` to `<name>` in that component's property set; the prefixed key itself is not passed to the target driver.
+
+| Prefix | Applies to | Notes |
+|---|---|---|
+| `topology-monitoring-` | Topology monitor (runs for `failover2`, `gdbFailover`, read/write splitting, or whenever an Aurora dialect is detected) | Defaults `connectTimeout` and `socketTimeout` to `5000` ms if neither prefixed nor unprefixed value is set. |
+| `monitoring-` | `efm` / `efm2` health-check connections | **No** built-in timeout defaults — always set `monitoring-connectTimeout` and `monitoring-socketTimeout`, or a dead host can block a monitor indefinitely. |
+| `blue-green-monitoring-` | `bg` plugin status connections | Same warning about timeouts. |
+| `frt-` | `fastestResponseStrategy` response-time monitors | |
+| `limitless-router-monitor-` | `limitless` router-endpoint monitors | |
+
+Two behaviors worth knowing:
+
+- **Host-selection properties are stripped** from monitoring connections (e.g. the PostgreSQL driver's `targetServerType`), because these connections are deliberately opened against readers too. A `WARNING` is logged per stripped property. An explicit prefixed value (`topology-monitoring-targetServerType`) still wins. On **4.3.0 and earlier** the stripping does not exist — override per prefix there instead.
+- **Credentials and database can be overridden too**, not just timeouts: `topology-monitoring-user`, `topology-monitoring-password`, `topology-monitoring-database`. This is the fix for multi-tenant clusters where the topology monitor would otherwise inherit one tenant's identity permanently — see §3.4a. Properties are read when the component is constructed, so changing them mid-run requires a new monitor.
 
 ---
 

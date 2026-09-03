@@ -207,6 +207,23 @@ sourceProps1.setProperty("clusterId", CLUSTER_ID);
 sourceProps2.setProperty("clusterId", CLUSTER_ID);  // Shared cache and resources
 ```
 
+### ⚠️ **A Shared clusterId Also Shares the Monitor's Credentials**
+
+Connections that share a `clusterId` share one topology monitor, and that monitor keeps the `user`, `password`, and `database` of whichever connection created it. This is invisible when those connections use the same credentials and database, but it matters when they do not, for example when one application process connects to several databases on the same cluster with a different database user for each.
+
+If the user or database captured by the monitor is later removed or loses access, the monitor cannot open connections and every connection sharing the `clusterId` waits for a topology refresh that cannot complete. Give the monitor its own long-lived credentials instead of relying on the first connection's:
+
+```java
+// ✅ Monitoring context that does not depend on any single application connection.
+props.setProperty("topology-monitoring-user", "topology_monitor");
+props.setProperty("topology-monitoring-password", "<password>");
+props.setProperty("topology-monitoring-database", "postgres");
+```
+
+With the [IAM Authentication Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md), omit `topology-monitoring-password` and let the plugin generate the token for `topology-monitoring-user`.
+
+Set the same values on every connection in the process. See [Configuring the topology monitor's connections](./using-plugins/UsingTheFailover2Plugin.md#configuring-the-topology-monitors-connections-optional) for details, and [Multi-tenant clusters](./using-plugins/UsingTheIamAuthenticationPlugin.md#multi-tenant-clusters-per-tenant-databases-or-iam-users) for an IAM example with the permissions the monitoring principal needs.
+
 ## Summary
 
 The `clusterId` parameter is essential for applications connecting to multiple database clusters. It serves as a cache key for topology information and monitoring services. Always use unique `clusterId` values for different clusters, and consistent values for the same cluster to maximize performance and avoid conflicts.

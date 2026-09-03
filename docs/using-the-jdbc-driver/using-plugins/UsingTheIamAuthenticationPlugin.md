@@ -98,6 +98,74 @@ Example IAM policy:
 ---
 <sup>1</sup> Note: The smaller dependencies cannot be used with Global databases, which require the full [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency.
 
+## Multi-tenant clusters: per-tenant databases or IAM users
+
+Applications that host multiple tenants on one Aurora cluster often give each tenant its own logical database and its own IAM database user. Tenants are added and removed over time, so a tenant's database and IAM user have a shorter lifetime than the cluster and than the application process.
+
+The driver's topology monitor is shared per [`clusterId`](../ClusterId.md) and is created by whichever connection needs topology first. It keeps that connection's `user` and `database` for its whole lifetime and uses them for every connection it opens. If the tenant that happened to create the monitor is later removed, or its IAM user loses access, the monitor can no longer connect, and connections for every other tenant sharing the `clusterId` wait for a topology refresh that cannot complete.
+
+Note that the topology monitor is installed whenever the driver detects an Aurora dialect, even when `iam` is the only plugin you enabled explicitly.
+
+### Give the monitor its own IAM identity
+
+Create a dedicated IAM database user for monitoring and pin it with the `topology-monitoring-` prefix, so the monitor's context does not depend on any tenant:
+
+```java
+final Properties props = new Properties();
+props.setProperty("wrapperPlugins", "iam");
+props.setProperty("iamRegion", "us-east-2");
+
+// Tenant context - differs per tenant.
+props.setProperty("user", tenant.getIamUser());
+
+// Monitoring context - identical on every connection in the process.
+props.setProperty("topology-monitoring-user", "topology_monitor");
+props.setProperty("topology-monitoring-database", "postgres");
+
+final Connection conn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:postgresql://db-cluster.cluster-XYZ.us-east-2.rds.amazonaws.com/"
+        + tenant.getDatabase(),
+    props);
+```
+
+The database name in the connection URL becomes the `database` connection property, so `topology-monitoring-database` overrides it for the monitoring connections only; application connections still reach the tenant's database.
+
+The IAM plugin reads `user` and the `iam*` properties from the properties of the connection being opened, so the prefixed values are what it uses when generating a token for a monitoring connection. If you select credentials with a custom `AwsCredentialsProviderHandler` driven by a connection property (see [AWS Credentials Configuration](../custom-configuration/AwsCredentialsConfiguration.md)), prefix that property as well so the handler resolves the monitoring identity.
+
+> [!WARNING]\
+> Set these properties on **every** connection in the process, including connections opened by pooling infrastructure, health checks, and schema migrations. Any connection can be the one that creates the topology monitor, so a connection that omits the overrides can still bind the monitor to its own tenant context.
+
+### Permissions for the monitoring principal
+
+The topology monitor only reads cluster metadata. On Aurora PostgreSQL:
+
+```sql
+CREATE ROLE topology_monitor LOGIN;
+GRANT rds_iam TO topology_monitor;
+GRANT CONNECT ON DATABASE postgres TO topology_monitor;
+```
+
+No `rds_superuser`, and no schema or table grants. `EXECUTE` on functions defaults to `PUBLIC`, so a plain login role normally works as-is; if you have revoked default public privileges you may also need to grant `EXECUTE` on `pg_catalog.aurora_replica_status()` and `pg_catalog.aurora_db_instance_identifier()`.
+
+Scope the IAM policy to the **cluster** resource id rather than to a single instance. While re-discovering the cluster the monitor connects to each instance endpoint, not only the cluster endpoint, and the cluster resource id covers every instance, including ones added later by scaling:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["rds-db:connect"],
+    "Resource": [
+      "arn:aws:rds-db:us-east-2:123456789012:dbuser:cluster-ABCDEFGHIJKL01234/topology_monitor"
+    ]
+  }]
+}
+```
+
+Any database that is guaranteed never to be dropped works as the monitoring target; `postgres` is a reasonable choice.
+
+For the general behavior of the `topology-monitoring-` prefix, see [Configuring the topology monitor's connections](./UsingTheFailover2Plugin.md#configuring-the-topology-monitors-connections-optional).
+
 ## Telemetry Metrics
 
 When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, this plugin submits the following metrics:
