@@ -155,6 +155,11 @@ public class BlueGreenStatusProvider {
   // every status update.
   protected final AtomicBoolean greenUnreachableLogged = new AtomicBoolean(false);
 
+  // Whether the green environment has reported itself as part of this deployment at least once.
+  // Until it has, an absent green status means its metadata has not been provisioned yet rather than
+  // that the deployment is gone.
+  protected boolean targetDeploymentSeen = false;
+
   protected final ResourceLock processStatusLock = new ResourceLock();
 
   // Status check interval time in millis for each BlueGreenIntervalRate.
@@ -307,6 +312,13 @@ public class BlueGreenStatusProvider {
       this.interimStatuses[role.getValue()] = interimStatus;
       this.interimStatusHashes[role.getValue()] = statusHash;
       this.lastContextHash = contextHash;
+
+      // Record that the green environment has confirmed its membership of this deployment. The
+      // status was just stored, so a role that is not reporting an absent deployment is reporting a
+      // real phase. See getRoleReportingDeploymentAbsent() for why this matters.
+      if (role == BlueGreenRole.TARGET && !this.reportsDeploymentAbsent(BlueGreenRole.TARGET)) {
+        this.targetDeploymentSeen = true;
+      }
 
       // Update map of IP addresses.
       this.hostIpAddresses.putAll(interimStatus.startIpAddressesByHostMap);
@@ -1320,22 +1332,19 @@ public class BlueGreenStatusProvider {
    * advance past one.
    */
   protected void checkDeploymentRemoved() {
-    final BlueGreenInterimStatus sourceStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
-
-    // A deployment that is gone reports either no rows at all, which the monitor surfaces as a null
-    // phase, or an error that the monitor maps to NOT_CREATED. Both mean the same thing here.
-    final boolean absent = sourceStatus != null
-        && (sourceStatus.blueGreenPhase == null
-            || sourceStatus.blueGreenPhase == BlueGreenPhase.NOT_CREATED);
-
     // NOT_CREATED means no deployment has been discovered yet, so there is nothing to reset and
     // nothing to report. COMPLETED is excluded because the status information is expected to
     // disappear after a successful switchover and resetContextWhenCompleted() already owns that
     // path; reacting here as well would replace the switchover summary with a deletion reset.
-    final boolean knownDeployment = this.latestStatusPhase != BlueGreenPhase.NOT_CREATED
-        && this.latestStatusPhase != BlueGreenPhase.COMPLETED;
+    if (this.latestStatusPhase == BlueGreenPhase.NOT_CREATED
+        || this.latestStatusPhase == BlueGreenPhase.COMPLETED) {
+      this.deploymentAbsent = false;
+      this.deploymentAbsentSinceNano = 0;
+      return;
+    }
 
-    if (!absent || !knownDeployment) {
+    final BlueGreenRole absentRole = this.getRoleReportingDeploymentAbsent();
+    if (absentRole == null) {
       this.deploymentAbsent = false;
       this.deploymentAbsentSinceNano = 0;
       return;
@@ -1347,7 +1356,8 @@ public class BlueGreenStatusProvider {
       this.deploymentAbsent = true;
       this.deploymentAbsentSinceNano = now;
       final long graceMs = TimeUnit.NANOSECONDS.toMillis(this.deploymentRemovedGraceNano);
-      LOGGER.fine(() -> Messages.get("bgd.deploymentAbsent", new Object[] {this.bgdId, graceMs}));
+      LOGGER.fine(() -> Messages.get("bgd.deploymentAbsent",
+          new Object[] {this.bgdId, absentRole, graceMs}));
       return;
     }
 
@@ -1358,12 +1368,60 @@ public class BlueGreenStatusProvider {
     // Read before resetContext() clears it, so the message reports the phase we are leaving.
     final BlueGreenPhase phaseBeforeReset = this.latestStatusPhase;
     LOGGER.info(() -> Messages.get("bgd.deploymentRemoved",
-        new Object[] {this.bgdId, phaseBeforeReset}));
+        new Object[] {this.bgdId, absentRole, phaseBeforeReset}));
 
     // resetContext() puts latestStatusPhase back to NOT_CREATED and drops both interim statuses, so
     // the guards above make this a one-shot: the replacement monitors start from scratch and this
     // stays inert until another deployment has been discovered and then removed.
     this.resetContext();
+  }
+
+  /**
+   * Returns the role whose monitor reports that the deployment is gone, or null while at least one
+   * monitor still sees it. The caller has already established that a deployment was known.
+   */
+  protected @Nullable BlueGreenRole getRoleReportingDeploymentAbsent() {
+    // The source monitor stays connected to the surviving blue environment, so it is the one that
+    // observes the status information disappearing when a deployment is deleted.
+    if (this.reportsDeploymentAbsent(BlueGreenRole.SOURCE)) {
+      return BlueGreenRole.SOURCE;
+    }
+
+    // The target monitor can be the one to notice instead. A deleted deployment does not necessarily
+    // make the green endpoint unreachable: the green instance may still be running, or its name may
+    // still resolve, in which case the monitor keeps connecting successfully but the node it reaches
+    // is no longer part of any deployment and reports no status for its role.
+    //
+    // This is only conclusive before a switchover begins. From PREPARATION onwards the target
+    // monitor reports no status from time to time as a normal part of the switchover, and resetting
+    // then would be considerably worse than the problem being solved here.
+    //
+    // It also requires that the green environment has confirmed its membership of this deployment at
+    // least once. RDS provisions the deployment metadata asynchronously and not necessarily on both
+    // environments at the same time, so a green node that has never reported a status is most likely
+    // still waiting for its metadata. Treating that as a deletion would reset the context, rediscover
+    // the same green node, find it still silent, and reset again on a loop.
+    if (this.latestStatusPhase == BlueGreenPhase.CREATED
+        && this.targetDeploymentSeen
+        && this.reportsDeploymentAbsent(BlueGreenRole.TARGET)) {
+      return BlueGreenRole.TARGET;
+    }
+
+    return null;
+  }
+
+  /**
+   * Whether the given monitor currently reports that there is no deployment. A deployment that is
+   * gone reports either no rows at all, which the monitor surfaces as a null phase, or an error that
+   * the monitor maps to NOT_CREATED. Both mean the same thing here.
+   *
+   * @param role the role whose latest reported status should be examined.
+   * @return true if that monitor has reported a status and it indicates no deployment.
+   */
+  protected boolean reportsDeploymentAbsent(final BlueGreenRole role) {
+    final BlueGreenInterimStatus status = this.interimStatuses[role.getValue()];
+    return status != null
+        && (status.blueGreenPhase == null || status.blueGreenPhase == BlueGreenPhase.NOT_CREATED);
   }
 
   /**
@@ -1434,6 +1492,7 @@ public class BlueGreenStatusProvider {
     this.monitorResetOnTopologyCompleted.set(false);
     this.greenTopologyRecognizedLogged.set(false);
     this.greenUnreachableLogged.set(false);
+    this.targetDeploymentSeen = false;
     this.blueConnectionsDropped = false;
 
     this.initMonitoring();
@@ -1565,15 +1624,19 @@ public class BlueGreenStatusProvider {
     // and host names, and that the blue-to-green corresponding node map has been built. Checking
     // only correspondingNodes is not enough: that map can be partially populated from host names
     // alone (see updateCorrespondingNodes()) before the target monitor has fetched its topology.
-    // An unreachable green environment also makes the deployment not ready, even though the
-    // collected data still looks complete: the target monitor keeps reporting the last topology it
-    // managed to read, so without this check a green environment that has gone away would still be
-    // reported as ready for switchover.
+    // The collected data alone is not enough to call the deployment ready, because the monitors keep
+    // reporting the last topology they managed to read. Two further conditions are required, or a
+    // green environment that has gone away would still be reported as ready for switchover: it has
+    // to be reachable, and it has to still report itself as part of this deployment. The second
+    // covers a green instance that is up and answering but has been detached from the deployment, in
+    // which case the corresponding node map points at a node no switchover will ever use.
     final boolean ready = !Utils.isNullOrEmpty(sourceInterimStatus.startTopology)
         && !Utils.isNullOrEmpty(targetInterimStatus.startTopology)
         && !Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
         && !Utils.isNullOrEmpty(targetInterimStatus.hostNames)
         && !targetInterimStatus.endpointUnreachable
+        && !this.reportsDeploymentAbsent(BlueGreenRole.SOURCE)
+        && !this.reportsDeploymentAbsent(BlueGreenRole.TARGET)
         && !this.correspondingNodes.isEmpty();
 
     if (!ready || !this.greenTopologyRecognizedLogged.compareAndSet(false, true)) {
