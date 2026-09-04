@@ -79,6 +79,35 @@ class BatchingEventPublisherTest {
     verify(subscriber, times(1)).processEvent(eq(event));
   }
 
+  /**
+   * An immediate-delivery event must reach its subscribers on the publishing call rather than waiting
+   * for a batch. Deduplication does not apply either, since there is no batch to deduplicate within.
+   */
+  @Test
+  public void testImmediateDeliveryBypassesBatching() {
+    BatchingEventPublisher publisher = new BatchingEventPublisher() {
+      @Override
+      protected void initPublishingThread(long messageIntervalNanos) {
+        // Do nothing
+      }
+    };
+
+    Set<Class<? extends Event>> eventSubscriptions =
+        new HashSet<>(Collections.singletonList(DataInvalidationEvent.class));
+    publisher.subscribe(subscriber, eventSubscriptions);
+
+    DataInvalidationEvent event = new DataInvalidationEvent(CustomEndpointInfo.class, "key");
+    assertTrue(event.isImmediateDelivery());
+
+    publisher.publish(event);
+
+    verify(subscriber, times(1)).processEvent(eq(event));
+    assertTrue(publisher.eventMessages.isEmpty(), "Immediate events must not be queued for a batch.");
+
+    publisher.publish(event);
+    verify(subscriber, times(2)).processEvent(eq(event));
+  }
+
   @Test
   public void testReleaseResources_shutsDownExecutor() {
     BatchingEventPublisher publisher = new BatchingEventPublisher() {
