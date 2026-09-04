@@ -1332,12 +1332,18 @@ public class BlueGreenStatusProvider {
    * advance past one.
    */
   protected void checkDeploymentRemoved() {
-    // NOT_CREATED means no deployment has been discovered yet, so there is nothing to reset and
-    // nothing to report. COMPLETED is excluded because the status information is expected to
-    // disappear after a successful switchover and resetContextWhenCompleted() already owns that
-    // path; reacting here as well would replace the switchover summary with a deletion reset.
-    if (this.latestStatusPhase == BlueGreenPhase.NOT_CREATED
-        || this.latestStatusPhase == BlueGreenPhase.COMPLETED) {
+    // Absent status information is only an unambiguous signal while the deployment is sitting idle in
+    // CREATED. Every other phase has a legitimate reason to report nothing:
+    //
+    //  - NOT_CREATED: nothing has been discovered yet, so there is nothing to reset.
+    //  - PREPARATION / IN_PROGRESS / POST: collectStatus() filters out endpoints of the separated
+    //    old1 cluster, so once the old blue cluster is renamed the source monitor reads an empty
+    //    result as a normal part of the switchover. Resetting then discards the blue to green
+    //    routing mid-switchover, which sends new connections to the old blue cluster. A switchover
+    //    that stalls is covered by bgSwitchoverTimeoutMs instead.
+    //  - COMPLETED: the status information is expected to be gone, and resetContextWhenCompleted()
+    //    already owns that path; reacting here would replace the switchover summary with a deletion.
+    if (this.latestStatusPhase != BlueGreenPhase.CREATED) {
       this.deploymentAbsent = false;
       this.deploymentAbsentSinceNano = 0;
       return;
@@ -1378,7 +1384,7 @@ public class BlueGreenStatusProvider {
 
   /**
    * Returns the role whose monitor reports that the deployment is gone, or null while at least one
-   * monitor still sees it. The caller has already established that a deployment was known.
+   * monitor still sees it. The caller has already established that the deployment is in CREATED.
    */
   protected @Nullable BlueGreenRole getRoleReportingDeploymentAbsent() {
     // The source monitor stays connected to the surviving blue environment, so it is the one that
@@ -1392,18 +1398,12 @@ public class BlueGreenStatusProvider {
     // still resolve, in which case the monitor keeps connecting successfully but the node it reaches
     // is no longer part of any deployment and reports no status for its role.
     //
-    // This is only conclusive before a switchover begins. From PREPARATION onwards the target
-    // monitor reports no status from time to time as a normal part of the switchover, and resetting
-    // then would be considerably worse than the problem being solved here.
-    //
-    // It also requires that the green environment has confirmed its membership of this deployment at
-    // least once. RDS provisions the deployment metadata asynchronously and not necessarily on both
-    // environments at the same time, so a green node that has never reported a status is most likely
-    // still waiting for its metadata. Treating that as a deletion would reset the context, rediscover
-    // the same green node, find it still silent, and reset again on a loop.
-    if (this.latestStatusPhase == BlueGreenPhase.CREATED
-        && this.targetDeploymentSeen
-        && this.reportsDeploymentAbsent(BlueGreenRole.TARGET)) {
+    // This additionally requires that the green environment has confirmed its membership of this
+    // deployment at least once. RDS provisions the deployment metadata asynchronously and not
+    // necessarily on both environments at the same time, so a green node that has never reported a
+    // status is most likely still waiting for its metadata. Treating that as a deletion would reset
+    // the context, rediscover the same green node, find it still silent, and reset again on a loop.
+    if (this.targetDeploymentSeen && this.reportsDeploymentAbsent(BlueGreenRole.TARGET)) {
       return BlueGreenRole.TARGET;
     }
 
