@@ -22,12 +22,34 @@ concurrency:
 
 jobs:
   all-mysql-integration-tests-java-lts:
-    name: Run integration tests with MySQL Aurora latest version
+    name: 'Java ${{ matrix.javaVersion }} / ${{ matrix.group.name }}'
     runs-on: ubuntu-latest
+    # A GitHub-hosted job is hard-killed at 6 hours and the assumed role below expires at the same
+    # point, so a job that gets anywhere near that limit starts failing with "The security token
+    # included in the request is expired" mid-test instead of reporting real results. That is what
+    # happened to the unsplit Java 24 job in run 33759811109 (13:13 -> 19:13). Each matrix entry
+    # below covers a subset of the environments and is expected to finish in about 2-2.5 hours; the
+    # timeout fails a stuck job cleanly while the credentials are still valid.
+    timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
         javaVersion: [ "8", "11", "17", "21", "24" ]
+        # Each entry pins itself to a subset of the environments that test-all-mysql-aurora-java*
+        # would otherwise run one after another in a single job. None of these `test-no-*`
+        # properties are set by the gradle task itself, so the command line wins.
+        #
+        # The split is by environment rather than by test class shard because the environments
+        # themselves are the expensive part: in run 33759811109 the two 3-instance Aurora
+        # environments took ~105 min each while all four RDS Multi-AZ environments together took
+        # ~2 hours. Splitting Aurora MySQL from Aurora PG keeps the three entries roughly even.
+        group:
+          - name: aurora-mysql
+            envArgs: '-Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true -Dtest-no-pg-driver=true -Dtest-no-pg-engine=true'
+          - name: aurora-pg
+            envArgs: '-Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true -Dtest-no-mysql-driver=true -Dtest-no-mysql-engine=true'
+          - name: multi-az
+            envArgs: '-Dtest-no-aurora=true'
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -49,7 +71,8 @@ jobs:
           output-credentials: true
       - name: Run MySQL Aurora integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-mysql-aurora-java${{ matrix.javaVersion }}
+          ./gradlew --no-parallel --no-daemon test-all-mysql-aurora-java${{ matrix.javaVersion }} \
+            ${{ matrix.group.envArgs }}
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -65,21 +88,35 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-java${{ matrix.javaVersion }}-latest
+          name: junit-report-java${{ matrix.javaVersion }}-${{ matrix.group.name }}-latest
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: Archive html summary report for Java${{ matrix.javaVersion }} latest
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-java${{ matrix.javaVersion }}-latest
+          name: html-summary-report-java${{ matrix.javaVersion }}-${{ matrix.group.name }}-latest
           path: ./wrapper/build/report
           retention-days: 5
+      # The test host records the address it whitelisted in the region's default security group (see
+      # TestEnvironment.authorizeIP). Prefer that over asking checkip.amazonaws.com again: a
+      # GitHub-hosted runner's egress address can change during a job, in which case a fresh lookup
+      # revokes a rule that never existed and leaves the real one behind, consuming the group's
+      # 60-rule quota. No recorded address means the test host either never authorized one or has
+      # already revoked it, so there is nothing to clean up.
       - name: Get Github Action IP
         if: always()
         id: ip
-        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+        run: |
+          ipFile=./wrapper/build/authorized-runner-ip.txt
+          if [ -s "$ipFile" ]; then
+            ipv4=$(tr -d '[:space:]' < "$ipFile")
+            echo "Authorized runner IP recorded by the test host: $ipv4"
+            echo "ipv4=$ipv4" >> $GITHUB_OUTPUT
+          else
+            echo "No authorized runner IP was recorded; nothing to revoke."
+          fi
       - name: Remove Github Action IP
-        if: always()
+        if: always() && steps.ip.outputs.ipv4 != ''
         run: |
           aws ec2 revoke-security-group-ingress --group-name default --protocol all --port 0-65535 --cidr ${{ steps.ip.outputs.ipv4 }}/32
