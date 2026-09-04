@@ -56,6 +56,14 @@ dependencies {
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
+    // Required by the java17 multi-release classes in the wrapper jar (for example the Jackson 3
+    // based AwsSecretsManagerConnectionPlugin under META-INF/versions/17). A Java 17+ container
+    // loads those classes instead of the Jackson 2 ones from the base directory, so without this
+    // entry any test touching them fails with
+    // NoClassDefFoundError: tools/jackson/core/JacksonException.
+    // Must match the host build file (wrapper/build.gradle.kts). Harmless on the Java 8 container:
+    // that JVM ignores META-INF/versions, so the jar is only an unused classpath entry there.
+    testImplementation("tools.jackson.core:jackson-databind:3.2.2")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")

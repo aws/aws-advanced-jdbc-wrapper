@@ -34,8 +34,11 @@ import integration.TestTelemetryInfo;
 import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
+import java.io.File;
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -83,6 +86,15 @@ public class TestEnvironment implements AutoCloseable {
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
 
   private static final AtomicInteger ipAddressUsageRefCount = new AtomicInteger(0);
+
+  // Where the IP address that has been whitelisted in the default security group is recorded, so
+  // that an external cleanup step (the "Remove Github Action IP" step in the CI workflows) can
+  // revoke exactly that rule when this process is killed before it de-authorizes the IP itself.
+  // Resolving the address again later is not reliable: a GitHub-hosted runner's egress address can
+  // change during a job, which leaves the real rule behind and revokes one that never existed.
+  // The path is relative to the host test task's working directory, i.e. it resolves to
+  // wrapper/build/authorized-runner-ip.txt.
+  private static final String AUTHORIZED_IP_FILE = "./build/authorized-runner-ip.txt";
 
   private final TestEnvironmentInfo info =
       new TestEnvironmentInfo(); // only this info is passed to test container
@@ -1020,6 +1032,10 @@ public class TestEnvironment implements AutoCloseable {
     } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     }
+    // Recorded before the rule is created rather than after, so that being killed in between can
+    // never leave a rule that nothing knows how to clean up. The opposite order is harmless: the
+    // cleanup step then revokes a rule that does not exist, which EC2 reports and ignores.
+    recordAuthorizedIp(env.runnerIP);
     env.auroraUtil.ec2AuthorizeIP(env.runnerIP);
     LOGGER.finest(String.format("Test runner IP %s authorized. Usage count: %d",
         env.runnerIP, ipAddressUsageRefCount.get()));
@@ -1027,6 +1043,12 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void deAuthorizeIP(TestEnvironment env) {
     if (ipAddressUsageRefCount.decrementAndGet() == 0) {
+      if (env.runnerIP == null) {
+        // Only the environment that performed the authorization holds the address, so prefer the
+        // recorded one over asking checkip.amazonaws.com again: a second lookup can return a
+        // different address and would then revoke a rule that was never created.
+        env.runnerIP = readAuthorizedIp();
+      }
       if (env.runnerIP == null) {
         try {
           env.runnerIP = env.auroraUtil.getPublicIPAddress();
@@ -1043,8 +1065,66 @@ public class TestEnvironment implements AutoCloseable {
         LOGGER.finest("The IP address usage count hit 0, but the REUSE_RDS_DB was set to true, so IP "
             + "de-authorization was skipped.");
       }
+
+      // The ingress rule is no longer the external cleanup step's responsibility: it has either
+      // just been revoked, or REUSE_RDS_DB asked for it to be kept on purpose.
+      discardAuthorizedIpRecord();
     } else {
       LOGGER.finest("IP usage count: " + ipAddressUsageRefCount.get());
+    }
+  }
+
+  /**
+   * Stores the whitelisted IP address where an external cleanup step can find it. A failure to
+   * store it must not fail the test run: the rule is still de-authorized by {@link #deAuthorizeIP}
+   * on a clean shutdown, and {@code AuroraTestUtility.securityGroupRulesCleanUp} sweeps rules that
+   * outlive their run.
+   *
+   * @param ipAddress the IP address that has been added to the default security group
+   */
+  private static void recordAuthorizedIp(String ipAddress) {
+    try {
+      final File file = new File(AUTHORIZED_IP_FILE);
+      final File parentDir = file.getParentFile();
+      if (parentDir != null) {
+        parentDir.mkdirs();
+      }
+      Files.write(file.toPath(), (ipAddress + "\n").getBytes(StandardCharsets.UTF_8));
+    } catch (Exception ex) {
+      LOGGER.warning(
+          "Unable to record the authorized test runner IP in " + AUTHORIZED_IP_FILE + ": " + ex.getMessage());
+    }
+  }
+
+  /**
+   * Reads back the address stored by {@link #recordAuthorizedIp}.
+   *
+   * @return the recorded IP address, or null if nothing was recorded or it could not be read
+   */
+  private static String readAuthorizedIp() {
+    try {
+      final File file = new File(AUTHORIZED_IP_FILE);
+      if (!file.exists()) {
+        return null;
+      }
+      final String recordedIp =
+          new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).trim();
+      return StringUtils.isNullOrEmpty(recordedIp) ? null : recordedIp;
+    } catch (Exception ex) {
+      LOGGER.warning("Unable to read " + AUTHORIZED_IP_FILE + ": " + ex.getMessage());
+      return null;
+    }
+  }
+
+  /**
+   * Discards the record written by {@link #recordAuthorizedIp} so that the external cleanup step
+   * does not try to revoke a rule that is already gone, or one that is deliberately being kept.
+   */
+  private static void discardAuthorizedIpRecord() {
+    try {
+      Files.deleteIfExists(new File(AUTHORIZED_IP_FILE).toPath());
+    } catch (Exception ex) {
+      LOGGER.warning("Unable to delete " + AUTHORIZED_IP_FILE + ": " + ex.getMessage());
     }
   }
 

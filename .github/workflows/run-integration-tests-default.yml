@@ -113,12 +113,26 @@ jobs:
           name: html-summary-report-default-${{ matrix.name }}
           path: ./wrapper/build/report
           retention-days: 5
+      # The test host records the address it whitelisted in the region's default security group (see
+      # TestEnvironment.authorizeIP). Prefer that over asking checkip.amazonaws.com again: a
+      # GitHub-hosted runner's egress address can change during a job, in which case a fresh lookup
+      # revokes a rule that never existed and leaves the real one behind, consuming the group's
+      # 60-rule quota. No recorded address means the test host either never authorized one or has
+      # already revoked it, so there is nothing to clean up.
       - name: Get Github Action IP
         if: always()
         id: ip
-        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+        run: |
+          ipFile=./wrapper/build/authorized-runner-ip.txt
+          if [ -s "$ipFile" ]; then
+            ipv4=$(tr -d '[:space:]' < "$ipFile")
+            echo "Authorized runner IP recorded by the test host: $ipv4"
+            echo "ipv4=$ipv4" >> $GITHUB_OUTPUT
+          else
+            echo "No authorized runner IP was recorded; nothing to revoke."
+          fi
 
       - name: Remove Github Action IP
-        if: always()
+        if: always() && steps.ip.outputs.ipv4 != ''
         run: |
           aws ec2 revoke-security-group-ingress --group-name default --protocol all --port 0-65535 --cidr ${{ steps.ip.outputs.ipv4 }}/32
