@@ -237,4 +237,30 @@ public class ConnectionStringHelper {
     properties.setProperty(PropertyDefinition.PLUGINS.name, "");
     return properties;
   }
+
+  /**
+   * Returns the properties needed to open a connection with the target driver directly, i.e. without going through
+   * the wrapper. Only credentials and driver-specific settings are included; wrapper-specific properties are
+   * intentionally omitted since the target driver doesn't recognize them.
+   *
+   * @param userName the user name to connect with.
+   * @param password the password to connect with.
+   * @return the properties to use for a direct target driver connection.
+   */
+  public static Properties getTargetDriverProperties(final String userName, final String password) {
+    final Properties props = new Properties();
+    props.setProperty(PropertyDefinition.USER.name, userName);
+    props.setProperty(PropertyDefinition.PASSWORD.name, password);
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
+      // This property is required when using the mariadb driver against mysql version 8.4 or newer, or you will get
+      // the error "RSA public key is not available client side" when the driver has to run the full
+      // caching_sha2_password exchange, which happens when connecting to a server that hasn't cached the credentials
+      // yet. The mariadb driver may not fully support mysql 8.4's SSL mechanisms, which is why this property is only
+      // required for newer mysql versions.
+      props.setProperty("allowPublicKeyRetrieval", "true");
+    }
+
+    return props;
+  }
 }
