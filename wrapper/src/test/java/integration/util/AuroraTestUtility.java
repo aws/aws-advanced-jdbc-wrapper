@@ -1628,7 +1628,13 @@ public class AuroraTestUtility {
 
     ArrayList<String> auroraInstances = new ArrayList<>();
 
-    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+    // The connection is opened with the target driver directly, so it needs the driver-specific properties rather
+    // than just the credentials. The mariadb driver in particular requires allowPublicKeyRetrieval when the server
+    // hasn't cached the credentials yet, which is the case for a freshly created instance such as a Blue/Green
+    // deployment's green cluster.
+    final Properties connProps = ConnectionStringHelper.getTargetDriverProperties(userName, password);
+
+    try (final Connection conn = DriverManager.getConnection(connectionUrl, connProps);
         final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
       while (resultSet.next()) {
