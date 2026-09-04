@@ -403,23 +403,103 @@ class BlueGreenStatusProviderTest {
   }
 
   /**
-   * The detection signal has to come from the source monitor. When a deployment is deleted the green
-   * environment disappears, so the target monitor cannot connect at all and keeps reporting the last
-   * phase it read; only the source monitor observes the status information going away.
+   * The regression this guards: deleting a deployment does not necessarily make the green endpoint
+   * unreachable. The green instance can still be running, or its name can still resolve, so the
+   * target monitor keeps connecting successfully to a node that is no longer part of any deployment
+   * and reports no status for its role. Detection cannot rely on the source monitor alone, because
+   * once a replacement deployment exists the source monitor reports it as present again.
    */
   @Test
-  void absentStatusReportedByTargetAloneDoesNotResetContext() {
+  void orphanedGreenReportedByTargetAloneResetsContext() {
+    final TestableProvider provider = newTestableProvider();
+    provider.latestStatusPhase = BlueGreenPhase.CREATED;
+    // The blue database reports a deployment, so the source monitor sees nothing wrong.
+    provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] = interimStatus(BlueGreenPhase.CREATED);
+    // The green node answers but no longer reports itself as part of a deployment.
+    provider.interimStatuses[BlueGreenRole.TARGET.getValue()] =
+        collectedInterimStatus(null, "green-node", false);
+    // It did report the deployment earlier, so this is a loss rather than a slow provisioning.
+    provider.targetDeploymentSeen = true;
+
+    provider.checkDeploymentRemoved();
+    provider.advanceMs(GRACE_MS);
+    provider.checkDeploymentRemoved();
+
+    assertEquals(1, provider.initMonitoringCount,
+        "A green node that no longer reports the deployment must trigger rediscovery.");
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+  }
+
+  /**
+   * The regression this guards: RDS provisions the deployment metadata asynchronously and not
+   * necessarily on both environments at once, so a green node that has never reported a status is
+   * most likely still waiting for its own metadata. Treating that as a deletion would reset the
+   * context, rediscover the same silent green node, and reset again on a loop, churning monitor
+   * threads for as long as the metadata took to appear.
+   */
+  @Test
+  void greenThatHasNeverReportedTheDeploymentIsNotTreatedAsDeleted() {
     final TestableProvider provider = newTestableProvider();
     provider.latestStatusPhase = BlueGreenPhase.CREATED;
     provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] = interimStatus(BlueGreenPhase.CREATED);
-    provider.interimStatuses[BlueGreenRole.TARGET.getValue()] = interimStatus(null);
+    provider.interimStatuses[BlueGreenRole.TARGET.getValue()] =
+        collectedInterimStatus(null, "green-node", false);
+    // Never confirmed its membership, which is the difference from the test above.
+    provider.targetDeploymentSeen = false;
 
     provider.checkDeploymentRemoved();
     provider.advanceMs(GRACE_MS * 10);
     provider.checkDeploymentRemoved();
 
-    assertEquals(0, provider.initMonitoringCount);
+    assertEquals(0, provider.initMonitoringCount,
+        "Metadata that has not been provisioned yet must not be mistaken for a deleted deployment.");
     assertEquals(BlueGreenPhase.CREATED, provider.latestStatusPhase);
+  }
+
+  @Test
+  void greenReportingItsPhaseRecordsThatTheDeploymentWasSeen() {
+    final TestableProvider provider = newTestableProvider();
+    assertFalse(provider.targetDeploymentSeen);
+
+    provider.prepareStatus(BlueGreenRole.TARGET, interimStatus(BlueGreenPhase.CREATED));
+
+    assertTrue(provider.targetDeploymentSeen,
+        "A green environment reporting a real phase must be remembered.");
+  }
+
+  @Test
+  void greenReportingNoPhaseDoesNotRecordThatTheDeploymentWasSeen() {
+    final TestableProvider provider = newTestableProvider();
+
+    provider.prepareStatus(BlueGreenRole.TARGET, interimStatus(null));
+
+    assertFalse(provider.targetDeploymentSeen);
+  }
+
+  /**
+   * The target monitor reports no status from time to time as a normal part of a switchover, so it is
+   * only a conclusive signal before one begins. Resetting the context mid-switchover on a transient
+   * gap would be considerably worse than the problem being solved.
+   */
+  @Test
+  void absentStatusFromTargetIsIgnoredOnceSwitchoverHasBegun() {
+    for (final BlueGreenPhase phase : new BlueGreenPhase[] {
+        BlueGreenPhase.PREPARATION, BlueGreenPhase.IN_PROGRESS, BlueGreenPhase.POST}) {
+
+      final TestableProvider provider = newTestableProvider();
+      provider.latestStatusPhase = phase;
+      provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] =
+          interimStatus(BlueGreenPhase.IN_PROGRESS);
+      provider.interimStatuses[BlueGreenRole.TARGET.getValue()] = interimStatus(null);
+
+      provider.checkDeploymentRemoved();
+      provider.advanceMs(GRACE_MS * 10);
+      provider.checkDeploymentRemoved();
+
+      assertEquals(0, provider.initMonitoringCount,
+          "A target gap during " + phase + " must not reset the context.");
+      assertEquals(phase, provider.latestStatusPhase);
+    }
   }
 
   /**
@@ -620,6 +700,24 @@ class BlueGreenStatusProviderTest {
 
     assertTrue(provider.greenTopologyRecognizedLogged.get(),
         "The readiness event must still be emitted when the green environment is reachable.");
+  }
+
+  /**
+   * The regression this guards: a green node that is up and answering, but detached from the
+   * deployment, leaves the collected topology and the corresponding node map looking complete. Being
+   * reachable is not sufficient, so readiness also has to require that green still reports itself as
+   * part of the deployment, or the driver would advertise a mapping no switchover can use.
+   */
+  @Test
+  void reachableGreenThatNoLongerReportsTheDeploymentIsNotReadyForSwitchover() {
+    final BlueGreenStatusProvider provider = providerReadyForSwitchover(false);
+    provider.interimStatuses[BlueGreenRole.TARGET.getValue()] =
+        collectedInterimStatus(null, "green-node", false);
+
+    provider.logGreenTopologyRecognized();
+
+    assertFalse(provider.greenTopologyRecognizedLogged.get(),
+        "A green node detached from the deployment is not ready for switchover.");
   }
 
   /**

@@ -209,12 +209,17 @@ timestamp                         time offset (ms)                              
 
 A Blue/Green Deployment can be deleted and a new one created while your application keeps running. The plugin detects that the deployment it was monitoring is gone, discards everything it had collected, and starts looking for a new deployment. The green endpoint of the new deployment is then discovered automatically, so no application restart is required.
 
-Detection is based on the blue database no longer reporting any status information for the deployment. Because a brief gap can be transient, the deployment is only treated as deleted once that has been the case continuously for `bgDeploymentRemovedGraceMs`. When it is, the plugin logs the following at `INFO`:
+Detection is based on a database no longer reporting any status information for the deployment. Either environment can be the one to notice:
+
+- The **blue** environment stops reporting the deployment. This is the usual case while the deployment is gone.
+- The **green** environment stops reporting itself as part of the deployment. Deleting a deployment does not necessarily make the green endpoint unreachable: the green instance may still be running, or its name may still resolve, in which case the plugin keeps connecting successfully to a node that has been detached from the deployment. Two conditions limit this signal. It is only used before a switchover begins, because from `SWITCHOVER_INITIATED` onwards the green environment stops reporting a status from time to time as a normal part of the switchover. And it is only used once the green environment has reported the deployment at least once, so that a green node still waiting for its metadata to be provisioned is not mistaken for a deleted deployment.
+
+Because a brief gap can be transient, the deployment is only treated as deleted once one of the above has been the case continuously for `bgDeploymentRemovedGraceMs`. When it is, the plugin logs the following at `INFO`, naming the environment that reported it:
 
 ```
-[bgdId: '1'] The Blue/Green Deployment is no longer reported by the database and is treated as deleted.
-Last known phase: CREATED. Resetting the monitoring context and restarting monitoring; a newly created
-Blue/Green Deployment will be discovered automatically without restarting the application.
+[bgdId: '1'] The Blue/Green Deployment is no longer reported by the SOURCE database and is treated as
+deleted. Last known phase: CREATED. Resetting the monitoring context and restarting monitoring; a newly
+created Blue/Green Deployment will be discovered automatically without restarting the application.
 ```
 
 After the reset the plugin returns to its baseline checking interval, so allow up to `bgBaselineMs` for a newly created deployment to be picked up, plus the time the RDS service needs to provision the deployment metadata.
@@ -232,6 +237,8 @@ mapping that is required to route traffic during a switchover.
 ```
 
 Treat this as a blocker and resolve it before initiating a switchover. The readiness event described in [Plan your Blue/Green switchover in advance](#plan-your-bluegreen-switchover-in-advance) is not emitted while green is unreachable, and it is emitted once reachability is restored. Reachability is not tracked during the active switchover phases, where nodes are expected to be briefly unavailable.
+
+The readiness event is also withheld when the green environment is reachable but no longer reports itself as part of the deployment. Otherwise the collected topology would still look complete and the deployment would be reported as ready while the blue-to-green mapping named a node that no switchover will ever use.
 
 ### Behavior on 4.4.0 and earlier
 
