@@ -477,9 +477,8 @@ class BlueGreenStatusProviderTest {
   }
 
   /**
-   * The target monitor reports no status from time to time as a normal part of a switchover, so it is
-   * only a conclusive signal before one begins. Resetting the context mid-switchover on a transient
-   * gap would be considerably worse than the problem being solved.
+   * The green environment also reports no status from time to time during a switchover, so the target
+   * signal is subject to the same restriction as the source one.
    */
   @Test
   void absentStatusFromTargetIsIgnoredOnceSwitchoverHasBegun() {
@@ -491,6 +490,7 @@ class BlueGreenStatusProviderTest {
       provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] =
           interimStatus(BlueGreenPhase.IN_PROGRESS);
       provider.interimStatuses[BlueGreenRole.TARGET.getValue()] = interimStatus(null);
+      provider.targetDeploymentSeen = true;
 
       provider.checkDeploymentRemoved();
       provider.advanceMs(GRACE_MS * 10);
@@ -543,17 +543,31 @@ class BlueGreenStatusProviderTest {
     assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
   }
 
+  /**
+   * The regression this guards, caught by the MySQL Aurora switchover integration test: absent status
+   * information is normal from PREPARATION onwards. collectStatus() filters out endpoints of the
+   * separated old1 cluster, so once the old blue cluster is renamed the source monitor reads an empty
+   * result as an ordinary part of the switchover. Resetting the context then discards the blue to
+   * green corresponding node map mid-switchover, and new connections go to the old blue cluster,
+   * which is exactly what the switchover routing exists to prevent. A stalled switchover is covered
+   * by bgSwitchoverTimeoutMs instead.
+   */
   @Test
-  void deploymentDeletedDuringSwitchoverAlsoResetsContext() {
-    final TestableProvider provider = providerWithDeletedDeployment();
-    provider.latestStatusPhase = BlueGreenPhase.IN_PROGRESS;
+  void absentStatusDuringSwitchoverDoesNotResetContext() {
+    for (final BlueGreenPhase phase : new BlueGreenPhase[] {
+        BlueGreenPhase.PREPARATION, BlueGreenPhase.IN_PROGRESS, BlueGreenPhase.POST}) {
 
-    provider.checkDeploymentRemoved();
-    provider.advanceMs(GRACE_MS);
-    provider.checkDeploymentRemoved();
+      final TestableProvider provider = providerWithDeletedDeployment();
+      provider.latestStatusPhase = phase;
 
-    assertEquals(1, provider.initMonitoringCount);
-    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+      provider.checkDeploymentRemoved();
+      provider.advanceMs(GRACE_MS * 10);
+      provider.checkDeploymentRemoved();
+
+      assertEquals(0, provider.initMonitoringCount,
+          "Absent status during " + phase + " is normal and must not reset the context.");
+      assertEquals(phase, provider.latestStatusPhase);
+    }
   }
 
   /**
