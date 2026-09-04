@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -56,6 +57,7 @@ import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -63,6 +65,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.events.DataInvalidationEvent;
 
 public class BlueGreenStatusMonitor {
 
@@ -128,6 +131,18 @@ public class BlueGreenStatusMonitor {
   protected final AtomicBoolean panicMode = new AtomicBoolean(true);
   protected @Nullable Future<Void> openConnectionFuture = null;
 
+  // Whether attempts to open a monitoring connection are currently failing, and the nanoTime of the
+  // first failure in the current run of failures. A separate flag is used instead of treating 0 as
+  // "not failing" because System.nanoTime() has an arbitrary origin and may legitimately return 0.
+  protected final AtomicBoolean connectFailing = new AtomicBoolean(false);
+  protected final AtomicLong firstConnectFailureTimeNano = new AtomicLong(0);
+
+  // Set once the monitoring endpoint has been continuously unreachable for longer than
+  // endpointUnreachableThresholdNano. Reported through BlueGreenInterimStatus so the provider can
+  // tell operators that the deployment is not ready for switchover instead of retrying silently.
+  protected final AtomicBoolean endpointUnreachable = new AtomicBoolean(false);
+  protected final long endpointUnreachableThresholdNano;
+
   protected final AtomicReference<@Nullable PreparedStatement> checkStatusStatement = new AtomicReference<>(null);
 
   // AtomicConnection registers 'this' as a GC cleanup referent only; it does not access any
@@ -154,6 +169,17 @@ public class BlueGreenStatusMonitor {
 
     this.blueGreenDialect = (BlueGreenDialect) this.pluginService.getDialect();
     this.connection = new AtomicConnection(this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
+    this.endpointUnreachableThresholdNano = TimeUnit.MILLISECONDS.toNanos(
+        BlueGreenStatusProvider.BG_ENDPOINT_UNREACHABLE_MS.getLong(props));
+  }
+
+  /**
+   * For testing purposes.
+   *
+   * @return current time in nanoseconds
+   */
+  protected long getNanoTime() {
+    return System.nanoTime();
   }
 
   public void start() {
@@ -190,7 +216,8 @@ public class BlueGreenStatusMonitor {
                     this.hostNames,
                     this.allStartTopologyIpChanged,
                     this.allStartTopologyEndpointsRemoved,
-                    this.allTopologyChanged));
+                    this.allTopologyChanged,
+                    this.endpointUnreachable.get()));
           }
 
           long delayMs = statusCheckIntervalMap.getOrDefault(
@@ -210,11 +237,19 @@ public class BlueGreenStatusMonitor {
       }
     } finally {
       this.connection.clean();
-      if (this.hostListProvider != null) {
-        this.hostListProvider.stopMonitor();
-        if (this.hostListProvider instanceof CanReleaseResources) {
-          ((CanReleaseResources) this.hostListProvider).releaseResources();
+      final HostListProvider hostListProviderCopy = this.hostListProvider;
+      if (hostListProviderCopy != null) {
+        hostListProviderCopy.stopMonitor();
+        if (hostListProviderCopy instanceof CanReleaseResources) {
+          ((CanReleaseResources) hostListProviderCopy).releaseResources();
         }
+        // Drop the topology this monitor collected. stopMonitor() removes the topology monitor but
+        // deliberately leaves its cached Topology in place, and this monitor's cluster id is shared
+        // by every monitor created for this deployment and role. A replacement monitor would
+        // otherwise start from the topology of the environment this monitor was watching, which
+        // after a deployment is deleted no longer exists.
+        this.servicesContainer.getEventPublisher().publish(
+            new DataInvalidationEvent(Topology.class, this.getHostListProviderClusterId()));
       }
       this.hostListProvider = null;
       this.openConnectionFuture = null;
@@ -574,6 +609,66 @@ public class BlueGreenStatusMonitor {
     return true;
   }
 
+  /**
+   * Records that a monitoring connection was opened successfully. Clears the tracked failure window
+   * and, if the endpoint had already been reported as unreachable, logs the recovery so that an
+   * operator who saw the warning also sees it end.
+   */
+  protected void registerConnectSuccess() {
+    this.connectFailing.set(false);
+    this.firstConnectFailureTimeNano.set(0);
+    if (this.endpointUnreachable.compareAndSet(true, false)) {
+      final String host = this.getConnectionHostName();
+      LOGGER.info(() -> Messages.get("bgd.endpointReachableAgain", new Object[] {this.role, host}));
+    }
+  }
+
+  /**
+   * Records a failed attempt to open a monitoring connection and, once the endpoint has been
+   * continuously unreachable for longer than the configured threshold, latches
+   * {@link #endpointUnreachable} and emits a single warning.
+   *
+   * <p>This exists because an unreachable endpoint is otherwise almost invisible: the monitor drops
+   * into panic mode, retries at the HIGH interval, and the only trace is a FINEST-level "Opening
+   * monitoring connection" line repeating several times per second with no matching "Opened" line.
+   * A green environment the driver cannot reach blocks a switchover, so it warrants a warning.
+   *
+   * <p>Tracking is skipped while {@code useIpAddress} is set, which is the case during the active
+   * switchover phases (PREPARATION, IN_PROGRESS, POST). Nodes are legitimately unavailable then, and
+   * being stuck in those phases is already covered by the switchover timeout.
+   */
+  protected void registerConnectFailure() {
+    if (this.useIpAddress.get()) {
+      return;
+    }
+
+    final long now = this.getNanoTime();
+
+    // Keep the timestamp of the *first* failure in the current run; later failures must not extend
+    // the window, otherwise the threshold would never be reached.
+    if (this.connectFailing.compareAndSet(false, true)) {
+      this.firstConnectFailureTimeNano.set(now);
+      return;
+    }
+
+    if (now - this.firstConnectFailureTimeNano.get() < this.endpointUnreachableThresholdNano) {
+      return;
+    }
+
+    if (this.endpointUnreachable.compareAndSet(false, true)) {
+      final String host = this.getConnectionHostName();
+      final long unreachableMs =
+          TimeUnit.NANOSECONDS.toMillis(now - this.firstConnectFailureTimeNano.get());
+      LOGGER.warning(() -> Messages.get("bgd.endpointUnreachable",
+          new Object[] {this.role, host, unreachableMs}));
+    }
+  }
+
+  protected String getConnectionHostName() {
+    final HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
+    return connectionHostSpecCopy == null ? "<unknown>" : connectionHostSpecCopy.getHost();
+  }
+
   protected void openConnection() {
     final Connection conn = this.connection.get();
     if (!this.isConnectionClosed(conn)) {
@@ -626,13 +721,15 @@ public class BlueGreenStatusMonitor {
             this.connection.set(established);
             LOGGER.finest(() -> Messages.get("bgd.openedConnectionWithIp",
                 new Object[] {this.role, this.connectedIpAddress.get()}));
+            this.registerConnectSuccess();
             this.panicMode.set(false);
             this.notifyChanges();
             return null;
           }
 
           // Parallel attempts all failed — fall through to throw
-          throw new SQLException("All parallel connection attempts failed.");
+          throw new SQLException(Messages.get("bgd.allParallelConnectionAttemptsFailed",
+              new Object[] {this.role}));
 
         } else {
 
@@ -646,6 +743,7 @@ public class BlueGreenStatusMonitor {
 
           LOGGER.finest(() -> Messages.get("bgd.openedConnection",
                   new Object[] {this.role, finalConnectionHostSpecCopy.getHost()}));
+          this.registerConnectSuccess();
         }
         this.panicMode.set(false);
         this.notifyChanges();
@@ -655,6 +753,7 @@ public class BlueGreenStatusMonitor {
         this.clearCheckStatusStatement();
         this.connection.set(null);
         this.panicMode.set(true);
+        this.registerConnectFailure();
         this.notifyChanges();
       }
       return null;
@@ -814,6 +913,19 @@ public class BlueGreenStatusMonitor {
     }
   }
 
+  /**
+   * The cluster id used for this monitor's {@link HostListProvider}. A separate, unique id keeps the
+   * blue and green topologies from interfering with each other and with the application's own host
+   * list providers.
+   *
+   * <p>Note that it is derived only from the deployment id and the role, so it is the same for every
+   * monitor ever created for this deployment and role. Anything cached under it therefore outlives an
+   * individual monitor and has to be cleaned up when the monitor goes away.
+   */
+  protected String getHostListProviderClusterId() {
+    return String.format("%s::%s::%s", this.bgdId, this.role, BG_CLUSTER_ID);
+  }
+
   protected void initHostListProvider() throws SQLException {
     if (this.hostListProvider != null || !this.connectionHostSpecCorrect.get()) {
       return;
@@ -825,8 +937,7 @@ public class BlueGreenStatusMonitor {
     // a special unique clusterId to avoid interference with other HostListProviders opened for this cluster.
     // Blue and Green clusters are expected to have different clusterId.
 
-    RdsHostListProvider.CLUSTER_ID.set(hostListProperties,
-        String.format("%s::%s::%s", this.bgdId, this.role, BG_CLUSTER_ID));
+    RdsHostListProvider.CLUSTER_ID.set(hostListProperties, this.getHostListProviderClusterId());
 
     LOGGER.finest(() -> Messages.get("bgd.createHostListProvider",
             new Object[] {this.role, RdsHostListProvider.CLUSTER_ID.getString(hostListProperties)}));
