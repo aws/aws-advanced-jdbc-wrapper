@@ -84,6 +84,8 @@ The Blue/Green Deployment Plugin supports the following configuration parameters
 | ~~`bgSuspendNewBlueConnections`~~ | Boolean |                              No                              | **Deprecated. New blue connection requests are always suspended during switchover for versions v2.6.7+.** <br/><br/>Enables Blue/Green Deployment switchover to suspend new blue connection requests while the switchover process is in progress.                                                                                                                                                                                                       | `false`                  | `false`       |
 | `bgDropBlueConnections`           | Boolean |                              No                              | If set to true, allows to drops all connections to blue cluster when Blue/Green switchover starts.                                                                                                                                                                                                                                                                                                                                                      | `false`, `true`          | `true`        |
 | `bgReleaseOnBlueDnsUpdate`        | Boolean |                              No                              | If set to true, held traffic is released as soon as all blue endpoints resolve to new IP addresses, rather than waiting for the deployment to report a status after `SWITCHOVER_IN_PROGRESS`. Once the blue endpoints point at the new topology, holding traffic no longer protects anything. Some deployments never expose a later status to the driver, in which case this is what prevents traffic from being held for the full `bgSwitchoverTimeoutMs`.  | `false`, `true`          | `true`        |
+| `bgDeploymentRemovedGraceMs`      | Integer |                              No                              | Available since version 4.5.0.<br/><br/>How long (in milliseconds) a Blue/Green Deployment must be continuously absent from the status information reported by the blue database before the driver treats it as deleted and resets its monitoring context. See [Deleting and recreating a deployment](#deleting-and-recreating-a-deployment).                                                                                                             | `30000`                  | `30000`       |
+| `bgEndpointUnreachableMs`         | Integer |                              No                              | Available since version 4.5.0.<br/><br/>How long (in milliseconds) a monitoring endpoint must be continuously unreachable before the driver logs a warning and reports the deployment as not ready for switchover. Tracking is suspended during the active switchover phases, where nodes are expected to be briefly unavailable.                                                                                                                        | `60000`                  | `60000`       |
 
 The plugin establishes dedicated monitoring connections to track Blue/Green Deployment status. To apply specific configurations to these monitoring connections, add the `blue-green-monitoring-` prefix to any configuration parameter, as shown in the following example:
 
@@ -200,6 +202,40 @@ timestamp                         time offset (ms)                              
     2025-11-14T23:59:52.082Z              65384 ms                            COMPLETED
 ---------------------------------------------------------------------------------------
 ```
+
+## Deleting and recreating a deployment
+
+> **Since version:** 4.5.0
+
+A Blue/Green Deployment can be deleted and a new one created while your application keeps running. The plugin detects that the deployment it was monitoring is gone, discards everything it had collected, and starts looking for a new deployment. The green endpoint of the new deployment is then discovered automatically, so no application restart is required.
+
+Detection is based on the blue database no longer reporting any status information for the deployment. Because a brief gap can be transient, the deployment is only treated as deleted once that has been the case continuously for `bgDeploymentRemovedGraceMs`. When it is, the plugin logs the following at `INFO`:
+
+```
+[bgdId: '1'] The Blue/Green Deployment is no longer reported by the database and is treated as deleted.
+Last known phase: CREATED. Resetting the monitoring context and restarting monitoring; a newly created
+Blue/Green Deployment will be discovered automatically without restarting the application.
+```
+
+After the reset the plugin returns to its baseline checking interval, so allow up to `bgBaselineMs` for a newly created deployment to be picked up, plus the time the RDS service needs to provision the deployment metadata.
+
+### When the green environment cannot be reached
+
+The plugin needs a monitoring connection to the green environment to build the blue-to-green node mapping that a switchover depends on. If it cannot reach green, that mapping is never built and a switchover would have nothing to route traffic to.
+
+When a monitoring endpoint has been unreachable for longer than `bgEndpointUnreachableMs`, the plugin logs a `WARNING` naming the endpoint and how long it has been unreachable, followed by:
+
+```
+[bgdId: '1'] The green environment is NOT reachable, so this Blue/Green Deployment is NOT ready for
+switchover. Until the driver can reach the green environment it cannot build the blue to green node
+mapping that is required to route traffic during a switchover.
+```
+
+Treat this as a blocker and resolve it before initiating a switchover. The readiness event described in [Plan your Blue/Green switchover in advance](#plan-your-bluegreen-switchover-in-advance) is not emitted while green is unreachable, and it is emitted once reachability is restored. Reachability is not tracked during the active switchover phases, where nodes are expected to be briefly unavailable.
+
+### Behavior on 4.4.0 and earlier
+
+Neither the reset nor these log messages exist. After a deployment is deleted and recreated, the plugin keeps trying to reach the green endpoint of the deleted deployment indefinitely and never discovers the new one, and its blue-to-green mapping continues to refer to nodes that no longer exist. Restart the application to recover. The condition is only visible at `FINEST`, as a repeating `Opening monitoring connection to <old green endpoint>` line with no matching `Opened` line.
 
 ## Resource Considerations
 
