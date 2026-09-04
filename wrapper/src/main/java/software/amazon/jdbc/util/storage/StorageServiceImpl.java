@@ -37,9 +37,12 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
+import software.amazon.jdbc.util.events.DataInvalidationEvent;
+import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.events.EventSubscriber;
 
-public class StorageServiceImpl implements StorageService, CanReleaseResources {
+public class StorageServiceImpl implements StorageService, CanReleaseResources, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected static final Map<Class<?>, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
@@ -62,11 +65,19 @@ public class StorageServiceImpl implements StorageService, CanReleaseResources {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
   }
 
-  // initCleanupThread only schedules a task on the already-initialized cleanupExecutor; the task
-  // runs after construction completes. The checker cannot see this, hence the localized suppression.
-  @SuppressWarnings("method.invocation")
+  // initCleanupThread only schedules a task on the already-initialized cleanupExecutor, and
+  // subscribing registers this instance for callbacks that only run after construction completes.
+  // The checker cannot see this, hence the localized suppressions.
+  @SuppressWarnings({"method.invocation", "argument"})
   public StorageServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
+
+    // Subscribers are held through weak references by BatchingEventPublisher, so this subscription
+    // lasts only as long as something else holds a strong reference to this storage service. That is
+    // the case in practice: the storage service is owned by the services container for the lifetime
+    // of the driver.
+    this.publisher.subscribe(this, Collections.singleton(DataInvalidationEvent.class));
+
     initCleanupThread(cleanupIntervalNanos);
   }
 
@@ -186,6 +197,37 @@ public class StorageServiceImpl implements StorageService, CanReleaseResources {
     }
   }
 
+  /**
+   * Discards a cached item whose source has reported that it is no longer valid.
+   *
+   * <p>This deliberately does nothing beyond removing the item. {@link BatchingEventPublisher}
+   * delivers events by iterating its subscribers, so an exception thrown here would stop the
+   * remaining subscribers from being notified of the same event.
+   *
+   * @param event the event to process.
+   */
+  @Override
+  public void processEvent(Event event) {
+    if (event instanceof DataInvalidationEvent) {
+      final DataInvalidationEvent invalidationEvent = (DataInvalidationEvent) event;
+      LOGGER.finest(() -> Messages.get("StorageServiceImpl.invalidatingItem",
+          new Object[] {invalidationEvent.getDataClass(), invalidationEvent.getKey()}));
+
+      // remove() does not read the item, so this cannot publish a DataAccessEvent back onto the bus.
+      this.remove(invalidationEvent.getDataClass(), invalidationEvent.getKey());
+    }
+  }
+
+  /**
+   * Releases resources held by this storage service.
+   *
+   * <p>The invalidation subscription is deliberately left in place, matching
+   * {@code MonitorServiceImpl.releaseResources()}. This instance is a long-lived singleton that
+   * {@code Driver.releaseResources()} releases without replacing, so unsubscribing here would
+   * permanently stop invalidation for a driver that is used again afterwards. Staying subscribed
+   * costs nothing: invalidating an absent item is a no-op, and the publisher holds subscribers
+   * weakly, so the subscription disappears on its own if this instance is ever collected.
+   */
   @Override
   public void releaseResources() {
     cleanupExecutor.shutdownNow();
