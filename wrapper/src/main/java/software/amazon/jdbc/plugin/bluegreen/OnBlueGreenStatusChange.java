@@ -18,5 +18,15 @@ package software.amazon.jdbc.plugin.bluegreen;
 
 @FunctionalInterface
 public interface OnBlueGreenStatusChange {
-  void onBlueGreenStatusChanged(BlueGreenRole role, BlueGreenInterimStatus interimStatus);
+
+  /**
+   * Reports a monitor's latest view of the deployment.
+   *
+   * @param monitor      the monitor reporting the status. The receiver uses this to recognize a
+   *                     status produced by a monitor it has already discarded.
+   * @param role         the role the monitor is monitoring.
+   * @param interimStatus the status the monitor collected.
+   */
+  void onBlueGreenStatusChanged(
+      BlueGreenStatusMonitor monitor, BlueGreenRole role, BlueGreenInterimStatus interimStatus);
 }

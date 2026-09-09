@@ -227,7 +227,7 @@ public class BlueGreenStatusProvider {
             this.servicesContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
-            this::prepareStatus);
+            this::onMonitorStatusChanged);
     monitors[BlueGreenRole.SOURCE.getValue()] = sourceMonitor;
     sourceMonitor.start();
 
@@ -239,7 +239,7 @@ public class BlueGreenStatusProvider {
             this.servicesContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
-            this::prepareStatus);
+            this::onMonitorStatusChanged);
     monitors[BlueGreenRole.TARGET.getValue()] = targetMonitor;
     targetMonitor.start();
   }
@@ -275,11 +275,60 @@ public class BlueGreenStatusProvider {
     return monitoringConnProperties;
   }
 
+  /**
+   * Entry point for the monitors. Discards a status produced by a monitor that is no longer the one
+   * registered for its role, then hands the rest over to {@link #prepareStatus}.
+   *
+   * <p>This guard is required, not defensive. resetContext() runs on one monitor's thread while the
+   * other monitor may already be inside its own reporting call, blocked on {@code processStatusLock}.
+   * Stopping a monitor does not interrupt that: it waits up to five seconds for termination and the
+   * blocked thread is not terminating, so once resetContext() releases the lock the discarded monitor
+   * proceeds and writes its stale view into the freshly cleared context. That is how a deleted
+   * deployment's green node reappeared in roleByHost and hostIpAddresses and survived into the next
+   * deployment, since neither map is ever pruned.
+   *
+   * @param monitor       the monitor reporting the status.
+   * @param role          the role the monitor is monitoring.
+   * @param interimStatus the status the monitor collected.
+   */
+  protected void onMonitorStatusChanged(
+      final @NonNull BlueGreenStatusMonitor monitor,
+      final @NonNull BlueGreenRole role,
+      final @NonNull BlueGreenInterimStatus interimStatus) {
+
+    this.prepareStatus(monitor, role, interimStatus);
+  }
+
   protected void prepareStatus(
       final @NonNull BlueGreenRole role,
       final @NonNull BlueGreenInterimStatus interimStatus) {
 
+    this.prepareStatus(null, role, interimStatus);
+  }
+
+  /**
+   * @param reportingMonitor the monitor that produced this status, or null to skip the check that it
+   *                         is still the current monitor for its role.
+   */
+  protected void prepareStatus(
+      final @Nullable BlueGreenStatusMonitor reportingMonitor,
+      final @NonNull BlueGreenRole role,
+      final @NonNull BlueGreenInterimStatus interimStatus) {
+
     try (ResourceLock ignored = this.processStatusLock.obtain()) {
+
+      // The check has to happen under the lock, together with the work it guards. resetContext() runs
+      // on one monitor's thread while the other monitor may already be inside this method, blocked on
+      // this very lock. Stopping a monitor does not interrupt that: it waits up to five seconds for
+      // termination and the blocked thread is not terminating, so once resetContext() releases the
+      // lock the discarded monitor proceeds and writes its stale view into the freshly cleared
+      // context. That is how a deleted deployment's green node reappeared in roleByHost and
+      // hostIpAddresses and survived into the next deployment, since neither map is ever pruned.
+      if (reportingMonitor != null && this.monitors[role.getValue()] != reportingMonitor) {
+        LOGGER.finest(() -> Messages.get("bgd.statusFromDiscardedMonitor",
+            new Object[] {this.bgdId, role}));
+        return;
+      }
 
       // Detect changes
       int statusHash = interimStatus.getCustomHashCode();

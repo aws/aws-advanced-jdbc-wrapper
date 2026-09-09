@@ -202,8 +202,13 @@ public class BlueGreenStatusMonitor {
             LOGGER.finest(() -> Messages.get("bgd.statusChanged", new Object[] {this.role, this.currentPhase}));
           }
 
-          if (this.onBlueGreenStatusChangeFunc != null) {
+          // Do not report a status once this monitor has been told to stop: whoever stopped it has
+          // moved on to a replacement monitor and must not receive this monitor's view of the world.
+          // This is a cheap early exit only; the receiver still has to recognize a status from a
+          // discarded monitor, because stop can be set after this check and before the report lands.
+          if (this.onBlueGreenStatusChangeFunc != null && !this.stop.get()) {
             this.onBlueGreenStatusChangeFunc.onBlueGreenStatusChanged(
+                this,
                 this.role,
                 new BlueGreenInterimStatus(
                     this.currentPhase,

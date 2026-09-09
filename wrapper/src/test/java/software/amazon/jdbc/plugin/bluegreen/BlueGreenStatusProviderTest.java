@@ -18,8 +18,10 @@ package software.amazon.jdbc.plugin.bluegreen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -474,6 +476,48 @@ class BlueGreenStatusProviderTest {
     provider.prepareStatus(BlueGreenRole.TARGET, interimStatus(null));
 
     assertFalse(provider.targetDeploymentSeen);
+  }
+
+  /**
+   * The regression this guards, observed against a real deployment: resetContext() runs on one
+   * monitor's thread while the other monitor can already be inside prepareStatus, blocked on
+   * processStatusLock. Stopping it does not interrupt that wait, so it resumes after the reset and
+   * writes the deleted deployment's topology into the freshly cleared context. roleByHost and
+   * hostIpAddresses are never pruned, so the old green node then survived into the next deployment and
+   * showed up in its readiness report.
+   */
+  @Test
+  void statusFromADiscardedMonitorIsIgnored() {
+    final TestableProvider provider = newTestableProvider();
+    provider.latestStatusPhase = BlueGreenPhase.CREATED;
+
+    final BlueGreenStatusMonitor current = mock(BlueGreenStatusMonitor.class);
+    final BlueGreenStatusMonitor discarded = mock(BlueGreenStatusMonitor.class);
+    provider.monitors[BlueGreenRole.TARGET.getValue()] = current;
+
+    provider.onMonitorStatusChanged(discarded, BlueGreenRole.TARGET,
+        collectedInterimStatus(BlueGreenPhase.CREATED, "old-green-node", false));
+
+    assertTrue(provider.roleByHost.isEmpty(),
+        "A discarded monitor must not write its topology into the current context.");
+    assertNull(provider.interimStatuses[BlueGreenRole.TARGET.getValue()]);
+    assertFalse(provider.targetDeploymentSeen);
+  }
+
+  @Test
+  void statusFromTheCurrentMonitorIsProcessed() {
+    final TestableProvider provider = newTestableProvider();
+    provider.latestStatusPhase = BlueGreenPhase.CREATED;
+
+    final BlueGreenStatusMonitor current = mock(BlueGreenStatusMonitor.class);
+    provider.monitors[BlueGreenRole.TARGET.getValue()] = current;
+
+    provider.onMonitorStatusChanged(current, BlueGreenRole.TARGET,
+        collectedInterimStatus(BlueGreenPhase.CREATED, "green-node", false));
+
+    assertTrue(provider.roleByHost.containsKey("green-node"));
+    assertNotNull(provider.interimStatuses[BlueGreenRole.TARGET.getValue()]);
+    assertTrue(provider.targetDeploymentSeen);
   }
 
   /**
