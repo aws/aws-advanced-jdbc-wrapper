@@ -3,8 +3,13 @@ name: Run Integration Tests Latest against Java LTS versions
 on:
   workflow_dispatch:
   schedule:
-    # Every working day (Mon-Fri) at 5:00 AM PST (13:00 UTC), ~4.5 hours after "latest"
-    - cron: '0 13 * * 2-6'
+    # Every working day (Mon-Fri) at 8:00 PM PST (4:00 AM UTC next day).
+    #
+    # This used to start at 5:00 AM PST, which meant it held the shared rds-integration-tests
+    # concurrency group through the morning and queued anything dispatched for a PR behind it.
+    # Starting in the evening keeps the run overnight. Note that "default" and "bg-latest" are
+    # scheduled at the same minute, so the three take the group in turn rather than in parallel.
+    - cron: '0 4 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
