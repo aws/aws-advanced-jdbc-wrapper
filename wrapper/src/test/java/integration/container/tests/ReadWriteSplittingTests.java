@@ -81,6 +81,7 @@ import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -442,6 +443,61 @@ public class ReadWriteSplittingTests {
 
       // Restore connectivity. The reader should be usable again on the next request without any
       // availability cache reset, since the plugin does not mark hosts NOT_AVAILABLE globally.
+      ProxyHelper.enableAllConnectivity();
+      conn.unwrap(PluginService.class).forceRefreshHostList();
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+      conn.setReadOnly(true);
+      assertEquals(readerConnectionId, auroraUtil.queryInstanceId(conn));
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2, max = 2)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @EnableOnTestDriver(TestDriver.MYSQL)
+  public void test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter_withInitialConnectionPlugin()
+      throws SQLException {
+    // Follow-up to https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1324 (fixed on the
+    // read/write splitting side by #1966). With the initialConnection plugin in the chain, the single
+    // reader attempt made by the read/write splitting plugin used to be retried by
+    // AuroraInitialConnectionStrategyPlugin for the full openConnectionRetryTimeoutMs before the
+    // fallback to the writer happened. The elapsed-time assertion below is the regression check.
+    final Properties props = getProxiedProps();
+    PropertyDefinition.PLUGINS.set(props, "initialConnection,readWriteSplitting");
+    final int openConnectionRetryTimeoutMs = 30000;
+    AuroraInitialConnectionStrategyPlugin.OPEN_CONNECTION_RETRY_TIMEOUT_MS.set(
+        props, String.valueOf(openConnectionRetryTimeoutMs));
+
+    try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
+
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+
+      // Confirm the reader is reachable while connectivity is up.
+      conn.setReadOnly(true);
+      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      assertEquals(writerConnectionId, auroraUtil.queryInstanceId(conn));
+
+      // Disable connectivity to the single reader instance.
+      ProxyHelper.disableConnectivity(readerConnectionId);
+
+      // setReadOnly(true) must fall back to the writer after a single reader attempt, i.e. well within
+      // openConnectionRetryTimeoutMs, rather than after the initialConnection plugin's retry loop expires.
+      final long startNano = System.nanoTime();
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      final long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
+      assertEquals(writerConnectionId, assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn)));
+      assertTrue(elapsedMs < openConnectionRetryTimeoutMs,
+          "setReadOnly(true) took " + elapsedMs + "ms; the reader attempt was retried by the initialConnection "
+              + "plugin instead of falling back to the writer immediately");
+      assertTrue(elapsedMs <= 20000, "setReadOnly(true) took " + elapsedMs + "ms to fall back to the writer");
+
+      // Restore connectivity. The reader should be usable again on the next request.
       ProxyHelper.enableAllConnectivity();
       conn.unwrap(PluginService.class).forceRefreshHostList();
 
