@@ -137,4 +137,9 @@ public class TopologyReaderResolver implements ReaderResolver {
   public boolean isPerQuery() {
     return this.loadBalancingPolicy.isPerQuery();
   }
+
+  @Override
+  public List<HostSpec> getReaderCandidatesForLag(final RwSplitContext ctx) throws SQLException {
+    return this.candidateSource.candidates(ctx);
+  }
 }

@@ -71,6 +71,11 @@ public class EndpointReaderResolver implements ReaderResolver {
   }
 
   @Override
+  public boolean routesThroughOpaqueEndpoint() {
+    return true;
+  }
+
+  @Override
   public void switchToReader(final RwSplitContext ctx) throws SQLException {
     HostSpec readerHost = ctx.readerHostSpec();
     if (readerHost == null) {
