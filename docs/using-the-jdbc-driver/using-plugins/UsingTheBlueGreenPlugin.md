@@ -205,7 +205,8 @@ timestamp                         time offset (ms)                              
 
 ## Deleting and recreating a deployment
 
-> **Since version:** 4.5.0
+> [!IMPORTANT]\
+> The behavior described in this section is available since version 4.5.0.
 
 A Blue/Green Deployment can be deleted and a new one created while your application keeps running. The plugin detects that the deployment it was monitoring is gone, discards everything it had collected, and starts looking for a new deployment. The green endpoint of the new deployment is then discovered automatically, so no application restart is required.
 
