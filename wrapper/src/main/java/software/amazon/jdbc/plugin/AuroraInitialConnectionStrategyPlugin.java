@@ -208,6 +208,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         this.getInstanceSubstitutionStrategy(props, urlType, isInitialConnection, originalConnectHost.getHost());
     final HostRole roleToVerify = this.getRoleToVerify(
         urlType, isInitialConnection, props, originalConnectHost.getHost());
+
+    // A non-initial connection with no endpoint substitution and no role verification leaves this plugin
+    // nothing to do: every iteration of the retry loop below would call connectFunc against the same host
+    // with the same properties. Pass the call through so that the caller's own retry policy (for example,
+    // the read/write splitting plugin trying each reader once, or failover trying each candidate) is not
+    // amplified by openConnectionRetryTimeoutMs.
+    if (!isInitialConnection
+        && roleToVerify == null
+        && substitutionStrategy == InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE) {
+      final Connection conn = connectFunc.call();
+      this.pluginService.setRoutedHostSpec(originalConnectHost);
+      return conn;
+    }
+
     final long endTimeNano = System.nanoTime() + this.openConnectionRetryTimeoutNano;
 
     // Hold the candidate connection in an AtomicConnection so that it can never leak: its LazyCleaner safety net
