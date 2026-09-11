@@ -587,10 +587,22 @@ public class BlueGreenStatusMonitor {
         // It's normal to get connection closed during BGD switchover.
         // If connection isn't closed but there's an exception then let's log it.
 
-        // For PG databases
+        // For PG databases. Reported when the deployment metadata cannot be read, which is the normal
+        // answer while no deployment exists, so the connection is kept and only the phase is updated.
         if (e.getMessage() != null
             && e.getMessage().contains("An error occured while retrieving the blue/green fast switchover metadata")) {
           this.currentPhase = BlueGreenPhase.NOT_CREATED;
+
+          // Drop the cached statement even though the connection is being kept. It was prepared while
+          // the metadata was unavailable, and reusing it means a deployment created later is never
+          // observed: this branch is then taken forever and the monitor stays on NOT_CREATED. Every
+          // other error path in this method already clears it.
+          this.clearCheckStatusStatement();
+
+          // Logged because this branch is otherwise completely silent. A monitor sitting here looks
+          // indistinguishable from a hung thread, which is how a stale statement went unnoticed.
+          LOGGER.finest(() -> Messages.get("bgd.statusMetadataUnavailable",
+              new Object[] {this.role, BlueGreenPhase.NOT_CREATED}));
           return;
         }
 
