@@ -287,6 +287,16 @@ fun selectShard(classNames: List<String>, shardIndex: Int, shardCount: Int): Lis
 tasks.register<Test>("in-container") {
     filter.excludeTestsMatching("software.*") // exclude unit tests
 
+    // Give the forked test JVM an explicit, generous heap instead of relying on the container's
+    // default (~25% of container RAM under UseContainerSupport). The MariaDB driver rebuilds its
+    // TLS trust manager by re-parsing the full RDS CA bundle (org.mariadb.jdbc DefaultTlsSocketPlugin
+    // -> X509Factory.engineGenerateCertificates) on EVERY new SSL connection. The Blue/Green
+    // switchover test opens connections in tight loops across ~30 monitoring threads, so those
+    // per-connection certificate allocations pile up faster than GC reclaims them and the default
+    // heap is exhausted with OutOfMemoryError - which the MariaDB driver surfaces as a SQLException
+    // and the test then counts as an unsuccessful post-switchover execution. See CI run 34560981447.
+    maxHeapSize = "2g"
+
     val shardIndex = (System.getProperty("test-shard-index") ?: "1").toInt()
     val shardCount = (System.getProperty("test-shard-count") ?: "1").toInt()
 
