@@ -307,8 +307,13 @@ public class BlueGreenStatusProvider {
   }
 
   /**
+   * Processes a status reported by a monitor, updating the summary status, the corresponding node map
+   * and the monitors themselves.
+   *
    * @param reportingMonitor the monitor that produced this status, or null to skip the check that it
    *                         is still the current monitor for its role.
+   * @param role             the role the status belongs to.
+   * @param interimStatus    the status that was collected.
    */
   protected void prepareStatus(
       final @Nullable BlueGreenStatusMonitor reportingMonitor,
