@@ -40,6 +40,13 @@ public class BlueGreenInterimStatus {
   public boolean allStartTopologyEndpointsRemoved;
   public boolean allTopologyChanged;
 
+  // True when the monitor has been unable to open a monitoring connection to its endpoint for
+  // longer than the configured threshold. This is a latching, low-frequency flag rather than a
+  // timestamp or a counter on purpose: BlueGreenStatusProvider detects changes by comparing
+  // getCustomHashCode(), so a continuously changing value would make every status look like a
+  // change and defeat that short-circuit.
+  public boolean endpointUnreachable;
+
   public BlueGreenInterimStatus(
       final @Nullable BlueGreenPhase blueGreenPhase,
       final String version,
@@ -51,7 +58,8 @@ public class BlueGreenInterimStatus {
       final Set<String> hostNames,
       boolean allStartTopologyIpChanged,
       boolean allStartTopologyEndpointsRemoved,
-      boolean allTopologyChanged) {
+      boolean allTopologyChanged,
+      boolean endpointUnreachable) {
 
     this.blueGreenPhase = blueGreenPhase;
     this.version = version;
@@ -64,6 +72,7 @@ public class BlueGreenInterimStatus {
     this.allStartTopologyIpChanged = allStartTopologyIpChanged;
     this.allStartTopologyEndpointsRemoved = allStartTopologyEndpointsRemoved;
     this.allTopologyChanged = allTopologyChanged;
+    this.endpointUnreachable = endpointUnreachable;
   }
 
   @Override
@@ -92,6 +101,7 @@ public class BlueGreenInterimStatus {
             + " allStartTopologyIpChanged: %s \n"
             + " allStartTopologyEndpointsRemoved: %s \n"
             + " allTopologyChanged: %s \n"
+            + " endpointUnreachable: %s \n"
             + "]",
         super.toString(),
         this.blueGreenPhase == null ? "<null>" : this.blueGreenPhase,
@@ -104,7 +114,8 @@ public class BlueGreenInterimStatus {
         StringUtils.isNullOrEmpty(currentIpMap) ? "-" : currentIpMap,
         this.allStartTopologyIpChanged,
         this.allStartTopologyEndpointsRemoved,
-        this.allTopologyChanged);
+        this.allTopologyChanged,
+        this.endpointUnreachable);
   }
 
   public int getCustomHashCode() {
@@ -117,6 +128,9 @@ public class BlueGreenInterimStatus {
     result = this.getValueHash(result, String.valueOf(this.allStartTopologyIpChanged));
     result = this.getValueHash(result, String.valueOf(this.allStartTopologyEndpointsRemoved));
     result = this.getValueHash(result, String.valueOf(this.allTopologyChanged));
+    // Included so that an endpoint becoming unreachable (or reachable again) is seen as a change
+    // by BlueGreenStatusProvider.prepareStatus() and is not swallowed by its hash short-circuit.
+    result = this.getValueHash(result, String.valueOf(this.endpointUnreachable));
 
     result = this.getValueHash(result,
         this.hostNames == null
