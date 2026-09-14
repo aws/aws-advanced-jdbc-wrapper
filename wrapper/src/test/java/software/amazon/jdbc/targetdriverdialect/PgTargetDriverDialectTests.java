@@ -17,7 +17,9 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.sql.PreparedStatement;
@@ -50,5 +52,20 @@ public class PgTargetDriverDialectTests {
     assertEquals("select * from T", dialect.getSQLQueryString(mockStatement));
     assertEquals(" /* delete from User */ delete from users ", dialect.getSQLQueryString(mockStatement));
     assertNull(dialect.getSQLQueryString(mockStatement));
+  }
+
+  @Test
+  void recognizesSupportedDataSourceClasses() {
+    // The PG target driver dialect must recognize all PG data source classes it supports, including
+    // the XA data source. If it does not, AwsWrapperXADataSource falls back to the generic dialect,
+    // which does not propagate socket/connect timeouts to the target -- breaking failover fast-fail
+    // during an XA branch. This must hold for every multi-release variant (base and java24), so this
+    // test guards whichever variant matches the running JVM.
+    assertTrue(dialect.isDialect("org.postgresql.ds.PGSimpleDataSource"));
+    assertTrue(dialect.isDialect("org.postgresql.ds.PGPoolingDataSource"));
+    assertTrue(dialect.isDialect("org.postgresql.ds.PGConnectionPoolDataSource"));
+    assertTrue(dialect.isDialect("org.postgresql.xa.PGXADataSource"),
+        "PG target driver dialect must recognize the PG XA data source");
+    assertFalse(dialect.isDialect("com.example.NotPgDataSource"));
   }
 }
