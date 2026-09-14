@@ -90,10 +90,10 @@ By default, once the connection has switched to a reader it stays on that single
 
 These parameters control *when* a new reader is selected (per query vs. sticky) — they do not change *how* a reader is picked. Reader selection continues to use the configured [`readerHostSelectorStrategy`](../HostSelectionStrategies.md), and any supported strategy applies.
 
-| Parameter                     | Default | Description                                                                                                                                                 |
-|-------------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `queryLevelLoadBalancing`     | `false` | When `true`, a read query routed to a reader triggers a per-query reader selection (using `readerHostSelectorStrategy`) instead of reusing the single cached reader. |
-| `loadBalancingIncludeWriter`  | `false` | When `true` (and `queryLevelLoadBalancing` is enabled), the writer instance is also included in the pool of balancing candidates.                            |
+| Parameter                     | Available Since Version | Default | Description                                                                                                                                                 |
+|-------------------------------|-------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `queryLevelLoadBalancing`     | 4.2.0 | `false` | When `true`, a read query routed to a reader triggers a per-query reader selection (using `readerHostSelectorStrategy`) instead of reusing the single cached reader. |
+| `loadBalancingIncludeWriter`  | 4.2.0 | `false` | When `true` (and `queryLevelLoadBalancing` is enabled), the writer instance is also included in the pool of balancing candidates.                            |
 
 ```java
 final Properties properties = new Properties();
@@ -151,9 +151,9 @@ Whether this happens depends on where the connection happens to be when the tran
 
 Set `assumeWriteTransaction=true` to close that gap. The plugin then treats a transaction with no explicit read-only declaration as read-write, and routes its reads to the writer so the whole transaction starts and stays there.
 
-| Parameter                 | Default | Description                                                                                                                                                             |
-|---------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `assumeWriteTransaction`  | `false` | When `true`, a read that belongs to a transaction which was not declared read-only via `setReadOnly(true)` is routed to the writer instead of a reader.                    |
+| Parameter                 | Available Since Version | Default | Description                                                                                                                                                             |
+|---------------------------|-------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `assumeWriteTransaction`  | 4.4.0 | `false` | When `true`, a read that belongs to a transaction which was not declared read-only via `setReadOnly(true)` is routed to the writer instead of a reader.                    |
 
 ```java
 final Properties properties = new Properties();

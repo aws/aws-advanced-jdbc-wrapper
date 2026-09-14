@@ -11,11 +11,11 @@ When database hosts fail, they are marked as `NOT_AVAILABLE` and will not be che
 Different strategies can be swapped out for different behaviors. The default Host Availability Strategy the driver uses can be configured as specified in the [configuration parameters table](#configuration-parameters).   
 
 ## Configuration Parameters
-| Parameter                                    | Value     | Required | Description                                                                                                                                                                          | Default Value |
-|----------------------------------------------|-----------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `defaultHostAvailabilityStrategy`            | `String`  | No       | This overrides the driver's default host availability strategy. Possible values are listed in the [Host Availability Strategy Options](#host-availability-strategy-options) section. | `null`        |
-| `hostAvailabilityStrategyMaxRetries`         | `Integer` | No       | Maximum number of times a host availability strategy will retry a host that is not available.                                                                                        | `5`           |
-| `hostAvailabilityStrategyInitialBackoffTime` | `Integer` | No       | The initial wait time in seconds. This parameter is only applicable for host availability strategies employing a time-based backoff.                                                 | `30`          |
+| Parameter                                    | Available Since Version | Value     | Required | Description                                                                                                                                                                          | Default Value |
+|----------------------------------------------|-------------------------|-----------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `defaultHostAvailabilityStrategy`            | 2.2.4 | `String`  | No       | This overrides the driver's default host availability strategy. Possible values are listed in the [Host Availability Strategy Options](#host-availability-strategy-options) section. | `null`        |
+| `hostAvailabilityStrategyMaxRetries`         | 2.2.4 | `Integer` | No       | Maximum number of times a host availability strategy will retry a host that is not available.                                                                                        | `5`           |
+| `hostAvailabilityStrategyInitialBackoffTime` | 2.2.4 | `Integer` | No       | The initial wait time in seconds. This parameter is only applicable for host availability strategies employing a time-based backoff.                                                 | `30`          |
 
 ## Host Availability Strategies
 These are different host availability strategies to choose from when specifying the `defaultHostAvailabilityStrategy` parameter value. 

@@ -38,25 +38,25 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 
 ## Configuration Parameters
 
-| Parameter                          |  Value  | Required | Description                                                                                                                                             | Default Value |
-|------------------------------------|:-------:|:--------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `cacheEndpointAddrRw`              | String  |   Yes    | The cache read-write server endpoint address.                                                                                                           | `null`        |
-| `cacheEndpointAddrRo`              | String  |    No    | The cache read-only server endpoint address. This is an optional parameter to allow performing read operations from read replica cache nodes.           | `null`        |
-| `cacheUseSSL`                      | Boolean |    No    | Whether to use SSL for cache connection.                                                                                                                | `true`        |
-| `cacheTlsCaCertPath`               | String  |    No    | File path to the CA certificate (PEM) file for verifying the cache server's TLS certificate. Mainly for using self signed TLS certificates for testing. | `null`        |
-| `cacheUsername`                    | String  |    No    | Username for Valkey cache regular authentication.                                                                                                       | `null`        |
-| `cachePassword`                    | String  |    No    | Password for Valkey cache regular authentication.                                                                                                       | `null`        |
-| `cacheName`                        | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
-| `cacheIamRegion`                   | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
-| `cacheMaxQuerySize`                | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
-| `cacheConnectionTimeoutMs`         | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
-| `cacheConnectionPoolSize`          | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
-| `cacheKeyPrefix`                   | String  |    No    | Optional prefix for cache keys (max 10 characters). Enables keyspace isolation for different connections.                                               | `null`        |
-| `failWhenCacheDown`                | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
-| `cacheInFlightWriteSizeLimitBytes` | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
-| `cacheHealthCheckInHealthyState`   | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
-| `cacheAllowStreamSource` | Boolean | No | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below. | `false` |
-| `cacheAllowUrl` | Boolean | No | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below. | `false` |
+| Parameter                          | Available Since Version |  Value  | Required | Description                                                                                                                                             | Default Value |
+|------------------------------------|-------------------------|:-------:|:--------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `cacheEndpointAddrRw`              | 3.3.0 | String  |   Yes    | The cache read-write server endpoint address.                                                                                                           | `null`        |
+| `cacheEndpointAddrRo`              | 3.3.0 | String  |    No    | The cache read-only server endpoint address. This is an optional parameter to allow performing read operations from read replica cache nodes.           | `null`        |
+| `cacheUseSSL`                      | 3.3.0 | Boolean |    No    | Whether to use SSL for cache connection.                                                                                                                | `true`        |
+| `cacheTlsCaCertPath`               | 3.3.0 | String  |    No    | File path to the CA certificate (PEM) file for verifying the cache server's TLS certificate. Mainly for using self signed TLS certificates for testing. | `null`        |
+| `cacheUsername`                    | 3.3.0 | String  |    No    | Username for Valkey cache regular authentication.                                                                                                       | `null`        |
+| `cachePassword`                    | 3.3.0 | String  |    No    | Password for Valkey cache regular authentication.                                                                                                       | `null`        |
+| `cacheName`                        | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
+| `cacheIamRegion`                   | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
+| `cacheMaxQuerySize`                | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
+| `cacheConnectionTimeoutMs`         | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
+| `cacheConnectionPoolSize`          | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
+| `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Enables keyspace isolation for different connections.                                               | `null`        |
+| `failWhenCacheDown`                | 3.3.0 | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
+| `cacheInFlightWriteSizeLimitBytes` | 3.3.0 | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
+| `cacheHealthCheckInHealthyState`   | 3.3.0 | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
+| `cacheAllowStreamSource` | 4.3.0 | Boolean | No | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below. | `false` |
+| `cacheAllowUrl` | 4.3.0 | Boolean | No | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below. | `false` |
 
 
 ## Overall Design
