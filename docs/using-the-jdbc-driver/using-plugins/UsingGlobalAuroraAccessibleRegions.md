@@ -34,9 +34,9 @@ props.setProperty("gdbRwHomeRegion", "us-east-1");
 props.setProperty("gdbAccessibleRegions", "us-east-1,us-west-2");
 ```
 
-| Property | Default | Description |
-|---|---|---|
-| `gdbAccessibleRegions` | _none_ | Comma-separated list of AWS regions the application can reach. When unset, all regions are considered accessible (legacy behavior). Region names are case-insensitive and trimmed. |
+| Property | Available Since Version | Default | Description |
+|---|-------------------------|---|---|
+| `gdbAccessibleRegions` | 4.1.0 | _none_ | Comma-separated list of AWS regions the application can reach. When unset, all regions are considered accessible (legacy behavior). Region names are case-insensitive and trimmed. |
 
 ### The `homeRegion` ⊆ `accessibleRegions` constraint
 

@@ -17,9 +17,9 @@ To enable the Driver Metadata Connection Plugin, add the plugin code `driverMeta
 
 ## Driver Metadata Connection Plugin Parameters
 
-| Parameter           | Value  | Required | Description                                                                                         | Example            | Default Value                                     |
-|---------------------|:------:|:--------:|:----------------------------------------------------------------------------------------------------|:-------------------|---------------------------------------------------|
-| `wrapperDriverName` | String |   Yes    | Override this value to return a specific driver name for the DatabaseMetaData#getDriverName method. | `CustomDriverName` | `Amazon Web Services (AWS) Advanced JDBC Wrapper` |
+| Parameter           | Available Since Version | Value  | Required | Description                                                                                         | Example            | Default Value                                     |
+|---------------------|-------------------------|:------:|:--------:|:----------------------------------------------------------------------------------------------------|:-------------------|---------------------------------------------------|
+| `wrapperDriverName` | 1.0.2 | String |   Yes    | Override this value to return a specific driver name for the DatabaseMetaData#getDriverName method. | `CustomDriverName` | `Amazon Web Services (AWS) Advanced JDBC Wrapper` |
 
 ### Example
 [DriverMetaDataConnectionPluginExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/DriverMetaDataConnectionPluginExample.java)

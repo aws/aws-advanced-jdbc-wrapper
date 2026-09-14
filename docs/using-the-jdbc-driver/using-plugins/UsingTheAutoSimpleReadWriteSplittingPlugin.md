@@ -38,15 +38,15 @@ The driver performs plugin sorting by default (see the [`autoSortWrapperPluginOr
 
 This plugin accepts the same endpoint parameters as the [Simple Read/Write Splitting Plugin](./UsingTheSimpleReadWriteSplittingPlugin.md#simple-readwrite-splitting-plugin-parameters):
 
-| Parameter | Value | Required | Description | Default Value |
-|---|:---:|:---:|---|---|
-| `srwWriteEndpoint` | String | Yes | The endpoint to connect to for write routing (and when `setReadOnly(false)` is called). | `null` |
-| `srwReadEndpoint` | String | Yes | The endpoint to connect to for read routing (and when `setReadOnly(true)` is called). | `null` |
-| `verifyNewSrwConnections` | Boolean | No | Enables writer/reader verification for new connections. See the [Simple Read/Write Splitting Plugin](./UsingTheSimpleReadWriteSplittingPlugin.md#how-the-simple-readwrite-splitting-plugin-verifies-connections). | `true` |
-| `verifyInitialConnectionType` | String | No | If `verifyNewSrwConnections` is `true`, verifies the initial opened connection to be a `writer` or `reader`. | `null` |
-| `srwConnectRetryTimeoutMs` | Integer | No | Maximum allowed time in milliseconds for retrying connection attempts. | `60000` |
-| `srwConnectRetryIntervalMs` | Integer | No | Time delay in milliseconds between connection retries. | `1000` |
-| `cachedReaderKeepAliveTimeoutMs` | Integer | No | Timeout for the cached reader connection. `0` reuses the same cached reader for the lifetime of the `Connection`. | `0` |
+| Parameter | Available Since Version | Value | Required | Description | Default Value |
+|---|-------------------------|:---:|:---:|---|---|
+| `srwWriteEndpoint` | 3.0.0 | String | Yes | The endpoint to connect to for write routing (and when `setReadOnly(false)` is called). | `null` |
+| `srwReadEndpoint` | 3.0.0 | String | Yes | The endpoint to connect to for read routing (and when `setReadOnly(true)` is called). | `null` |
+| `verifyNewSrwConnections` | 3.0.0 | Boolean | No | Enables writer/reader verification for new connections. See the [Simple Read/Write Splitting Plugin](./UsingTheSimpleReadWriteSplittingPlugin.md#how-the-simple-readwrite-splitting-plugin-verifies-connections). | `true` |
+| `verifyInitialConnectionType` | 3.0.0 | String | No | If `verifyNewSrwConnections` is `true`, verifies the initial opened connection to be a `writer` or `reader`. | `null` |
+| `srwConnectRetryTimeoutMs` | 3.0.0 | Integer | No | Maximum allowed time in milliseconds for retrying connection attempts. | `60000` |
+| `srwConnectRetryIntervalMs` | 3.0.0 | Integer | No | Time delay in milliseconds between connection retries. | `1000` |
+| `cachedReaderKeepAliveTimeoutMs` | 3.0.0 | Integer | No | Timeout for the cached reader connection. `0` reuses the same cached reader for the lifetime of the `Connection`. | `0` |
 
 It also accepts the family-wide `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters — see [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing). Because each read statement is a routing point, query-level load balancing rotates reads per query.
 

@@ -25,9 +25,9 @@ This means setting `strict-reader,strict-writer` does not produce churn — the 
 
 ## Aurora — `monitoringConnectionPriority`
 
-| Property | Default | Description |
-|---|---|---|
-| `monitoringConnectionPriority` | `strict-writer` | Comma-separated list of priorities, in order of preference. |
+| Property | Available Since Version | Default | Description |
+|---|-------------------------|---|---|
+| `monitoringConnectionPriority` | 4.1.0 | `strict-writer` | Comma-separated list of priorities, in order of preference. |
 
 ### Tokens
 
@@ -54,9 +54,9 @@ monitoringConnectionPriority=writer-or-reader
 
 ## Global Aurora — `gdbMonitoringConnectionPriority`
 
-| Property | Default | Description |
-|---|---|---|
-| `gdbMonitoringConnectionPriority` | `strict-writer-primary` | Comma-separated list of priorities, in order of preference. |
+| Property | Available Since Version | Default | Description |
+|---|-------------------------|---|---|
+| `gdbMonitoringConnectionPriority` | 4.1.0 | `strict-writer-primary` | Comma-separated list of priorities, in order of preference. |
 
 ### Tokens
 

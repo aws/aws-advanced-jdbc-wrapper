@@ -119,19 +119,19 @@ implementation 'com.github.jsqlparser:jsqlparser:4.5'
 
 ### Connection Properties
 
-| Property | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `kms.region` | AWS KMS region for encryption operations | Yes | None |
-| `encryptionMetadataSchema` | Schema name for encryption metadata tables | No | `encrypt` |
-| `metadataCacheEnabled` | Enable/disable metadata caching | No | `true` |
-| `metadataCacheExpirationMinutes` | Metadata cache expiration time in minutes | No | `60` |
-| `metadataCacheRefreshIntervalMs` | Metadata cache refresh interval in milliseconds | No | `300000` |
-| `keyManagementMaxRetries` | Maximum number of retries for key management operations | No | `3` |
-| `keyManagementRetryBackoffBaseMs` | Base backoff time in milliseconds for key management retries | No | `100` |
-| `auditLoggingEnabled` | Enable/disable audit logging | No | `false` |
-| `dataKeyCacheEnabled` | Enable/disable data key caching | No | `true` |
-| `dataKeyCacheMaxSize` | Maximum size of data key cache | No | `1000` |
-| `dataKeyCacheExpirationMs` | Data key cache expiration in milliseconds | No | `3600000` |
+| Property | Available Since Version | Description | Required | Default |
+|----------|-------------------------|-------------|----------|---------|
+| `kms.region` | 4.0.0 | AWS KMS region for encryption operations | Yes | None |
+| `encryptionMetadataSchema` | 4.0.0 | Schema name for encryption metadata tables | No | `encrypt` |
+| `metadataCacheEnabled` | 4.0.0 | Enable/disable metadata caching | No | `true` |
+| `metadataCacheExpirationMinutes` | 4.0.0 | Metadata cache expiration time in minutes | No | `60` |
+| `metadataCacheRefreshIntervalMs` | 4.0.0 | Metadata cache refresh interval in milliseconds | No | `300000` |
+| `keyManagementMaxRetries` | 4.0.0 | Maximum number of retries for key management operations | No | `3` |
+| `keyManagementRetryBackoffBaseMs` | 4.0.0 | Base backoff time in milliseconds for key management retries | No | `100` |
+| `auditLoggingEnabled` | 4.0.0 | Enable/disable audit logging | No | `false` |
+| `dataKeyCacheEnabled` | 4.0.0 | Enable/disable data key caching | No | `true` |
+| `dataKeyCacheMaxSize` | 4.0.0 | Maximum size of data key cache | No | `1000` |
+| `dataKeyCacheExpirationMs` | 4.0.0 | Data key cache expiration in milliseconds | No | `3600000` |
 
 ### Example Connection String
 

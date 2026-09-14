@@ -47,13 +47,13 @@ To determine the health of a database node:
 
 If a more aggressive approach to failure checking is necessary, all of these parameters can be reduced to reflect that. However, increased failure checking may also lead to an increase in false positives. For example, if the `failureDetectionInterval` was shortened, the plugin may complete several connection checks that all fail. The database node would then be considered unhealthy, but it may have been about to recover and the connection checks were completed before that could happen.
 
-| Parameter                  |  Value  | Required | Description                                                                                                  | Default Value |
-|----------------------------|:-------:|:--------:|:-------------------------------------------------------------------------------------------------------------|---------------|
-| `failureDetectionCount`    | Integer |    No    | Number of failed connection checks before considering database node as unhealthy.                            | `3`           |
-| `failureDetectionEnabled`  | Boolean |    No    | Set to `true` to enable Enhanced Failure Monitoring. Set to `false` to disable it.                           | `true`        |
-| `failureDetectionInterval` | Integer |    No    | Interval in milliseconds between probes to database node.                                                    | `5000`        |
-| `failureDetectionTime`     | Integer |    No    | Interval in milliseconds between sending a SQL query to the server and the first probe to the database node. | `30000`       |
-| `monitorDisposalTime`      | Integer |    No    | Interval in milliseconds for a monitor to be considered inactive and to be disposed.                         | `60000`       |
+| Parameter                  | Available Since Version |  Value  | Required | Description                                                                                                  | Default Value |
+|----------------------------|-------------------------|:-------:|:--------:|:-------------------------------------------------------------------------------------------------------------|---------------|
+| `failureDetectionCount`    | 0.1.0 | Integer |    No    | Number of failed connection checks before considering database node as unhealthy.                            | `3`           |
+| `failureDetectionEnabled`  | 0.1.0 | Boolean |    No    | Set to `true` to enable Enhanced Failure Monitoring. Set to `false` to disable it.                           | `true`        |
+| `failureDetectionInterval` | 0.1.0 | Integer |    No    | Interval in milliseconds between probes to database node.                                                    | `5000`        |
+| `failureDetectionTime`     | 0.1.0 | Integer |    No    | Interval in milliseconds between sending a SQL query to the server and the first probe to the database node. | `30000`       |
+| `monitorDisposalTime`      | 0.1.0 | Integer |    No    | Interval in milliseconds for a monitor to be considered inactive and to be disposed.                         | `60000`       |
 
 The Host Monitoring Connection Plugin may create new monitoring connections to check the database node's availability. You can configure these connection with driver-specific configurations by adding the `monitoring-` prefix to the configuration parameters, like the following example:
 
@@ -115,11 +115,11 @@ Verify plugin compatibility within your driver configuration using the [compatib
 
 The Host Monitoring plugins use an internal context pool to manage monitoring connection contexts. The pool behavior can be configured using the following JVM system properties:
 
-| System Property                      | Type    | Required | Description                                                                                                                                                                                                     | Default Value |
-|--------------------------------------|---------|:--------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `efm.contextPool.enabled`            | Boolean |    No    | When `true`, contexts are pooled and reused to reduce allocation overhead. When `false`, a new context instance is created on each acquire call.                                                                | `true`        |
-| `efm.contextPool.maxIdleCount`       | Integer |    No    | Maximum number of idle connection contexts to keep in the pool. Must be at least 1. Only applies when pooling is enabled.                                                                                       | `30`          |
-| `efm.contextPool.lazyInitialization` | Boolean |    No    | When `true`, idle contexts are created on-demand as needed, until `maxIdleCount` is reached. When `false`, the pool is pre-populated with idle contexts (determined by the `maxIdleCount` setting) at startup. Only applies when pooling is enabled. | `false`       |
+| System Property                      | Available Since Version | Type    | Required | Description                                                                                                                                                                                                     | Default Value |
+|--------------------------------------|-------------------------|---------|:--------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `efm.contextPool.enabled`            | 3.3.0 | Boolean |    No    | When `true`, contexts are pooled and reused to reduce allocation overhead. When `false`, a new context instance is created on each acquire call.                                                                | `true`        |
+| `efm.contextPool.maxIdleCount`       | 3.3.0 | Integer |    No    | Maximum number of idle connection contexts to keep in the pool. Must be at least 1. Only applies when pooling is enabled.                                                                                       | `30`          |
+| `efm.contextPool.lazyInitialization` | 3.3.0 | Boolean |    No    | When `true`, idle contexts are created on-demand as needed, until `maxIdleCount` is reached. When `false`, the pool is pre-populated with idle contexts (determined by the `maxIdleCount` setting) at startup. Only applies when pooling is enabled. | `false`       |
 
 These properties can be set via JVM arguments:
 
