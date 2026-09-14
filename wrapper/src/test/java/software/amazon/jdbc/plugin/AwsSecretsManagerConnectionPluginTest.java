@@ -39,6 +39,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
@@ -579,6 +580,47 @@ public class AwsSecretsManagerConnectionPluginTest {
     verify(this.connectFunc, times(3)).call();
     // Every attempt after the first forces a re-fetch so a newly promoted secret is picked up.
     verify(this.mockSecretsManagerClient, times(2)).getSecretValue(this.mockGetValueRequest);
+  }
+
+  /**
+   * Across all the retries of a single connect(), the SecretsManagerClient is built once and closed
+   * once, rather than being created and torn down for each credential fetch.
+   */
+  @Test
+  public void testConnectRetryBudgetReusesSecretsManagerClient() throws SQLException {
+    SECRETS_MANAGER_CONNECT_RETRY_TIMEOUT_MS_PROPERTY.set(TEST_PROPS, "5000");
+    SECRETS_MANAGER_CONNECT_RETRY_INTERVAL_MS_PROPERTY.set(TEST_PROPS, "1");
+    final PluginServiceImpl pluginServiceImpl = getPluginService(TEST_PG_PROTOCOL);
+    when(mockServicesContainer.getPluginService()).thenReturn(pluginServiceImpl);
+
+    final AtomicInteger clientsBuilt = new AtomicInteger(0);
+    final AwsSecretsManagerConnectionPlugin retryingPlugin = new AwsSecretsManagerConnectionPlugin(
+        mockServicesContainer,
+        TEST_PROPS,
+        (host, r) -> {
+          clientsBuilt.incrementAndGet();
+          return mockSecretsManagerClient;
+        },
+        (id) -> mockGetValueRequest);
+
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+    when(this.connectFunc.call())
+        .thenThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR))
+        .thenThrow(new SQLException(TEST_SQL_ERROR, PG_ACCESS_ERROR))
+        .thenReturn(mockConnection);
+
+    assertEquals(
+        mockConnection,
+        retryingPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc));
+
+    // Two forced re-fetches happen (attempts 2 and 3), but a single client serves both and is
+    // closed exactly once when the connect attempt finishes.
+    verify(this.mockSecretsManagerClient, times(2)).getSecretValue(this.mockGetValueRequest);
+    assertEquals(1, clientsBuilt.get());
+    verify(this.mockSecretsManagerClient, times(1)).close();
   }
 
   /**
