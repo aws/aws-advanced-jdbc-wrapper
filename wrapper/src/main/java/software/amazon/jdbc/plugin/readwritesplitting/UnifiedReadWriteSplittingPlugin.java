@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -183,6 +184,10 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   // bound statement is reused and rerouting cannot be applied.
   private final Map<Object, Boolean> seenBoundStatements =
       Collections.synchronizedMap(new WeakHashMap<>());
+
+  // Whether this connection has already reported that a read had to be served by the writer. Keeps
+  // the first occurrence at WARNING and the rest at FINE. See logReaderFallbackToWriter.
+  private boolean warnedReaderFallbackToWriter = false;
 
   protected volatile boolean inReadWriteSplit = false;
   protected @Nullable HostListProviderService hostListProviderService;
@@ -369,8 +374,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
             // is also unreachable.
             try {
               this.switchToWriter();
-              LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailure",
-                  new Object[] {this.pluginService.getCurrentHostSpec().getHostAndPort(), e.getMessage()}));
+              this.logReaderFallbackToWriter(e);
             } catch (final SQLException writerException) {
               if (!this.isConnectionUsable(currentConnection)) {
                 this.logAndThrowCause(
@@ -410,6 +414,28 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
         }
       }
     }
+  }
+
+  /**
+   * Reports that a read was served by the writer because no reader could be selected or reached.
+   *
+   * <p>The first occurrence on a connection is logged at {@code WARNING}: it means reads are not
+   * being offloaded at all, which is otherwise invisible because the fallback itself succeeds. A
+   * common cause is a host list in which no host carries the reader role, for example a
+   * comma-separated connection string without {@code singleWriterConnectionString=true}. Later
+   * occurrences drop to {@code FINE} so that a connection which keeps falling back does not flood
+   * the log.
+   *
+   * @param cause the failure that prevented a reader from being used
+   */
+  private void logReaderFallbackToWriter(final SQLException cause) {
+    final Level level = this.warnedReaderFallbackToWriter ? Level.FINE : Level.WARNING;
+    this.warnedReaderFallbackToWriter = true;
+    if (!LOGGER.isLoggable(level)) {
+      return;
+    }
+    LOGGER.log(level, Messages.get("ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailure",
+        new Object[] {this.pluginService.getCurrentHostSpec().getHostAndPort(), cause.getMessage()}));
   }
 
   /**

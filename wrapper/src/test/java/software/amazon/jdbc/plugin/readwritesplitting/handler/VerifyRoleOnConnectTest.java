@@ -41,6 +41,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.plugin.readwritesplitting.RwSplitContext;
 
 /** Unit tests for {@link VerifyRoleOnConnect}. */
@@ -54,6 +55,7 @@ public class VerifyRoleOnConnectTest {
   @Mock private RwSplitContext ctx;
   @Mock private PluginService pluginService;
   @Mock private HostListProviderService hostListProviderService;
+  @Mock private StaticHostListProvider staticHostListProvider;
   @Mock private JdbcCallable<Connection, SQLException> connectFunc;
   @Mock private Connection conn;
 
@@ -95,21 +97,8 @@ public class VerifyRoleOnConnectTest {
   }
 
   @Test
-  void staticHostListProvider_passesThrough() throws SQLException {
-    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
-    when(hostListProviderService.isStaticHostListProvider()).thenReturn(true);
-    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
-
-    final Connection result = handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
-
-    assertEquals(conn, result);
-    verify(hostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
-  }
-
-  @Test
   void verifyDisabled_passesThrough() throws SQLException {
     when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
-    when(hostListProviderService.isStaticHostListProvider()).thenReturn(false);
     final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, false);
 
     final Connection result = handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
@@ -121,7 +110,6 @@ public class VerifyRoleOnConnectTest {
   @Test
   void roleMismatch_correctsInitialHostSpecRole() throws SQLException {
     when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
-    when(hostListProviderService.isStaticHostListProvider()).thenReturn(false);
     // The topology labels the initial host a writer, but the opened connection is a reader.
     when(pluginService.getHostRole(conn)).thenReturn(HostRole.READER);
     when(pluginService.getInitialConnectionHostSpec()).thenReturn(writerHost);
@@ -136,7 +124,6 @@ public class VerifyRoleOnConnectTest {
   @Test
   void roleMatches_noUpdate() throws SQLException {
     when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
-    when(hostListProviderService.isStaticHostListProvider()).thenReturn(false);
     when(pluginService.getHostRole(conn)).thenReturn(HostRole.WRITER);
     when(pluginService.getInitialConnectionHostSpec()).thenReturn(writerHost);
     final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
@@ -147,10 +134,100 @@ public class VerifyRoleOnConnectTest {
     verify(hostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
   }
 
+  /**
+   * A static host list derives roles from the connection string, so the measured role has to be
+   * pushed into the host list itself: correcting only the initial host spec leaves reader and writer
+   * selection reading the stale role.
+   */
+  @Test
+  void staticHostListProvider_roleMismatch_correctsHostListRole() throws SQLException {
+    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
+    when(hostListProviderService.getHostListProvider()).thenReturn(staticHostListProvider);
+    when(staticHostListProvider.updateHostRole(writerHost.getHostAndPort(), HostRole.READER)).thenReturn(true);
+    when(pluginService.getHostRole(conn)).thenReturn(HostRole.READER);
+    when(pluginService.getInitialConnectionHostSpec()).thenReturn(writerHost);
+    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
+
+    final Connection result = handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
+
+    assertEquals(conn, result);
+    verify(hostListProviderService).setInitialConnectionHostSpec(any(HostSpec.class));
+    verify(staticHostListProvider).updateHostRole(writerHost.getHostAndPort(), HostRole.READER);
+    verify(pluginService).refreshHostList();
+  }
+
+  @Test
+  void staticHostListProvider_roleMatches_leavesHostListAlone() throws SQLException {
+    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
+    when(pluginService.getHostRole(conn)).thenReturn(HostRole.WRITER);
+    when(pluginService.getInitialConnectionHostSpec()).thenReturn(writerHost);
+    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
+
+    final Connection result = handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
+
+    assertEquals(conn, result);
+    verify(staticHostListProvider, never()).updateHostRole(anyString(), any(HostRole.class));
+    verify(pluginService, never()).refreshHostList();
+  }
+
+  @Test
+  void staticHostListProvider_hostNotUpdated_doesNotRefreshHostList() throws SQLException {
+    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
+    when(hostListProviderService.getHostListProvider()).thenReturn(staticHostListProvider);
+    when(staticHostListProvider.updateHostRole(anyString(), any(HostRole.class))).thenReturn(false);
+    when(pluginService.getHostRole(conn)).thenReturn(HostRole.READER);
+    when(pluginService.getInitialConnectionHostSpec()).thenReturn(writerHost);
+    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
+
+    handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
+
+    verify(pluginService, never()).refreshHostList();
+  }
+
+  /**
+   * A static host list already carries a declared role, so a database that cannot report its role
+   * must keep working rather than have its connections refused.
+   */
+  @Test
+  void staticHostListProvider_roleQueryFails_keepsDeclaredRole() throws SQLException {
+    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
+    when(hostListProviderService.getHostListProvider()).thenReturn(staticHostListProvider);
+    when(pluginService.getHostRole(conn)).thenThrow(new UnsupportedOperationException("no role query"));
+    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
+
+    final Connection result = handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
+
+    assertEquals(conn, result);
+    verify(hostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
+  }
+
+  @Test
+  void staticHostListProvider_unknownRole_keepsDeclaredRole() throws SQLException {
+    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
+    when(hostListProviderService.getHostListProvider()).thenReturn(staticHostListProvider);
+    when(pluginService.getHostRole(conn)).thenReturn(HostRole.UNKNOWN);
+    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
+
+    final Connection result = handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc);
+
+    assertEquals(conn, result);
+    verify(hostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
+  }
+
+  /** A topology-backed provider supplies its own roles, so an unreadable role still fails. */
+  @Test
+  void topologyProvider_roleQueryFails_propagates() throws SQLException {
+    when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
+    when(pluginService.getHostRole(conn)).thenThrow(new UnsupportedOperationException("no role query"));
+    final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
+
+    assertThrows(UnsupportedOperationException.class,
+        () -> handler.onConnect(ctx, PROTOCOL, writerHost, props, true, connectFunc));
+  }
+
   @Test
   void unknownRole_throws() throws SQLException {
     when(ctx.hostListProviderService()).thenReturn(hostListProviderService);
-    when(hostListProviderService.isStaticHostListProvider()).thenReturn(false);
     when(pluginService.getHostRole(conn)).thenReturn(HostRole.UNKNOWN);
     doThrow(new SQLException("cannot verify role")).when(ctx).logAndThrow(anyString());
     final VerifyRoleOnConnect handler = new VerifyRoleOnConnect(STRATEGY, true);
