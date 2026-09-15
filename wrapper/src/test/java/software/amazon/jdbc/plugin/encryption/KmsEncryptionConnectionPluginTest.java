@@ -161,6 +161,93 @@ public class KmsEncryptionConnectionPluginTest {
     verify(mockPreparedStatement).setBytes(eq(2), any());
   }
 
+  /**
+   * An /*@encrypt:table.column*&#47; annotation puts a qualified identifier into the parameter
+   * mapping, overwriting the bare column name the positional mapping would have supplied. Since
+   * MetadataManager composes its lookup key as {@code tableName + "." + columnName}, the qualified
+   * value has to be split before the lookup, or the key becomes {@code users.users.ssn} and
+   * encryption is silently skipped for the annotated parameter.
+   */
+  @Test
+  void test_setString_encryptsForAnnotationQualifiedColumn() throws Exception {
+    when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+
+    populateContext("users", java.util.Collections.singletonMap(2, "users.ssn"));
+    plugin.execute(
+        PreparedStatement.class, SQLException.class, mockConnection,
+        "Connection.prepareStatement", () -> mockPreparedStatement,
+        "INSERT INTO users (name, ssn) VALUES (?, /*@encrypt:users.ssn*/ ?)");
+
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+    when(mockMetadataManager.getColumnConfig("users", "ssn")).thenReturn(createTestConfig());
+    when(mockKeyManager.decryptDataKey("encrypted-key", "arn:aws:kms:us-east-1:123:key/abc"))
+        .thenReturn(testDataKey);
+    when(mockEncryptionService.encrypt(eq("123-45-6789"), any(), any(), anyString()))
+        .thenReturn(testEncrypted);
+
+    plugin.execute(
+        Void.class, SQLException.class, mockPreparedStatement,
+        "PreparedStatement.setString", () -> null,
+        2, "123-45-6789");
+
+    verify(mockPreparedStatement).setBytes(eq(2), any());
+    // The table prefix must not be applied twice.
+    verify(mockMetadataManager, never()).isColumnEncrypted("users", "users.ssn");
+  }
+
+  /**
+   * A schema-qualified identifier must split on the last dot, so {@code public.users.ssn} resolves
+   * to table {@code public.users} and column {@code ssn}.
+   */
+  @Test
+  void test_setString_splitsSchemaQualifiedColumnOnLastDot() throws Exception {
+    when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+
+    populateContext("users", java.util.Collections.singletonMap(1, "public.users.ssn"));
+    plugin.execute(
+        PreparedStatement.class, SQLException.class, mockConnection,
+        "Connection.prepareStatement", () -> mockPreparedStatement,
+        "INSERT INTO public.users (ssn) VALUES (/*@encrypt:public.users.ssn*/ ?)");
+
+    when(mockMetadataManager.isColumnEncrypted("public.users", "ssn")).thenReturn(false);
+
+    boolean[] called = {false};
+    plugin.execute(
+        Void.class, SQLException.class, mockPreparedStatement,
+        "PreparedStatement.setString", () -> {
+          called[0] = true;
+          return null;
+        },
+        1, "123-45-6789");
+
+    assertTrue(called[0], "Original callable should be invoked for non-encrypted column");
+    verify(mockMetadataManager).isColumnEncrypted("public.users", "ssn");
+  }
+
+  /**
+   * A bare column name keeps using the statement's parsed table, so the positional mapping path is
+   * unchanged by the qualified-identifier handling.
+   */
+  @Test
+  void test_setString_bareColumnStillUsesParsedTable() throws Exception {
+    when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+
+    populateContext("users", java.util.Collections.singletonMap(1, "ssn"));
+    plugin.execute(
+        PreparedStatement.class, SQLException.class, mockConnection,
+        "Connection.prepareStatement", () -> mockPreparedStatement,
+        "INSERT INTO users (ssn) VALUES (?)");
+
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(false);
+
+    plugin.execute(
+        Void.class, SQLException.class, mockPreparedStatement,
+        "PreparedStatement.setString", () -> null,
+        1, "123-45-6789");
+
+    verify(mockMetadataManager).isColumnEncrypted("users", "ssn");
+  }
+
   @Test
   void test_setString_passesThrough_forNonEncryptedColumn() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);

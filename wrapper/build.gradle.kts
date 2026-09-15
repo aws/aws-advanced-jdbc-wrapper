@@ -241,6 +241,13 @@ dependencies {
     add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.2.2")
     add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
+    // The java24 variant of PgTargetDriverDialect has to declare every method the base variant
+    // declares - a multi-release JAR replaces the class wholesale, so an omitted method silently
+    // falls back to GenericTargetDriverDialect at runtime. Some of those methods reference pgjdbc
+    // types directly, so the driver has to be on this source set's compile classpath too. It stays
+    // compileOnly here for the same reason as in the main source set: pgjdbc is an optional
+    // dependency supplied by the application.
+    add(java24.compileOnlyConfigurationName, "org.postgresql:postgresql:42.7.13")
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.7.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")

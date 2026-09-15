@@ -317,7 +317,9 @@ try (PreparedStatement stmt = connection.prepareStatement(sql2)) {
 2. It must immediately precede the `?` parameter placeholder
 3. The format is: `table.column` (both table and column names required)
 4. Whitespace between the annotation and `?` is allowed but not required
-5. The annotation is stripped from the SQL before sending to the database
+
+> [!WARNING]\
+> **The annotation is sent to the database as part of the statement.** It is a valid SQL comment, so it does not affect how the statement executes, but it is not removed from the SQL text: it appears in server-side statement logs, in `pg_stat_statements`, in slow-query logs, and in any query-capture tooling. Since the annotation names the table and column being encrypted, using it discloses which columns hold sensitive data to anyone who can read those logs. If that matters in your environment, mark columns through the metadata table instead of through annotations.
 
 **Valid examples:**
 ```sql

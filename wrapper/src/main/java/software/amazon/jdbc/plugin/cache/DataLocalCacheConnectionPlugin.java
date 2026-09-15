@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -58,9 +59,28 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
       "dataCacheTriggerCondition", null,
       "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 
-  protected static final Map<String, ResultSet> dataCache = new ConcurrentHashMap<>();
+  public static final AwsWrapperProperty DATA_CACHE_TTL_MS = new AwsWrapperProperty(
+      "dataCacheTtlMs", "300000",
+      "Time in milliseconds that a cached result set stays valid. A cached result is not refreshed "
+          + "by writes, so this is the longest an application can observe stale data. Set to 0 to "
+          + "keep entries until the cache is cleared, accepting unbounded staleness.");
+
+  public static final AwsWrapperProperty DATA_CACHE_MAX_SIZE = new AwsWrapperProperty(
+      "dataCacheMaxSize", "1000",
+      "Maximum number of distinct SQL statements whose results are held in the cache. When the "
+          + "limit is reached, expired entries are purged; if the cache is still full, further "
+          + "results are returned to the caller without being cached.");
+
+  /**
+   * Process-wide cache of materialized query results, keyed on the SQL text. Each entry carries its
+   * own expiry deadline, computed from the {@code dataCacheTtlMs} of the connection that stored it,
+   * so a single static cache can be shared by connections configured differently.
+   */
+  protected static final Map<String, CacheEntry> dataCache = new ConcurrentHashMap<>();
 
   protected final @Nullable String dataCacheTriggerCondition;
+  protected final long ttlNanos;
+  protected final int maxSize;
 
   static {
     PropertyDefinition.registerPluginProperties(DataLocalCacheConnectionPlugin.class);
@@ -75,6 +95,13 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
   public DataLocalCacheConnectionPlugin(final PluginService pluginService, final Properties props) {
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.getString(props);
+
+    final long ttlMs = DATA_CACHE_TTL_MS.getLong(props);
+    this.ttlNanos = ttlMs <= 0 ? CacheEntry.NO_EXPIRY : TimeUnit.MILLISECONDS.toNanos(ttlMs);
+    final long configuredMaxSize = DATA_CACHE_MAX_SIZE.getLong(props);
+    this.maxSize = configuredMaxSize <= 0
+        ? Integer.MAX_VALUE
+        : (int) Math.min(configuredMaxSize, Integer.MAX_VALUE);
 
     this.hitCounter = telemetryFactory.createCounter("dataCache.cache.hit");
     this.missCounter = telemetryFactory.createCounter("dataCache.cache.miss");
@@ -117,7 +144,7 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
     final String sql = getQuery(jdbcMethodArgs);
 
     if (!StringUtils.isNullOrEmpty(sql) && sql.matches(this.dataCacheTriggerCondition)) {
-      result = dataCache.get(sql);
+      result = getIfFresh(sql);
       if (result == null) {
         needToCache = true;
         if (this.missCounter != null) {
@@ -151,7 +178,7 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
         final ResultSet cachedResultSet;
         try {
           cachedResultSet = new CachedResultSet(dbResult);
-          dataCache.put(sql, cachedResultSet);
+          tryCache(sql, cachedResultSet);
           cachedResultSet.beforeFirst();
           return resultClass.cast(cachedResultSet);
         } catch (final SQLException ex) {
@@ -163,12 +190,88 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
     return resultClass.cast(result);
   }
 
+  /**
+   * Returns the cached result for the given SQL if it is present and not expired. An expired entry
+   * is removed and reported as a miss, so the query runs again and the stale copy is replaced.
+   *
+   * @param sql the SQL text used as the cache key.
+   * @return the cached result set, or null if there is no usable entry.
+   */
+  protected @Nullable ResultSet getIfFresh(final String sql) {
+    final CacheEntry entry = dataCache.get(sql);
+    if (entry == null) {
+      return null;
+    }
+
+    if (entry.isExpired()) {
+      // remove(key, value) so a fresher entry stored concurrently by another thread survives.
+      dataCache.remove(sql, entry);
+      return null;
+    }
+
+    return entry.resultSet;
+  }
+
+  /**
+   * Stores the given result under the given SQL, unless the cache is at its configured size limit.
+   * Expired entries are purged first, so a cache that is full only of stale entries makes room for
+   * the new one. When no room can be made the result is left uncached: the caller still receives it,
+   * and the only consequence is that the next identical query hits the database again.
+   *
+   * @param sql       the SQL text used as the cache key.
+   * @param resultSet the materialized result to store.
+   */
+  protected void tryCache(final String sql, final ResultSet resultSet) {
+    if (dataCache.size() >= this.maxSize && !dataCache.containsKey(sql)) {
+      removeExpiredEntries();
+
+      if (dataCache.size() >= this.maxSize && !dataCache.containsKey(sql)) {
+        LOGGER.finest(
+            () -> Messages.get(
+                "DataLocalCacheConnectionPlugin.cacheSizeLimitReached",
+                new Object[]{this.maxSize, sql}));
+        return;
+      }
+    }
+
+    dataCache.put(sql, new CacheEntry(resultSet, this.ttlNanos));
+  }
+
+  protected static void removeExpiredEntries() {
+    dataCache.forEach((key, entry) -> {
+      if (entry.isExpired()) {
+        dataCache.remove(key, entry);
+      }
+    });
+  }
+
   protected @Nullable String getQuery(final @Nullable Object[] jdbcMethodArgs) {
     // Get query from method argument
     if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
       return jdbcMethodArgs[0].toString();
     }
     return null;
+  }
+
+  /** A cached result together with the deadline after which it must not be served. */
+  protected static class CacheEntry {
+
+    /** Sentinel time-to-live meaning "never expires". */
+    protected static final long NO_EXPIRY = -1L;
+
+    protected final ResultSet resultSet;
+    protected final long expiresAtNanos;
+
+    protected CacheEntry(final ResultSet resultSet, final long ttlNanos) {
+      this.resultSet = resultSet;
+      this.expiresAtNanos = ttlNanos == NO_EXPIRY ? NO_EXPIRY : System.nanoTime() + ttlNanos;
+    }
+
+    protected boolean isExpired() {
+      // Subtraction rather than a direct comparison so the check stays correct across the
+      // System.nanoTime() wraparound.
+      return this.expiresAtNanos != NO_EXPIRY && System.nanoTime() - this.expiresAtNanos >= 0;
+    }
   }
 
 }

@@ -48,7 +48,12 @@ This plugin accepts the same endpoint parameters as the [Simple Read/Write Split
 | `srwConnectRetryIntervalMs` | 3.0.0 | Integer | No | Time delay in milliseconds between connection retries. | `1000` |
 | `cachedReaderKeepAliveTimeoutMs` | 3.0.0 | Integer | No | Timeout for the cached reader connection. `0` reuses the same cached reader for the lifetime of the `Connection`. | `0` |
 
-It also accepts the family-wide `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters — see [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing). Because each read statement is a routing point, query-level load balancing rotates reads per query.
+It also accepts the family-wide `queryLevelLoadBalancing` and `allowStatementRecreationOnConnectionSwitch` parameters — see [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing). Because each read statement is a routing point, query-level load balancing rotates reads per query.
+
+On this axis, rotation means opening a fresh connection to `srwReadEndpoint` for each read, since that endpoint is the only reader target the plugin knows about. Whether consecutive reads actually land on different instances therefore depends on what is behind that endpoint: an Aurora reader endpoint (`<cluster>.cluster-ro-<XYZ>.<region>.rds.amazonaws.com`) resolves to a different reader per lookup and does distribute, while a single-instance endpoint sends every read to the same host.
+
+> [!NOTE]\
+> `loadBalancingIncludeWriter` has **no effect** on the `srw` axis. It is honoured only by the topology-based read/write splitting plugins, which choose among the hosts they discover from cluster topology. This axis routes purely by the configured `srwWriteEndpoint` and `srwReadEndpoint`, so there is no host list to widen. To include the writer in read load balancing, use [`autoReadWriteSplitting`](./UsingTheAutoReadWriteSplittingPlugin.md) instead.
 
 Like the other SQL-routing plugins, it accepts `assumeWriteTransaction` (default `false`) to route a transaction that was not declared read-only to the writer, including its leading reads. Recommended for Spring/JPA applications; see [Transactions and autocommit](./UsingTheAutoReadWriteSplittingPlugin.md#transactions-and-autocommit) for the rationale and the recommended `setReadOnly`/`setAutoCommit` sequence.
 

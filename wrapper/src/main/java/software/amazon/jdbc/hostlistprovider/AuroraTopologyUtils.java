@@ -89,7 +89,11 @@ public class AuroraTopologyUtils extends TopologyUtils {
       lastUpdateTime = Timestamp.from(Instant.now());
     }
 
-    // Calculate weight based on instance lag in time and CPU utilization.
+    // Calculate weight based on instance lag in time and CPU utilization. This follows the
+    // HostSpec.weight convention that a LOWER weight is a healthier node, so the value grows as the
+    // node gets worse. Selectors that treat a larger weight as more desirable (highestWeight,
+    // weightedRandom) are therefore inverted against an Aurora topology - see HostSpec.getWeight().
+    // Load-aware Aurora reader selection should use lowestLoad, which reads cpuPercent and lagMs.
     final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
 
     final float cpuPercent = Math.round(cpuUtilization);

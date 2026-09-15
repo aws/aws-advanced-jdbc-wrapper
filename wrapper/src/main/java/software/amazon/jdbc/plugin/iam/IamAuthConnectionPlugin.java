@@ -37,7 +37,6 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.util.CoreServicesContainer;
@@ -272,8 +271,13 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
     return connectInternal(driverProtocol, hostSpec, props, forceConnectFunc);
   }
 
+  /**
+   * Purges every cached IAM authentication token. The token cache is registered and keyed under
+   * {@link TokenInfo} (see the constructor and {@link #connectInternal}), so that is the item class
+   * that has to be cleared here.
+   */
   public static void clearCache() {
-    CoreServicesContainer.getInstance().getStorageService().clear(Topology.class);
+    CoreServicesContainer.getInstance().getStorageService().clear(TokenInfo.class);
   }
 
   @Override

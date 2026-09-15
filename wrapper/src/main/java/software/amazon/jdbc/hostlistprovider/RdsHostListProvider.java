@@ -212,7 +212,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
    * cached copy of topology is returned if it's not yet outdated (controlled by {@link
    * #refreshRateNano}).
    *
-   * @return a list of hosts that describes cluster topology. A writer is always at position 0.
+   * @return a list of hosts that describes cluster topology. The list is not ordered by role: it
+   *     holds the readers in the order the topology query returned them, followed by the single
+   *     writer as the last element (see {@link TopologyUtils#verifyWriter}). Callers must find the
+   *     writer by {@link HostSpec#getRole()} rather than by position.
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
    */

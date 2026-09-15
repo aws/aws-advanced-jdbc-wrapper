@@ -45,6 +45,9 @@ To determine the health of a database node:
 3. If the probe is not acknowledged by the database node, a counter is incremented. 
 4. If the counter reaches the `failureDetectionCount`, the database node will be deemed unhealthy and the connection will be aborted.
 
+> [!NOTE]\
+> `efm` and `efm2` differ slightly in when step 4 fires, so the two are not interchangeable to the millisecond. Both measure how long the node has been failing since the first unacknowledged probe, but `efm` aborts once that duration reaches `failureDetectionInterval × failureDetectionCount`, while `efm2` aborts at `failureDetectionInterval × (failureDetectionCount - 1)`. Because the timer starts on the *first* failed probe, `efm2` is the one that aborts after exactly `failureDetectionCount` probes as described above; `efm` waits one extra interval. On the default settings (`failureDetectionInterval=5000`, `failureDetectionCount=3`) the abort deadline after the grace period is therefore 15,000 ms for `efm` and 10,000 ms for `efm2`. If your application depends on a specific detection deadline, tune `failureDetectionCount` per plugin rather than assuming both behave identically.
+
 If a more aggressive approach to failure checking is necessary, all of these parameters can be reduced to reflect that. However, increased failure checking may also lead to an increase in false positives. For example, if the `failureDetectionInterval` was shortened, the plugin may complete several connection checks that all fail. The database node would then be considered unhealthy, but it may have been about to recover and the connection checks were completed before that could happen.
 
 | Parameter                  | Available Since Version |  Value  | Required | Description                                                                                                  | Default Value |
@@ -95,7 +98,10 @@ See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by o
 The plugin is available since version 2.3.2.
 
 ## Overview
-Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementation of enhanced failure monitoring and it is functionally equal to the Host Monitoring Plugin described above. Both plugins share the same set of [configuration parameters](#enhanced-failure-monitoring-parameters). The `efm2` plugin is designed to be a drop-in replacement for the `efm` plugin.
+Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementation of enhanced failure monitoring and it is functionally equivalent to the Host Monitoring Plugin described above. Both plugins share the same set of [configuration parameters](#enhanced-failure-monitoring-parameters). The `efm2` plugin is designed to be a drop-in replacement for the `efm` plugin.
+
+> [!NOTE]\
+> "Functionally equivalent" does not mean identical timing. `efm2` aborts a connection to an unresponsive node one `failureDetectionInterval` earlier than `efm` does — see the [note on the detection deadline](#enhanced-failure-monitoring) above. `efm2` is the plugin whose deadline matches the documented `failureDetectionCount` semantics.
 The `efm2` plugin can be used in any scenario where the `efm` plugin is mentioned. This plugin is enabled by default since [version 2.3.3](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.3) of the driver. The original EFM plugin can still be used by specifying `efm` in the `wrapperPlugins` parameter.
 
 > [!NOTE]\
