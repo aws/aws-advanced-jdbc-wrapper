@@ -138,6 +138,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final BiFunction<HostSpec, Region, SecretsManagerClient>
       secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
+
+  /**
+   * Holds the {@link SecretsManagerClient} reused across all retries of a single {@code connect()}
+   * call, so a fresh client is not built and torn down for every retry attempt. It is bound to the
+   * connecting thread: the asynchronous refresh path of {@code awsSecretsManager2} runs on a
+   * different thread, does not see this holder, and keeps building and closing its own client.
+   */
+  private final ThreadLocal<ConnectClientHolder> connectClientHolder = new ThreadLocal<>();
+
   protected Secret secret;
   private final String secretUsername;
   private final String secretPassword;
@@ -279,11 +288,29 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       throw new SQLException(Messages.get("AwsSecretsManagerConnectionPlugin.emptySecretPasswordProperty"));
     }
 
-    if (this.connectRetryTimeoutMs > 0) {
-      return connectWithRetryBudget(hostSpec, props, connectFunc);
-    }
+    // Reuse a single SecretsManagerClient for every credential fetch performed while opening this
+    // connection (the initial fetch plus any retries), then close it once when the attempt is over.
+    final ConnectClientHolder clientHolder = new ConnectClientHolder();
+    this.connectClientHolder.set(clientHolder);
+    try {
+      if (this.connectRetryTimeoutMs > 0) {
+        return connectWithRetryBudget(hostSpec, props, connectFunc);
+      }
 
-    return connectWithSingleRetry(hostSpec, props, connectFunc);
+      return connectWithSingleRetry(hostSpec, props, connectFunc);
+    } finally {
+      this.connectClientHolder.remove();
+      final SecretsManagerClient reusedClient = clientHolder.client;
+      if (reusedClient != null) {
+        try {
+          reusedClient.close();
+        } catch (final RuntimeException closeException) {
+          // Closing must never turn a successful connection into a failure.
+          LOGGER.log(Level.FINEST, closeException,
+              () -> Messages.get("AwsSecretsManagerConnectionPlugin.reusableClientCloseFailed"));
+        }
+      }
+    }
   }
 
   /**
@@ -502,16 +529,31 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   Secret fetchLatestCredentials(final HostSpec hostSpec)
       throws SecretsManagerException, JacksonException, SQLException {
-    final SecretsManagerClient client = secretsManagerClientFunc.apply(
-        hostSpec,
-        Region.of(this.secretKey.getValue2()));
+    // When invoked on a connecting thread, reuse (and lazily build) the client owned by
+    // connectInternal so retries share one client. Otherwise (e.g. the awsSecretsManager2 async
+    // refresh) build a client scoped to this single fetch and close it when done.
+    final ConnectClientHolder clientHolder = this.connectClientHolder.get();
+    final SecretsManagerClient client;
+    if (clientHolder != null) {
+      SecretsManagerClient reusedClient = clientHolder.client;
+      if (reusedClient == null) {
+        reusedClient = secretsManagerClientFunc.apply(hostSpec, Region.of(this.secretKey.getValue2()));
+        clientHolder.client = reusedClient;
+      }
+      client = reusedClient;
+    } else {
+      client = secretsManagerClientFunc.apply(hostSpec, Region.of(this.secretKey.getValue2()));
+    }
     final GetSecretValueRequest request = getSecretValueRequestFunc.apply(this.secretKey.getValue1());
 
     final GetSecretValueResponse valueResponse;
     try {
       valueResponse = client.getSecretValue(request);
     } finally {
-      client.close();
+      // A reused client is owned and closed by connectInternal; only close a single-fetch client.
+      if (clientHolder == null) {
+        client.close();
+      }
     }
 
     final JsonNode jsonNode = OBJECT_MAPPER.readTree(valueResponse.secretString());
@@ -538,6 +580,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   public static void clearCache() {
     CoreServicesContainer.getInstance().getStorageService().clear(Secret.class);
+  }
+
+  /**
+   * Mutable, single-connect holder for the {@link SecretsManagerClient} reused across retries.
+   * A non-null holder marks an active connect scope; its {@link #client} is built lazily on the
+   * first fetch and closed once by {@link #connectInternal}.
+   */
+  private static final class ConnectClientHolder {
+    private SecretsManagerClient client;
   }
 
   /**
