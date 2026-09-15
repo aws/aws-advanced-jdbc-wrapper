@@ -938,6 +938,8 @@ public class BlueGreenStatusMonitor {
    * <p>Note that it is derived only from the deployment id and the role, so it is the same for every
    * monitor ever created for this deployment and role. Anything cached under it therefore outlives an
    * individual monitor and has to be cleaned up when the monitor goes away.
+   *
+   * @return the cluster id this monitor's host list provider is registered under.
    */
   protected String getHostListProviderClusterId() {
     return String.format("%s::%s::%s", this.bgdId, this.role, BG_CLUSTER_ID);
