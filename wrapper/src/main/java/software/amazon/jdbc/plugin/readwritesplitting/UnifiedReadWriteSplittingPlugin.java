@@ -43,6 +43,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.Rebindable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.LoadBalancingPolicy;
@@ -420,11 +421,14 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
    * Reports that a read was served by the writer because no reader could be selected or reached.
    *
    * <p>The first occurrence on a connection is logged at {@code WARNING}: it means reads are not
-   * being offloaded at all, which is otherwise invisible because the fallback itself succeeds. A
-   * common cause is a host list in which no host carries the reader role, for example a
-   * comma-separated connection string without {@code singleWriterConnectionString=true}. Later
+   * being offloaded at all, which is otherwise invisible because the fallback itself succeeds. Later
    * occurrences drop to {@code FINE} so that a connection which keeps falling back does not flood
    * the log.
+   *
+   * <p>A static host list gets a message of its own. There, a list in which no host carries the
+   * reader role is a likely cause and is something the user can fix, so the message names
+   * {@code singleWriterConnectionString}. With a topology-backed host list the roles come from the
+   * database, that advice would be misleading, and the plain message is used instead.
    *
    * @param cause the failure that prevented a reader from being used
    */
@@ -434,7 +438,11 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     if (!LOGGER.isLoggable(level)) {
       return;
     }
-    LOGGER.log(level, Messages.get("ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailure",
+    final String messageKey =
+        this.pluginService.getHostListProvider() instanceof StaticHostListProvider
+            ? "ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailureStaticHostList"
+            : "ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailure";
+    LOGGER.log(level, Messages.get(messageKey,
         new Object[] {this.pluginService.getCurrentHostSpec().getHostAndPort(), cause.getMessage()}));
   }
 
