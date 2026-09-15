@@ -1439,6 +1439,8 @@ public class BlueGreenStatusProvider {
   /**
    * Returns the role whose monitor reports that the deployment is gone, or null while at least one
    * monitor still sees it. The caller has already established that the deployment is in CREATED.
+   *
+   * @return the role reporting the deployment as absent, or null if no monitor reports it absent.
    */
   protected @Nullable BlueGreenRole getRoleReportingDeploymentAbsent() {
     // The source monitor stays connected to the surviving blue environment, so it is the one that
