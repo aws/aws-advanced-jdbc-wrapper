@@ -200,7 +200,7 @@ public class StorageServiceImpl implements StorageService, CanReleaseResources, 
   /**
    * Discards a cached item whose source has reported that it is no longer valid.
    *
-   * <p>This deliberately does nothing beyond removing the item. {@link BatchingEventPublisher}
+   * <p>This deliberately does nothing beyond removing the item. {@code BatchingEventPublisher}
    * delivers events by iterating its subscribers, so an exception thrown here would stop the
    * remaining subscribers from being notified of the same event.
    *
