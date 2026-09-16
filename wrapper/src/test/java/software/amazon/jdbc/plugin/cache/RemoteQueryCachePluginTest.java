@@ -50,6 +50,8 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
@@ -465,11 +467,17 @@ public class RemoteQueryCachePluginTest {
     verify(mockTelemetryContext, times(3)).closeContext();
   }
 
-  @Test
-  void test_cachingMissAndHit_preparedStatement() throws Exception {
+  @ParameterizedTest
+  @CsvSource(value = {
+      "/* CACHE_PARAM(ttl=50s) */ select * from A|select * from A",
+      "'/* CACHE_PARAM(ttl=50s) */ select * from A', parameters:[]}|select * from A', parameters:[]}"
+  }, delimiter = '|', quoteCharacter = '"')
+  void test_cachingMissAndHit_preparedStatement(
+      final String driverQueryString,
+      final String expectedMainQuery) throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
-    final String expectedCacheKey = cacheKey("mysql", null, "", "select * from A");
+    final String expectedCacheKey = cacheKey("mysql", null, "", expectedMainQuery);
     // Query is a cache miss
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -486,7 +494,7 @@ public class RemoteQueryCachePluginTest {
     when(mockResult1.next()).thenReturn(true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1");
     when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement))
-        .thenReturn("/* CACHE_PARAM(ttl=50s) */ select * from A");
+        .thenReturn(driverQueryString);
 
     // Now query is a cache hit
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
