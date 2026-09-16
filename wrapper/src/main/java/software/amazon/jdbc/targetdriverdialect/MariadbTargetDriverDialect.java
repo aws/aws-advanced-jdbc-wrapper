@@ -34,7 +34,7 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.PropertyUtils;
 
-public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
+public class MariadbTargetDriverDialect extends MysqlFamilyTargetDriverDialect {
 
   private static final String PERMIT_MYSQL_SCHEME = "permitMysqlScheme";
   private static final String MYSQL_URL_PREFIX = "jdbc:mysql:";

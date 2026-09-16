@@ -223,7 +223,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     if (doesCloseTransaction && !doesSwitchAutoCommitFalseTrue) {
-      // PostgreSQL transaction-local state can revert on COMMIT/ROLLBACK. Do not query it here:
+      // Transaction-local authorization state can revert on COMMIT/ROLLBACK. Do not query it here:
       // with autoCommit=false, that query would immediately open a new transaction. Invalidate the
       // snapshot and reacquire it lazily the next time caching is safely eligible.
       sessionStateService.markAuthorizationStateUnknown();

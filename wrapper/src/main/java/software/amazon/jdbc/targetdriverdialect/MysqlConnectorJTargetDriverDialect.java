@@ -34,7 +34,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 
-public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDialect {
+public class MysqlConnectorJTargetDriverDialect extends MysqlFamilyTargetDriverDialect {
 
   private static final String DRIVER_CLASS_NAME = "com.mysql.cj.jdbc.Driver";
   private static final String DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlDataSource";

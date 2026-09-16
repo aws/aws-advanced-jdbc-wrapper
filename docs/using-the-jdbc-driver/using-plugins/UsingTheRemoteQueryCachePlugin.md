@@ -89,6 +89,7 @@ Query cache entry is indexed by a hashed caching key containing the following pa
 - Database username - different database users can have different permissions on various tables.
 - Database catalog/schema name - same table name can exist in a different database catalog/schema which contains different data
 - For PostgreSQL, the current session user, effective role, configured search path, and resolved search path
+- For MySQL and MariaDB, the database-reported session user, authenticated account, active roles, and current database
 - The SQL query string
 
 The PostgreSQL authorization session state is acquired from the database and updated after
@@ -97,17 +98,24 @@ statements such as `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, t
 state so that it is reacquired before caching resumes. If this state cannot be determined, the query
 bypasses both cache reads and cache writes.
 
+For MySQL and MariaDB, the authorization session state is acquired from the database and updated
+after statements such as `SET ROLE`, `USE`, and `RESET CONNECTION`. MySQL servers that do not
+support roles omit only the active-role component. Opaque statements and session-variable changes
+such as `CALL`, `DO`, `SET @variable`, and dynamically prepared SQL disable remote query caching
+for that connection.
+
 Callable statements, multi-statement queries, and queries executed inside a transaction bypass both
 cache reads and cache writes. Their results can depend on uncommitted data or session state that
 cannot be safely represented by the cache key.
 
 > [!WARNING]
-> The plugin does not automatically discover application-specific PostgreSQL settings or custom
-> session variables used by row-level security policies. If the wrapper observes a custom setting,
-> `set_config`, or an opaque callable statement that may change such state, remote query caching is
-> disabled for that connection. Changes hidden inside arbitrary SQL functions cannot be detected
-> reliably, so do not enable query caching for queries whose visibility depends on authorization
-> state outside the database username, catalog/schema, effective role, and search path currently
+> The plugin does not automatically discover application-specific PostgreSQL settings or
+> MySQL/MariaDB session variables used by authorization policies. If the wrapper observes a custom
+> setting, `set_config`, `SET @variable`, or an opaque statement that may change such state, remote
+> query caching is disabled for that connection. Changes hidden inside arbitrary SQL functions,
+> connection initialization commands, or target-driver APIs cannot be detected reliably. Do not
+> enable query caching for queries whose visibility depends on authorization state outside the
+> database-reported users, catalog/schema, active roles, and PostgreSQL search path currently
 > tracked by the plugin.
 
 ### Cache connection pooling

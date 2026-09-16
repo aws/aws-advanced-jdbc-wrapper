@@ -19,10 +19,15 @@ package software.amazon.jdbc.targetdriverdialect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Optional;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,9 +36,13 @@ import org.mariadb.jdbc.MariaDbDataSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.states.AuthorizationSessionState;
 
 public class MariadbTargetDriverDialectTests {
   @Mock private PreparedStatement mockStatement;
+  @Mock private Connection mockConnection;
+  @Mock private Statement mockJdbcStatement;
+  @Mock private ResultSet mockResultSet;
   private final MariadbTargetDriverDialect dialect = new MariadbTargetDriverDialect();
   private AutoCloseable closeable;
 
@@ -58,6 +67,25 @@ public class MariadbTargetDriverDialectTests {
         dialect.getSQLQueryString(mockStatement));
     assertNull(dialect.getSQLQueryString(mockStatement));
     assertNull(dialect.getSQLQueryString(mockStatement));
+  }
+
+  @Test
+  void readsAuthorizationSessionState() throws SQLException {
+    when(mockConnection.createStatement()).thenReturn(mockJdbcStatement);
+    when(mockJdbcStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getString(1)).thenReturn("application_user@client.example");
+    when(mockResultSet.getString(2)).thenReturn("application_user@%");
+    when(mockResultSet.getString(3)).thenReturn("tenant_a");
+    when(mockResultSet.getString(4)).thenReturn("orders");
+
+    assertEquals(Optional.of(new AuthorizationSessionState(
+        "application_user@client.example",
+        "application_user@%",
+        "",
+        "",
+        "tenant_a",
+        "orders")), dialect.readAuthorizationSessionState(mockConnection));
   }
 
   @Test

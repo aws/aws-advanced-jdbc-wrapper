@@ -21,6 +21,10 @@ import java.util.Objects;
 /**
  * An immutable snapshot of database session state that can affect authorization and object
  * resolution.
+ *
+ * <p>PostgreSQL exposes SET ROLE through {@code currentUser}. MySQL and MariaDB
+ * keep {@code currentUser} unchanged and expose activated roles separately.
+ * Therefore, both {@code currentUser} and {@code activeRoles} are required.
  */
 public final class AuthorizationSessionState {
 
@@ -28,16 +32,32 @@ public final class AuthorizationSessionState {
   private final String currentUser;
   private final String searchPath;
   private final String resolvedSearchPath;
+  // Active roles are separate from currentUser on MySQL and MariaDB.
+  // Empty for dialects, such as PostgreSQL, that represent the effective role through currentUser.
+  private final String activeRoles;
+  private final String currentDatabase;
 
   public AuthorizationSessionState(
       final String sessionUser,
       final String currentUser,
       final String searchPath,
       final String resolvedSearchPath) {
+    this(sessionUser, currentUser, searchPath, resolvedSearchPath, "", "");
+  }
+
+  public AuthorizationSessionState(
+      final String sessionUser,
+      final String currentUser,
+      final String searchPath,
+      final String resolvedSearchPath,
+      final String activeRoles,
+      final String currentDatabase) {
     this.sessionUser = Objects.requireNonNull(sessionUser);
     this.currentUser = Objects.requireNonNull(currentUser);
     this.searchPath = Objects.requireNonNull(searchPath);
     this.resolvedSearchPath = Objects.requireNonNull(resolvedSearchPath);
+    this.activeRoles = Objects.requireNonNull(activeRoles);
+    this.currentDatabase = Objects.requireNonNull(currentDatabase);
   }
 
   public String getSessionUser() {
@@ -56,6 +76,14 @@ public final class AuthorizationSessionState {
     return this.resolvedSearchPath;
   }
 
+  public String getActiveRoles() {
+    return this.activeRoles;
+  }
+
+  public String getCurrentDatabase() {
+    return this.currentDatabase;
+  }
+
   @Override
   public boolean equals(final Object other) {
     if (this == other) {
@@ -68,11 +96,19 @@ public final class AuthorizationSessionState {
     return this.sessionUser.equals(that.sessionUser)
         && this.currentUser.equals(that.currentUser)
         && this.searchPath.equals(that.searchPath)
-        && this.resolvedSearchPath.equals(that.resolvedSearchPath);
+        && this.resolvedSearchPath.equals(that.resolvedSearchPath)
+        && this.activeRoles.equals(that.activeRoles)
+        && this.currentDatabase.equals(that.currentDatabase);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.sessionUser, this.currentUser, this.searchPath, this.resolvedSearchPath);
+    return Objects.hash(
+        this.sessionUser,
+        this.currentUser,
+        this.searchPath,
+        this.resolvedSearchPath,
+        this.activeRoles,
+        this.currentDatabase);
   }
 }

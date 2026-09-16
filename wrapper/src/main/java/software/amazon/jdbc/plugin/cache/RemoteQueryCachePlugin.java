@@ -256,6 +256,11 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         appendCacheKeyPart(cacheKey, authorizationState.getCurrentUser());
         appendCacheKeyPart(cacheKey, authorizationState.getSearchPath());
         appendCacheKeyPart(cacheKey, authorizationState.getResolvedSearchPath());
+        // PostgreSQL SET ROLE changes current_user, while MySQL and MariaDB keep
+        // CURRENT_USER() unchanged and expose active roles separately through CURRENT_ROLE().
+        // Include both values to partition cache entries by the effective authorization context.
+        appendCacheKeyPart(cacheKey, authorizationState.getActiveRoles());
+        appendCacheKeyPart(cacheKey, authorizationState.getCurrentDatabase());
       }
       appendCacheKeyPart(cacheKey, query);
       return cacheKey.toString();
