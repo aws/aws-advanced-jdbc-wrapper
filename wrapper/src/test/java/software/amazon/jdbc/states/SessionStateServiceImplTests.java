@@ -32,6 +32,7 @@ import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -40,12 +41,14 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class SessionStateServiceImplTests {
 
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock Connection mockNewConnection;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
   Properties props = new Properties();
   SessionStateService sessionStateService;
   private AutoCloseable closeable;
@@ -70,6 +73,7 @@ public class SessionStateServiceImplTests {
   void beforeEach() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
     sessionStateService = spy(new SessionStateServiceImpl(mockPluginService, props));
   }
 
@@ -371,6 +375,28 @@ public class SessionStateServiceImplTests {
 
     verify(mockNewConnection, times(1)).setTypeMap(captorTypeMap.capture());
     assertEquals(value, captorTypeMap.getValue());
+  }
+
+  @Test
+  void test_AuthorizationStateIsReadAndInvalidatedOnConnectionSwitch() throws SQLException {
+    final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    when(mockTargetDriverDialect.readAuthorizationSessionState(mockConnection))
+        .thenReturn(Optional.of(authorizationState));
+
+    sessionStateService.refreshAuthorizationState();
+
+    assertEquals(Optional.of(authorizationState), sessionStateService.getAuthorizationState());
+
+    sessionStateService.begin();
+    sessionStateService.applyCurrentSessionState(mockNewConnection);
+    sessionStateService.complete();
+
+    assertEquals(Optional.empty(), sessionStateService.getAuthorizationState());
+    verify(mockTargetDriverDialect).readAuthorizationSessionState(mockConnection);
   }
 
   static Stream<Arguments> getBoolArguments() {

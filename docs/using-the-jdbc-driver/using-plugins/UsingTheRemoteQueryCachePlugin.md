@@ -88,9 +88,24 @@ In the case when the configured TTL is too long and causes stale data to be retu
 Query cache entry is indexed by a hashed caching key containing the following parts:
 - Database username - different database users can have different permissions on various tables.
 - Database catalog/schema name - same table name can exist in a different database catalog/schema which contains different data
+- For PostgreSQL, the current session user, effective role, configured search path, and resolved search path
 - The SQL query string
 
-All queries inside a multi-statement transaction are inherently atomically consistent. When a readonly query is executed inside a multi-statement transaction, we can’t serve the query result from the cache because of consistency guarantee such as read-after-write consistency for a transaction would be violated. As a result, we need to fetch the query result from the database, and do a best-effort update to the cache with the new result set we fetched from the database. That way the subsequent queries that are standalone can fetch the newly updated result from the cache.
+The PostgreSQL authorization session state is acquired from the database and updated after
+statements such as `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, their corresponding
+`RESET` commands, and transaction completion. Transaction completion invalidates transaction-local
+state so that it is reacquired before caching resumes. If this state cannot be determined, the query
+bypasses both cache reads and cache writes.
+
+Callable statements, multi-statement queries, and queries executed inside a transaction bypass both
+cache reads and cache writes. Their results can depend on uncommitted data or session state that
+cannot be safely represented by the cache key.
+
+> [!WARNING]
+> The plugin does not automatically discover application-specific PostgreSQL settings or custom
+> session variables used by row-level security policies. Do not enable query caching for queries
+> whose visibility depends on authorization state outside the database username, catalog/schema,
+> effective role, and search path currently tracked by the plugin.
 
 ### Cache connection pooling
 

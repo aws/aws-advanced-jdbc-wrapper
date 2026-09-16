@@ -101,6 +101,12 @@ public interface SessionStateService {
 
   void setupPristineTypeMap(final Map<String, Class<?>> map) throws SQLException;
 
+  Optional<AuthorizationSessionState> getAuthorizationState();
+
+  void refreshAuthorizationState() throws SQLException;
+
+  void markAuthorizationStateUnknown();
+
   void reset();
 
   // Begin session transfer process

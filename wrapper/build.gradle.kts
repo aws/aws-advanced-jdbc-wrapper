@@ -129,7 +129,8 @@ dependencies {
     testImplementation("org.jsoup:jsoup:1.23.2")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2")
-    testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
+//    testImplementation("io.valkey:valkey-glide:2.3.0:$nativeClassifier") // Note: to run unit tests on ARM Mac, change native classifier to "osx-x86_64"
+    testImplementation("io.valkey:valkey-glide:2.3.0:osx-x86_64")
     testImplementation("com.github.jsqlparser:jsqlparser:4.9") // Required by sqlParser/autoReadWriteSplitting and kmsEncryption plugins
     // XA transaction managers for XADataSource integration tests (both are exercised for compatibility).
     testImplementation("org.jboss.narayana.jta:narayana-jta:5.12.7.Final") // 5.11.x is the last Java 8-compatible line

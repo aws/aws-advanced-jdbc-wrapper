@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -40,7 +41,9 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -64,16 +67,28 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
+  private static final String CACHE_KEY_FORMAT_VERSION = "remote-query-cache:v2";
   private static final int MAX_TTL_SECONDS = 15552000; // 180 days (half a year)
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Arrays.asList(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+      Arrays.asList(JdbcMethod.CONNECTION_COMMIT.methodName,
+          JdbcMethod.CONNECTION_ROLLBACK.methodName,
+          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
           JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName)));
 
   private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
       new AwsWrapperProperty(
@@ -113,6 +128,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private final @Nullable TelemetryCounter totalQueryCounter;
   private final @Nullable TelemetryCounter malformedHintCounter;
   private final @Nullable TelemetryCounter cacheBypassCounter;
+  private final AtomicBoolean authorizationStateWarningLogged = new AtomicBoolean(false);
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -171,6 +187,27 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       DatabaseMetaData metadata = currentConn.getMetaData();
       // Fetch and record the schema name if the session state doesn't currently have it
       SessionStateService sessionStateService = pluginService.getSessionStateService();
+      @Nullable AuthorizationSessionState authorizationState = null;
+      if (pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
+        Optional<AuthorizationSessionState> currentAuthorizationState =
+            sessionStateService.getAuthorizationState();
+        if (!currentAuthorizationState.isPresent()) {
+          try {
+            sessionStateService.refreshAuthorizationState();
+          } catch (SQLException e) {
+            sessionStateService.markAuthorizationStateUnknown();
+            logAuthorizationStateUnavailable(e);
+            return null;
+          }
+          currentAuthorizationState = sessionStateService.getAuthorizationState();
+        }
+        if (!currentAuthorizationState.isPresent()) {
+          logAuthorizationStateUnavailable(null);
+          return null;
+        }
+        authorizationState = currentAuthorizationState.get();
+      }
+
       Optional<String> catalog = sessionStateService.getCatalog();
       Optional<String> schema = sessionStateService.getSchema();
       String catalogName = catalog.orElse(null);
@@ -200,26 +237,52 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           new Object[] {driverProtocol, dbProductName, dbProductVersion,
               finalCatalogName, finalSchemaName, dbUserName, driverName, driverVersion}));
 
-      // The cache key contains the schema name, username, and the query string. The catalog,
-      // schema, and query values may legitimately be null; they are rendered as the text "null"
-      // (identical to String.join's own handling of null elements), preserving previous behavior.
-      final String[] words = {
-          catalogName == null ? "null" : catalogName,
-          schemaName == null ? "null" : schemaName,
-          dbUserName,
-          query == null ? "null" : query};
-      return String.join("_", words);
+      // Use a new versioned, length-prefixed key format so old entries created without
+      // authorization state can never be reused and component boundaries are unambiguous.
+      final StringBuilder cacheKey = new StringBuilder();
+      appendCacheKeyPart(cacheKey, CACHE_KEY_FORMAT_VERSION);
+      appendCacheKeyPart(cacheKey, catalogName);
+      appendCacheKeyPart(cacheKey, schemaName);
+      appendCacheKeyPart(cacheKey, dbUserName);
+      if (authorizationState != null) {
+        appendCacheKeyPart(cacheKey, authorizationState.getSessionUser());
+        appendCacheKeyPart(cacheKey, authorizationState.getCurrentUser());
+        appendCacheKeyPart(cacheKey, authorizationState.getSearchPath());
+        appendCacheKeyPart(cacheKey, authorizationState.getResolvedSearchPath());
+      }
+      appendCacheKeyPart(cacheKey, query);
+      return cacheKey.toString();
     } catch (SQLException e) {
       LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.errorGettingSessionState"), e);
       return null;
     }
   }
 
-  private @Nullable ResultSet fetchResultSetFromCache(@Nullable String queryStr) throws SQLException {
-    String cacheQueryKey = getCacheQueryKey(queryStr);
-    if (cacheQueryKey == null) {
-      return null; // Treat this as a cache miss
+  private void logAuthorizationStateUnavailable(final @Nullable SQLException exception) {
+    if (!this.authorizationStateWarningLogged.compareAndSet(false, true)) {
+      return;
     }
+    if (exception == null) {
+      LOGGER.warning(Messages.get("RemoteQueryCachePlugin.authorizationStateUnavailable"));
+    } else {
+      LOGGER.log(
+          Level.WARNING,
+          Messages.get("RemoteQueryCachePlugin.authorizationStateUnavailable"),
+          exception);
+    }
+  }
+
+  private static void appendCacheKeyPart(
+      final StringBuilder cacheKey,
+      final @Nullable String value) {
+    if (value == null) {
+      cacheKey.append("-1:");
+      return;
+    }
+    cacheKey.append(value.length()).append(':').append(value);
+  }
+
+  private @Nullable ResultSet fetchResultSetFromCache(String cacheQueryKey) throws SQLException {
     byte[] cachedResult = cacheConnection.readFromCache(cacheQueryKey);
     if (cachedResult == null) {
       return null;
@@ -238,12 +301,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
    * The ResultSet object passed in would be consumed to create a CacheResultSet object. It is returned
    * for consumer consumption.
    */
-  private ResultSet cacheResultSet(@Nullable String queryStr, ResultSet rs, int expiry) throws SQLException {
-    // Write the resultSet into the cache as a single key
-    String cacheQueryKey = getCacheQueryKey(queryStr);
-    if (cacheQueryKey == null) {
-      return rs; // Treat this condition as un-cacheable
-    }
+  private ResultSet cacheResultSet(String cacheQueryKey, ResultSet rs, int expiry) throws SQLException {
+    // Write the resultSet into the cache as a single key.
     try {
       CachedResultSet crs = new CachedResultSet(rs, this.deserializationConfig);
       byte[] jsonString = crs.serializeIntoByteArray();
@@ -360,13 +419,11 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     boolean needToCache = false;
     final String sql = this.getQuery(methodInvokeOn, jdbcMethodArgs);
     TelemetryContext cacheContext = null;
-    TelemetryContext dbContext = null;
-    // If the query is cacheable, we try to fetch the query result from the cache.
-    boolean isInTransaction = pluginService.isInTransaction();
     // Get the query hint part in front of the query itself
     String mainQuery = sql; // The main part of the query with the query hint prefix trimmed
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
+    String cacheQueryKey = null;
     // Queries longer than 16KB is not cacheable
     if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize)
         && sql.contains(QUERY_HINT_START_PATTERN)) {
@@ -377,14 +434,30 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       }
     }
 
+    final boolean isCallableStatement = methodName.startsWith("CallableStatement.");
+    final boolean isSingleStatement = isSingleStatement(mainQuery);
+
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
-    if (!isInTransaction && (configuredQueryTtl != null)) {
+    if (configuredQueryTtl != null
+        && !isCallableStatement
+        && isSingleStatement
+        && !shouldBypassCacheForTransaction()) {
+      final TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
+      // A missing dialect means the authorization impact of the SQL cannot be determined.
+      // Fail closed by bypassing the cache.
+      if (targetDriverDialect != null
+          && !targetDriverDialect.mayChangeAuthorizationSessionState(mainQuery)) {
+        cacheQueryKey = getCacheQueryKey(mainQuery);
+      }
+    }
+
+    if (cacheQueryKey != null) {
       cacheContext = telemetryFactory.openTelemetryContext(
           TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.NESTED);
       Exception cacheException = null;
       try {
-        result = fetchResultSetFromCache(mainQuery);
+        result = fetchResultSetFromCache(cacheQueryKey);
         if (result == null) {
           // Cache miss. Need to fetch result from the database
           needToCache = true;
@@ -421,7 +494,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       incrCounter(cacheBypassCounter);
     }
 
-    dbContext = telemetryFactory.openTelemetryContext(
+    final TelemetryContext dbContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_DATABASE_QUERY, TelemetryTraceLevel.NESTED);
 
     try {
@@ -435,20 +508,14 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       }
     }
 
-    // We need to cache the query result if we got a cache miss for the query result,
-    // or the query is cacheable and executed inside a transaction.
-    if (isInTransaction && (configuredQueryTtl != null)) {
-      needToCache = true;
-    }
-    // needToCache implies configuredQueryTtl is non-null (set only on the cacheable paths above),
-    // and result is the non-null ResultSet returned by the JDBC call; the guards below satisfy the
-    // nullness checker without changing behavior on the reachable paths.
-    if (needToCache) {
+    // Cache only results fetched after a cache miss outside a transaction. Reuse the exact key
+    // used for the lookup so authorization state cannot differ between read and write derivation.
+    if (needToCache && cacheQueryKey != null) {
       final ResultSet dbResult = result;
       final Integer ttl = configuredQueryTtl;
       if (dbResult != null && ttl != null) {
         try {
-          result = cacheResultSet(mainQuery, dbResult, ttl);
+          result = cacheResultSet(cacheQueryKey, dbResult, ttl);
         } catch (final SQLException ex) {
           // Log and re-throw exception
           LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.sqlExceptionWhenCaching"), ex);
@@ -458,6 +525,34 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
 
     return resultClass.cast(result);
+  }
+
+  private static boolean isSingleStatement(final @Nullable String sql) {
+    if (StringUtils.isNullOrEmpty(sql)) {
+      return false;
+    }
+
+    String candidate = sql.trim();
+    if (candidate.endsWith(";")) {
+      candidate = candidate.substring(0, candidate.length() - 1);
+    }
+    // A semicolon inside a literal can cause a conservative cache bypass, which is safe.
+    return candidate.indexOf(';') < 0;
+  }
+
+  private boolean shouldBypassCacheForTransaction() {
+    if (pluginService.isInTransaction() || pluginService.isXaTransactionActive()) {
+      return true;
+    }
+    try {
+      // With autoCommit disabled, even the first statement belongs to a transaction although the
+      // wrapper may not have observed an executing statement yet.
+      final @Nullable Connection currentConnection = pluginService.getCurrentConnection();
+      return currentConnection == null || !currentConnection.getAutoCommit();
+    } catch (SQLException e) {
+      // Fail closed if transaction state cannot be determined.
+      return true;
+    }
   }
 
   private void incrCounter(@Nullable TelemetryCounter counter) {

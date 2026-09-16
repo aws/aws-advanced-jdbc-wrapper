@@ -122,7 +122,7 @@ public class SqlMethodAnalyzer {
    * <p>Each comment is replaced by a single space so that adjacent tokens do not merge, matching
    * the behavior of the block-comment handling this replaces.
    */
-  private static String stripComments(final String sql) {
+  public static String stripComments(final String sql) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
