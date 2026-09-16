@@ -202,6 +202,20 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    final @Nullable String sql = getExecutedSql(
+        targetDriverDialect,
+        methodInvokeOn,
+        jdbcMethodArgs);
+    if (methodName.endsWith(".executeBatch")
+        || methodName.startsWith("CallableStatement.execute")
+        || targetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql)) {
+      // Custom settings and opaque calls can change authorization context that is not represented
+      // by AuthorizationSessionState. Once observed, caching must remain disabled for this
+      // connection rather than risk reusing results across security contexts.
+      sessionStateService.markAuthorizationStateUntracked();
+      return;
+    }
+
     // Authorization state is initialized lazily by a consumer such as the remote query cache.
     // Avoid adding a database round trip to every wrapper connection that does not use it.
     if (!sessionStateService.getAuthorizationState().isPresent()) {
@@ -216,14 +230,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return;
     }
 
-    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue
-        || methodName.endsWith(".executeBatch")
-        || methodName.startsWith("CallableStatement.execute");
-
-    final @Nullable String sql = getExecutedSql(
-        targetDriverDialect,
-        methodInvokeOn,
-        jdbcMethodArgs);
+    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue;
     shouldRefresh |= targetDriverDialect.mayChangeAuthorizationSessionState(sql);
     if (!shouldRefresh) {
       return;

@@ -63,7 +63,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final Pattern AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"
-          + "SET\\s+(?:ROLE\\b|SESSION\\s+AUTHORIZATION\\b|"
+          + "SET\\s+(?:(?:(?:SESSION|LOCAL)\\s+)?ROLE\\b|"
+          + "(?:(?:SESSION|LOCAL)\\s+)?SESSION\\s+AUTHORIZATION\\b|"
           + "(?:(?:SESSION|LOCAL)\\s+)?(?:SEARCH_PATH\\b|\"SEARCH_PATH\"))"
           + "|RESET\\s+(?:ROLE\\b|SESSION\\s+AUTHORIZATION\\b|"
           + "SEARCH_PATH\\b|\"SEARCH_PATH\"|ALL\\b)"
@@ -76,6 +77,15 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final Pattern SET_CONFIG_PATTERN =
       Pattern.compile("\\bSET_CONFIG\\s*\\(", Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
+      "(?:^|;)\\s*(?:"
+          + "(?:CALL|DO)\\b"
+          + "|(?:SET|RESET)\\s+(?:(?:SESSION|LOCAL)\\s+)?"
+          + "(?:\"(?:[^\"]|\"\")*\\.(?:[^\"]|\"\")*\""
+          + "|[A-Z_][A-Z0-9_$]*\\s*\\.\\s*[A-Z_][A-Z0-9_$]*)"
+          + ")",
+      Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
@@ -292,7 +302,19 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
     final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
     return AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
-        || SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find();
+        || SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
+        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
+  }
+
+  @Override
+  public boolean mayChangeUntrackedAuthorizationSessionState(final @Nullable String sql) {
+    if (StringUtils.isNullOrEmpty(sql)) {
+      return false;
+    }
+
+    final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
+    return SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
+        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
   }
 
   @Override

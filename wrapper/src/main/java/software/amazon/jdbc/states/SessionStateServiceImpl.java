@@ -391,6 +391,17 @@ public class SessionStateServiceImpl implements SessionStateService {
   }
 
   @Override
+  public boolean hasUntrackedAuthorizationState() {
+    return this.sessionState.hasUntrackedAuthorizationState;
+  }
+
+  @Override
+  public void markAuthorizationStateUntracked() {
+    this.sessionState.hasUntrackedAuthorizationState = true;
+    this.markAuthorizationStateUnknown();
+  }
+
+  @Override
   public void reset() {
     this.sessionState.autoCommit.reset();
     this.sessionState.readOnly.reset();
@@ -401,6 +412,7 @@ public class SessionStateServiceImpl implements SessionStateService {
     this.sessionState.transactionIsolation.reset();
     this.sessionState.typeMap.reset();
     this.sessionState.authorizationState.reset();
+    this.sessionState.hasUntrackedAuthorizationState = false;
   }
 
   @Override

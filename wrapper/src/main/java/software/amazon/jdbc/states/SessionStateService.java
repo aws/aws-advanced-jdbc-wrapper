@@ -107,6 +107,10 @@ public interface SessionStateService {
 
   void markAuthorizationStateUnknown();
 
+  boolean hasUntrackedAuthorizationState();
+
+  void markAuthorizationStateUntracked();
+
   void reset();
 
   // Begin session transfer process

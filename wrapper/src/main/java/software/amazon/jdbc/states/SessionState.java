@@ -29,6 +29,7 @@ public class SessionState {
   public SessionStateField<Integer> transactionIsolation = new SessionStateField<>();
   public SessionStateField<Map<String, Class<?>>> typeMap = new SessionStateField<>();
   public SessionStateField<AuthorizationSessionState> authorizationState = new SessionStateField<>();
+  public boolean hasUntrackedAuthorizationState;
 
   public SessionState copy() {
     final SessionState newSessionState = new SessionState();
@@ -40,6 +41,7 @@ public class SessionState {
     newSessionState.networkTimeout = this.networkTimeout.copy();
     newSessionState.transactionIsolation = this.transactionIsolation.copy();
     newSessionState.authorizationState = this.authorizationState.copy();
+    newSessionState.hasUntrackedAuthorizationState = this.hasUntrackedAuthorizationState;
 
     // typeMap requires a special care since it uses map, and it needs to be properly cloned.
     if (this.typeMap.getValue().isPresent()) {

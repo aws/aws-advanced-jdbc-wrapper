@@ -236,8 +236,34 @@ class DefaultConnectionPluginTest {
         new Object[] {"SET ROLE tenant_a"});
 
     verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect)
+        .mayChangeUntrackedAuthorizationSessionState("SET ROLE tenant_a");
     verify(mockSessionStateService, never()).refreshAuthorizationState();
     verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+  }
+
+  @Test
+  void testExecute_marksCustomAuthorizationStateUntrackedBeforeInitialization()
+      throws SQLException {
+    final Statement statement = mock(Statement.class);
+    final String sql = "SET app.tenant_id = 'tenant-a'";
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockTargetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql))
+        .thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        statement,
+        "Statement.execute",
+        mockSqlFunction,
+        new Object[] {sql});
+
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).getAuthorizationState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
   }
 
   @Test

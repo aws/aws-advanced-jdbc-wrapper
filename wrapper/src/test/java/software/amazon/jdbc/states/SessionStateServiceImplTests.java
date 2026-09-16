@@ -17,6 +17,8 @@
 package software.amazon.jdbc.states;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -397,6 +399,20 @@ public class SessionStateServiceImplTests {
 
     assertEquals(Optional.empty(), sessionStateService.getAuthorizationState());
     verify(mockTargetDriverDialect).readAuthorizationSessionState(mockConnection);
+  }
+
+  @Test
+  void test_UntrackedAuthorizationStateRemainsUnsafeUntilReset() {
+    assertFalse(sessionStateService.hasUntrackedAuthorizationState());
+
+    sessionStateService.markAuthorizationStateUntracked();
+
+    assertTrue(sessionStateService.hasUntrackedAuthorizationState());
+    assertEquals(Optional.empty(), sessionStateService.getAuthorizationState());
+
+    sessionStateService.reset();
+
+    assertFalse(sessionStateService.hasUntrackedAuthorizationState());
   }
 
   static Stream<Arguments> getBoolArguments() {

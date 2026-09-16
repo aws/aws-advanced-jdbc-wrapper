@@ -846,6 +846,33 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
+  void test_execute_bypassesCacheForUntrackedAuthorizationState() throws Exception {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.hasUntrackedAuthorizationState()).thenReturn(true);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    assertSame(mockResult1, result);
+    verify(mockSessionStateService, never()).getAuthorizationState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockCacheBypassCounter).inc();
+  }
+
+  @Test
   void test_execute_bypassesCacheForAuthorizationStateChangingQuery() throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);

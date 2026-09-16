@@ -129,6 +129,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private final @Nullable TelemetryCounter malformedHintCounter;
   private final @Nullable TelemetryCounter cacheBypassCounter;
   private final AtomicBoolean authorizationStateWarningLogged = new AtomicBoolean(false);
+  private final AtomicBoolean untrackedAuthorizationStateWarningLogged = new AtomicBoolean(false);
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -189,6 +190,10 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       SessionStateService sessionStateService = pluginService.getSessionStateService();
       @Nullable AuthorizationSessionState authorizationState = null;
       if (pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
+        if (sessionStateService.hasUntrackedAuthorizationState()) {
+          logUntrackedAuthorizationState();
+          return null;
+        }
         Optional<AuthorizationSessionState> currentAuthorizationState =
             sessionStateService.getAuthorizationState();
         if (!currentAuthorizationState.isPresent()) {
@@ -269,6 +274,12 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           Level.WARNING,
           Messages.get("RemoteQueryCachePlugin.authorizationStateUnavailable"),
           exception);
+    }
+  }
+
+  private void logUntrackedAuthorizationState() {
+    if (this.untrackedAuthorizationStateWarningLogged.compareAndSet(false, true)) {
+      LOGGER.warning(Messages.get("RemoteQueryCachePlugin.untrackedAuthorizationState"));
     }
   }
 

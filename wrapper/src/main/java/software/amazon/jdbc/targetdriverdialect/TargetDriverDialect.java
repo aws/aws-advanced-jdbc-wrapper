@@ -125,6 +125,14 @@ public interface TargetDriverDialect {
     return false;
   }
 
+  /**
+   * Returns whether the SQL can change authorization-affecting session state that this dialect
+   * cannot represent in an {@link AuthorizationSessionState}.
+   */
+  default boolean mayChangeUntrackedAuthorizationSessionState(final @Nullable String sql) {
+    return false;
+  }
+
   void registerDataType(final @NonNull Connection connection,  final @NonNull String typeName,
       final @NonNull String className)
       throws SQLException;

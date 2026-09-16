@@ -113,15 +113,50 @@ public class PgTargetDriverDialectTests {
   @ParameterizedTest
   @ValueSource(strings = {
       "SET ROLE tenant_a",
+      "SET SESSION ROLE tenant_a",
+      "SET LOCAL ROLE tenant_a",
+      "SET SESSION SESSION AUTHORIZATION tenant_a",
+      "SET LOCAL SESSION AUTHORIZATION tenant_a",
       "SET LOCAL search_path TO tenant_a, public",
       "RESET ROLE",
       "DISCARD ALL",
       "CALL switch_tenant()",
+      "SET app.tenant_id = 'tenant-a'",
+      "RESET app.tenant_id",
       "SELECT set_config('app.tenant_id', 'tenant-a', false)",
       "SELECT 1; /* change tenant */ SET ROLE tenant_a"
   })
   void detectsStatementsThatMayChangeAuthorizationSessionState(final String sql) {
     assertTrue(dialect.mayChangeAuthorizationSessionState(sql));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+      "SET app.tenant_id = 'tenant-a'",
+      "SET LOCAL \"app.tenant_id\" TO 'tenant-a'",
+      "RESET app.tenant_id",
+      "CALL switch_tenant()",
+      "DO $$ BEGIN PERFORM set_config('app.tenant_id', 'tenant-a', false); END $$",
+      "SELECT set_config('app.tenant_id', 'tenant-a', false)"
+  })
+  void detectsStatementsThatMayChangeUntrackedAuthorizationSessionState(final String sql) {
+    assertTrue(dialect.mayChangeUntrackedAuthorizationSessionState(sql));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+      "SET ROLE tenant_a",
+      "SET SESSION ROLE tenant_a",
+      "SET LOCAL ROLE tenant_a",
+      "SET SESSION SESSION AUTHORIZATION tenant_a",
+      "SET LOCAL SESSION AUTHORIZATION tenant_a",
+      "SET LOCAL search_path TO tenant_a, public",
+      "RESET ROLE",
+      "SELECT * FROM orders",
+      "SELECT 'SET app.tenant_id = tenant-a'"
+  })
+  void ignoresStatementsThatDoNotChangeUntrackedAuthorizationSessionState(final String sql) {
+    assertFalse(dialect.mayChangeUntrackedAuthorizationSessionState(sql));
   }
 
   @ParameterizedTest

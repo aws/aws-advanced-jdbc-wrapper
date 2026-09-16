@@ -103,9 +103,12 @@ cannot be safely represented by the cache key.
 
 > [!WARNING]
 > The plugin does not automatically discover application-specific PostgreSQL settings or custom
-> session variables used by row-level security policies. Do not enable query caching for queries
-> whose visibility depends on authorization state outside the database username, catalog/schema,
-> effective role, and search path currently tracked by the plugin.
+> session variables used by row-level security policies. If the wrapper observes a custom setting,
+> `set_config`, or an opaque callable statement that may change such state, remote query caching is
+> disabled for that connection. Changes hidden inside arbitrary SQL functions cannot be detected
+> reliably, so do not enable query caching for queries whose visibility depends on authorization
+> state outside the database username, catalog/schema, effective role, and search path currently
+> tracked by the plugin.
 
 ### Cache connection pooling
 
