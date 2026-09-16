@@ -110,6 +110,7 @@ Behavior notes:
 - Only queries that are already routed to a reader are balanced. Writes, `SELECT ... FOR UPDATE`, `/*@writer*/`-hinted, and `/*@keep*/`-hinted statements are unaffected.
 - Balancing is suppressed under the same conditions as normal routing: while a transaction is open or autocommit is disabled, the statement stays on the current connection. This preserves transactional guarantees.
 - This is a feature of the `autoReadWriteSplitting` plugin only. The `readWriteSplitting`, `srw`, and `gdbReadWriteSplitting` plugins are not affected by these parameters.
+- Both `Statement` and `PreparedStatement` reads are balanced. Honoring a rotation means re-creating the statement on the newly selected reader, so balancing depends on [`allowStatementRecreationOnConnectionSwitch`](./UsingTheReadWriteSplittingPlugin.md#configuration-parameters) being enabled (it is by default). A statement that cannot be re-created - one carrying a stream/`Reader`/LOB parameter, or with a pending batch - simply runs on its current reader; the read is served normally, it is just not balanced.
 
 > [!IMPORTANT]
 > Query-level load balancing can switch the physical connection on every read query. Enabling the [internal connection pool](./UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) is strongly recommended so that switching reuses pooled connections instead of opening a new physical connection per query. Without it, high query rates can cause significant connection churn.

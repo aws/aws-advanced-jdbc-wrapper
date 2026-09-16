@@ -72,6 +72,7 @@ public class QueryLevelLoadBalancingTest {
   @Mock private Connection reader1Conn;
   @Mock private Connection reader2Conn;
   @Mock private Statement preparedStatement;
+  @Mock private Statement plainStatement;
   @Mock private JdbcCallable<Statement, SQLException> prepareFunc;
 
   private final HostSpec writerHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -157,10 +158,8 @@ public class QueryLevelLoadBalancingTest {
     verify(reader1Conn, never()).close();
   }
 
-  private int countReuseWarnings(final Properties props, final int executeCount) throws SQLException {
-    when(preparedStatement.isClosed()).thenReturn(false);
-    when(preparedStatement.getConnection()).thenReturn(reader1Conn);
-
+  /** Runs {@code action} and returns how many WARNING records the plugin logged while it ran. */
+  private int countWarnings(final ThrowingRunnable action) throws SQLException {
     final Logger logger = Logger.getLogger(UnifiedReadWriteSplittingPlugin.class.getName());
     final AtomicInteger warnings = new AtomicInteger(0);
     final Handler handler = new Handler() {
@@ -181,16 +180,30 @@ public class QueryLevelLoadBalancingTest {
     };
     logger.addHandler(handler);
     try {
+      action.run();
+    } finally {
+      logger.removeHandler(handler);
+    }
+    return warnings.get();
+  }
+
+  @FunctionalInterface
+  private interface ThrowingRunnable {
+    void run() throws SQLException;
+  }
+
+  private int countReuseWarnings(final Properties props, final int executeCount) throws SQLException {
+    when(preparedStatement.isClosed()).thenReturn(false);
+    when(preparedStatement.getConnection()).thenReturn(reader1Conn);
+
+    return countWarnings(() -> {
       final AutoReadWriteSplittingPlugin plugin = new AutoReadWriteSplittingPlugin(pluginService, props);
       for (int i = 0; i < executeCount; i++) {
         plugin.execute(
             Statement.class, SQLException.class, preparedStatement,
             JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName, prepareFunc, new Object[] {});
       }
-    } finally {
-      logger.removeHandler(handler);
-    }
-    return warnings.get();
+    });
   }
 
   @Test
@@ -205,6 +218,92 @@ public class QueryLevelLoadBalancingTest {
   void reusedPreparedStatement_withoutQueryLevelLb_noWarning() throws SQLException {
     // Query-level LB disabled: reusing a prepared statement is normal, so no warning.
     assertEquals(0, countReuseWarnings(new Properties(), 3));
+  }
+
+  /**
+   * Executes a plain {@code Statement.executeQuery(sql)}. Its SQL is only known at execute time, so
+   * it is never a routing point and the role is resolved by the bound-statement path.
+   */
+  private void executePlainStatement(final Properties props, final int executeCount) throws SQLException {
+    final UnifiedReadWriteSplittingPlugin plugin = new AutoReadWriteSplittingPlugin(pluginService, props);
+    for (int i = 0; i < executeCount; i++) {
+      plugin.execute(
+          Statement.class, SQLException.class, plainStatement,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName, prepareFunc, new Object[] {"select 1"});
+    }
+  }
+
+  private static Properties queryLevelLbProps() {
+    final Properties props = new Properties();
+    props.setProperty(UnifiedReadWriteSplittingPlugin.QUERY_LEVEL_LOAD_BALANCING.name, "true");
+    return props;
+  }
+
+  @Test
+  void plainStatement_onReader_withQueryLevelLb_rotatesAndRebinds() throws SQLException {
+    final Rebindable rebindHandle = mock(Rebindable.class);
+    when(rebindHandle.canRebind()).thenReturn(true);
+    callContext.setRebindHandle(rebindHandle);
+
+    executePlainStatement(queryLevelLbProps(), 1);
+
+    // A plain Statement is not a routing point, so without the bound-statement rotation this read
+    // would have stayed on reader-1 and never been balanced.
+    verify(pluginService).setCurrentConnection(eq(reader2Conn), eq(reader2Host));
+    verify(rebindHandle).rebind(reader2Conn);
+  }
+
+  @Test
+  void plainStatement_onReader_withoutQueryLevelLb_doesNotRotate() throws SQLException {
+    final Rebindable rebindHandle = mock(Rebindable.class);
+    when(rebindHandle.canRebind()).thenReturn(true);
+    callContext.setRebindHandle(rebindHandle);
+
+    executePlainStatement(new Properties(), 1);
+
+    verify(pluginService, never()).setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    verify(rebindHandle, never()).rebind(any(Connection.class));
+  }
+
+  @Test
+  void plainStatement_inTransaction_doesNotRotate() throws SQLException {
+    when(pluginService.isInTransaction()).thenReturn(true);
+    final Rebindable rebindHandle = mock(Rebindable.class);
+    when(rebindHandle.canRebind()).thenReturn(true);
+    callContext.setRebindHandle(rebindHandle);
+
+    executePlainStatement(queryLevelLbProps(), 1);
+
+    verify(pluginService, never()).setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    verify(rebindHandle, never()).rebind(any(Connection.class));
+  }
+
+  /**
+   * A rotation that cannot be applied must stay quiet: the statement simply runs where it is, and
+   * this path is reached on every read, so warning would flood the log.
+   */
+  @Test
+  void plainStatement_notRebindable_skipsRotationWithoutWarning() throws SQLException {
+    final Rebindable rebindHandle = mock(Rebindable.class);
+    when(rebindHandle.canRebind()).thenReturn(false);
+    callContext.setRebindHandle(rebindHandle);
+
+    assertEquals(0, countWarnings(() -> executePlainStatement(queryLevelLbProps(), 3)));
+    verify(pluginService, never()).setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    verify(rebindHandle, never()).rebind(any(Connection.class));
+  }
+
+  @Test
+  void plainStatement_rebindingDisabled_skipsRotationWithoutWarning() throws SQLException {
+    final Rebindable rebindHandle = mock(Rebindable.class);
+    callContext.setRebindHandle(rebindHandle);
+
+    final Properties props = queryLevelLbProps();
+    props.setProperty(
+        UnifiedReadWriteSplittingPlugin.ALLOW_STATEMENT_RECREATION_ON_CONNECTION_SWITCH.name, "false");
+
+    assertEquals(0, countWarnings(() -> executePlainStatement(props, 3)));
+    verify(pluginService, never()).setCurrentConnection(any(Connection.class), any(HostSpec.class));
   }
 
   @Test
