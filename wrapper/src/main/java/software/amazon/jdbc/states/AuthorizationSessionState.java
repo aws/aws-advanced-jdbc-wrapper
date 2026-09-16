@@ -17,6 +17,7 @@
 package software.amazon.jdbc.states;
 
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An immutable snapshot of database session state that can affect authorization and object
@@ -85,7 +86,7 @@ public final class AuthorizationSessionState {
   }
 
   @Override
-  public boolean equals(final Object other) {
+  public boolean equals(final @Nullable Object other) {
     if (this == other) {
       return true;
     }
