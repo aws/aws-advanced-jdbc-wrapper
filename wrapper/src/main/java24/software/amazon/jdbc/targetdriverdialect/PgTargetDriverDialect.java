@@ -61,10 +61,21 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       XA_DS_CLASS_NAME));
 
   /**
-   * Properties that make the PostgreSQL driver reject a node whose role does not match. {@code
-   * targetServerType} makes the driver run {@code SHOW transaction_read_only} after authenticating and
-   * fail the connection when the server is read-only, so a monitoring connection aimed at a reader or
-   * at a not-yet-promoted Blue/Green replica would be refused.
+   * Properties that make the PostgreSQL driver reject a node whose role does not match what the
+   * application asked for.
+   *
+   * <p>Whether {@code targetServerType} rejects a node depends on its value, not just on the node
+   * being read-only. After authenticating, the driver establishes whether the server accepts writes
+   * and compares that against the requested type: {@code primary} (and its {@code master} alias)
+   * refuses a read-only server, {@code secondary} refuses a writable one, {@code preferPrimary} and
+   * {@code preferSecondary} express a preference without refusing, and the default {@code any}
+   * refuses nothing.
+   *
+   * <p>The wrapper's monitors each target one specific node deliberately, so any value that refuses
+   * a node can break them in one direction or the other: under {@code primary} a monitor aimed at a
+   * reader or at a not-yet-promoted Blue/Green replica is refused, and under {@code secondary} a
+   * monitor aimed at the writer is. The property is therefore removed from monitoring connection
+   * properties whatever its value, rather than inspected.
    */
   private static final Set<String> HOST_SELECTION_PROPERTY_NAMES =
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("targetServerType")));

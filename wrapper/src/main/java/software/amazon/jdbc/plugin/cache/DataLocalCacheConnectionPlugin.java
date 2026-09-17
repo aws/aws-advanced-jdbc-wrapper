@@ -59,17 +59,22 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
       "dataCacheTriggerCondition", null,
       "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 
+  // Both bounds are declared nonNegative() so a negative value fails fast when the property is
+  // read, matching how the rest of the driver treats durations and sizes. Without it, a user who
+  // wrote -1 expecting "unlimited" would silently get the opposite of what they asked for: the
+  // sentinel meaning is carried by 0, not by a negative number.
   public static final AwsWrapperProperty DATA_CACHE_TTL_MS = new AwsWrapperProperty(
       "dataCacheTtlMs", "300000",
       "Time in milliseconds that a cached result set stays valid. A cached result is not refreshed "
           + "by writes, so this is the longest an application can observe stale data. Set to 0 to "
-          + "keep entries until the cache is cleared, accepting unbounded staleness.");
+          + "keep entries until the cache is cleared, accepting unbounded staleness.").nonNegative();
 
   public static final AwsWrapperProperty DATA_CACHE_MAX_SIZE = new AwsWrapperProperty(
       "dataCacheMaxSize", "1000",
       "Maximum number of distinct SQL statements whose results are held in the cache. When the "
           + "limit is reached, expired entries are purged; if the cache is still full, further "
-          + "results are returned to the caller without being cached.");
+          + "results are returned to the caller without being cached. Set to 0 for no limit.")
+      .nonNegative();
 
   /**
    * Process-wide cache of materialized query results, keyed on the SQL text. Each entry carries its
@@ -96,10 +101,12 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.getString(props);
 
+    // getLong rejects a negative value, so only 0 (the documented "no limit" / "never expires"
+    // opt-out) and positive values reach the checks below.
     final long ttlMs = DATA_CACHE_TTL_MS.getLong(props);
-    this.ttlNanos = ttlMs <= 0 ? CacheEntry.NO_EXPIRY : TimeUnit.MILLISECONDS.toNanos(ttlMs);
+    this.ttlNanos = ttlMs == 0 ? CacheEntry.NO_EXPIRY : TimeUnit.MILLISECONDS.toNanos(ttlMs);
     final long configuredMaxSize = DATA_CACHE_MAX_SIZE.getLong(props);
-    this.maxSize = configuredMaxSize <= 0
+    this.maxSize = configuredMaxSize == 0
         ? Integer.MAX_VALUE
         : (int) Math.min(configuredMaxSize, Integer.MAX_VALUE);
 

@@ -1211,6 +1211,11 @@ Caches SQL `ResultSet`s in-process for queries matching a regex.
 
 > This is a read-through cache with **no invalidation**. Do not recommend it for data an application reads back after writing. For a shared, per-query opt-in cache use `remoteQueryCache` instead. See [Data Local Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md).
 
+> [!WARNING]\
+> Setting `dataCacheTtlMs=0` and `dataCacheMaxSize=0` together leaves the cache unbounded in both staleness and size. That was the behaviour before version 4.4.0 and is not recommended.
+
+Both `dataCacheTtlMs` and `dataCacheMaxSize` reject negative values: a negative value throws `IllegalArgumentException` when the property is read, rather than being treated as "unlimited". Use `0` for that.
+
 ### 5.22 `remoteQueryCache` — Remote query result cache (universal)
 
 Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL hint comments to opt in.

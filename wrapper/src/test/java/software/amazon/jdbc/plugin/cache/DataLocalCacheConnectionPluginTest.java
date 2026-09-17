@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -157,6 +158,31 @@ class DataLocalCacheConnectionPluginTest {
     plugin.tryCache("SELECT 1", mockResult1);
 
     assertSame(mockResult1, plugin.getIfFresh("SELECT 1"));
+  }
+
+  /**
+   * A negative bound must fail fast rather than be read as "unlimited". {@code 0} is the value that
+   * opts out of expiration and of the size limit, so treating a negative value as an opt-out too
+   * would silently give a user who wrote {@code -1} the opposite of what they asked for.
+   */
+  @Test
+  void test_negativeTtlIsRejected() {
+    assertThrows(IllegalArgumentException.class, () -> boundedPlugin("-1", "10"));
+  }
+
+  @Test
+  void test_negativeMaxSizeIsRejected() {
+    assertThrows(IllegalArgumentException.class, () -> boundedPlugin("60000", "-1"));
+  }
+
+  @Test
+  void test_zeroBoundsAreAccepted() {
+    final DataLocalCacheConnectionPlugin plugin = boundedPlugin("0", "0");
+
+    plugin.tryCache("SELECT 1", mockResult1);
+
+    assertSame(mockResult1, plugin.getIfFresh("SELECT 1"),
+        "Zero remains the documented opt-out for both bounds");
   }
 
   @Test
