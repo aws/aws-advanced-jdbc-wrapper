@@ -98,6 +98,14 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           "16384",
           "The max query size for remote caching");
 
+  private static final AwsWrapperProperty CACHE_TRACK_MULTI_TENANT_SESSION_STATE =
+      new AwsWrapperProperty(
+          "cacheTrackMultiTenantSessionState",
+          "true",
+          "Whether to track multi-tenant database session state and include it in cache keys. "
+              + "Keep enabled when query visibility depends on dynamic roles or "
+              + "authorization-affecting session state.");
+
   private static final AwsWrapperProperty CACHE_ALLOW_STREAM_SOURCE =
       new AwsWrapperProperty(
           "cacheAllowStreamSource",
@@ -122,6 +130,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   }
 
   private final int maxCacheableQuerySize;
+  private final boolean trackMultiTenantSessionState;
   private final CacheDeserializationConfig deserializationConfig;
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
@@ -160,6 +169,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     this.malformedHintCounter = telemetryFactory.createCounter("remoteQueryCache.cache.malformedHints");
     this.cacheBypassCounter = telemetryFactory.createCounter("remoteQueryCache.cache.bypass");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
+    this.trackMultiTenantSessionState =
+        CACHE_TRACK_MULTI_TENANT_SESSION_STATE.getBoolean(properties);
     this.deserializationConfig = new CacheDeserializationConfig(
         CACHE_ALLOW_URL.getBoolean(properties),
         CACHE_ALLOW_STREAM_SOURCE.getBoolean(properties));
@@ -185,6 +196,10 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(
       final EnumSet<NodeChangeOptions> changes) {
+    if (!this.trackMultiTenantSessionState) {
+      return OldConnectionSuggestedAction.NO_OPINION;
+    }
+
     if (!changes.contains(NodeChangeOptions.INITIAL_CONNECTION)
         && !changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
       return OldConnectionSuggestedAction.NO_OPINION;
@@ -222,7 +237,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       // Fetch and record the schema name if the session state doesn't currently have it
       SessionStateService sessionStateService = pluginService.getSessionStateService();
       @Nullable AuthorizationSessionState authorizationState = null;
-      if (pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
+      if (this.trackMultiTenantSessionState
+          && pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
         if (sessionStateService.hasUntrackedAuthorizationState()) {
           logUntrackedAuthorizationState();
           return null;

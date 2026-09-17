@@ -49,6 +49,7 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 | `cacheName`                        | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
 | `cacheIamRegion`                   | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
 | `cacheMaxQuerySize`                | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
+| `cacheTrackMultiTenantSessionState` | 4.5.0 | Boolean | No | Whether to track multi-tenant database session state and include it in cache keys. Keep enabled when query visibility depends on dynamic roles or authorization-affecting session state. | `true` |
 | `cacheConnectionTimeoutMs`         | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
 | `cacheConnectionPoolSize`          | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
 | `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Enables keyspace isolation for different connections.                                               | `null`        |
@@ -98,6 +99,11 @@ statements such as `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, t
 state so that it is reacquired before caching resumes. If this state cannot be determined, the query
 bypasses both cache reads and cache writes.
 
+Multi-tenant session-state tracking is enabled by default. Applications whose query visibility
+does not depend on dynamic database roles or authorization-affecting session state can set
+`cacheTrackMultiTenantSessionState=false`. When disabled, the plugin does not acquire this state,
+does not include it in cache keys, and does not bypass caching when it is unavailable.
+
 For MySQL and MariaDB, the authorization session state is acquired from the database and updated
 after statements such as `SET ROLE`, `USE`, and `RESET CONNECTION`. MySQL servers that do not
 support roles omit only the active-role component. Opaque statements and session-variable changes
@@ -117,6 +123,12 @@ cannot be safely represented by the cache key.
 > enable query caching for queries whose visibility depends on authorization state outside the
 > database-reported users, catalog/schema, active roles, and PostgreSQL search path currently
 > tracked by the plugin.
+
+> [!WARNING]
+> Setting `cacheTrackMultiTenantSessionState=false` removes cache-key isolation based on
+> PostgreSQL effective roles and search paths and MySQL/MariaDB active roles and authenticated
+> accounts. Do not disable tracking for applications that use these values for tenant isolation,
+> row-level security, or database authorization.
 
 ### Cache connection pooling
 

@@ -913,6 +913,61 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
+  void test_notifyConnectionChanged_doesNotTrackWhenDisabled() throws SQLException {
+    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+
+    verify(mockSessionStateService, never()).enableAuthorizationStateTracking();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_cachesWhenMultiTenantSessionStateTrackingIsDisabled() throws Exception {
+    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-order");
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertTrue(result.next());
+    assertEquals("tenant-order", result.getString("fooName"));
+    assertFalse(result.next());
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+    verify(mockSessionStateService, never()).hasUntrackedAuthorizationState();
+    verify(mockSessionStateService, never()).getAuthorizationState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
   void test_execute_usesPreviouslyAcquiredPostgresqlAuthorizationState() throws Exception {
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
