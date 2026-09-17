@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -185,6 +186,30 @@ class DefaultConnectionPluginTest {
         mockSqlFunction,
         new Object[] {"SET ROLE tenant_a"});
 
+    verify(mockSessionStateService).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void testExecute_getsSqlFromPreparedStatement() throws SQLException {
+    final PreparedStatement preparedStatement = mock(PreparedStatement.class);
+    final String sql = "SET ROLE tenant_a";
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(conn.getAutoCommit()).thenReturn(true);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockTargetDriverDialect.getSQLQueryString(preparedStatement)).thenReturn(sql);
+    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState(sql)).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        preparedStatement,
+        "PreparedStatement.execute",
+        mockSqlFunction,
+        new Object[] {});
+
+    verify(mockTargetDriverDialect).getSQLQueryString(preparedStatement);
+    verify(mockTargetDriverDialect).mayChangeAuthorizationSessionState(sql);
     verify(mockSessionStateService).refreshAuthorizationState();
     verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
   }

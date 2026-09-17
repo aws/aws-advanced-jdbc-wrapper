@@ -261,13 +261,16 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final TargetDriverDialect targetDriverDialect,
       final Object methodInvokeOn,
       final @Nullable Object[] jdbcMethodArgs) {
+    if (methodInvokeOn instanceof PreparedStatement) {
+      // PreparedStatement.execute*() has no SQL argument. Retrieve its bound SQL using the
+      // target-driver-specific representation of the prepared statement instead.
+      return targetDriverDialect.getSQLQueryString((PreparedStatement) methodInvokeOn);
+    }
     if (jdbcMethodArgs != null
         && jdbcMethodArgs.length > 0
         && jdbcMethodArgs[0] instanceof String) {
+      // Statement.execute*(String sql, ...) defines the SQL as its first argument.
       return (String) jdbcMethodArgs[0];
-    }
-    if (methodInvokeOn instanceof PreparedStatement) {
-      return targetDriverDialect.getSQLQueryString((PreparedStatement) methodInvokeOn);
     }
     return null;
   }
