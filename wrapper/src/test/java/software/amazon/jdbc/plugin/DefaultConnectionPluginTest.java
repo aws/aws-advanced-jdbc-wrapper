@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
@@ -146,6 +147,25 @@ class DefaultConnectionPluginTest {
 
     verify(statement, never()).getConnection();
     verify(statement, never()).isClosed();
+  }
+
+  @Test
+  void testExecute_doesNotInspectAuthorizationStateForResultSetAccess() throws SQLException {
+    when(this.pluginService.getCurrentConnection()).thenReturn(conn);
+    final ResultSet resultSet = mock(ResultSet.class);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        resultSet,
+        "ResultSet.getString",
+        mockSqlFunction,
+        new Object[] {1});
+
+    verify(mockTargetDriverDialect, never()).supportsAuthorizationSessionState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
   }
 
   @Test

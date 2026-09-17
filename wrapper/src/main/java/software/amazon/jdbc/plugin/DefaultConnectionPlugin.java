@@ -179,14 +179,24 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       }
     }
 
-    this.updateAuthorizationSessionState(
-        methodInvokeOn,
-        methodName,
-        jdbcMethodArgs,
-        doesCloseTransaction,
-        doesSwitchAutoCommitFalseTrue);
+    if (doesCloseTransaction
+        || doesSwitchAutoCommitFalseTrue
+        || isStatementExecutionMethod(methodName)) {
+      this.updateAuthorizationSessionState(
+          methodInvokeOn,
+          methodName,
+          jdbcMethodArgs,
+          doesCloseTransaction,
+          doesSwitchAutoCommitFalseTrue);
+    }
 
     return result;
+  }
+
+  private static boolean isStatementExecutionMethod(final String methodName) {
+    return methodName.startsWith("Statement.execute")
+        || methodName.startsWith("PreparedStatement.execute")
+        || methodName.startsWith("CallableStatement.execute");
   }
 
   private void updateAuthorizationSessionState(
