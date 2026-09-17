@@ -41,17 +41,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
@@ -60,7 +53,6 @@ import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -249,69 +241,6 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
-  void test_execute_nonLeadingCacheHints_noCaching() throws Exception {
-    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
-    plugin.setCacheConnection(mockCacheConn);
-    when(mockCallable.call()).thenReturn(mockResult1);
-
-    final String warningMessage = Messages.get("RemoteQueryCachePlugin.invalidQueryHintPlacement");
-    final AtomicInteger placementWarnings = new AtomicInteger(0);
-    final Logger logger = Logger.getLogger(RemoteQueryCachePlugin.class.getName());
-    final Handler handler = new Handler() {
-      @Override
-      public void publish(final LogRecord record) {
-        if (record.getLevel() == Level.WARNING && warningMessage.equals(record.getMessage())) {
-          placementWarnings.incrementAndGet();
-        }
-      }
-
-      @Override
-      public void flush() {
-      }
-
-      @Override
-      public void close() {
-      }
-    };
-
-    logger.addHandler(handler);
-    try {
-      assertEquals(mockResult1, plugin.execute(
-          ResultSet.class,
-          SQLException.class,
-          mockStatement,
-          methodName,
-          mockCallable,
-          new String[]{"SELECT secret_a FROM t1 /* CACHE_PARAM(ttl=60s) */ WHERE id=1"}));
-      assertEquals(mockResult1, plugin.execute(
-          ResultSet.class,
-          SQLException.class,
-          mockStatement,
-          methodName,
-          mockCallable,
-          new String[]{"SELECT secret_b FROM t2 /* CACHE_PARAM(ttl=60s) */ WHERE id=1"}));
-      assertEquals(mockResult1, plugin.execute(
-          ResultSet.class,
-          SQLException.class,
-          mockStatement,
-          methodName,
-          mockCallable,
-          new String[]{"/* trace */ /* CACHE_PARAM(ttl=60s) */ SELECT secret_a FROM t1"}));
-    } finally {
-      logger.removeHandler(handler);
-    }
-
-    assertEquals(1, placementWarnings.get());
-    verify(mockCallable, times(3)).call();
-    verify(mockCacheConn, never()).readFromCache(anyString());
-    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
-    verify(mockTotalQueryCounter, times(3)).inc();
-    verify(mockCacheBypassCounter, times(3)).inc();
-    verify(mockCacheHitCounter, never()).inc();
-    verify(mockCacheMissCounter, never()).inc();
-  }
-
-  @Test
   void test_execute_emptyQuery_noCaching() throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -467,17 +396,11 @@ public class RemoteQueryCachePluginTest {
     verify(mockTelemetryContext, times(3)).closeContext();
   }
 
-  @ParameterizedTest
-  @CsvSource(value = {
-      "/* CACHE_PARAM(ttl=50s) */ select * from A|select * from A",
-      "'/* CACHE_PARAM(ttl=50s) */ select * from A', parameters:[]}|select * from A', parameters:[]}"
-  }, delimiter = '|', quoteCharacter = '"')
-  void test_cachingMissAndHit_preparedStatement(
-      final String driverQueryString,
-      final String expectedMainQuery) throws Exception {
+  @Test
+  void test_cachingMissAndHit_preparedStatement() throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
-    final String expectedCacheKey = cacheKey("mysql", null, "", expectedMainQuery);
+    final String expectedCacheKey = cacheKey("mysql", null, "", "select * from A");
     // Query is a cache miss
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -494,7 +417,7 @@ public class RemoteQueryCachePluginTest {
     when(mockResult1.next()).thenReturn(true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1");
     when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement))
-        .thenReturn(driverQueryString);
+        .thenReturn("/* CACHE_PARAM(ttl=50s) */ select * from A");
 
     // Now query is a cache hit
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,

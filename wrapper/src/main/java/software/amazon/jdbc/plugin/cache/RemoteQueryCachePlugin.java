@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -68,7 +67,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
-  private static final char PREPARED_STATEMENT_QUERY_QUOTE = '\'';
   private static final int MAX_TTL_SECONDS = 15552000; // 180 days (half a year)
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
@@ -131,7 +129,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private final @Nullable TelemetryCounter cacheBypassCounter;
   private final AtomicBoolean authorizationStateWarningLogged = new AtomicBoolean(false);
   private final AtomicBoolean untrackedAuthorizationStateWarningLogged = new AtomicBoolean(false);
-  private final AtomicBoolean invalidQueryHintPlacementWarningLogged = new AtomicBoolean(false);
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -288,32 +285,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
   }
 
-  private void logInvalidQueryHintPlacement() {
-    if (this.invalidQueryHintPlacementWarningLogged.compareAndSet(false, true)) {
-      LOGGER.warning(Messages.get("RemoteQueryCachePlugin.invalidQueryHintPlacement"));
-    }
-  }
-
-  private static boolean containsCacheParamComment(final String sql) {
-    final String upperSql = sql.toUpperCase(Locale.ROOT);
-    int commentStart = upperSql.indexOf(QUERY_HINT_START_PATTERN);
-    while (commentStart >= 0) {
-      final int commentEnd = upperSql.indexOf(
-          QUERY_HINT_END_PATTERN, commentStart + QUERY_HINT_START_PATTERN.length());
-      if (commentEnd < 0) {
-        return false;
-      }
-      final int cacheParamStart = upperSql.indexOf(
-          CACHE_PARAM_PATTERN, commentStart + QUERY_HINT_START_PATTERN.length());
-      if (cacheParamStart >= 0 && cacheParamStart < commentEnd) {
-        return true;
-      }
-      commentStart = upperSql.indexOf(
-          QUERY_HINT_START_PATTERN, commentEnd + QUERY_HINT_END_PATTERN.length());
-    }
-    return false;
-  }
-
   private static void appendCacheKeyPart(
       final StringBuilder cacheKey,
       final @Nullable String value) {
@@ -463,36 +434,16 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     TelemetryContext cacheContext = null;
     // Get the query hint part in front of the query itself
     String mainQuery = sql; // The main part of the query with the query hint prefix trimmed
+    int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
     String cacheQueryKey = null;
     // Queries longer than 16KB is not cacheable
-    if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize)) {
-      final String trimmedSql = sql.trim();
-      boolean cacheParamInLeadingQueryHint = false;
-      final int queryHintStart = findLeadingQueryHintStart(
-          trimmedSql, methodInvokeOn instanceof PreparedStatement);
-      if (queryHintStart >= 0) {
-        final int queryHintContentStart = queryHintStart + QUERY_HINT_START_PATTERN.length();
-        final int endOfQueryHint = trimmedSql.indexOf(
-            QUERY_HINT_END_PATTERN, queryHintContentStart);
-        final int nestedQueryHint = trimmedSql.indexOf(
-            QUERY_HINT_START_PATTERN, queryHintContentStart);
-        // Only the first leading, non-nested comment may opt the query into caching.
-        if (endOfQueryHint > queryHintStart
-            && (nestedQueryHint < 0 || nestedQueryHint > endOfQueryHint)) {
-          final String queryHint =
-              trimmedSql.substring(queryHintContentStart, endOfQueryHint).trim();
-          cacheParamInLeadingQueryHint =
-              queryHint.toUpperCase(Locale.ROOT).contains(CACHE_PARAM_PATTERN);
-          configuredQueryTtl = getTtlForQuery(queryHint);
-          if (configuredQueryTtl != null) {
-            mainQuery = trimmedSql.substring(
-                endOfQueryHint + QUERY_HINT_END_PATTERN.length()).trim();
-          }
-        }
-      }
-      if (!cacheParamInLeadingQueryHint && containsCacheParamComment(trimmedSql)) {
-        logInvalidQueryHintPlacement();
+    if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize)
+        && sql.contains(QUERY_HINT_START_PATTERN)) {
+      endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
+      if (endOfQueryHint > 0) {
+        configuredQueryTtl = getTtlForQuery(sql.substring(QUERY_HINT_START_PATTERN.length(), endOfQueryHint).trim());
+        mainQuery = sql.substring(endOfQueryHint + QUERY_HINT_END_PATTERN.length()).trim();
       }
     }
 
@@ -587,25 +538,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
 
     return resultClass.cast(result);
-  }
-
-  private static int findLeadingQueryHintStart(
-      final String sql,
-      final boolean isPreparedStatement) {
-    if (sql.startsWith(QUERY_HINT_START_PATTERN)) {
-      return 0;
-    }
-
-    // Some JDBC drivers quote the SQL rendered by PreparedStatement.toString(). Accept only one
-    // driver-added quote immediately before the leading comment; SQL text before the comment is
-    // still rejected.
-    if (isPreparedStatement
-        && sql.length() > 1
-        && sql.charAt(0) == PREPARED_STATEMENT_QUERY_QUOTE
-        && sql.startsWith(QUERY_HINT_START_PATTERN, 1)) {
-      return 1;
-    }
-    return -1;
   }
 
   private static boolean isSingleStatement(final @Nullable String sql) {
