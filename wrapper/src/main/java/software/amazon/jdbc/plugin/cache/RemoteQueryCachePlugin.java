@@ -69,7 +69,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
   private static final char PREPARED_STATEMENT_QUERY_QUOTE = '\'';
-  private static final String CACHE_KEY_FORMAT_VERSION = "remote-query-cache:v2";
   private static final int MAX_TTL_SECONDS = 15552000; // 180 days (half a year)
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
@@ -245,10 +244,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           new Object[] {driverProtocol, dbProductName, dbProductVersion,
               finalCatalogName, finalSchemaName, dbUserName, driverName, driverVersion}));
 
-      // Use a new versioned, length-prefixed key format so old entries created without
-      // authorization state can never be reused and component boundaries are unambiguous.
+      // Length-prefix each component so component boundaries are unambiguous.
       final StringBuilder cacheKey = new StringBuilder();
-      appendCacheKeyPart(cacheKey, CACHE_KEY_FORMAT_VERSION);
       appendCacheKeyPart(cacheKey, catalogName);
       appendCacheKeyPart(cacheKey, schemaName);
       appendCacheKeyPart(cacheKey, dbUserName);

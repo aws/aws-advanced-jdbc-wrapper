@@ -1063,7 +1063,6 @@ public class RemoteQueryCachePluginTest {
       final AuthorizationSessionState authorizationState,
       final String query) {
     final StringBuilder cacheKey = new StringBuilder();
-    appendCacheKeyPart(cacheKey, "remote-query-cache:v2");
     appendCacheKeyPart(cacheKey, catalog);
     appendCacheKeyPart(cacheKey, schema);
     appendCacheKeyPart(cacheKey, user);
