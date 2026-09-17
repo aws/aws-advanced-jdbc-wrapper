@@ -25,6 +25,15 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 
+/**
+ * Host selector that picks the available host with the largest {@link HostSpec#getWeight()}.
+ *
+ * <p>This treats a larger weight as more desirable, which only holds for weights populated as a
+ * preference score - the Aurora Limitless router list, which this selector exists to serve. An Aurora
+ * topology stores a load score in the same field (higher = more loaded), so running this selector
+ * over an Aurora topology picks the <b>least</b> healthy reader. Use
+ * {@link LowestLoadHostSelector} there instead. See {@link HostSpec#getWeight()}.
+ */
 public class HighestWeightHostSelector implements HostSelector {
 
   public static final String STRATEGY_HIGHEST_WEIGHT = "highestWeight";

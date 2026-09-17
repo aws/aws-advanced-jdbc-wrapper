@@ -151,6 +151,7 @@ public class ConnectionPluginChainBuilder {
           put(AwsSecretsManagerConnectionPluginFactory.class, 1900);
           put(AwsSecretsManagerConnectionPlugin2Factory.class, 1910);
           put(FederatedAuthPluginFactory.class, 2000);
+          put(OktaAuthPluginFactory.class, 2010);
           put(KmsEncryptionConnectionPluginFactory.class, 2050);
           put(LogQueryConnectionPluginFactory.class, 2100);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

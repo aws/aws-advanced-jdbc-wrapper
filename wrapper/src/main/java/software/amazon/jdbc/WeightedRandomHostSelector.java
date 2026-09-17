@@ -32,6 +32,17 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 
+/**
+ * Host selector that picks a host at random with a probability proportional to its weight.
+ *
+ * <p>Weights come from {@code weightedRandomHostWeightPairs} when that property is set, and otherwise
+ * from {@link HostSpec#getWeight()}. Using the {@code HostSpec} weight treats a larger weight as more
+ * desirable, which only holds for weights populated as a preference score - the Aurora Limitless
+ * router list. An Aurora topology stores a load score in the same field (higher = more loaded), so
+ * this selector would send proportionally more traffic to the <b>most</b> loaded reader. Set
+ * {@code weightedRandomHostWeightPairs} explicitly, or use {@link LowestLoadHostSelector}, for Aurora
+ * reader load balancing. See {@link HostSpec#getWeight()}.
+ */
 public class WeightedRandomHostSelector implements HostSelector {
   public static final AwsWrapperProperty WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS = new AwsWrapperProperty(
       "weightedRandomHostWeightPairs", null,

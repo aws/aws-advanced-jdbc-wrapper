@@ -159,6 +159,24 @@ public class HostSpec {
     return this.lastUpdateTime;
   }
 
+  /**
+   * Returns this host's weight.
+   *
+   * <p><strong>The polarity of this value depends on which component populated it, so a selector must
+   * not assume one.</strong> The field's own convention is that a lower weight is a healthier node,
+   * and {@code AuroraTopologyUtils} follows it by storing a load score ({@code lag*100 + cpu}), where
+   * a higher value means a more loaded node. The Aurora Limitless router list deliberately does the
+   * opposite: {@code LimitlessQueryHelper} stores a fitness score in 1..10 where a higher value means
+   * a healthier router.
+   *
+   * <p>As a result {@link HighestWeightHostSelector} and {@link WeightedRandomHostSelector}, which
+   * both treat a larger weight as more desirable, are correct for Limitless routers and inverted for
+   * an Aurora topology. For load-aware Aurora reader selection use {@link LowestLoadHostSelector},
+   * which reads {@link #getCpuPercent()} and {@link #getLagMs()} directly instead of this field. See
+   * {@code docs/using-the-jdbc-driver/HostSelectionStrategies.md}.
+   *
+   * @return this host's weight, which is greater than or equal to 0.
+   */
   public long getWeight() {
     return this.weight;
   }

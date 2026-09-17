@@ -89,9 +89,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   public static final AwsWrapperProperty SECRET_ID_PROPERTY = new AwsWrapperProperty(
       "secretsManagerSecretId", null,
       "The name or the ARN of the secret to retrieve.");
+  /**
+   * The region of the secret to retrieve. Declared with no default on purpose: the region is
+   * resolved by reading this property out of the raw {@link java.util.Properties}, and a null result
+   * is what lets resolution fall through to the region embedded in a secret ARN. Declaring a default
+   * here would make that ARN fallback unreachable and would silently send every user who did not set
+   * the property to one fixed region regardless of where their secret lives.
+   */
   public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
-      "secretsManagerRegion", "us-east-1",
-      "The region of the secret to retrieve.");
+      "secretsManagerRegion", null,
+      "The region of the secret to retrieve. If unset, the region is taken from the secret ARN.");
   public static final AwsWrapperProperty ENDPOINT_PROPERTY = new AwsWrapperProperty(
       "secretsManagerEndpoint", null,
       "The endpoint of the secret to retrieve.");

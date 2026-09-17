@@ -78,7 +78,13 @@ public final class EncryptionAnnotationParser {
   }
 
   /**
-   * Strip encryption annotations from SQL before sending to database.
+   * Strips encryption annotations from a SQL statement.
+   *
+   * <p>The returned text is used for the wrapper's own parsing only. It is <b>not</b> the text sent
+   * to the database: the plugin pipeline hands each JDBC method the arguments the application
+   * supplied, and no stage substitutes this value for the original statement, so the annotated SQL is
+   * what the target driver receives. Callers must not rely on this method to keep annotations out of
+   * server-side logs.
    *
    * @param sql SQL statement with annotations
    * @return SQL with annotations removed
