@@ -28,7 +28,7 @@ import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.StringUtils;
 
-abstract class MysqlFamilyTargetDriverDialect extends GenericTargetDriverDialect {
+abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final int ER_PARSE_ERROR = 1064;
   private static final int ER_SP_DOES_NOT_EXIST = 1305;
