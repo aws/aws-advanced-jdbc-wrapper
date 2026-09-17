@@ -103,6 +103,10 @@ public interface SessionStateService {
 
   Optional<AuthorizationSessionState> getAuthorizationState();
 
+  void enableAuthorizationStateTracking();
+
+  boolean isAuthorizationStateTrackingEnabled();
+
   void refreshAuthorizationState() throws SQLException;
 
   void markAuthorizationStateUnknown();

@@ -41,6 +41,7 @@ public class SessionStateServiceImpl implements SessionStateService {
   protected final PluginService pluginService;
   protected final Properties props;
 
+  private boolean authorizationStateTrackingEnabled;
 
   public SessionStateServiceImpl(
       final @NonNull PluginService pluginService,
@@ -370,6 +371,16 @@ public class SessionStateServiceImpl implements SessionStateService {
   @Override
   public Optional<AuthorizationSessionState> getAuthorizationState() {
     return this.sessionState.authorizationState.getValue();
+  }
+
+  @Override
+  public void enableAuthorizationStateTracking() {
+    this.authorizationStateTrackingEnabled = true;
+  }
+
+  @Override
+  public boolean isAuthorizationStateTrackingEnabled() {
+    return this.authorizationStateTrackingEnabled;
   }
 
   @Override

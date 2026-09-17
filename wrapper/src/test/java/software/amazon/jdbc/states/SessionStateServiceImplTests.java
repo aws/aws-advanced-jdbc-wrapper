@@ -380,6 +380,15 @@ public class SessionStateServiceImplTests {
   }
 
   @Test
+  void test_AuthorizationStateTrackingCanBeEnabled() {
+    assertFalse(sessionStateService.isAuthorizationStateTrackingEnabled());
+
+    sessionStateService.enableAuthorizationStateTracking();
+
+    assertTrue(sessionStateService.isAuthorizationStateTrackingEnabled());
+  }
+
+  @Test
   void test_AuthorizationStateIsReadAndInvalidatedOnConnectionSwitch() throws SQLException {
     final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
         "application_user",

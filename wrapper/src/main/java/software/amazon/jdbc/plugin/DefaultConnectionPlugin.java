@@ -202,6 +202,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    if (!sessionStateService.isAuthorizationStateTrackingEnabled()) {
+      return;
+    }
     final @Nullable String sql = getExecutedSql(
         targetDriverDialect,
         methodInvokeOn,
@@ -216,30 +219,21 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return;
     }
 
-    // Authorization state is initialized lazily by a consumer such as the remote query cache.
-    // Avoid adding a database round trip to every wrapper connection that does not use it.
-    if (!sessionStateService.getAuthorizationState().isPresent()) {
-      return;
-    }
-
-    if (doesCloseTransaction && !doesSwitchAutoCommitFalseTrue) {
-      // Transaction-local authorization state can revert on COMMIT/ROLLBACK. Do not query it here:
-      // with autoCommit=false, that query would immediately open a new transaction. Invalidate the
-      // snapshot and reacquire it lazily the next time caching is safely eligible.
-      sessionStateService.markAuthorizationStateUnknown();
+    if (sessionStateService.hasUntrackedAuthorizationState()) {
       return;
     }
 
     boolean shouldRefresh = doesSwitchAutoCommitFalseTrue;
     shouldRefresh |= targetDriverDialect.mayChangeAuthorizationSessionState(sql);
+    shouldRefresh |= doesCloseTransaction;
     if (!shouldRefresh) {
       return;
     }
 
     try {
       if (!this.pluginService.getCurrentConnection().getAutoCommit()) {
-        // Caching is disabled while autoCommit is false, so an authoritative snapshot is not
-        // needed yet. Avoid issuing an internal query inside the application's transaction.
+        // Avoid issuing an internal query inside the application's transaction. Transaction-local
+        // authorization state is reacquired when autoCommit is switched back to true.
         sessionStateService.markAuthorizationStateUnknown();
         return;
       }

@@ -38,6 +38,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.NodeChangeOptions;
+import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
@@ -87,7 +89,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName)));
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName)));
 
   private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
       new AwsWrapperProperty(
@@ -179,6 +182,37 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     return subscribedMethods;
   }
 
+  @Override
+  public OldConnectionSuggestedAction notifyConnectionChanged(
+      final EnumSet<NodeChangeOptions> changes) {
+    if (!changes.contains(NodeChangeOptions.INITIAL_CONNECTION)
+        && !changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
+      return OldConnectionSuggestedAction.NO_OPINION;
+    }
+
+    if (!this.pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
+      return OldConnectionSuggestedAction.NO_OPINION;
+    }
+
+    final SessionStateService sessionStateService =
+        this.pluginService.getSessionStateService();
+    sessionStateService.enableAuthorizationStateTracking();
+
+    try {
+      sessionStateService.refreshAuthorizationState();
+    } catch (final SQLException e) {
+      sessionStateService.markAuthorizationStateUnknown();
+      logAuthorizationStateUnavailable(e);
+      return OldConnectionSuggestedAction.NO_OPINION;
+    }
+
+    if (!sessionStateService.getAuthorizationState().isPresent()) {
+      logAuthorizationStateUnavailable(null);
+    }
+
+    return OldConnectionSuggestedAction.NO_OPINION;
+  }
+
   private @Nullable String getCacheQueryKey(@Nullable String query) {
     // Check some basic session states. The important ones for caching include (but not limited to):
     //  schema name, username which can affect the query result from the DB in addition to the query string
@@ -193,18 +227,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           logUntrackedAuthorizationState();
           return null;
         }
-        Optional<AuthorizationSessionState> currentAuthorizationState =
+        final Optional<AuthorizationSessionState> currentAuthorizationState =
             sessionStateService.getAuthorizationState();
-        if (!currentAuthorizationState.isPresent()) {
-          try {
-            sessionStateService.refreshAuthorizationState();
-          } catch (SQLException e) {
-            sessionStateService.markAuthorizationStateUnknown();
-            logAuthorizationStateUnavailable(e);
-            return null;
-          }
-          currentAuthorizationState = sessionStateService.getAuthorizationState();
-        }
         if (!currentAuthorizationState.isPresent()) {
           logAuthorizationStateUnavailable(null);
           return null;

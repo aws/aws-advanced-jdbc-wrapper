@@ -39,6 +39,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Properties;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -48,6 +49,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.NodeChangeOptions;
+import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
@@ -846,7 +849,71 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
-  void test_execute_lazilyRefreshesPostgresqlAuthorizationState() throws Exception {
+  void test_notifyConnectionChanged_refreshesAuthorizationStateForPhysicalConnections()
+      throws Exception {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(authorizationState));
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)));
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.HOSTNAME)));
+
+    verify(mockSessionStateService, times(2)).enableAuthorizationStateTracking();
+    verify(mockSessionStateService, times(2)).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_notifyConnectionChanged_marksAuthorizationStateUnknownWhenRefreshFails()
+      throws Exception {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    doThrow(new SQLException("authorization state unavailable"))
+        .when(mockSessionStateService).refreshAuthorizationState();
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+
+    verify(mockSessionStateService).enableAuthorizationStateTracking();
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void test_notifyConnectionChanged_doesNotTrackUnsupportedDialects() throws SQLException {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(false);
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+
+    verify(mockSessionStateService, never()).enableAuthorizationStateTracking();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_usesPreviouslyAcquiredPostgresqlAuthorizationState() throws Exception {
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -863,7 +930,7 @@ public class RemoteQueryCachePluginTest {
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
     when(mockSessionStateService.getAuthorizationState())
-        .thenReturn(Optional.empty(), Optional.of(authorizationState));
+        .thenReturn(Optional.of(authorizationState));
     when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
     when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
@@ -880,7 +947,7 @@ public class RemoteQueryCachePluginTest {
         mockCallable,
         new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
 
-    verify(mockSessionStateService).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
     verify(mockCacheConn).readFromCache(expectedCacheKey);
     verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
   }
@@ -893,8 +960,6 @@ public class RemoteQueryCachePluginTest {
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
     when(mockSessionStateService.getAuthorizationState()).thenReturn(Optional.empty());
-    doThrow(new SQLException("authorization state unavailable"))
-        .when(mockSessionStateService).refreshAuthorizationState();
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
     when(mockCallable.call()).thenReturn(mockResult1);
 
@@ -908,6 +973,7 @@ public class RemoteQueryCachePluginTest {
 
     assertSame(mockResult1, result);
     verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
     verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
     verify(mockCacheBypassCounter).inc();
   }
