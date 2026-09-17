@@ -51,7 +51,7 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 | `cacheMaxQuerySize`                | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
 | `cacheConnectionTimeoutMs`         | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
 | `cacheConnectionPoolSize`          | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
-| `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Enables keyspace isolation for different connections.                                               | `null`        |
+| `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional static prefix for cache keys (max 10 characters). Enables keyspace isolation for different applications or statically partitioned connections. | `null`        |
 | `failWhenCacheDown`                | 3.3.0 | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
 | `cacheInFlightWriteSizeLimitBytes` | 3.3.0 | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
 | `cacheHealthCheckInHealthyState`   | 3.3.0 | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
@@ -80,15 +80,22 @@ The plugin uses SQL query hints to determine cacheability of the query and TTL. 
 This is primarily done via a configured TTL for each cached entry, with an upper bound of 180 days to avoid caching entries permanently. User should define the TTL based on how frequently the underlying query data changes. User can bypass reading responses from the cache for queries that require stronger consistency.
 
 In the case when the configured TTL is too long and causes stale data to be returned from the cache, there are a couple of options to mitigate this issue:
-- Specify a configurable cache key prefix to allow multi‑tenant separation within a shared cache cluster. The cache key prefix can help segregate the keyspace of one application use-case from another, so the user can scan for and delete only keys with that particular prefix from the valkey server to clear the cache for only 1 application use-case without affecting other application use-cases.
+- Specify a configurable cache key prefix to separate applications or statically partitioned connections within a shared cache cluster. The cache key prefix can help segregate the keyspace of one application use-case from another, so the user can scan for and delete only keys with that particular prefix from the Valkey server to clear the cache for only one application use-case without affecting other application use-cases. The prefix is static for a cache connection and does not track per-request database authorization context.
 - Flushing all data from the Valkey server (via a `FLUSHALL` command) so that it can be re-hydrated from the database again with fresh values.
 
 ### Query result correctness
 
 Query cache entry is indexed by a hashed caching key containing the following parts:
-- Database username - different database users can have different permissions on various tables.
-- Database catalog/schema name - same table name can exist in a different database catalog/schema which contains different data
+- Configured database username - different database users can have different permissions on various tables.
+- Tracked database catalog/schema name - the same table name can exist in a different database catalog/schema which contains different data.
 - The SQL query string
+
+> [!WARNING]
+> The Remote Query Cache Plugin does not track database authorization or object-resolution state changed through SQL statements. Do not cache queries whose results depend on dynamic session state such as PostgreSQL `SET ROLE`, `SET SESSION AUTHORIZATION`, SQL-issued `SET search_path`, custom session variables or PostgreSQL configuration parameters used by row-level security policies, or MySQL/MariaDB `USE`. Catalog or schema changes made through SQL statements might not be reflected in the cache key.
+>
+> The username in the cache key is the username configured when the connection is created, not an effective role selected later in the session. A cache hit is returned without sending the query to the database, so database authorization and row-level security policies are not re-evaluated.
+>
+> Applications that share a configured database user, cache namespace, or pooled connection across tenants or authorization contexts must not cache affected queries. Omit the `CACHE_PARAM` hint for those queries or disable the plugin. The `cacheKeyPrefix` property is static and does not isolate tenants that are switched dynamically on the same connection.
 
 All queries inside a multi-statement transaction are inherently atomically consistent. When a readonly query is executed inside a multi-statement transaction, we can’t serve the query result from the cache because of consistency guarantee such as read-after-write consistency for a transaction would be violated. As a result, we need to fetch the query result from the database, and do a best-effort update to the cache with the new result set we fetched from the database. That way the subsequent queries that are standalone can fetch the newly updated result from the cache.
 
