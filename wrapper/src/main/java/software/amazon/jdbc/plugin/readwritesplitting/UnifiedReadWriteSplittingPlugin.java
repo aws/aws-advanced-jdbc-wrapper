@@ -452,6 +452,14 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
    * re-creates the statement on it (via the {@link Rebindable} handle published on the call
    * context). When rebinding is unavailable, logs the bound-statement reuse warning once per
    * statement.
+   *
+   * <p>A plain {@code Statement} carries its SQL only at execute time, so it is never a routing
+   * point in its own right: the role is resolved here rather than by
+   * {@link #performSwitch(String, TargetRole)}. That makes this the only place query-level load
+   * balancing can act on such a statement. When the statement is already on a host of the required
+   * role and that role is READER, a rotation to another reader is therefore performed here if
+   * {@code queryLevelLoadBalancing} is enabled; a rotation that cannot be applied is silently
+   * skipped, since an uneven spread is not a correctness problem and this runs on every read.
    */
   private void maybeHandleBoundStatement(final String methodName, final Object methodInvokeOn)
       throws SQLException {
@@ -473,7 +481,15 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     final boolean alreadyOnTarget =
         (sqlRole == TargetRole.READER && this.helpers.roleClassifier.isReader(currentHost))
             || (sqlRole == TargetRole.WRITER && this.helpers.roleClassifier.isWriter(currentHost));
-    if (alreadyOnTarget) {
+
+    // Already on a host of the required role, so no reroute is needed. With query-level load
+    // balancing this is still a read-routing decision, and rotating to another reader is the whole
+    // point of the setting, so fall through to the rebinding path below. Writes never rotate.
+    final boolean rotateReader = alreadyOnTarget
+        && sqlRole == TargetRole.READER
+        && this.helpers.readerResolver.isPerQuery();
+
+    if (alreadyOnTarget && !rotateReader) {
       return;
     }
 
@@ -481,11 +497,25 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     final Rebindable rebindHandle = callContext == null ? null : callContext.getRebindHandle();
 
     if (!this.allowStatementRecreationOnConnectionSwitch || rebindHandle == null) {
+      if (rotateReader) {
+        // The statement is already on a reader and only a rotation was available, so running it
+        // where it is costs nothing but an uneven spread. Balancing is best-effort, and this is
+        // reached once per read, so it must not warn.
+        return;
+      }
       // Rerouting is wanted but cannot be applied to this bound statement.
       warnOnceReusedBoundStatement(methodInvokeOn);
       return;
     }
 
+    if (rotateReader && !rebindHandle.canRebind()) {
+      // Same reasoning as above, for a statement that reports it cannot be re-created. Checked only
+      // for a rotation: a role change still attempts the switch and lets rebind() report failure,
+      // because running a read on the writer (or a write on a reader) is not equivalent.
+      return;
+    }
+
+    final Connection connectionBeforeSwitch = this.pluginService.getCurrentConnection();
     this.performSwitch(methodName, sqlRole);
 
     final HostSpec newHost = this.pluginService.getCurrentHostSpec();
@@ -497,7 +527,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     }
 
     final Connection current = this.pluginService.getCurrentConnection();
-    if (current != null) {
+    if (current != null && current != connectionBeforeSwitch) {
       try {
         rebindHandle.rebind(current);
       } catch (final SQLException e) {
