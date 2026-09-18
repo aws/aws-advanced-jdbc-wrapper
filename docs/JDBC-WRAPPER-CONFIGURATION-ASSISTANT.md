@@ -1236,7 +1236,7 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
 | `cacheKeyPrefix` | (none) | Prefix for multi-tenant isolation (≤10 chars). |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
-| `cacheTrackMultiTenantSessionState` | `true` | Track multi-tenant database session state and include it in cache keys. Keep enabled when query visibility depends on dynamic roles or authorization-affecting session state. |
+| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for database multi-tenancy. Applications using database-level tenant isolation must enable this setting. |
 
 ### 5.23 `logQuery` — SQL logging (universal)
 

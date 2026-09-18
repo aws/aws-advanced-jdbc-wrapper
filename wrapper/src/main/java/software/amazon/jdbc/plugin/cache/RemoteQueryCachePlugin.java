@@ -73,11 +73,21 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private static final int MAX_TTL_SECONDS = 15552000; // 180 days (half a year)
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
-  // Batch methods return update counts and are never cached. Subscribe to them so execution passes
-  // through the plugin chain and DefaultConnectionPlugin can conservatively mark authorization
-  // state as untracked before execution when multi-tenant session-state tracking is enabled.
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Arrays.asList(JdbcMethod.CONNECTION_COMMIT.methodName,
+  private static final Set<String> DEFAULT_SUBSCRIBED_METHODS =
+      Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
+
+  // Batch methods return update counts and are never cached. Subscribe to them in database
+  // multi-tenancy mode so DefaultConnectionPlugin can conservatively mark authorization state as
+  // untracked before execution.
+  private static final Set<String> DATABASE_MULTI_TENANCY_SUBSCRIBED_METHODS =
+      Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_COMMIT.methodName,
           JdbcMethod.CONNECTION_ROLLBACK.methodName,
           JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
           JdbcMethod.CONNECTION_SETSCHEMA.methodName,
@@ -103,13 +113,12 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           "16384",
           "The max query size for remote caching");
 
-  private static final AwsWrapperProperty CACHE_TRACK_MULTI_TENANT_SESSION_STATE =
+  private static final AwsWrapperProperty CACHE_ENABLE_DATABASE_MULTI_TENANCY =
       new AwsWrapperProperty(
-          "cacheTrackMultiTenantSessionState",
-          "true",
-          "Whether to track multi-tenant database session state and include it in cache keys. "
-              + "Keep enabled when query visibility depends on dynamic roles or "
-              + "authorization-affecting session state.");
+          "cacheEnableDatabaseMultiTenancy",
+          "false",
+          "Enables authorization-aware remote query cache isolation for database multi-tenancy. "
+              + "Applications using database-level tenant isolation must enable this setting.");
 
   private static final AwsWrapperProperty CACHE_ALLOW_STREAM_SOURCE =
       new AwsWrapperProperty(
@@ -135,7 +144,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   }
 
   private final int maxCacheableQuerySize;
-  private final boolean trackMultiTenantSessionState;
+  private final boolean enableDatabaseMultiTenancy;
   private final CacheDeserializationConfig deserializationConfig;
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
@@ -175,8 +184,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     this.malformedHintCounter = telemetryFactory.createCounter("remoteQueryCache.cache.malformedHints");
     this.cacheBypassCounter = telemetryFactory.createCounter("remoteQueryCache.cache.bypass");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
-    this.trackMultiTenantSessionState =
-        CACHE_TRACK_MULTI_TENANT_SESSION_STATE.getBoolean(properties);
+    this.enableDatabaseMultiTenancy =
+        CACHE_ENABLE_DATABASE_MULTI_TENANCY.getBoolean(properties);
     this.deserializationConfig = new CacheDeserializationConfig(
         CACHE_ALLOW_URL.getBoolean(properties),
         CACHE_ALLOW_STREAM_SOURCE.getBoolean(properties));
@@ -196,13 +205,15 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return subscribedMethods;
+    return this.enableDatabaseMultiTenancy
+        ? DATABASE_MULTI_TENANCY_SUBSCRIBED_METHODS
+        : DEFAULT_SUBSCRIBED_METHODS;
   }
 
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(
       final EnumSet<NodeChangeOptions> changes) {
-    if (!this.trackMultiTenantSessionState) {
+    if (!this.enableDatabaseMultiTenancy) {
       return OldConnectionSuggestedAction.NO_OPINION;
     }
 
@@ -245,7 +256,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       // Fetch and record the schema name if the session state doesn't currently have it
       SessionStateService sessionStateService = pluginService.getSessionStateService();
       @Nullable AuthorizationSessionState authorizationState = null;
-      if (this.trackMultiTenantSessionState
+      if (this.enableDatabaseMultiTenancy
           && pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
         if (sessionStateService.hasUntrackedAuthorizationState()) {
           logUntrackedAuthorizationState();
@@ -289,7 +300,17 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           new Object[] {driverProtocol, dbProductName, dbProductVersion,
               finalCatalogName, finalSchemaName, dbUserName, driverName, driverVersion}));
 
-      // Length-prefix each component so component boundaries are unambiguous.
+      if (!this.enableDatabaseMultiTenancy) {
+        return String.join(
+            "_",
+            catalogName == null ? "null" : catalogName,
+            schemaName == null ? "null" : schemaName,
+            dbUserName,
+            query == null ? "null" : query);
+      }
+
+      // Length-prefix each component so component boundaries are unambiguous in database
+      // multi-tenancy mode.
       final StringBuilder cacheKey = new StringBuilder();
       appendCacheKeyPart(cacheKey, catalogName);
       appendCacheKeyPart(cacheKey, schemaName);
@@ -501,8 +522,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
     if (configuredQueryTtl != null && !isInTransaction) {
-      if (!this.trackMultiTenantSessionState) {
-        // Preserve legacy cache eligibility when authorization-state tracking is disabled.
+      if (!this.enableDatabaseMultiTenancy) {
+        // Preserve default cache eligibility when authorization-state tracking is disabled.
         cacheQueryKey = getCacheQueryKey(mainQuery);
       } else if (!methodName.startsWith("CallableStatement.")
           && isSingleStatement(mainQuery)) {
@@ -510,6 +531,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         // A missing dialect means the authorization impact of the SQL cannot be determined.
         // Fail closed by bypassing the cache.
         if (targetDriverDialect != null
+            && targetDriverDialect.supportsAuthorizationSessionState()
             && !targetDriverDialect.mayChangeAuthorizationSessionState(mainQuery)) {
           cacheQueryKey = getCacheQueryKey(mainQuery);
         }
@@ -517,7 +539,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
 
     if (cacheQueryKey != null) {
-      cacheLookupGeneration = this.connectionGeneration.get();
+      if (this.enableDatabaseMultiTenancy) {
+        cacheLookupGeneration = this.connectionGeneration.get();
+      }
       cacheContext = telemetryFactory.openTelemetryContext(
           TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.NESTED);
       Exception cacheException = null;
@@ -573,21 +597,21 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       }
     }
 
-    if (!this.trackMultiTenantSessionState
+    if (!this.enableDatabaseMultiTenancy
         && isInTransaction
         && configuredQueryTtl != null) {
-      // Preserve the legacy behavior of writing transaction query results when tracking is off.
+      // Preserve the default behavior of writing transaction query results when tracking is off.
       needToCache = true;
     }
 
     if (needToCache
-        && (!this.trackMultiTenantSessionState
+        && (!this.enableDatabaseMultiTenancy
             || cacheLookupGeneration == this.connectionGeneration.get())) {
       final ResultSet dbResult = result;
       final Integer ttl = configuredQueryTtl;
       // Secure mode reuses the lookup key so authorization state cannot differ between cache read
-      // and write. Legacy mode intentionally derives the write key again, matching prior behavior.
-      final @Nullable String writeCacheQueryKey = this.trackMultiTenantSessionState
+      // and write. Default mode intentionally derives the write key again, matching prior behavior.
+      final @Nullable String writeCacheQueryKey = this.enableDatabaseMultiTenancy
           ? cacheQueryKey
           : getCacheQueryKey(mainQuery);
       if (dbResult != null && ttl != null && writeCacheQueryKey != null) {

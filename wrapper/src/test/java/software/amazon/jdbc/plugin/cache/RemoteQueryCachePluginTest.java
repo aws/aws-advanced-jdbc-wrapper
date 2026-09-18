@@ -49,6 +49,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
@@ -371,13 +372,13 @@ public class RemoteQueryCachePluginTest {
     assertTrue(rs2.next());
     assertEquals("bar1", rs2.getString("fooName"));
     assertFalse(rs2.next());
-    verify(mockPluginService, times(2)).getCurrentConnection();
+    verify(mockPluginService, times(3)).getCurrentConnection();
     verify(mockConnection, never()).getAutoCommit();
     verify(mockPluginService, times(2)).isInTransaction();
     verify(mockCacheConn, times(2)).readFromCache(expectedCacheKey);
-    verify(mockPluginService, times(2)).getSessionStateService();
-    verify(mockSessionStateService, times(2)).getCatalog();
-    verify(mockSessionStateService, times(2)).getSchema();
+    verify(mockPluginService, times(3)).getSessionStateService();
+    verify(mockSessionStateService, times(3)).getCatalog();
+    verify(mockSessionStateService, times(3)).getSchema();
     verify(mockConnection).getCatalog();
     verify(mockConnection).getSchema();
     verify(mockSessionStateService).setCatalog("mysql");
@@ -442,12 +443,12 @@ public class RemoteQueryCachePluginTest {
     assertTrue(rs2.next());
     assertEquals("bar1", rs2.getString("fooName"));
     assertFalse(rs2.next());
-    verify(mockPluginService, times(2)).getCurrentConnection();
+    verify(mockPluginService, times(3)).getCurrentConnection();
     verify(mockPluginService, times(2)).isInTransaction();
     verify(mockCacheConn, times(2)).readFromCache(expectedCacheKey);
-    verify(mockPluginService, times(2)).getSessionStateService();
-    verify(mockSessionStateService, times(2)).getCatalog();
-    verify(mockSessionStateService, times(2)).getSchema();
+    verify(mockPluginService, times(3)).getSessionStateService();
+    verify(mockSessionStateService, times(3)).getCatalog();
+    verify(mockSessionStateService, times(3)).getSchema();
     verify(mockConnection).getCatalog();
     verify(mockConnection).getSchema();
     verify(mockSessionStateService).setCatalog("mysql");
@@ -473,6 +474,7 @@ public class RemoteQueryCachePluginTest {
   @Test
   void test_transaction_cacheQuery() throws Exception {
     props.setProperty("user", "dbuser");
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
@@ -514,6 +516,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_transaction_cacheQuery_multiple_query_params() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
@@ -693,12 +696,12 @@ public class RemoteQueryCachePluginTest {
       assertFalse(curRs.next());
     }
 
-    verify(mockPluginService, times(11)).getCurrentConnection();
+    verify(mockPluginService, times(12)).getCurrentConnection();
     verify(mockPluginService, times(11)).isInTransaction();
     verify(mockCacheConn, times(11)).readFromCache(expectedCacheKey);
-    verify(mockPluginService, times(11)).getSessionStateService();
-    verify(mockSessionStateService, times(11)).getCatalog();
-    verify(mockSessionStateService, times(11)).getSchema();
+    verify(mockPluginService, times(12)).getSessionStateService();
+    verify(mockSessionStateService, times(12)).getCatalog();
+    verify(mockSessionStateService, times(12)).getSchema();
     verify(mockConnection).getSchema();
     verify(mockConnection).getCatalog();
     verify(mockSessionStateService).setSchema("public");
@@ -721,6 +724,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_partitionsCacheByPostgresqlAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -784,6 +788,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_partitionsCacheByMysqlAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -851,6 +856,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_doesNotCacheWhenConnectionChangesDuringCacheMiss() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -893,6 +899,7 @@ public class RemoteQueryCachePluginTest {
   @Test
   void test_notifyConnectionChanged_refreshesAuthorizationStateForPhysicalConnections()
       throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -923,6 +930,7 @@ public class RemoteQueryCachePluginTest {
   @Test
   void test_notifyConnectionChanged_marksAuthorizationStateUnknownWhenRefreshFails()
       throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -941,6 +949,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_notifyConnectionChanged_doesNotTrackUnsupportedDialects() throws SQLException {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -955,8 +964,30 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
-  void test_notifyConnectionChanged_doesNotTrackWhenDisabled() throws SQLException {
-    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+  void test_execute_bypassesCacheForUnsupportedDialectWhenDatabaseMultiTenancyIsEnabled()
+      throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(false);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+  }
+
+  @Test
+  void test_notifyConnectionChanged_preservesLegacyBehaviorByDefault() throws SQLException {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -968,11 +999,13 @@ public class RemoteQueryCachePluginTest {
 
     verify(mockSessionStateService, never()).enableAuthorizationStateTracking();
     verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertEquals(6, plugin.getSubscribedMethods().size());
+    assertFalse(plugin.getSubscribedMethods().contains(JdbcMethod.CONNECTION_COMMIT.methodName));
   }
 
   @Test
-  void test_execute_cachesWhenMultiTenantSessionStateTrackingIsDisabled() throws Exception {
-    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+  void test_execute_cachesWhenDatabaseMultiTenancyIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -1012,8 +1045,8 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
-  void test_execute_cachesCallableStatementWhenMultiTenantTrackingIsDisabled() throws Exception {
-    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+  void test_execute_cachesCallableStatementWhenDatabaseMultiTenancyIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -1050,8 +1083,8 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
-  void test_execute_cachesMultiStatementQueryWhenMultiTenantTrackingIsDisabled() throws Exception {
-    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+  void test_execute_cachesMultiStatementQueryWhenDatabaseMultiTenancyIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -1086,9 +1119,9 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
-  void test_execute_preservesLegacyTransactionWriteWhenMultiTenantTrackingIsDisabled()
+  void test_execute_preservesLegacyTransactionWriteWhenDatabaseMultiTenancyIsDisabled()
       throws Exception {
-    props.setProperty("cacheTrackMultiTenantSessionState", "false");
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -1123,6 +1156,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_usesPreviouslyAcquiredPostgresqlAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     props.setProperty("user", "application_user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -1163,6 +1197,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_bypassesCacheWhenAuthorizationStateCannotBeRead() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -1189,6 +1224,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_bypassesCacheForUntrackedAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -1216,6 +1252,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_bypassesCacheForAuthorizationStateChangingQuery() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
 
@@ -1251,7 +1288,12 @@ public class RemoteQueryCachePluginTest {
       final String schema,
       final String user,
       final String query) {
-    return cacheKey(catalog, schema, user, null, query);
+    return String.join(
+        "_",
+        catalog == null ? "null" : catalog,
+        schema == null ? "null" : schema,
+        user,
+        query == null ? "null" : query);
   }
 
   private static String cacheKey(

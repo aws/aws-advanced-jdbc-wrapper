@@ -49,7 +49,7 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 | `cacheName`                        | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
 | `cacheIamRegion`                   | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
 | `cacheMaxQuerySize`                | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
-| `cacheTrackMultiTenantSessionState` | 4.5.0 | Boolean | No | Whether to track multi-tenant database session state and include it in cache keys. Keep enabled when query visibility depends on dynamic roles or authorization-affecting session state. | `true` |
+| `cacheEnableDatabaseMultiTenancy` | 4.5.0 | Boolean | No | Enables authorization-aware remote query cache isolation for database multi-tenancy. Applications using database-level tenant isolation must enable this setting. | `false` |
 | `cacheConnectionTimeoutMs`         | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
 | `cacheConnectionPoolSize`          | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
 | `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Enables keyspace isolation for different connections.                                               | `null`        |
@@ -93,39 +93,44 @@ Query cache entry is indexed by a hashed caching key containing the following pa
 - For MySQL and MariaDB, the database-reported session user, authenticated account, active roles, and current database
 - The SQL query string
 
-The PostgreSQL authorization session state is acquired from the database and updated after
-statements such as `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, their corresponding
-`RESET` commands, successful JDBC `Connection.setSchema(...)` calls, and transaction completion.
-Transaction completion invalidates transaction-local state so that it is reacquired before caching
-resumes. If this state cannot be determined, the query bypasses both cache reads and cache writes.
+When database multi-tenancy protection is enabled, the PostgreSQL authorization session state is
+acquired from the database and updated after statements such as `SET ROLE`,
+`SET SESSION AUTHORIZATION`, `SET search_path`, their corresponding `RESET` commands, successful
+JDBC `Connection.setSchema(...)` calls, and transaction completion. Transaction completion
+invalidates transaction-local state so that it is reacquired before caching resumes. If this state
+cannot be determined, the query bypasses both cache reads and cache writes.
 
-Multi-tenant session-state tracking is enabled by default. Applications whose query visibility
-does not depend on dynamic database roles or authorization-affecting session state can set
-`cacheTrackMultiTenantSessionState=false`. When disabled, the plugin preserves legacy cache
-eligibility behavior: it does not acquire authorization state, include authorization state in cache
-keys, reject callable or multi-statement queries based on authorization tracking, or bypass caching
-when authorization state is unavailable. The length-prefixed cache-key format remains in use.
+Database multi-tenancy protection is disabled by default. When
+`cacheEnableDatabaseMultiTenancy=false`, the plugin preserves legacy cache eligibility,
+transaction behavior, method subscriptions, and cache-key format. It does not acquire or inspect
+authorization session state.
 
-For MySQL and MariaDB, the authorization session state is acquired from the database and updated
-after statements such as `SET ROLE`, `USE`, and `RESET CONNECTION`. MySQL servers that do not
-support roles omit only the active-role component. Opaque statements and session-variable changes
-such as `CALL`, `DO`, `SET @variable`, and dynamically prepared SQL disable remote query caching
-for that connection.
+Applications whose query visibility depends on database roles, schemas, search paths, active roles,
+or other authorization session state must set `cacheEnableDatabaseMultiTenancy=true`. When
+enabled, caching is limited to supported database dialects whose authorization state can be
+determined safely. If that state is unavailable, the query bypasses both cache reads and writes.
 
-When multi-tenant session-state tracking is enabled, statements containing MySQL or MariaDB
+When database multi-tenancy protection is enabled, the MySQL and MariaDB authorization session
+state is acquired from the database and updated after statements such as `SET ROLE`, `USE`, and
+`RESET CONNECTION`. MySQL servers that do not support roles omit only the active-role component.
+Opaque statements and session-variable changes such as `CALL`, `DO`, `SET @variable`, and
+dynamically prepared SQL disable remote query caching for that connection.
+
+When database multi-tenancy protection is enabled, statements containing MySQL or MariaDB
 executable comments (`/*! ... */` or `/*M! ... */`) bypass remote cache reads and writes. The SQL
 is still executed normally. After successful execution, remote caching is disabled for that
 connection because the executable contents may change authorization state that cannot be tracked
 safely.
 
-When multi-tenant session-state tracking is enabled, callable statements, multi-statement queries,
+When database multi-tenancy protection is enabled, callable statements, multi-statement queries,
 and queries executed inside a transaction bypass both cache reads and cache writes. Their results
 can depend on uncommitted data or session state that cannot be safely represented by the cache key.
 If the physical connection changes while a cache miss is executed, the returned database result is
 not written to the cache because it may use a different authorization context.
 Batch execution disables remote query caching for the connection before the batch runs because
 earlier entries may change session state even if a later entry fails.
-When tracking is disabled, the plugin preserves legacy behavior: callable and multi-statement
+When database multi-tenancy protection is disabled, the plugin preserves legacy behavior:
+callable and multi-statement
 queries remain eligible for caching, while transaction queries bypass cache reads but may write their
 database results to the cache.
 
@@ -140,9 +145,11 @@ database results to the cache.
 > tracked by the plugin.
 
 > [!WARNING]
-> Setting `cacheTrackMultiTenantSessionState=false` removes cache-key isolation based on
+> Database multi-tenancy protection is disabled by default to preserve legacy behavior. Applications
+> using database-level tenant isolation must set `cacheEnableDatabaseMultiTenancy=true`. Leaving
+> it disabled removes cache-key isolation based on
 > PostgreSQL effective roles and search paths and MySQL/MariaDB active roles and authenticated
-> accounts. Do not disable tracking for applications that use these values for tenant isolation,
+> accounts. Do not leave it disabled for applications that use these values for tenant isolation,
 > row-level security, or database authorization.
 
 ### Cache connection pooling
