@@ -101,8 +101,10 @@ bypasses both cache reads and cache writes.
 
 Multi-tenant session-state tracking is enabled by default. Applications whose query visibility
 does not depend on dynamic database roles or authorization-affecting session state can set
-`cacheTrackMultiTenantSessionState=false`. When disabled, the plugin does not acquire this state,
-does not include it in cache keys, and does not bypass caching when it is unavailable.
+`cacheTrackMultiTenantSessionState=false`. When disabled, the plugin preserves legacy cache
+eligibility behavior: it does not acquire authorization state, include authorization state in cache
+keys, reject callable or multi-statement queries based on authorization tracking, or bypass caching
+when authorization state is unavailable. The length-prefixed cache-key format remains in use.
 
 For MySQL and MariaDB, the authorization session state is acquired from the database and updated
 after statements such as `SET ROLE`, `USE`, and `RESET CONNECTION`. MySQL servers that do not
@@ -110,9 +112,12 @@ support roles omit only the active-role component. Opaque statements and session
 such as `CALL`, `DO`, `SET @variable`, and dynamically prepared SQL disable remote query caching
 for that connection.
 
-Callable statements, multi-statement queries, and queries executed inside a transaction bypass both
-cache reads and cache writes. Their results can depend on uncommitted data or session state that
-cannot be safely represented by the cache key.
+When multi-tenant session-state tracking is enabled, callable statements, multi-statement queries,
+and queries executed inside a transaction bypass both cache reads and cache writes. Their results
+can depend on uncommitted data or session state that cannot be safely represented by the cache key.
+When tracking is disabled, the plugin preserves legacy behavior: callable and multi-statement
+queries remain eligible for caching, while transaction queries bypass cache reads but may write their
+database results to the cache.
 
 > [!WARNING]
 > The plugin does not automatically discover application-specific PostgreSQL settings or

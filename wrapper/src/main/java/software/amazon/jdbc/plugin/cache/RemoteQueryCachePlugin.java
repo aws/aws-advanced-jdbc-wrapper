@@ -487,21 +487,23 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       }
     }
 
-    final boolean isCallableStatement = methodName.startsWith("CallableStatement.");
-    final boolean isSingleStatement = isSingleStatement(mainQuery);
+    final boolean isInTransaction = pluginService.isInTransaction();
 
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
-    if (configuredQueryTtl != null
-        && !isCallableStatement
-        && isSingleStatement
-        && !shouldBypassCacheForTransaction()) {
-      final TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
-      // A missing dialect means the authorization impact of the SQL cannot be determined.
-      // Fail closed by bypassing the cache.
-      if (targetDriverDialect != null
-          && !targetDriverDialect.mayChangeAuthorizationSessionState(mainQuery)) {
+    if (configuredQueryTtl != null && !isInTransaction) {
+      if (!this.trackMultiTenantSessionState) {
+        // Preserve legacy cache eligibility when authorization-state tracking is disabled.
         cacheQueryKey = getCacheQueryKey(mainQuery);
+      } else if (!methodName.startsWith("CallableStatement.")
+          && isSingleStatement(mainQuery)) {
+        final TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
+        // A missing dialect means the authorization impact of the SQL cannot be determined.
+        // Fail closed by bypassing the cache.
+        if (targetDriverDialect != null
+            && !targetDriverDialect.mayChangeAuthorizationSessionState(mainQuery)) {
+          cacheQueryKey = getCacheQueryKey(mainQuery);
+        }
       }
     }
 
@@ -561,14 +563,24 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       }
     }
 
-    // Cache only results fetched after a cache miss outside a transaction. Reuse the exact key
-    // used for the lookup so authorization state cannot differ between read and write derivation.
-    if (needToCache && cacheQueryKey != null) {
+    if (!this.trackMultiTenantSessionState
+        && isInTransaction
+        && configuredQueryTtl != null) {
+      // Preserve the legacy behavior of writing transaction query results when tracking is off.
+      needToCache = true;
+    }
+
+    if (needToCache) {
       final ResultSet dbResult = result;
       final Integer ttl = configuredQueryTtl;
-      if (dbResult != null && ttl != null) {
+      // Secure mode reuses the lookup key so authorization state cannot differ between cache read
+      // and write. Legacy mode intentionally derives the write key again, matching prior behavior.
+      final @Nullable String writeCacheQueryKey = this.trackMultiTenantSessionState
+          ? cacheQueryKey
+          : getCacheQueryKey(mainQuery);
+      if (dbResult != null && ttl != null && writeCacheQueryKey != null) {
         try {
-          result = cacheResultSet(cacheQueryKey, dbResult, ttl);
+          result = cacheResultSet(writeCacheQueryKey, dbResult, ttl);
         } catch (final SQLException ex) {
           // Log and re-throw exception
           LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.sqlExceptionWhenCaching"), ex);
@@ -591,21 +603,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
     // A semicolon inside a literal can cause a conservative cache bypass, which is safe.
     return candidate.indexOf(';') < 0;
-  }
-
-  private boolean shouldBypassCacheForTransaction() {
-    if (pluginService.isInTransaction() || pluginService.isXaTransactionActive()) {
-      return true;
-    }
-    try {
-      // With autoCommit disabled, even the first statement belongs to a transaction although the
-      // wrapper may not have observed an executing statement yet.
-      final @Nullable Connection currentConnection = pluginService.getCurrentConnection();
-      return currentConnection == null || !currentConnection.getAutoCommit();
-    } catch (SQLException e) {
-      // Fail closed if transaction state cannot be determined.
-      return true;
-    }
   }
 
   private void incrCounter(@Nullable TelemetryCounter counter) {
