@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -190,12 +191,13 @@ public class VerifyRoleOnConnect implements InitialConnectionHandler {
    * them.
    *
    * @param messageKey   the resource bundle key of the message to log
-   * @param messageArgs  the message arguments
+   * @param messageArgs  the message arguments; an individual argument may be null, since a role that
+   *                     could not be read and a failure without a message are what is being reported
    * @param conditionKey identifies the condition being reported, so that a different one still warns
    */
   private void logStaticHostListRole(
       final String messageKey,
-      final Object[] messageArgs,
+      final @Nullable Object[] messageArgs,
       final String conditionKey) {
 
     // Set.add returns true only for the caller that inserted the key, so concurrent initial
