@@ -28,6 +28,8 @@ properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 
 When using the Read/Write Splitting Plugin against Aurora clusters, you do not have to supply multiple instance URLs in the connection string. Instead, supply just the URL for the initial instance to which you're connecting. You must also include either the failover plugin or the Aurora host list plugin in your plugin chain so that the driver knows to query Aurora for its topology. See the section on [loading the Read/Write Splitting Plugin](#loading-the-readwrite-splitting-plugin) for more info.
 
+For a deployment that has no topology to query, such as an RDS instance with its read replicas, name the hosts in the connection string instead. See [Using the Read/Write Splitting Plugin with a host list from the connection string](#using-the-readwrite-splitting-plugin-with-a-host-list-from-the-connection-string).
+
 ## Configuration Parameters
 
 | Parameter                        | Available Since Version |  Value  |                                                                  Required                                                                   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default Value                                                                                                                    |
@@ -38,10 +40,64 @@ When using the Read/Write Splitting Plugin against Aurora clusters, you do not h
 | `queryLevelLoadBalancing`        | 4.2.0 | Boolean |                                                                     No                                                                      | When `true`, select a fresh reader on each read-routing decision within an established read-only phase (query-level load balancing) instead of reusing a single sticky reader. See the [Query-level load balancing](#query-level-load-balancing) section.                                                                                                                                                                                                                                                                                        | `false`                                                                                                                          |
 | `loadBalancingIncludeWriter`     | 4.2.0 | Boolean |                                                                     No                                                                      | When query-level load balancing is enabled, include the writer node as an eligible target in the reader-balancing pool.                                                                                                                                                                                                                                                                                                                                                                                                                          | `false`                                                                                                                          |
 | `allowStatementRecreationOnConnectionSwitch`       | 4.4.0 | Boolean |                                                                     No                                                                      | When a read-routing decision moves execution to a different connection, re-create the already-created `Statement`/`PreparedStatement`/`CallableStatement` on the routed connection (replaying its recorded settings and, for prepared/callable statements, bound parameters and registered OUT parameters) so the query actually runs there. A statement carrying a stream/`Reader`/LOB parameter or a pending batch cannot be rebound and falls back to the current connection with a one-time warning. Set to `false` to disable rebinding. See the [Query-level load balancing](#query-level-load-balancing) section.                                                                                                                                                                                                                                                                                                                       | `true`                                                                                                                           |
+| `singleWriterConnectionString`   | 1.0.1 | Boolean |                                                                     No                                                                      | Set to `true` when the connection string lists several comma-delimited hosts and the deployment has a single writer. The writer must be the first host in the list; the remaining hosts are treated as readers. Required to select readers from a host list supplied in the connection string. See [Using the Read/Write Splitting Plugin with a host list from the connection string](#using-the-readwrite-splitting-plugin-with-a-host-list-from-the-connection-string).                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `false`                                                                                                                          |
 
-## Using the Read/Write Splitting Plugin against non-Aurora clusters
+## Using the Read/Write Splitting Plugin with a host list from the connection string
 
-The Read/Write Splitting Plugin is not currently supported for non-Aurora clusters.
+Aurora clusters and RDS Multi-AZ DB clusters expose a topology that the driver can query, so a single
+endpoint in the connection string is enough. A deployment without such a topology — for example an RDS
+MySQL or RDS PostgreSQL primary with its read replicas, which are separate DB instances rather than a
+cluster — has to name its hosts explicitly. List them comma-separated, put the writer first, and set
+`singleWriterConnectionString` to `true` so that the first host is treated as the writer and the rest
+as readers:
+
+```java
+final Properties properties = new Properties();
+properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
+properties.setProperty("singleWriterConnectionString", "true");
+
+final Connection conn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:mysql://primary.xyz.us-east-1.rds.amazonaws.com:3306"
+        + ",replica1.xyz.us-east-1.rds.amazonaws.com:3306"
+        + ",replica2.xyz.us-east-1.rds.amazonaws.com:3306/mydb",
+    properties);
+```
+
+The plugin then behaves as it does on a cluster: `setReadOnly(true)` selects one of the readers using
+the configured [reader selection strategy](../HostSelectionStrategies.md), and `setReadOnly(false)`
+returns to the writer. Each host is connected to individually, so plugins that act per connection —
+[IAM authentication](./UsingTheIamAuthenticationPlugin.md) in particular, which mints a token per host
+— work as usual.
+
+> [!IMPORTANT]\
+> Without `singleWriterConnectionString=true` every host in a comma-separated connection string is
+> assumed to be a **writer**, unless it is an Aurora reader cluster endpoint. There is then no host for
+> the plugin to select as a reader: reader selection fails, the read is served by the writer instead,
+> and reads are never offloaded. The driver logs a warning the first time this happens on a connection.
+
+Two things this configuration does not give you, because there is no topology to consult:
+
+- **The host list is never refreshed.** A replica that is added, removed or replaced is not noticed;
+  the list stays exactly as it was parsed from the connection string. Reflecting such a change requires
+  a new connection with an updated URL.
+- **There is no health monitoring of the listed hosts.** A reader that cannot be reached is skipped for
+  that one selection attempt and tried again on the next one. Consider a `connectTimeout` that fails
+  fast; see [AWS Advanced JDBC Wrapper
+  Parameters](../UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters).
+
+Roles, on the other hand, are verified rather than assumed: on the initial connection the plugin
+queries the connected host's actual role and corrects the host list if it disagrees with the
+connection string (see [Initial Connection Role Verification](#initial-connection-role-verification)).
+This matters most after a replica has been promoted, at which point the host listed first is no longer
+the writer. The correction applies to the connection that discovered it and is reported at `WARNING`
+once per affected host, because the connection string itself needs updating.
+
+For read traffic to be distributed across the replicas per query rather than per `setReadOnly(true)`
+call, use the [Auto Read/Write Splitting Plugin](./UsingTheAutoReadWriteSplittingPlugin.md) together
+with `queryLevelLoadBalancing=true`; see [Query-level load balancing](#query-level-load-balancing).
+
+If you have exactly two endpoints to route between rather than a list of instances, the [Simple
+Read/Write Splitting Plugin](./UsingTheSimpleReadWriteSplittingPlugin.md) is a better fit.
 
 ## Initial Connection Role Verification
 
@@ -49,9 +105,11 @@ When the Read/Write Splitting Plugin establishes an initial connection, it queri
 
 Setting `verifyInitialConnectionRole` to `false` skips this query, which can improve initial connection time. However, this means the plugin will trust the role assumed from the endpoint type without verification.
 
+When the host list comes from the connection string rather than from a topology, a role that disagrees with the connection string is also corrected in the host list itself, so that reader and writer selection use the verified role. Because such a list is never refreshed, this correction lasts for the life of the connection and is made again on every new one. It is logged at `WARNING` the first time a given host is seen to be mislabelled, and at `FINE` on the connections after that: the message describes the connection string, which does not change between connections, and the connection string is what needs updating. A host whose role cannot be read at all — a database that will not answer a role query, or a query that fails — keeps the role declared by the connection string and is reported the same way. See [Using the Read/Write Splitting Plugin with a host list from the connection string](#using-the-readwrite-splitting-plugin-with-a-host-list-from-the-connection-string).
+
 ### When is it safe to disable?
 
-The role check is **strongly** recommended for endpoint types where the actual role may differ from the assumed role — specifically **[Aurora Custom Endpoints](./UsingTheCustomEndpointPlugin.md)** (which may route to either writers or readers), **Aurora Instance Endpoints** (where the URL pattern may not reflect the current role after a failover) and **non-RDS endpoints** (IP addresses, custom domains).
+The role check is **strongly** recommended for endpoint types where the actual role may differ from the assumed role — specifically **[Aurora Custom Endpoints](./UsingTheCustomEndpointPlugin.md)** (which may route to either writers or readers), **Aurora Instance Endpoints** (where the URL pattern may not reflect the current role after a failover) and **non-RDS endpoints** (IP addresses, custom domains). It is likewise recommended for a host list supplied in the connection string, where roles come from the ordering of the hosts alone.
 
 For endpoint types where the role is reliably known (e.g. cluster writer/reader endpoints, Multi-AZ cluster endpoints), the check can be safely disabled.
 
