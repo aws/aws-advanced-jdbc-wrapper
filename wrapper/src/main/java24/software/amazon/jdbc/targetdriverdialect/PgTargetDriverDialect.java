@@ -64,12 +64,18 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final Pattern AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"
-          + "SET\\s+(?:(?:(?:SESSION|LOCAL)\\s+)?(?:ROLE\\b|\"ROLE\")|"
-          + "(?:(?:SESSION|LOCAL)\\s+)?SESSION\\s+AUTHORIZATION\\b|"
-          + "(?:(?:SESSION|LOCAL)\\s+)?(?:SEARCH_PATH\\b|\"SEARCH_PATH\")|"
-          + "SCHEMA\\b)"
-          + "|RESET\\s+(?:ROLE\\b|SESSION\\s+AUTHORIZATION\\b|"
-          + "SEARCH_PATH\\b|\"SEARCH_PATH\"|ALL\\b)"
+          + "SET\\s+(?:(?:SESSION|LOCAL)\\s+)?(?:"
+          + "ROLE\\b|\"ROLE\""
+          + "|SESSION\\s+AUTHORIZATION\\b"
+          + "|SESSION_AUTHORIZATION\\b|\"SESSION_AUTHORIZATION\""
+          + "|SEARCH_PATH\\b|\"SEARCH_PATH\""
+          + "|SCHEMA\\b)"
+          + "|RESET\\s+(?:"
+          + "ROLE\\b|\"ROLE\""
+          + "|SESSION\\s+AUTHORIZATION\\b"
+          + "|SESSION_AUTHORIZATION\\b|\"SESSION_AUTHORIZATION\""
+          + "|SEARCH_PATH\\b|\"SEARCH_PATH\""
+          + "|ALL\\b)"
           + "|DISCARD\\s+(?:ALL|TEMP)\\b"
           + "|(?:CALL|DO)\\b"
           + "|CREATE\\s+(?:(?:GLOBAL|LOCAL)\\s+)?TEMP(?:ORARY)?\\b"
@@ -322,7 +328,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       return false;
     }
 
-    final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
+    final String sqlWithoutComments =
+        SqlMethodAnalyzer.stripCommentsWithNestedBlockComments(sql);
     return AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
         || SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
         || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
@@ -334,7 +341,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       return false;
     }
 
-    final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
+    final String sqlWithoutComments =
+        SqlMethodAnalyzer.stripCommentsWithNestedBlockComments(sql);
     return SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
         || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
   }

@@ -119,15 +119,20 @@ public class PgTargetDriverDialectTests {
       "SET LOCAL SESSION AUTHORIZATION tenant_a",
       "SET LOCAL search_path TO tenant_a, public",
       "SET SCHEMA 'tenant_a'",
+      "SET SESSION SCHEMA 'tenant_a'",
+      "SET LOCAL SCHEMA 'tenant_a'",
       "SET \"role\" = 'tenant_a'",
+      "SET session_authorization = 'tenant_a'",
       "RESET ROLE",
+      "RESET \"role\"",
       "DISCARD ALL",
       "CALL switch_tenant()",
       "SET app.tenant_id = 'tenant-a'",
       "RESET app.tenant_id",
       "SELECT set_config('app.tenant_id', 'tenant-a', false)",
       "SELECT pg_catalog.\"set_config\"('search_path', 'tenant_a', false)",
-      "SELECT 1; /* change tenant */ SET ROLE tenant_a"
+      "SELECT 1; /* change tenant */ SET ROLE tenant_a",
+      "/* outer /* inner */ still outer */ SET ROLE tenant_a"
   })
   void detectsStatementsThatMayChangeAuthorizationSessionState(final String sql) {
     assertTrue(dialect.mayChangeAuthorizationSessionState(sql));

@@ -36,9 +36,10 @@ Built-in support for AWS Identity and Access Management (IAM) authentication eli
 The driver includes [Remote Query Cache Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md) that stores cacheable read-only query results in a remote Valkey cache along with support for plain username/password authentication and IAM authentication with [AWS ElastiCache](https://aws.amazon.com/elasticache/). Applications can opt‑in per query using a SQL query hint that specifies a time‑to‑live (TTL).
 
 Database multi-tenancy protection is disabled by default to preserve legacy Remote Query Cache
-behavior. Applications whose query visibility depends on database roles, schemas, search paths,
-active roles, or other authorization session state must set
-`cacheEnableDatabaseMultiTenancy=true`.
+behavior. Applications whose query visibility depends on PostgreSQL roles or search paths, or on
+MySQL/MariaDB authenticated accounts, active roles, or current databases, must set
+`cacheEnableDatabaseMultiTenancy=true`. This setting does not make arbitrary custom session
+settings or hidden function side effects safe to cache.
 
 ### Preserve Existing Workflows
 

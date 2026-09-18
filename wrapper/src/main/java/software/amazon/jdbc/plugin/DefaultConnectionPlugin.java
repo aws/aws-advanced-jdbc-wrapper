@@ -145,9 +145,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     T result;
+    boolean executionSucceeded = false;
     try {
       result = jdbcMethodFunc.call();
+      executionSucceeded = true;
     } finally {
+      if (!executionSucceeded && !isBatchExecution) {
+        this.invalidateAuthorizationStateAfterFailedExecution(
+            methodInvokeOn,
+            methodName,
+            jdbcMethodArgs);
+      }
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
@@ -209,6 +217,36 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     return methodName.startsWith("Statement.execute")
         || methodName.startsWith("PreparedStatement.execute")
         || methodName.startsWith("CallableStatement.execute");
+  }
+
+  private void invalidateAuthorizationStateAfterFailedExecution(
+      final Object methodInvokeOn,
+      final String methodName,
+      final @Nullable Object[] jdbcMethodArgs) {
+
+    if (!isStatementExecutionMethod(methodName)) {
+      return;
+    }
+
+    final TargetDriverDialect targetDriverDialect = this.pluginService.getTargetDriverDialect();
+    if (!targetDriverDialect.supportsAuthorizationSessionState()) {
+      return;
+    }
+
+    final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    if (!sessionStateService.isAuthorizationStateTrackingEnabled()
+        || sessionStateService.hasUntrackedAuthorizationState()) {
+      return;
+    }
+
+    final @Nullable String sql =
+        getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
+    if (methodName.startsWith("CallableStatement.execute")
+        || targetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql)) {
+      sessionStateService.markAuthorizationStateUntracked();
+    } else if (targetDriverDialect.mayChangeAuthorizationSessionState(sql)) {
+      sessionStateService.markAuthorizationStateUnknown();
+    }
   }
 
   private void updateAuthorizationSessionState(

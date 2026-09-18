@@ -367,6 +367,32 @@ class DefaultConnectionPluginTest {
   }
 
   @Test
+  void testExecute_marksAuthorizationStateUnknownAfterFailedStateChange() throws SQLException {
+    final Statement statement = mock(Statement.class);
+    final String sql = "USE tenant_b; SELECT * FROM missing_table";
+    final SQLException expectedException = new SQLException();
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState(sql)).thenReturn(true);
+    when(mockSqlFunction.call()).thenThrow(expectedException);
+
+    final SQLException actualException = assertThrows(
+        SQLException.class,
+        () -> plugin.execute(
+            Void.class,
+            SQLException.class,
+            statement,
+            JdbcMethod.STATEMENT_EXECUTE.methodName,
+            mockSqlFunction,
+            new Object[] {sql}));
+
+    assertSame(expectedException, actualException);
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
   void testConnect() throws SQLException {
     plugin.connect("anyProtocol", mockHostSpec, new Properties(), true, mockConnectFunction);
     verify(connectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any(), any());

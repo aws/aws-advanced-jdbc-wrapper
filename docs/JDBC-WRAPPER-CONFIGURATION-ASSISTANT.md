@@ -1234,9 +1234,27 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `cacheConnectionTimeoutMs` | `2000` | Cache connect timeout. |
 | `cacheConnectionPoolSize` | `20` | Cache connection pool size. |
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
-| `cacheKeyPrefix` | (none) | Prefix for multi-tenant isolation (≤10 chars). |
+| `cacheKeyPrefix` | (none) | Prefix for cache keyspace isolation (≤10 chars). This does not track database authorization state. |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
 | `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for database multi-tenancy. Applications using database-level tenant isolation must enable this setting. |
+
+`cacheEnableDatabaseMultiTenancy` currently supports PostgreSQL, MySQL, and MariaDB. Unsupported
+dialects bypass caching when it is enabled. Enabling it reads authorization state when a physical
+connection is established or switched, after recognized state changes, and at transaction
+completion; normal cache hits and misses do not add a database query. Unknown authorization state
+can recover after a successful refresh. Untracked state remains disabled for that wrapper
+connection, including while it is returned to an application connection pool.
+
+For an application using database-level tenant isolation:
+
+```java
+props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+```
+
+This is an explicit application setting; the plugin does not automatically detect database
+multi-tenancy. It tracks PostgreSQL roles and search paths and MySQL/MariaDB authenticated accounts,
+active roles, and current databases. It does not make arbitrary custom session settings or hidden
+function side effects safe to cache.
 
 ### 5.23 `logQuery` — SQL logging (universal)
 
