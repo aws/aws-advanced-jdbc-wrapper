@@ -850,6 +850,47 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
+  void test_execute_doesNotCacheWhenConnectionChangesDuringCacheMiss() throws Exception {
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", authorizationState, query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(authorizationState));
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenAnswer(invocation -> {
+      plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.CONNECTION_OBJECT_CHANGED));
+      return mockResult1;
+    });
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+  }
+
+  @Test
   void test_notifyConnectionChanged_refreshesAuthorizationStateForPhysicalConnections()
       throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);

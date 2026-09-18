@@ -138,7 +138,9 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "CALL switch_tenant()",
       "DO @tenant_id := 'tenant_a'",
       "SET @tenant_id = 'tenant_a'",
-      "EXECUTE tenant_stmt"
+      "EXECUTE tenant_stmt",
+      "/*! USE tenant_b */",
+      "/*M! SET ROLE tenant_b */"
   })
   void detectsStatementsThatMayChangeUntrackedAuthorizationSessionState(final String sql) {
     assertTrue(dialect.mayChangeAuthorizationSessionState(sql));

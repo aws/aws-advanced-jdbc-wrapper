@@ -19,6 +19,8 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -273,6 +276,24 @@ class DefaultConnectionPluginTest {
   }
 
   @Test
+  void testExecute_refreshesAuthorizationStateAfterSetSchema() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(conn.getAutoCommit()).thenReturn(true);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        conn,
+        JdbcMethod.CONNECTION_SETSCHEMA.methodName,
+        mockSqlFunction,
+        new Object[] {"tenant_a"});
+
+    verify(mockSqlFunction).call();
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @Test
   void testExecute_doesNotTrackAuthorizationStateWhenTrackingIsDisabled() throws SQLException {
     final Statement statement = mock(Statement.class);
     when(pluginService.getCurrentConnection()).thenReturn(conn);
@@ -319,20 +340,24 @@ class DefaultConnectionPluginTest {
   }
 
   @Test
-  void testExecute_marksAuthorizationStateUntrackedAfterBatch() throws SQLException {
+  void testExecute_marksAuthorizationStateUntrackedBeforeFailedBatch() throws SQLException {
     final Statement statement = mock(Statement.class);
+    final BatchUpdateException expectedException = new BatchUpdateException();
     when(pluginService.getCurrentConnection()).thenReturn(conn);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockSqlFunction.call()).thenThrow(expectedException);
 
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        statement,
-        JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-        mockSqlFunction,
-        new Object[] {});
+    final BatchUpdateException actualException = assertThrows(
+        BatchUpdateException.class,
+        () -> plugin.execute(
+            Void.class,
+            SQLException.class,
+            statement,
+            JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+            mockSqlFunction,
+            new Object[] {}));
 
-    verify(mockSqlFunction).call();
+    assertSame(expectedException, actualException);
     verify(mockSessionStateService).markAuthorizationStateUntracked();
     verify(mockTargetDriverDialect, never())
         .mayChangeUntrackedAuthorizationSessionState(anyString());

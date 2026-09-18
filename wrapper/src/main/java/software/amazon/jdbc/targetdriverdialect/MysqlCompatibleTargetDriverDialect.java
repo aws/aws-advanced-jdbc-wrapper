@@ -50,6 +50,9 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
           + ")",
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
+  private static final Pattern EXECUTABLE_COMMENT_PATTERN =
+      Pattern.compile("/\\*(?:!|M!)", Pattern.CASE_INSENSITIVE);
+
   @Override
   public boolean supportsAuthorizationSessionState() {
     return true;
@@ -110,6 +113,10 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
       return false;
     }
 
+    if (EXECUTABLE_COMMENT_PATTERN.matcher(sql).find()) {
+      return true;
+    }
+
     final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
     return AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
         || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
@@ -119,6 +126,10 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
   public boolean mayChangeUntrackedAuthorizationSessionState(final @Nullable String sql) {
     if (StringUtils.isNullOrEmpty(sql)) {
       return false;
+    }
+
+    if (EXECUTABLE_COMMENT_PATTERN.matcher(sql).find()) {
+      return true;
     }
 
     final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);

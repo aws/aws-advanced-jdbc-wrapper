@@ -37,6 +37,7 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
@@ -133,6 +134,16 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
         this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
 
+    final boolean isBatchExecution = methodName.endsWith(".executeBatch");
+    if (isBatchExecution) {
+      final TargetDriverDialect targetDriverDialect = this.pluginService.getTargetDriverDialect();
+      final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+      if (targetDriverDialect.supportsAuthorizationSessionState()
+          && sessionStateService.isAuthorizationStateTrackingEnabled()) {
+        sessionStateService.markAuthorizationStateUntracked();
+      }
+    }
+
     T result;
     try {
       result = jdbcMethodFunc.call();
@@ -181,7 +192,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     if (doesCloseTransaction
         || doesSwitchAutoCommitFalseTrue
-        || isStatementExecutionMethod(methodName)) {
+        || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName)
+        || (isStatementExecutionMethod(methodName) && !isBatchExecution)) {
       this.updateAuthorizationSessionState(
           methodInvokeOn,
           methodName,
@@ -215,12 +227,12 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     if (!sessionStateService.isAuthorizationStateTrackingEnabled()) {
       return;
     }
-    final @Nullable String sql = getExecutedSql(
-        targetDriverDialect,
-        methodInvokeOn,
-        jdbcMethodArgs);
-    if (methodName.endsWith(".executeBatch")
-        || methodName.startsWith("CallableStatement.execute")
+    final boolean isSetSchema =
+        JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
+    final @Nullable String sql = isSetSchema
+        ? null
+        : getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
+    if (methodName.startsWith("CallableStatement.execute")
         || targetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql)) {
       // Custom settings and opaque calls can change authorization context that is not represented
       // by AuthorizationSessionState. Once observed, caching must remain disabled for this
@@ -233,7 +245,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return;
     }
 
-    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue;
+    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue || isSetSchema;
     shouldRefresh |= targetDriverDialect.mayChangeAuthorizationSessionState(sql);
     shouldRefresh |= doesCloseTransaction;
     if (!shouldRefresh) {

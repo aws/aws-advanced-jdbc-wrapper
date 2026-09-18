@@ -32,6 +32,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -74,11 +75,12 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
   // Batch methods return update counts and are never cached. Subscribe to them so execution passes
   // through the plugin chain and DefaultConnectionPlugin can conservatively mark authorization
-  // state as untracked when multi-tenant session-state tracking is enabled.
+  // state as untracked before execution when multi-tenant session-state tracking is enabled.
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Arrays.asList(JdbcMethod.CONNECTION_COMMIT.methodName,
           JdbcMethod.CONNECTION_ROLLBACK.methodName,
           JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+          JdbcMethod.CONNECTION_SETSCHEMA.methodName,
           JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
           JdbcMethod.STATEMENT_EXECUTE.methodName,
           JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
@@ -144,6 +146,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private final @Nullable TelemetryCounter cacheBypassCounter;
   private final AtomicBoolean authorizationStateWarningLogged = new AtomicBoolean(false);
   private final AtomicBoolean untrackedAuthorizationStateWarningLogged = new AtomicBoolean(false);
+  private final AtomicLong connectionGeneration = new AtomicLong();
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -207,6 +210,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         && !changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
       return OldConnectionSuggestedAction.NO_OPINION;
     }
+
+    this.connectionGeneration.incrementAndGet();
 
     if (!this.pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
       return OldConnectionSuggestedAction.NO_OPINION;
@@ -480,6 +485,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
     String cacheQueryKey = null;
+    long cacheLookupGeneration = -1;
     // Queries longer than 16KB is not cacheable
     if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize)
         && sql.contains(QUERY_HINT_START_PATTERN)) {
@@ -511,6 +517,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
 
     if (cacheQueryKey != null) {
+      cacheLookupGeneration = this.connectionGeneration.get();
       cacheContext = telemetryFactory.openTelemetryContext(
           TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.NESTED);
       Exception cacheException = null;
@@ -573,7 +580,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       needToCache = true;
     }
 
-    if (needToCache) {
+    if (needToCache
+        && (!this.trackMultiTenantSessionState
+            || cacheLookupGeneration == this.connectionGeneration.get())) {
       final ResultSet dbResult = result;
       final Integer ttl = configuredQueryTtl;
       // Secure mode reuses the lookup key so authorization state cannot differ between cache read

@@ -118,12 +118,15 @@ public class PgTargetDriverDialectTests {
       "SET SESSION SESSION AUTHORIZATION tenant_a",
       "SET LOCAL SESSION AUTHORIZATION tenant_a",
       "SET LOCAL search_path TO tenant_a, public",
+      "SET SCHEMA 'tenant_a'",
+      "SET \"role\" = 'tenant_a'",
       "RESET ROLE",
       "DISCARD ALL",
       "CALL switch_tenant()",
       "SET app.tenant_id = 'tenant-a'",
       "RESET app.tenant_id",
       "SELECT set_config('app.tenant_id', 'tenant-a', false)",
+      "SELECT pg_catalog.\"set_config\"('search_path', 'tenant_a', false)",
       "SELECT 1; /* change tenant */ SET ROLE tenant_a"
   })
   void detectsStatementsThatMayChangeAuthorizationSessionState(final String sql) {
@@ -137,7 +140,8 @@ public class PgTargetDriverDialectTests {
       "RESET app.tenant_id",
       "CALL switch_tenant()",
       "DO $$ BEGIN PERFORM set_config('app.tenant_id', 'tenant-a', false); END $$",
-      "SELECT set_config('app.tenant_id', 'tenant-a', false)"
+      "SELECT set_config('app.tenant_id', 'tenant-a', false)",
+      "SELECT pg_catalog.\"set_config\"('search_path', 'tenant_a', false)"
   })
   void detectsStatementsThatMayChangeUntrackedAuthorizationSessionState(final String sql) {
     assertTrue(dialect.mayChangeUntrackedAuthorizationSessionState(sql));

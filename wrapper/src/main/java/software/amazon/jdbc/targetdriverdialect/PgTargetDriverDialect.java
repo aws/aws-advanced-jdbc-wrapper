@@ -63,9 +63,10 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final Pattern AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"
-          + "SET\\s+(?:(?:(?:SESSION|LOCAL)\\s+)?ROLE\\b|"
+          + "SET\\s+(?:(?:(?:SESSION|LOCAL)\\s+)?(?:ROLE\\b|\"ROLE\")|"
           + "(?:(?:SESSION|LOCAL)\\s+)?SESSION\\s+AUTHORIZATION\\b|"
-          + "(?:(?:SESSION|LOCAL)\\s+)?(?:SEARCH_PATH\\b|\"SEARCH_PATH\"))"
+          + "(?:(?:SESSION|LOCAL)\\s+)?(?:SEARCH_PATH\\b|\"SEARCH_PATH\")|"
+          + "SCHEMA\\b)"
           + "|RESET\\s+(?:ROLE\\b|SESSION\\s+AUTHORIZATION\\b|"
           + "SEARCH_PATH\\b|\"SEARCH_PATH\"|ALL\\b)"
           + "|DISCARD\\s+(?:ALL|TEMP)\\b"
@@ -76,7 +77,9 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
   private static final Pattern SET_CONFIG_PATTERN =
-      Pattern.compile("\\bSET_CONFIG\\s*\\(", Pattern.CASE_INSENSITIVE);
+      Pattern.compile(
+          "(?:\\bSET_CONFIG\\b|\"SET_CONFIG\")\\s*\\(",
+          Pattern.CASE_INSENSITIVE);
 
   private static final Pattern UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"

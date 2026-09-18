@@ -95,9 +95,9 @@ Query cache entry is indexed by a hashed caching key containing the following pa
 
 The PostgreSQL authorization session state is acquired from the database and updated after
 statements such as `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, their corresponding
-`RESET` commands, and transaction completion. Transaction completion invalidates transaction-local
-state so that it is reacquired before caching resumes. If this state cannot be determined, the query
-bypasses both cache reads and cache writes.
+`RESET` commands, successful JDBC `Connection.setSchema(...)` calls, and transaction completion.
+Transaction completion invalidates transaction-local state so that it is reacquired before caching
+resumes. If this state cannot be determined, the query bypasses both cache reads and cache writes.
 
 Multi-tenant session-state tracking is enabled by default. Applications whose query visibility
 does not depend on dynamic database roles or authorization-affecting session state can set
@@ -112,9 +112,19 @@ support roles omit only the active-role component. Opaque statements and session
 such as `CALL`, `DO`, `SET @variable`, and dynamically prepared SQL disable remote query caching
 for that connection.
 
+When multi-tenant session-state tracking is enabled, statements containing MySQL or MariaDB
+executable comments (`/*! ... */` or `/*M! ... */`) bypass remote cache reads and writes. The SQL
+is still executed normally. After successful execution, remote caching is disabled for that
+connection because the executable contents may change authorization state that cannot be tracked
+safely.
+
 When multi-tenant session-state tracking is enabled, callable statements, multi-statement queries,
 and queries executed inside a transaction bypass both cache reads and cache writes. Their results
 can depend on uncommitted data or session state that cannot be safely represented by the cache key.
+If the physical connection changes while a cache miss is executed, the returned database result is
+not written to the cache because it may use a different authorization context.
+Batch execution disables remote query caching for the connection before the batch runs because
+earlier entries may change session state even if a later entry fails.
 When tracking is disabled, the plugin preserves legacy behavior: callable and multi-statement
 queries remain eligible for caching, while transaction queries bypass cache reads but may write their
 database results to the cache.
