@@ -89,8 +89,8 @@ Roles, on the other hand, are verified rather than assumed: on the initial conne
 queries the connected host's actual role and corrects the host list if it disagrees with the
 connection string (see [Initial Connection Role Verification](#initial-connection-role-verification)).
 This matters most after a replica has been promoted, at which point the host listed first is no longer
-the writer. The correction applies to the connection that discovered it and is reported at `WARNING`,
-because the connection string itself needs updating.
+the writer. The correction applies to the connection that discovered it and is reported at `WARNING`
+once per affected host, because the connection string itself needs updating.
 
 For read traffic to be distributed across the replicas per query rather than per `setReadOnly(true)`
 call, use the [Auto Read/Write Splitting Plugin](./UsingTheAutoReadWriteSplittingPlugin.md) together
@@ -105,7 +105,7 @@ When the Read/Write Splitting Plugin establishes an initial connection, it queri
 
 Setting `verifyInitialConnectionRole` to `false` skips this query, which can improve initial connection time. However, this means the plugin will trust the role assumed from the endpoint type without verification.
 
-When the host list comes from the connection string rather than from a topology, a role that disagrees with the connection string is also corrected in the host list itself, so that reader and writer selection use the verified role. Because such a list is never refreshed, this correction lasts for the life of the connection and is logged at `WARNING`: the connection string is wrong or out of date and should be updated. See [Using the Read/Write Splitting Plugin with a host list from the connection string](#using-the-readwrite-splitting-plugin-with-a-host-list-from-the-connection-string).
+When the host list comes from the connection string rather than from a topology, a role that disagrees with the connection string is also corrected in the host list itself, so that reader and writer selection use the verified role. Because such a list is never refreshed, this correction lasts for the life of the connection and is made again on every new one. It is logged at `WARNING` the first time a given host is seen to be mislabelled, and at `FINE` on the connections after that: the message describes the connection string, which does not change between connections, and the connection string is what needs updating. A host whose role cannot be read at all — a database that will not answer a role query, or a query that fails — keeps the role declared by the connection string and is reported the same way. See [Using the Read/Write Splitting Plugin with a host list from the connection string](#using-the-readwrite-splitting-plugin-with-a-host-list-from-the-connection-string).
 
 ### When is it safe to disable?
 

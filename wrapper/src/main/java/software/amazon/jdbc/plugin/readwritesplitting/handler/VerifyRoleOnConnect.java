@@ -19,6 +19,9 @@ package software.amazon.jdbc.plugin.readwritesplitting.handler;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostRole;
@@ -39,6 +42,20 @@ import software.amazon.jdbc.util.Messages;
 public class VerifyRoleOnConnect implements InitialConnectionHandler {
 
   private static final Logger LOGGER = Logger.getLogger(VerifyRoleOnConnect.class.getName());
+
+  /**
+   * Connection-string host list conditions that have already been reported at {@code WARNING}.
+   *
+   * <p>Static on purpose. A fresh plugin service, host list provider and plugin chain are built for
+   * every wrapper connection, so this handler runs once per application connection and a per-instance
+   * flag would suppress nothing. What both warnings describe - a host list that names the wrong role,
+   * or a database that will not report one - is a property of the connection string, identical for
+   * every connection opened with it, so repeating it per connection adds no information.
+   *
+   * <p>The key carries the host and the roles involved, so a different host, or the same host once
+   * the situation changes, is still reported.
+   */
+  private static final Set<String> reportedStaticHostListRoles = ConcurrentHashMap.newKeySet();
 
   private final String readerSelectorStrategy;
   private final boolean verifyInitialConnectionRole;
@@ -94,15 +111,17 @@ public class VerifyRoleOnConnect implements InitialConnectionHandler {
       if (!staticHostList) {
         throw e;
       }
-      LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.staticHostListRoleNotVerified",
-          new Object[] {hostSpec.getHostAndPort(), hostSpec.getRole(), e.getMessage()}));
+      logStaticHostListRole("ReadWriteSplittingPlugin.staticHostListRoleNotVerified",
+          new Object[] {hostSpec.getHostAndPort(), hostSpec.getRole(), e.getMessage()},
+          roleNotVerifiedKey(hostSpec));
       return currentConnection;
     }
 
     if (currentRole == null || HostRole.UNKNOWN.equals(currentRole)) {
       if (staticHostList) {
-        LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.staticHostListRoleNotVerified",
-            new Object[] {hostSpec.getHostAndPort(), hostSpec.getRole(), currentRole}));
+        logStaticHostListRole("ReadWriteSplittingPlugin.staticHostListRoleNotVerified",
+            new Object[] {hostSpec.getHostAndPort(), hostSpec.getRole(), currentRole},
+            roleNotVerifiedKey(hostSpec));
         return currentConnection;
       }
       final String message = Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole");
@@ -139,7 +158,10 @@ public class VerifyRoleOnConnect implements InitialConnectionHandler {
    *
    * <p>A mismatch on a static list also means the connection string itself is wrong or has gone
    * stale (for example, the host listed first is no longer the writer), which the user has to fix,
-   * so it is reported at {@code WARNING}.
+   * so the first connection that sees it reports it at {@code WARNING}. The report is only made once
+   * the role has actually been replaced in the host list, so the message never claims a correction
+   * that did not happen; a mismatch that changes nothing is still traced by the {@code FINEST}
+   * message the caller logs.
    */
   private void correctStaticHostListRole(
       final RwSplitContext ctx,
@@ -148,12 +170,57 @@ public class VerifyRoleOnConnect implements InitialConnectionHandler {
       final HostRole measuredRole)
       throws SQLException {
 
-    LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.staticHostListRoleCorrected",
-        new Object[] {host.getHostAndPort(), host.getRole(), measuredRole}));
-
     if (hostListProvider.updateHostRole(host.getHostAndPort(), measuredRole)) {
+      logStaticHostListRole("ReadWriteSplittingPlugin.staticHostListRoleCorrected",
+          new Object[] {host.getHostAndPort(), host.getRole(), measuredRole},
+          roleCorrectedKey(host, measuredRole));
       // Republish the host list so that getHosts() reports the corrected role.
       ctx.pluginService().refreshHostList();
     }
+  }
+
+  /**
+   * Reports a connection-string host list role problem, at {@code WARNING} the first time the
+   * condition is seen in this JVM and at {@code FINE} for every connection after that.
+   *
+   * <p>{@code WARNING} for the first occurrence keeps the problem visible: both conditions mean reads
+   * and writes may be routed by an unverified role. Dropping the repeats keeps a connection pool, or
+   * an application that opens a connection per request, from restating the same unchanged fact on
+   * every connection - while {@code FINE} still records each occurrence for anyone who needs to count
+   * them.
+   *
+   * @param messageKey   the resource bundle key of the message to log
+   * @param messageArgs  the message arguments
+   * @param conditionKey identifies the condition being reported, so that a different one still warns
+   */
+  private void logStaticHostListRole(
+      final String messageKey,
+      final Object[] messageArgs,
+      final String conditionKey) {
+
+    // Set.add returns true only for the caller that inserted the key, so concurrent initial
+    // connections cannot both claim the WARNING.
+    final Level level = reportedStaticHostListRoles.add(conditionKey) ? Level.WARNING : Level.FINE;
+    if (!LOGGER.isLoggable(level)) {
+      return;
+    }
+    LOGGER.log(level, Messages.get(messageKey, messageArgs));
+  }
+
+  private static String roleNotVerifiedKey(final HostSpec hostSpec) {
+    return "roleNotVerified|" + hostSpec.getHostAndPort() + '|' + hostSpec.getRole();
+  }
+
+  private static String roleCorrectedKey(final HostSpec hostSpec, final HostRole measuredRole) {
+    return "roleCorrected|" + hostSpec.getHostAndPort() + '|' + hostSpec.getRole() + '|' + measuredRole;
+  }
+
+  /**
+   * Forgets which connection-string host list conditions have already been reported at
+   * {@code WARNING}, so that the once-per-JVM behaviour can be exercised in isolation. Intended for
+   * tests.
+   */
+  static void clearReportedStaticHostListRoles() {
+    reportedStaticHostListRoles.clear();
   }
 }
