@@ -1236,7 +1236,7 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
 | `cacheKeyPrefix` | (none) | Prefix for cache keyspace isolation (≤10 chars). This does not track database authorization state. |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
-| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for database multi-tenancy. Applications using database-level tenant isolation must enable this setting. |
+| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation when query visibility depends on supported PostgreSQL role/search-path state or MySQL/MariaDB account/role/database state. |
 
 `cacheEnableDatabaseMultiTenancy` currently supports PostgreSQL, MySQL, and MariaDB. Unsupported
 dialects bypass caching when it is enabled. Enabling it reads authorization state when a physical
@@ -1245,7 +1245,8 @@ completion; normal cache hits and misses do not add a database query. Unknown au
 can recover after a successful refresh. Untracked state remains disabled for that wrapper
 connection, including while it is returned to an application connection pool.
 
-For an application using database-level tenant isolation:
+When query visibility depends on supported PostgreSQL role or search-path state, or MySQL/MariaDB
+account, role, or database state:
 
 ```java
 props.setProperty("cacheEnableDatabaseMultiTenancy", "true");

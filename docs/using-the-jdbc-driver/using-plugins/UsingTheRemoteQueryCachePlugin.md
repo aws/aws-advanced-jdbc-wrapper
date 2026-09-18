@@ -28,8 +28,6 @@ The Remote Query Cache Plugin is not loaded by default. To load the plugin, incl
 final Properties props = new Properties();
 props.setProperty(PropertyDefinition.PLUGINS.name, "remoteQueryCache");
 props.setProperty("cacheEndpointAddrRw", "mycache.amazonaws.com:6379");
-// Required when query visibility depends on database roles, schemas, or search paths.
-props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
 
 // Create a connection and run a query
 Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:postgresql://mydb.amazonaws.com:5432/postgres", props);
@@ -38,8 +36,18 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 ...
 ```
 
+### Database multi-tenancy opt-in
+
+Enable this setting when query visibility depends on supported PostgreSQL role or search-path state,
+or MySQL/MariaDB account, role, or database state:
+
+```java
+props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+```
+
 `cacheEnableDatabaseMultiTenancy` is an application connection property. The plugin does not
-automatically detect whether an application uses database-level tenant isolation.
+automatically detect whether an application uses supported database session state for tenant
+isolation.
 
 ## Configuration Parameters
 
@@ -54,7 +62,7 @@ automatically detect whether an application uses database-level tenant isolation
 | `cacheName`                        | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
 | `cacheIamRegion`                   | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
 | `cacheMaxQuerySize`                | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
-| `cacheEnableDatabaseMultiTenancy` | 4.5.0 | Boolean | No | Enables authorization-aware remote query cache isolation for database multi-tenancy. Applications using database-level tenant isolation must enable this setting. | `false` |
+| `cacheEnableDatabaseMultiTenancy` | 4.5.0 | Boolean | No | Enables authorization-aware cache isolation when query visibility depends on supported PostgreSQL role/search-path state or MySQL/MariaDB account/role/database state. | `false` |
 | `cacheConnectionTimeoutMs`         | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
 | `cacheConnectionPoolSize`          | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
 | `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Separates cache keyspaces but does not track database authorization state.                           | `null`        |
@@ -126,8 +134,9 @@ cache hits and cache misses do not issue an authorization-state query. MySQL ser
 support `CURRENT_ROLE()` require one fallback query when authorization state is refreshed.
 
 When database multi-tenancy protection is enabled, the MySQL and MariaDB authorization session
-state is acquired from the database and updated after statements such as `SET ROLE`, `USE`, and
-`RESET CONNECTION`. MySQL servers that do not support roles omit only the active-role component.
+state is acquired from the database and updated after operations such as `SET ROLE`, `USE`,
+`RESET CONNECTION`, and successful JDBC `Connection.setCatalog(...)` calls. MySQL servers that do
+not support roles omit only the active-role component.
 Opaque statements and session-variable changes such as `CALL`, `DO`, `SET @variable`, and
 dynamically prepared SQL disable remote query caching for that connection.
 
@@ -169,12 +178,16 @@ cache reads but may write their database results to the cache.
 > tracked by the plugin.
 
 > [!WARNING]
-> Database multi-tenancy protection is disabled by default to preserve legacy behavior. Applications
-> using database-level tenant isolation must set `cacheEnableDatabaseMultiTenancy=true`. Leaving
-> it disabled removes cache-key isolation based on
-> PostgreSQL effective roles and search paths and MySQL/MariaDB active roles and authenticated
-> accounts. Do not leave it disabled for applications that use these values for tenant isolation,
-> row-level security, or database authorization.
+> Cache hits do not query the database to revalidate authorization. External changes such as
+> `GRANT`, `REVOKE`, role-membership changes, or row-level security policy changes do not invalidate
+> entries when the tracked cache-key state remains unchanged. Previously cached results may remain
+> available until their TTL expires or they are evicted or explicitly removed.
+
+> [!WARNING]
+> Database multi-tenancy protection is disabled by default to preserve legacy behavior. Enable
+> `cacheEnableDatabaseMultiTenancy` when query visibility depends on supported PostgreSQL effective
+> roles or search paths, or MySQL/MariaDB authenticated accounts, active roles, or current
+> databases. Leaving it disabled removes cache-key isolation based on these values.
 
 ### Cache connection pooling
 
