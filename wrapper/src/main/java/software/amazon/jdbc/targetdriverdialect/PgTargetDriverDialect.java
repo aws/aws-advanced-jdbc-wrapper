@@ -58,8 +58,9 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String CP_DS_CLASS_NAME = "org.postgresql.ds.PGConnectionPoolDataSource";
   private static final String XA_DS_CLASS_NAME = "org.postgresql.xa.PGXADataSource";
   private static final String AUTHORIZATION_SESSION_STATE_QUERY =
-      "SELECT session_user, current_user, current_setting('search_path'), "
-          + "array_to_json(current_schemas(true))::text";
+      "SELECT session_user, current_user, "
+          + "pg_catalog.current_setting('search_path'), "
+          + "pg_catalog.array_to_json(pg_catalog.current_schemas(true))::pg_catalog.text";
 
   private static final Pattern AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"
