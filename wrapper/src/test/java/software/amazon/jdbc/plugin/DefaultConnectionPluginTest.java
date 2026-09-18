@@ -51,6 +51,7 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.SessionStateService;
@@ -315,6 +316,29 @@ class DefaultConnectionPluginTest {
     verify(mockSessionStateService).markAuthorizationStateUntracked();
     verify(mockSessionStateService, never()).getAuthorizationState();
     verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void testExecute_marksAuthorizationStateUntrackedAfterBatch() throws SQLException {
+    final Statement statement = mock(Statement.class);
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        statement,
+        JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+        mockSqlFunction,
+        new Object[] {});
+
+    verify(mockSqlFunction).call();
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockTargetDriverDialect, never())
+        .mayChangeUntrackedAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
   }
 
   @Test

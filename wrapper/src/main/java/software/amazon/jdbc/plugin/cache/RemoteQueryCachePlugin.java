@@ -72,6 +72,9 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private static final int MAX_TTL_SECONDS = 15552000; // 180 days (half a year)
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
+  // Batch methods return update counts and are never cached. Subscribe to them so execution passes
+  // through the plugin chain and DefaultConnectionPlugin can conservatively mark authorization
+  // state as untracked when multi-tenant session-state tracking is enabled.
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Arrays.asList(JdbcMethod.CONNECTION_COMMIT.methodName,
           JdbcMethod.CONNECTION_ROLLBACK.methodName,

@@ -231,7 +231,7 @@ public class RemoteQueryCachePluginTest {
     when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
-    verify(mockPluginService, never()).isInTransaction();
+    verify(mockPluginService, times(1)).isInTransaction();
     verify(mockCallable).call();
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
@@ -258,7 +258,7 @@ public class RemoteQueryCachePluginTest {
     when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
-    verify(mockPluginService, never()).isInTransaction();
+    verify(mockPluginService, times(1)).isInTransaction();
     verify(mockCallable).call();
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
@@ -292,7 +292,7 @@ public class RemoteQueryCachePluginTest {
     // Mock result set containing 1 row
     compareResults(mockResult1, rs);
 
-    verify(mockPluginService, never()).isInTransaction();
+    verify(mockPluginService, times(2)).isInTransaction();
     verify(mockPluginService, times(2)).getTargetDriverDialect();
     verify(mockCallable, times(2)).call();
     verify(mockTotalQueryCounter, times(2)).inc();
