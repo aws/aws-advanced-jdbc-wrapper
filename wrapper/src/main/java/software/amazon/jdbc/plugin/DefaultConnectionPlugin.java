@@ -200,6 +200,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     if (doesCloseTransaction
         || doesSwitchAutoCommitFalseTrue
+        || JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
         || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName)
         || (isStatementExecutionMethod(methodName) && !isBatchExecution)) {
       this.updateAuthorizationSessionState(
@@ -265,9 +266,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     if (!sessionStateService.isAuthorizationStateTrackingEnabled()) {
       return;
     }
-    final boolean isSetSchema =
-        JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
-    final @Nullable String sql = isSetSchema
+    final boolean isDatabaseContextSetter =
+        JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
+            || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
+    final @Nullable String sql = isDatabaseContextSetter
         ? null
         : getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
     if (methodName.startsWith("CallableStatement.execute")
@@ -283,7 +285,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return;
     }
 
-    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue || isSetSchema;
+    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue || isDatabaseContextSetter;
     shouldRefresh |= targetDriverDialect.mayChangeAuthorizationSessionState(sql);
     shouldRefresh |= doesCloseTransaction;
     if (!shouldRefresh) {

@@ -46,6 +46,8 @@ import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionInfo;
@@ -275,8 +277,10 @@ class DefaultConnectionPluginTest {
     verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
   }
 
-  @Test
-  void testExecute_refreshesAuthorizationStateAfterSetSchema() throws SQLException {
+  @ParameterizedTest
+  @ValueSource(strings = {"Connection.setCatalog", "Connection.setSchema"})
+  void testExecute_refreshesAuthorizationStateAfterDatabaseContextSetter(
+      final String methodName) throws SQLException {
     when(pluginService.getCurrentConnection()).thenReturn(conn);
     when(conn.getAutoCommit()).thenReturn(true);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
@@ -285,7 +289,7 @@ class DefaultConnectionPluginTest {
         Void.class,
         SQLException.class,
         conn,
-        JdbcMethod.CONNECTION_SETSCHEMA.methodName,
+        methodName,
         mockSqlFunction,
         new Object[] {"tenant_a"});
 

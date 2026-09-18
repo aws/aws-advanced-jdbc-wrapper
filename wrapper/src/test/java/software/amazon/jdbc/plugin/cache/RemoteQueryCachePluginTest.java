@@ -925,6 +925,7 @@ public class RemoteQueryCachePluginTest {
 
     verify(mockSessionStateService, times(2)).enableAuthorizationStateTracking();
     verify(mockSessionStateService, times(2)).refreshAuthorizationState();
+    assertTrue(plugin.getSubscribedMethods().contains(JdbcMethod.CONNECTION_SETCATALOG.methodName));
   }
 
   @Test

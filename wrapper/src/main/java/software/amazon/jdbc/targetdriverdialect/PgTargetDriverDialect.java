@@ -78,7 +78,6 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
           + "|ALL\\b)"
           + "|DISCARD\\s+(?:ALL|TEMP)\\b"
           + "|(?:CALL|DO)\\b"
-          + "|CREATE\\s+(?:(?:GLOBAL|LOCAL)\\s+)?TEMP(?:ORARY)?\\b"
           + "|(?:COMMIT|ROLLBACK|END|ABORT)\\b"
           + ")",
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
@@ -91,6 +90,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final Pattern UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"
           + "(?:CALL|DO)\\b"
+          + "|CREATE\\s+(?:(?:GLOBAL|LOCAL)\\s+)?TEMP(?:ORARY)?\\b"
+          + "|SELECT\\b.*?\\bINTO\\s+TEMP(?:ORARY)?(?:\\s+TABLE)?\\b"
           + "|(?:SET|RESET)\\s+(?:(?:SESSION|LOCAL)\\s+)?"
           + "(?:\"(?:[^\"]|\"\")*\\.(?:[^\"]|\"\")*\""
           + "|[A-Z_][A-Z0-9_$]*\\s*\\.\\s*[A-Z_][A-Z0-9_$]*)"

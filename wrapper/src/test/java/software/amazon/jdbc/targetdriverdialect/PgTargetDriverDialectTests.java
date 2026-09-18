@@ -146,7 +146,11 @@ public class PgTargetDriverDialectTests {
       "CALL switch_tenant()",
       "DO $$ BEGIN PERFORM set_config('app.tenant_id', 'tenant-a', false); END $$",
       "SELECT set_config('app.tenant_id', 'tenant-a', false)",
-      "SELECT pg_catalog.\"set_config\"('search_path', 'tenant_a', false)"
+      "SELECT pg_catalog.\"set_config\"('search_path', 'tenant_a', false)",
+      "CREATE TEMP TABLE tenant_orders (id bigint)",
+      "CREATE TEMPORARY TABLE tenant_orders (id bigint)",
+      "SELECT * INTO TEMP tenant_orders FROM orders",
+      "SELECT * INTO TEMPORARY TABLE tenant_orders FROM orders"
   })
   void detectsStatementsThatMayChangeUntrackedAuthorizationSessionState(final String sql) {
     assertTrue(dialect.mayChangeUntrackedAuthorizationSessionState(sql));

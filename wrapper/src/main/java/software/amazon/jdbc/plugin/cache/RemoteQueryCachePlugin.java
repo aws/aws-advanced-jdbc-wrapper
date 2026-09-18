@@ -90,6 +90,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           JdbcMethod.CONNECTION_COMMIT.methodName,
           JdbcMethod.CONNECTION_ROLLBACK.methodName,
           JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+          JdbcMethod.CONNECTION_SETCATALOG.methodName,
           JdbcMethod.CONNECTION_SETSCHEMA.methodName,
           JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
           JdbcMethod.STATEMENT_EXECUTE.methodName,
