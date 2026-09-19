@@ -21,15 +21,18 @@ import java.sql.Driver;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -39,9 +42,12 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.wrapper.PgEncryptedDataHelper;
+import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ResourceLock;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.StringUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
@@ -53,6 +59,46 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String POOLING_DS_CLASS_NAME = "org.postgresql.ds.PGPoolingDataSource";
   private static final String CP_DS_CLASS_NAME = "org.postgresql.ds.PGConnectionPoolDataSource";
   private static final String XA_DS_CLASS_NAME = "org.postgresql.xa.PGXADataSource";
+  private static final String AUTHORIZATION_SESSION_STATE_QUERY =
+      "SELECT session_user, current_user, "
+          + "pg_catalog.current_setting('search_path'), "
+          + "pg_catalog.array_to_json(pg_catalog.current_schemas(true))::pg_catalog.text";
+
+  private static final Pattern AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
+      "(?:^|;)\\s*(?:"
+          + "SET\\s+(?:(?:SESSION|LOCAL)\\s+)?(?:"
+          + "ROLE\\b|\"ROLE\""
+          + "|SESSION\\s+AUTHORIZATION\\b"
+          + "|SESSION_AUTHORIZATION\\b|\"SESSION_AUTHORIZATION\""
+          + "|SEARCH_PATH\\b|\"SEARCH_PATH\""
+          + "|SCHEMA\\b)"
+          + "|RESET\\s+(?:"
+          + "ROLE\\b|\"ROLE\""
+          + "|SESSION\\s+AUTHORIZATION\\b"
+          + "|SESSION_AUTHORIZATION\\b|\"SESSION_AUTHORIZATION\""
+          + "|SEARCH_PATH\\b|\"SEARCH_PATH\""
+          + "|ALL\\b)"
+          + "|DISCARD\\s+(?:ALL|TEMP)\\b"
+          + "|(?:CALL|DO)\\b"
+          + "|(?:COMMIT|ROLLBACK|END|ABORT)\\b"
+          + ")",
+      Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+  private static final Pattern SET_CONFIG_PATTERN =
+      Pattern.compile(
+          "(?:\\bSET_CONFIG\\b|\"SET_CONFIG\")\\s*\\(",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
+      "(?:^|;)\\s*(?:"
+          + "(?:CALL|DO)\\b"
+          + "|CREATE\\s+(?:(?:GLOBAL|LOCAL)\\s+)?TEMP(?:ORARY)?\\b"
+          + "|SELECT\\b.*?\\bINTO\\s+TEMP(?:ORARY)?(?:\\s+TABLE)?\\b"
+          + "|(?:SET|RESET)\\s+(?:(?:SESSION|LOCAL)\\s+)?"
+          + "(?:\"(?:[^\"]|\"\")*\\.(?:[^\"]|\"\")*\""
+          + "|[A-Z_][A-Z0-9_$]*\\s*\\.\\s*[A-Z_][A-Z0-9_$]*)"
+          + ")",
+      Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
@@ -245,6 +291,59 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   // of the PostgreSQL-specific behaviour. Keep the two variants in sync; the only intended
   // differences are abortConnection (no Security Manager on JDK 24) and prepareConnectInfo.
   // PgTargetDriverDialectVariantTest guards against renewed drift.
+
+  @Override
+  public boolean supportsAuthorizationSessionState() {
+    return true;
+  }
+
+  @Override
+  public Optional<AuthorizationSessionState> readAuthorizationSessionState(
+      final @NonNull Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(AUTHORIZATION_SESSION_STATE_QUERY)) {
+      if (!resultSet.next()) {
+        return Optional.empty();
+      }
+
+      final String sessionUser = resultSet.getString(1);
+      final String currentUser = resultSet.getString(2);
+      final String searchPath = resultSet.getString(3);
+      final String resolvedSearchPath = resultSet.getString(4);
+      if (sessionUser == null
+          || currentUser == null
+          || searchPath == null
+          || resolvedSearchPath == null) {
+        return Optional.empty();
+      }
+
+      return Optional.of(new AuthorizationSessionState(
+        sessionUser,
+        currentUser,
+        searchPath,
+        resolvedSearchPath));
+    }
+  }
+
+  @Override
+  public AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
+    if (StringUtils.isNullOrEmpty(sql)) {
+      return AuthorizationStateImpact.NONE;
+    }
+
+    final String sqlWithoutComments =
+        SqlMethodAnalyzer.stripCommentsWithNestedBlockComments(sql);
+    if (SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
+        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.UNTRACKED;
+    }
+
+    if (AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.TRACKED;
+    }
+
+    return AuthorizationStateImpact.NONE;
+  }
 
   @Override
   @SuppressWarnings("deprecation")

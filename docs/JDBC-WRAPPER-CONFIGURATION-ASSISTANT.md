@@ -1234,8 +1234,18 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `cacheConnectionTimeoutMs` | `2000` | Cache connect timeout. |
 | `cacheConnectionPoolSize` | `20` | Cache connection pool size. |
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
-| `cacheKeyPrefix` | (none) | Prefix for multi-tenant isolation (≤10 chars). |
+| `cacheKeyPrefix` | (none) | Prefix for cache keyspace isolation (≤10 chars). This does not track database authorization state. |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
+| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for supported PostgreSQL, MySQL, and MariaDB session state. |
+
+Enable this when query visibility depends on supported database authorization or session state:
+
+```java
+props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+```
+
+See [Remote Query Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md)
+for supported state, limitations, fail-closed behavior, and performance implications.
 
 ### 5.23 `logQuery` — SQL logging (universal)
 

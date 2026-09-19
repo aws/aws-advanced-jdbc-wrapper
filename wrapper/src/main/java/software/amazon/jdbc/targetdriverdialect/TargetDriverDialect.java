@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -30,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.states.AuthorizationSessionState;
 
 public interface TargetDriverDialect {
 
@@ -99,6 +101,35 @@ public interface TargetDriverDialect {
       throws SQLException;
 
   @Nullable String getSQLQueryString(PreparedStatement ps);
+
+  /**
+   * Whether this dialect can acquire database session state that affects authorization and object
+   * resolution.
+   */
+  default boolean supportsAuthorizationSessionState() {
+    return false;
+  }
+
+  /**
+   * Reads the current authorization-affecting state from the database session.
+   */
+  default Optional<AuthorizationSessionState> readAuthorizationSessionState(
+      final @NonNull Connection connection) throws SQLException {
+    return Optional.empty();
+  }
+
+  enum AuthorizationStateImpact {
+    NONE,
+    TRACKED,
+    UNTRACKED
+  }
+
+  /**
+   * Returns how the SQL can affect authorization session state.
+   */
+  default AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
+    return AuthorizationStateImpact.NONE;
+  }
 
   void registerDataType(final @NonNull Connection connection,  final @NonNull String typeName,
       final @NonNull String className)

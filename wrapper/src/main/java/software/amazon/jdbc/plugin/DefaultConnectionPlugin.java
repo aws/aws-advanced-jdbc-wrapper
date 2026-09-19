@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -35,12 +37,16 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -129,10 +135,28 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
         this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
 
+    final boolean isBatchExecution = methodName.endsWith(".executeBatch");
+    if (isBatchExecution) {
+      final TargetDriverDialect targetDriverDialect = this.pluginService.getTargetDriverDialect();
+      final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+      if (targetDriverDialect.supportsAuthorizationSessionState()
+          && sessionStateService.isAuthorizationStateTrackingEnabled()) {
+        sessionStateService.markAuthorizationStateUntracked();
+      }
+    }
+
     T result;
+    boolean executionSucceeded = false;
     try {
       result = jdbcMethodFunc.call();
+      executionSucceeded = true;
     } finally {
+      if (!executionSucceeded && !isBatchExecution) {
+        this.invalidateAuthorizationStateAfterFailedExecution(
+            methodInvokeOn,
+            methodName,
+            jdbcMethodArgs);
+      }
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
@@ -153,10 +177,12 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
+    final boolean doesCloseTransaction =
+        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs);
     if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
     } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+        doesCloseTransaction
             // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
             || doesSwitchAutoCommitFalseTrue) {
       this.pluginManagerService.setInTransaction(false);
@@ -173,7 +199,139 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       }
     }
 
+    if (doesCloseTransaction
+        || doesSwitchAutoCommitFalseTrue
+        || JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
+        || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName)
+        || (isStatementExecutionMethod(methodName) && !isBatchExecution)) {
+      this.updateAuthorizationSessionState(
+          methodInvokeOn,
+          methodName,
+          jdbcMethodArgs,
+          doesCloseTransaction,
+          doesSwitchAutoCommitFalseTrue);
+    }
+
     return result;
+  }
+
+  private static boolean isStatementExecutionMethod(final String methodName) {
+    return methodName.startsWith("Statement.execute")
+        || methodName.startsWith("PreparedStatement.execute")
+        || methodName.startsWith("CallableStatement.execute");
+  }
+
+  private void invalidateAuthorizationStateAfterFailedExecution(
+      final Object methodInvokeOn,
+      final String methodName,
+      final @Nullable Object[] jdbcMethodArgs) {
+
+    if (!isStatementExecutionMethod(methodName)) {
+      return;
+    }
+
+    final TargetDriverDialect targetDriverDialect = this.pluginService.getTargetDriverDialect();
+    if (!targetDriverDialect.supportsAuthorizationSessionState()) {
+      return;
+    }
+
+    final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    if (!sessionStateService.isAuthorizationStateTrackingEnabled()
+        || sessionStateService.hasUntrackedAuthorizationState()) {
+      return;
+    }
+
+    final @Nullable String sql =
+        getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
+    final AuthorizationStateImpact impact =
+        methodName.startsWith("CallableStatement.execute")
+            ? AuthorizationStateImpact.UNTRACKED
+            : targetDriverDialect.getAuthorizationStateImpact(sql);
+    if (impact == AuthorizationStateImpact.UNTRACKED) {
+      sessionStateService.markAuthorizationStateUntracked();
+    } else if (impact == AuthorizationStateImpact.TRACKED) {
+      sessionStateService.markAuthorizationStateUnknown();
+    }
+  }
+
+  private void updateAuthorizationSessionState(
+      final Object methodInvokeOn,
+      final String methodName,
+      final @Nullable Object[] jdbcMethodArgs,
+      final boolean doesCloseTransaction,
+      final boolean doesSwitchAutoCommitFalseTrue) {
+
+    final TargetDriverDialect targetDriverDialect = this.pluginService.getTargetDriverDialect();
+    if (!targetDriverDialect.supportsAuthorizationSessionState()) {
+      return;
+    }
+
+    final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    if (!sessionStateService.isAuthorizationStateTrackingEnabled()) {
+      return;
+    }
+    final boolean isDatabaseContextSetter =
+        JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
+            || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
+    final @Nullable String sql = isDatabaseContextSetter
+        ? null
+        : getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
+    final AuthorizationStateImpact impact =
+        methodName.startsWith("CallableStatement.execute")
+            ? AuthorizationStateImpact.UNTRACKED
+            : targetDriverDialect.getAuthorizationStateImpact(sql);
+    if (impact == AuthorizationStateImpact.UNTRACKED) {
+      // Custom settings and opaque calls can change authorization context that is not represented
+      // by AuthorizationSessionState. Once observed, caching must remain disabled for this
+      // connection rather than risk reusing results across security contexts.
+      sessionStateService.markAuthorizationStateUntracked();
+      return;
+    }
+
+    if (sessionStateService.hasUntrackedAuthorizationState()) {
+      return;
+    }
+
+    boolean shouldRefresh = doesSwitchAutoCommitFalseTrue || isDatabaseContextSetter;
+    shouldRefresh |= impact == AuthorizationStateImpact.TRACKED;
+    shouldRefresh |= doesCloseTransaction;
+    if (!shouldRefresh) {
+      return;
+    }
+
+    try {
+      if (!this.pluginService.getCurrentConnection().getAutoCommit()) {
+        // Avoid issuing an internal query inside the application's transaction. Transaction-local
+        // authorization state is reacquired when autoCommit is switched back to true.
+        sessionStateService.markAuthorizationStateUnknown();
+        return;
+      }
+      sessionStateService.refreshAuthorizationState();
+    } catch (final SQLException e) {
+      sessionStateService.markAuthorizationStateUnknown();
+      LOGGER.log(
+          Level.WARNING,
+          Messages.get("DefaultConnectionPlugin.errorRefreshingAuthorizationSessionState"),
+          e);
+    }
+  }
+
+  private static @Nullable String getExecutedSql(
+      final TargetDriverDialect targetDriverDialect,
+      final Object methodInvokeOn,
+      final @Nullable Object[] jdbcMethodArgs) {
+    if (methodInvokeOn instanceof PreparedStatement) {
+      // PreparedStatement.execute*() has no SQL argument. Retrieve its bound SQL using the
+      // target-driver-specific representation of the prepared statement instead.
+      return targetDriverDialect.getSQLQueryString((PreparedStatement) methodInvokeOn);
+    }
+    if (jdbcMethodArgs != null
+        && jdbcMethodArgs.length > 0
+        && jdbcMethodArgs[0] instanceof String) {
+      // Statement.execute*(String sql, ...) defines the SQL as its first argument.
+      return (String) jdbcMethodArgs[0];
+    }
+    return null;
   }
 
   @Override

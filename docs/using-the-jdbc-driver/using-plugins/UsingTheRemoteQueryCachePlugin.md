@@ -36,6 +36,19 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 ...
 ```
 
+### Database multi-tenancy opt-in
+
+Enable this setting when query visibility depends on supported PostgreSQL role or search-path state,
+or MySQL/MariaDB account, role, or database state:
+
+```java
+props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+```
+
+`cacheEnableDatabaseMultiTenancy` is an application connection property. The plugin does not
+automatically detect whether an application uses supported database session state for tenant
+isolation.
+
 ## Configuration Parameters
 
 | Parameter                          | Available Since Version |  Value  | Required | Description                                                                                                                                             | Default Value |
@@ -49,9 +62,10 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 | `cacheName`                        | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
 | `cacheIamRegion`                   | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
 | `cacheMaxQuerySize`                | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
+| `cacheEnableDatabaseMultiTenancy` | 4.5.0 | Boolean | No | Enables authorization-aware cache isolation when query visibility depends on supported PostgreSQL role/search-path state or MySQL/MariaDB account/role/database state. | `false` |
 | `cacheConnectionTimeoutMs`         | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
 | `cacheConnectionPoolSize`          | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
-| `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Enables keyspace isolation for different connections.                                               | `null`        |
+| `cacheKeyPrefix`                   | 3.3.0 | String  |    No    | Optional prefix for cache keys (max 10 characters). Separates cache keyspaces but does not track database authorization state.                           | `null`        |
 | `failWhenCacheDown`                | 3.3.0 | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
 | `cacheInFlightWriteSizeLimitBytes` | 3.3.0 | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
 | `cacheHealthCheckInHealthyState`   | 3.3.0 | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
@@ -63,7 +77,7 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 
 - Designed for caching read‑only queries that produce a ResultSet, this plugin is typically good for certain types of database application workloads when the data in the table does not change very often.
 - User application can enable remote query caching functionality with minimal amount of application code changes. The application needs to enable the remote query caching plugin and specify the cache server’s endpoint when creating the JDBC connection, and prefix the query string with a SQL query hint containing the TTL.
-- All incoming queries that contain a caching query hint prefix will have their responses cached with the specified TTL. Further requests with the same query get their result served from the cache instead of the backend database.
+- Eligible queries that contain a caching query hint prefix will have their responses cached with the specified TTL. Further requests with the same query get their result served from the cache instead of the backend database.
 - For safety/security of caching operations, SQL queries longer than a specified length threshold (defaulted to 16K) will not be eligible for caching.
 - Cache writes are asynchronous to reduce query latency but may lead to a brief time window where the first request is served from the database while a background write occurs to write the query result into the cache server.
 - The cache server is responsible for item evictions and scaling; the client does not enforce an in‑JVM size limit for cached data.
@@ -80,17 +94,100 @@ The plugin uses SQL query hints to determine cacheability of the query and TTL. 
 This is primarily done via a configured TTL for each cached entry, with an upper bound of 180 days to avoid caching entries permanently. User should define the TTL based on how frequently the underlying query data changes. User can bypass reading responses from the cache for queries that require stronger consistency.
 
 In the case when the configured TTL is too long and causes stale data to be returned from the cache, there are a couple of options to mitigate this issue:
-- Specify a configurable cache key prefix to allow multi‑tenant separation within a shared cache cluster. The cache key prefix can help segregate the keyspace of one application use-case from another, so the user can scan for and delete only keys with that particular prefix from the valkey server to clear the cache for only 1 application use-case without affecting other application use-cases.
+- Specify a configurable cache key prefix to separate keyspaces within a shared cache cluster. This can segregate one application use-case from another so the user can scan for and delete only keys with that prefix. It does not replace `cacheEnableDatabaseMultiTenancy` when query visibility depends on database authorization state.
 - Flushing all data from the Valkey server (via a `FLUSHALL` command) so that it can be re-hydrated from the database again with fresh values.
 
 ### Query result correctness
 
-Query cache entry is indexed by a hashed caching key containing the following parts:
+Every query cache entry is indexed by a hashed caching key containing:
 - Database username - different database users can have different permissions on various tables.
 - Database catalog/schema name - same table name can exist in a different database catalog/schema which contains different data
 - The SQL query string
 
-All queries inside a multi-statement transaction are inherently atomically consistent. When a readonly query is executed inside a multi-statement transaction, we can’t serve the query result from the cache because of consistency guarantee such as read-after-write consistency for a transaction would be violated. As a result, we need to fetch the query result from the database, and do a best-effort update to the cache with the new result set we fetched from the database. That way the subsequent queries that are standalone can fetch the newly updated result from the cache.
+When `cacheEnableDatabaseMultiTenancy=true`, the key additionally contains:
+- For PostgreSQL, the current session user, effective role, configured search path, and resolved search path
+- For MySQL and MariaDB, the database-reported session user, authenticated account, active roles, and current database
+
+When database multi-tenancy protection is enabled, the PostgreSQL authorization session state is
+acquired from the database and updated after statements such as `SET ROLE`,
+`SET SESSION AUTHORIZATION`, `SET search_path`, their corresponding `RESET` commands, successful
+JDBC `Connection.setSchema(...)` calls, and transaction completion. Transaction completion
+invalidates transaction-local state so that it is reacquired before caching resumes. If this state
+cannot be determined, the query bypasses both cache reads and cache writes.
+
+Database multi-tenancy protection is disabled by default. When
+`cacheEnableDatabaseMultiTenancy=false`, the plugin preserves legacy cache eligibility,
+transaction behavior, method subscriptions, and cache-key format. It does not acquire or inspect
+authorization session state.
+
+Applications whose query visibility depends on PostgreSQL roles or search paths, or on
+MySQL/MariaDB authenticated accounts, active roles, or current databases, must set
+`cacheEnableDatabaseMultiTenancy=true`. This setting does not make arbitrary custom session
+settings or hidden function side effects safe to cache. When enabled, caching is limited to
+supported database dialects whose authorization state can be determined safely. PostgreSQL,
+MySQL, and MariaDB are currently supported. Other dialects, or a supported dialect whose state is
+unavailable, bypass both cache reads and writes.
+
+Enabling this protection reads authorization state when a physical connection is established or
+switched, after recognized authorization-state changes, and at transaction completion. Normal
+cache hits and cache misses do not issue an authorization-state query. MySQL servers that do not
+support `CURRENT_ROLE()` require one fallback query when authorization state is refreshed.
+
+When database multi-tenancy protection is enabled, the MySQL and MariaDB authorization session
+state is acquired from the database and updated after operations such as `SET ROLE`, `USE`,
+`RESET CONNECTION`, and successful JDBC `Connection.setCatalog(...)` calls. MySQL servers that do
+not support roles omit only the active-role component.
+Opaque statements and session-variable changes such as `CALL`, `DO`, `SET @variable`, and
+dynamically prepared SQL disable remote query caching for that connection.
+
+When database multi-tenancy protection is enabled, statements containing MySQL or MariaDB
+executable comments (`/*! ... */` or `/*M! ... */`) bypass remote cache reads and writes. The SQL
+is still executed normally. Remote caching is disabled for that connection after execution,
+including when execution fails, because the executable contents may have changed authorization
+state that cannot be tracked safely.
+
+When database multi-tenancy protection is enabled, callable statements, multi-statement queries,
+and queries executed inside a transaction bypass both cache reads and cache writes. Their results
+can depend on uncommitted data or session state that cannot be safely represented by the cache key.
+If the physical connection changes while a cache miss is executed, the returned database result is
+not written to the cache because it may use a different authorization context.
+Batch execution disables remote query caching for the connection before the batch runs because
+earlier entries may change session state even if a later entry fails.
+Creating PostgreSQL temporary relations, including with `CREATE TEMP` or `SELECT INTO TEMP`,
+disables remote query caching for the connection because temporary relations can change name
+resolution without changing the authorization-state cache key.
+If a recognized non-batch authorization-state change fails, the plugin invalidates its
+authorization snapshot because an earlier command may already have changed the session. Opaque
+failed operations mark the state untracked. The original JDBC exception is preserved.
+An unknown authorization state bypasses caching until a later refresh succeeds. An untracked state
+cannot be represented safely and remains disabled for that wrapper connection. Returning a
+connection to an application connection pool does not by itself clear the untracked state.
+When database multi-tenancy protection is disabled, the plugin preserves legacy behavior:
+callable and multi-statement queries remain eligible for caching, while transaction queries bypass
+cache reads but may write their database results to the cache.
+
+> [!WARNING]
+> When `cacheEnableDatabaseMultiTenancy=true`, the plugin does not automatically discover
+> application-specific PostgreSQL settings or
+> MySQL/MariaDB session variables used by authorization policies. If the wrapper observes a custom
+> setting, `set_config`, `SET @variable`, or an opaque statement that may change such state, remote
+> query caching is disabled for that connection. Changes hidden inside arbitrary SQL functions,
+> connection initialization commands, or target-driver APIs cannot be detected reliably. Do not
+> enable query caching for queries whose visibility depends on authorization state outside the
+> database-reported users, catalog/schema, active roles, and PostgreSQL search path currently
+> tracked by the plugin.
+
+> [!WARNING]
+> Cache hits do not query the database to revalidate authorization. External changes such as
+> `GRANT`, `REVOKE`, role-membership changes, or row-level security policy changes do not invalidate
+> entries when the tracked cache-key state remains unchanged. Previously cached results may remain
+> available until their TTL expires or they are evicted or explicitly removed.
+
+> [!WARNING]
+> Database multi-tenancy protection is disabled by default to preserve legacy behavior. Enable
+> `cacheEnableDatabaseMultiTenancy` when query visibility depends on supported PostgreSQL effective
+> roles or search paths, or MySQL/MariaDB authenticated accounts, active roles, or current
+> databases. Leaving it disabled removes cache-key isolation based on these values.
 
 ### Cache connection pooling
 
