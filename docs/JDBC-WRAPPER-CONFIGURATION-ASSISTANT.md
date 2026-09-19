@@ -1236,26 +1236,16 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
 | `cacheKeyPrefix` | (none) | Prefix for cache keyspace isolation (≤10 chars). This does not track database authorization state. |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
-| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation when query visibility depends on supported PostgreSQL role/search-path state or MySQL/MariaDB account/role/database state. |
+| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for supported PostgreSQL, MySQL, and MariaDB session state. |
 
-`cacheEnableDatabaseMultiTenancy` currently supports PostgreSQL, MySQL, and MariaDB. Unsupported
-dialects bypass caching when it is enabled. Enabling it reads authorization state when a physical
-connection is established or switched, after recognized state changes, and at transaction
-completion; normal cache hits and misses do not add a database query. Unknown authorization state
-can recover after a successful refresh. Untracked state remains disabled for that wrapper
-connection, including while it is returned to an application connection pool.
-
-When query visibility depends on supported PostgreSQL role or search-path state, or MySQL/MariaDB
-account, role, or database state:
+Enable this when query visibility depends on supported database authorization or session state:
 
 ```java
 props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
 ```
 
-This is an explicit application setting; the plugin does not automatically detect database
-multi-tenancy. It tracks PostgreSQL roles and search paths and MySQL/MariaDB authenticated accounts,
-active roles, and current databases. It does not make arbitrary custom session settings or hidden
-function side effects safe to cache.
+See [Remote Query Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md)
+for supported state, limitations, fail-closed behavior, and performance implications.
 
 ### 5.23 `logQuery` — SQL logging (universal)
 
