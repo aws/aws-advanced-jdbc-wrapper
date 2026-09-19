@@ -83,31 +83,28 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
 
-  // Batch methods return update counts and are never cached. Subscribe to them in database
-  // multi-tenancy mode so DefaultConnectionPlugin can conservatively mark authorization state as
-  // untracked before execution.
   private static final Set<String> DATABASE_MULTI_TENANCY_SUBSCRIBED_METHODS =
-      Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-          JdbcMethod.CONNECTION_COMMIT.methodName,
-          JdbcMethod.CONNECTION_ROLLBACK.methodName,
-          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
-          JdbcMethod.CONNECTION_SETCATALOG.methodName,
-          JdbcMethod.CONNECTION_SETSCHEMA.methodName,
-          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.STATEMENT_EXECUTE.methodName,
-          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName)));
+      buildDatabaseMultiTenancySubscribedMethods();
+
+  private static Set<String> buildDatabaseMultiTenancySubscribedMethods() {
+    final Set<String> methods = new HashSet<>(DEFAULT_SUBSCRIBED_METHODS);
+    methods.addAll(Arrays.asList(
+        JdbcMethod.CONNECTION_COMMIT.methodName,
+        JdbcMethod.CONNECTION_ROLLBACK.methodName,
+        JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+        JdbcMethod.CONNECTION_SETCATALOG.methodName,
+        JdbcMethod.CONNECTION_SETSCHEMA.methodName,
+        JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+        JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
+        JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+        JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+        JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName,
+        JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName));
+    return Collections.unmodifiableSet(methods);
+  }
 
   private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
       new AwsWrapperProperty(
