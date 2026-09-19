@@ -47,6 +47,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -533,7 +534,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         // Fail closed by bypassing the cache.
         if (targetDriverDialect != null
             && targetDriverDialect.supportsAuthorizationSessionState()
-            && !targetDriverDialect.mayChangeAuthorizationSessionState(mainQuery)) {
+            && targetDriverDialect.getAuthorizationStateImpact(mainQuery)
+                == AuthorizationStateImpact.NONE) {
           cacheQueryKey = getCacheQueryKey(mainQuery);
         }
       }

@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -108,31 +109,24 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
   }
 
   @Override
-  public boolean mayChangeAuthorizationSessionState(final @Nullable String sql) {
+  public AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
     if (StringUtils.isNullOrEmpty(sql)) {
-      return false;
+      return AuthorizationStateImpact.NONE;
     }
 
     if (EXECUTABLE_COMMENT_PATTERN.matcher(sql).find()) {
-      return true;
+      return AuthorizationStateImpact.UNTRACKED;
     }
 
     final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
-    return AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
-        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
-  }
-
-  @Override
-  public boolean mayChangeUntrackedAuthorizationSessionState(final @Nullable String sql) {
-    if (StringUtils.isNullOrEmpty(sql)) {
-      return false;
+    if (UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.UNTRACKED;
     }
 
-    if (EXECUTABLE_COMMENT_PATTERN.matcher(sql).find()) {
-      return true;
+    if (AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.TRACKED;
     }
 
-    final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
-    return UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
+    return AuthorizationStateImpact.NONE;
   }
 }

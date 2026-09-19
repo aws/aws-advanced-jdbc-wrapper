@@ -46,6 +46,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -242,10 +243,13 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     final @Nullable String sql =
         getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
-    if (methodName.startsWith("CallableStatement.execute")
-        || targetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql)) {
+    final AuthorizationStateImpact impact =
+        methodName.startsWith("CallableStatement.execute")
+            ? AuthorizationStateImpact.UNTRACKED
+            : targetDriverDialect.getAuthorizationStateImpact(sql);
+    if (impact == AuthorizationStateImpact.UNTRACKED) {
       sessionStateService.markAuthorizationStateUntracked();
-    } else if (targetDriverDialect.mayChangeAuthorizationSessionState(sql)) {
+    } else if (impact == AuthorizationStateImpact.TRACKED) {
       sessionStateService.markAuthorizationStateUnknown();
     }
   }
@@ -272,8 +276,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     final @Nullable String sql = isDatabaseContextSetter
         ? null
         : getExecutedSql(targetDriverDialect, methodInvokeOn, jdbcMethodArgs);
-    if (methodName.startsWith("CallableStatement.execute")
-        || targetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql)) {
+    final AuthorizationStateImpact impact =
+        methodName.startsWith("CallableStatement.execute")
+            ? AuthorizationStateImpact.UNTRACKED
+            : targetDriverDialect.getAuthorizationStateImpact(sql);
+    if (impact == AuthorizationStateImpact.UNTRACKED) {
       // Custom settings and opaque calls can change authorization context that is not represented
       // by AuthorizationSessionState. Once observed, caching must remain disabled for this
       // connection rather than risk reusing results across security contexts.
@@ -286,7 +293,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     boolean shouldRefresh = doesSwitchAutoCommitFalseTrue || isDatabaseContextSetter;
-    shouldRefresh |= targetDriverDialect.mayChangeAuthorizationSessionState(sql);
+    shouldRefresh |= impact == AuthorizationStateImpact.TRACKED;
     shouldRefresh |= doesCloseTransaction;
     if (!shouldRefresh) {
       return;

@@ -61,6 +61,7 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -181,8 +182,8 @@ class DefaultConnectionPluginTest {
     when(pluginService.getCurrentConnection()).thenReturn(conn);
     when(conn.getAutoCommit()).thenReturn(true);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState("SET ROLE tenant_a"))
-        .thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact("SET ROLE tenant_a"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
 
     plugin.execute(
         Void.class,
@@ -204,7 +205,8 @@ class DefaultConnectionPluginTest {
     when(conn.getAutoCommit()).thenReturn(true);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
     when(mockTargetDriverDialect.getSQLQueryString(preparedStatement)).thenReturn(sql);
-    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState(sql)).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
 
     plugin.execute(
         Void.class,
@@ -215,7 +217,7 @@ class DefaultConnectionPluginTest {
         new Object[] {});
 
     verify(mockTargetDriverDialect).getSQLQueryString(preparedStatement);
-    verify(mockTargetDriverDialect).mayChangeAuthorizationSessionState(sql);
+    verify(mockTargetDriverDialect).getAuthorizationStateImpact(sql);
     verify(mockSessionStateService).refreshAuthorizationState();
     verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
   }
@@ -226,8 +228,9 @@ class DefaultConnectionPluginTest {
     when(pluginService.getCurrentConnection()).thenReturn(conn);
     when(conn.getAutoCommit()).thenReturn(false);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState(
-        "SET LOCAL search_path TO tenant_a, public")).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(
+        "SET LOCAL search_path TO tenant_a, public"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
 
     plugin.execute(
         Void.class,
@@ -313,8 +316,7 @@ class DefaultConnectionPluginTest {
         mockSqlFunction,
         new Object[] {"SET ROLE tenant_a"});
 
-    verify(mockTargetDriverDialect, never()).mayChangeUntrackedAuthorizationSessionState(anyString());
-    verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
     verify(mockSessionStateService, never()).refreshAuthorizationState();
     verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
     verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
@@ -327,8 +329,8 @@ class DefaultConnectionPluginTest {
     final String sql = "SET app.tenant_id = 'tenant-a'";
     when(pluginService.getCurrentConnection()).thenReturn(conn);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.mayChangeUntrackedAuthorizationSessionState(sql))
-        .thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.UNTRACKED);
 
     plugin.execute(
         Void.class,
@@ -363,9 +365,7 @@ class DefaultConnectionPluginTest {
 
     assertSame(expectedException, actualException);
     verify(mockSessionStateService).markAuthorizationStateUntracked();
-    verify(mockTargetDriverDialect, never())
-        .mayChangeUntrackedAuthorizationSessionState(anyString());
-    verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
     verify(mockSessionStateService, never()).refreshAuthorizationState();
     verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
   }
@@ -377,7 +377,8 @@ class DefaultConnectionPluginTest {
     final SQLException expectedException = new SQLException();
     when(pluginService.getCurrentConnection()).thenReturn(conn);
     when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState(sql)).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
     when(mockSqlFunction.call()).thenThrow(expectedException);
 
     final SQLException actualException = assertThrows(

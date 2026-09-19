@@ -37,6 +37,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 
 public class PgTargetDriverDialectTests {
   @Mock private PreparedStatement mockStatement;
@@ -126,16 +127,11 @@ public class PgTargetDriverDialectTests {
       "RESET ROLE",
       "RESET \"role\"",
       "DISCARD ALL",
-      "CALL switch_tenant()",
-      "SET app.tenant_id = 'tenant-a'",
-      "RESET app.tenant_id",
-      "SELECT set_config('app.tenant_id', 'tenant-a', false)",
-      "SELECT pg_catalog.\"set_config\"('search_path', 'tenant_a', false)",
       "SELECT 1; /* change tenant */ SET ROLE tenant_a",
       "/* outer /* inner */ still outer */ SET ROLE tenant_a"
   })
-  void detectsStatementsThatMayChangeAuthorizationSessionState(final String sql) {
-    assertTrue(dialect.mayChangeAuthorizationSessionState(sql));
+  void detectsTrackedAuthorizationStateChanges(final String sql) {
+    assertEquals(AuthorizationStateImpact.TRACKED, dialect.getAuthorizationStateImpact(sql));
   }
 
   @ParameterizedTest
@@ -152,24 +148,8 @@ public class PgTargetDriverDialectTests {
       "SELECT * INTO TEMP tenant_orders FROM orders",
       "SELECT * INTO TEMPORARY TABLE tenant_orders FROM orders"
   })
-  void detectsStatementsThatMayChangeUntrackedAuthorizationSessionState(final String sql) {
-    assertTrue(dialect.mayChangeUntrackedAuthorizationSessionState(sql));
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {
-      "SET ROLE tenant_a",
-      "SET SESSION ROLE tenant_a",
-      "SET LOCAL ROLE tenant_a",
-      "SET SESSION SESSION AUTHORIZATION tenant_a",
-      "SET LOCAL SESSION AUTHORIZATION tenant_a",
-      "SET LOCAL search_path TO tenant_a, public",
-      "RESET ROLE",
-      "SELECT * FROM orders",
-      "SELECT 'SET app.tenant_id = tenant-a'"
-  })
-  void ignoresStatementsThatDoNotChangeUntrackedAuthorizationSessionState(final String sql) {
-    assertFalse(dialect.mayChangeUntrackedAuthorizationSessionState(sql));
+  void detectsUntrackedAuthorizationStateChanges(final String sql) {
+    assertEquals(AuthorizationStateImpact.UNTRACKED, dialect.getAuthorizationStateImpact(sql));
   }
 
   @ParameterizedTest
@@ -180,6 +160,6 @@ public class PgTargetDriverDialectTests {
       "SELECT 'SET ROLE tenant_a'"
   })
   void ignoresStatementsThatDoNotChangeAuthorizationSessionState(final String sql) {
-    assertFalse(dialect.mayChangeAuthorizationSessionState(sql));
+    assertEquals(AuthorizationStateImpact.NONE, dialect.getAuthorizationStateImpact(sql));
   }
 }

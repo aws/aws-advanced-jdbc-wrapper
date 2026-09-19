@@ -42,6 +42,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.wrapper.PgEncryptedDataHelper;
 import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ResourceLock;
@@ -306,28 +307,23 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public boolean mayChangeAuthorizationSessionState(final @Nullable String sql) {
+  public AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
     if (StringUtils.isNullOrEmpty(sql)) {
-      return false;
+      return AuthorizationStateImpact.NONE;
     }
 
     final String sqlWithoutComments =
         SqlMethodAnalyzer.stripCommentsWithNestedBlockComments(sql);
-    return AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
-        || SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
-        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
-  }
-
-  @Override
-  public boolean mayChangeUntrackedAuthorizationSessionState(final @Nullable String sql) {
-    if (StringUtils.isNullOrEmpty(sql)) {
-      return false;
+    if (SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
+        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.UNTRACKED;
     }
 
-    final String sqlWithoutComments =
-        SqlMethodAnalyzer.stripCommentsWithNestedBlockComments(sql);
-    return SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
-        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find();
+    if (AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.TRACKED;
+    }
+
+    return AuthorizationStateImpact.NONE;
   }
 
   @Override

@@ -56,6 +56,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -125,6 +126,8 @@ public class RemoteQueryCachePluginTest {
     when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(anyString()))
+        .thenReturn(AuthorizationStateImpact.NONE);
     when(mockConnection.getAutoCommit()).thenReturn(true);
     when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.hit")).thenReturn(mockCacheHitCounter);
     when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.miss")).thenReturn(mockCacheMissCounter);
@@ -1039,7 +1042,7 @@ public class RemoteQueryCachePluginTest {
     verify(mockCacheConn).readFromCache(expectedCacheKey);
     verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
     verify(mockSessionStateService, times(2)).getCatalog();
-    verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
     verify(mockSessionStateService, never()).hasUntrackedAuthorizationState();
     verify(mockSessionStateService, never()).getAuthorizationState();
     verify(mockSessionStateService, never()).refreshAuthorizationState();
@@ -1080,7 +1083,7 @@ public class RemoteQueryCachePluginTest {
     assertFalse(result.next());
     verify(mockCacheConn).readFromCache(expectedCacheKey);
     verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
-    verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
   }
 
   @Test
@@ -1116,7 +1119,7 @@ public class RemoteQueryCachePluginTest {
     assertFalse(result.next());
     verify(mockCacheConn).readFromCache(expectedCacheKey);
     verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
-    verify(mockTargetDriverDialect, never()).mayChangeAuthorizationSessionState(anyString());
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
   }
 
   @Test
@@ -1258,7 +1261,8 @@ public class RemoteQueryCachePluginTest {
     plugin.setCacheConnection(mockCacheConn);
 
     final String query = "SELECT set_config('search_path', 'tenant_a, public', false)";
-    when(mockTargetDriverDialect.mayChangeAuthorizationSessionState(query)).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(query))
+        .thenReturn(AuthorizationStateImpact.UNTRACKED);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     final ResultSet result = plugin.execute(

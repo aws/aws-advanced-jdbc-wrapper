@@ -118,19 +118,17 @@ public interface TargetDriverDialect {
     return Optional.empty();
   }
 
-  /**
-   * Returns whether the SQL can change authorization-affecting database session state.
-   */
-  default boolean mayChangeAuthorizationSessionState(final @Nullable String sql) {
-    return false;
+  enum AuthorizationStateImpact {
+    NONE,
+    TRACKED,
+    UNTRACKED
   }
 
   /**
-   * Returns whether the SQL can change authorization-affecting session state that this dialect
-   * cannot represent in an {@link AuthorizationSessionState}.
+   * Returns how the SQL can affect authorization session state.
    */
-  default boolean mayChangeUntrackedAuthorizationSessionState(final @Nullable String sql) {
-    return false;
+  default AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
+    return AuthorizationStateImpact.NONE;
   }
 
   void registerDataType(final @NonNull Connection connection,  final @NonNull String typeName,

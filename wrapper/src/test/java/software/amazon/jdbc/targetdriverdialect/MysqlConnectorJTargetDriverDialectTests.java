@@ -38,6 +38,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 
 public class MysqlConnectorJTargetDriverDialectTests {
   @Mock private PreparedStatement mockStatement;
@@ -129,8 +130,8 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "RESET CONNECTION",
       "SELECT 1; /* tenant switch */ USE tenant_b"
   })
-  void detectsStatementsThatMayChangeAuthorizationSessionState(final String sql) {
-    assertTrue(dialect.mayChangeAuthorizationSessionState(sql));
+  void detectsTrackedAuthorizationStateChanges(final String sql) {
+    assertEquals(AuthorizationStateImpact.TRACKED, dialect.getAuthorizationStateImpact(sql));
   }
 
   @ParameterizedTest
@@ -142,9 +143,8 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "/*! USE tenant_b */",
       "/*M! SET ROLE tenant_b */"
   })
-  void detectsStatementsThatMayChangeUntrackedAuthorizationSessionState(final String sql) {
-    assertTrue(dialect.mayChangeAuthorizationSessionState(sql));
-    assertTrue(dialect.mayChangeUntrackedAuthorizationSessionState(sql));
+  void detectsUntrackedAuthorizationStateChanges(final String sql) {
+    assertEquals(AuthorizationStateImpact.UNTRACKED, dialect.getAuthorizationStateImpact(sql));
   }
 
   @ParameterizedTest
@@ -157,7 +157,6 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "SELECT 1 /* USE tenant_a */"
   })
   void ignoresStatementsThatDoNotChangeAuthorizationSessionState(final String sql) {
-    assertFalse(dialect.mayChangeAuthorizationSessionState(sql));
-    assertFalse(dialect.mayChangeUntrackedAuthorizationSessionState(sql));
+    assertEquals(AuthorizationStateImpact.NONE, dialect.getAuthorizationStateImpact(sql));
   }
 }
