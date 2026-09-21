@@ -19,8 +19,6 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -34,10 +32,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.sql.BatchUpdateException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
@@ -46,8 +41,6 @@ import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionInfo;
@@ -56,12 +49,8 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.states.SessionStateService;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -90,8 +79,6 @@ class DefaultConnectionPluginTest {
   @Mock TelemetryGauge mockTelemetryGauge;
   @Mock ConnectionProviderManager mockConnectionProviderManager;
   @Mock HostSpec mockHostSpec;
-  @Mock TargetDriverDialect mockTargetDriverDialect;
-  @Mock SessionStateService mockSessionStateService;
 
 
   private AutoCloseable closeable;
@@ -112,10 +99,6 @@ class DefaultConnectionPluginTest {
         .thenReturn(new ConnectionInfo(conn, false));
     when(servicesContainer.getPluginService()).thenReturn(pluginService);
     when(servicesContainer.getImportantEventService()).thenReturn(mockImportantEventService);
-    when(pluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
-    when(pluginService.getSessionStateService()).thenReturn(mockSessionStateService);
-    when(mockSessionStateService.isAuthorizationStateTrackingEnabled())
-        .thenReturn(true);
 
     plugin = new DefaultConnectionPlugin(
         servicesContainer, connectionProvider, pluginManagerService, mockConnectionProviderManager);
@@ -155,246 +138,6 @@ class DefaultConnectionPluginTest {
 
     verify(statement, never()).getConnection();
     verify(statement, never()).isClosed();
-  }
-
-  @Test
-  void testExecute_doesNotInspectAuthorizationStateForResultSetAccess() throws SQLException {
-    when(this.pluginService.getCurrentConnection()).thenReturn(conn);
-    final ResultSet resultSet = mock(ResultSet.class);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        resultSet,
-        "ResultSet.getString",
-        mockSqlFunction,
-        new Object[] {1});
-
-    verify(mockTargetDriverDialect, never()).supportsAuthorizationSessionState();
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
-    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
-    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
-  }
-
-  @Test
-  void testExecute_refreshesAuthorizationStateAfterSetRole() throws SQLException {
-    final Statement statement = mock(Statement.class);
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(conn.getAutoCommit()).thenReturn(true);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.getAuthorizationStateImpact("SET ROLE tenant_a"))
-        .thenReturn(AuthorizationStateImpact.TRACKED);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        statement,
-        "Statement.execute",
-        mockSqlFunction,
-        new Object[] {"SET ROLE tenant_a"});
-
-    verify(mockSessionStateService).refreshAuthorizationState();
-    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
-  }
-
-  @Test
-  void testExecute_getsSqlFromPreparedStatement() throws SQLException {
-    final PreparedStatement preparedStatement = mock(PreparedStatement.class);
-    final String sql = "SET ROLE tenant_a";
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(conn.getAutoCommit()).thenReturn(true);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.getSQLQueryString(preparedStatement)).thenReturn(sql);
-    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
-        .thenReturn(AuthorizationStateImpact.TRACKED);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        preparedStatement,
-        "PreparedStatement.execute",
-        mockSqlFunction,
-        new Object[] {});
-
-    verify(mockTargetDriverDialect).getSQLQueryString(preparedStatement);
-    verify(mockTargetDriverDialect).getAuthorizationStateImpact(sql);
-    verify(mockSessionStateService).refreshAuthorizationState();
-    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
-  }
-
-  @Test
-  void testExecute_invalidatesAuthorizationStateInsideTransaction() throws SQLException {
-    final Statement statement = mock(Statement.class);
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(conn.getAutoCommit()).thenReturn(false);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.getAuthorizationStateImpact(
-        "SET LOCAL search_path TO tenant_a, public"))
-        .thenReturn(AuthorizationStateImpact.TRACKED);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        statement,
-        "Statement.execute",
-        mockSqlFunction,
-        new Object[] {"SET LOCAL search_path TO tenant_a, public"});
-
-    verify(mockSessionStateService).markAuthorizationStateUnknown();
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
-  }
-
-  @Test
-  void testExecute_invalidatesAuthorizationStateAfterCommit() throws SQLException {
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        conn,
-        "Connection.commit",
-        mockSqlFunction,
-        new Object[] {});
-
-    verify(mockSessionStateService).markAuthorizationStateUnknown();
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
-  }
-
-  @Test
-  void testExecute_refreshesAuthorizationStateAfterCommitWhenAutoCommitIsEnabled()
-      throws SQLException {
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(conn.getAutoCommit()).thenReturn(true);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        conn,
-        "Connection.commit",
-        mockSqlFunction,
-        new Object[] {});
-
-    verify(mockSessionStateService).refreshAuthorizationState();
-    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"Connection.setCatalog", "Connection.setSchema"})
-  void testExecute_refreshesAuthorizationStateAfterDatabaseContextSetter(
-      final String methodName) throws SQLException {
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(conn.getAutoCommit()).thenReturn(true);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        conn,
-        methodName,
-        mockSqlFunction,
-        new Object[] {"tenant_a"});
-
-    verify(mockSqlFunction).call();
-    verify(mockSessionStateService).refreshAuthorizationState();
-  }
-
-  @Test
-  void testExecute_doesNotTrackAuthorizationStateWhenTrackingIsDisabled() throws SQLException {
-    final Statement statement = mock(Statement.class);
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(conn.getAutoCommit()).thenReturn(true);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockSessionStateService.isAuthorizationStateTrackingEnabled()).thenReturn(false);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        statement,
-        "Statement.execute",
-        mockSqlFunction,
-        new Object[] {"SET ROLE tenant_a"});
-
-    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
-    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
-    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
-  }
-
-  @Test
-  void testExecute_marksCustomAuthorizationStateUntrackedBeforeInitialization()
-      throws SQLException {
-    final Statement statement = mock(Statement.class);
-    final String sql = "SET app.tenant_id = 'tenant-a'";
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
-        .thenReturn(AuthorizationStateImpact.UNTRACKED);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        statement,
-        "Statement.execute",
-        mockSqlFunction,
-        new Object[] {sql});
-
-    verify(mockSessionStateService).markAuthorizationStateUntracked();
-    verify(mockSessionStateService, never()).getAuthorizationState();
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
-  }
-
-  @Test
-  void testExecute_marksAuthorizationStateUntrackedBeforeFailedBatch() throws SQLException {
-    final Statement statement = mock(Statement.class);
-    final BatchUpdateException expectedException = new BatchUpdateException();
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockSqlFunction.call()).thenThrow(expectedException);
-
-    final BatchUpdateException actualException = assertThrows(
-        BatchUpdateException.class,
-        () -> plugin.execute(
-            Void.class,
-            SQLException.class,
-            statement,
-            JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-            mockSqlFunction,
-            new Object[] {}));
-
-    assertSame(expectedException, actualException);
-    verify(mockSessionStateService).markAuthorizationStateUntracked();
-    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
-    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
-  }
-
-  @Test
-  void testExecute_marksAuthorizationStateUnknownAfterFailedStateChange() throws SQLException {
-    final Statement statement = mock(Statement.class);
-    final String sql = "USE tenant_b; SELECT * FROM missing_table";
-    final SQLException expectedException = new SQLException();
-    when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
-    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
-        .thenReturn(AuthorizationStateImpact.TRACKED);
-    when(mockSqlFunction.call()).thenThrow(expectedException);
-
-    final SQLException actualException = assertThrows(
-        SQLException.class,
-        () -> plugin.execute(
-            Void.class,
-            SQLException.class,
-            statement,
-            JdbcMethod.STATEMENT_EXECUTE.methodName,
-            mockSqlFunction,
-            new Object[] {sql}));
-
-    assertSame(expectedException, actualException);
-    verify(mockSessionStateService).markAuthorizationStateUnknown();
-    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
-    verify(mockSessionStateService, never()).refreshAuthorizationState();
   }
 
   @Test

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -46,6 +48,8 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
@@ -952,6 +956,189 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
+  void test_execute_refreshesAuthorizationStateAfterSetRole() throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact("SET ROLE tenant_a"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET ROLE tenant_a"});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void test_execute_getsSqlFromPreparedStatementForAuthorizationTracking() throws Exception {
+    configureAuthorizationTracking();
+    final String sql = "SET ROLE tenant_a";
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement)).thenReturn(sql);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockPreparedStatement,
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockTargetDriverDialect).getSQLQueryString(mockPreparedStatement);
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUnknownInsideTransaction() throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(
+        "SET LOCAL search_path TO tenant_a, public"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET LOCAL search_path TO tenant_a, public"});
+
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_refreshesAuthorizationStateAfterCommit() throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        JdbcMethod.CONNECTION_COMMIT.methodName,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"Connection.setCatalog", "Connection.setSchema"})
+  void test_execute_refreshesAuthorizationStateAfterDatabaseContextSetter(
+      final String methodName) throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        methodName,
+        mockCallable,
+        new Object[] {"tenant_a"});
+
+    verify(mockCallable).call();
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_doesNotTrackAuthorizationStateWhenTrackingIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET ROLE tenant_a"});
+
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+  }
+
+  @Test
+  void test_execute_marksOpaqueAuthorizationStateUntracked() throws Exception {
+    configureAuthorizationTracking();
+    final String sql = "SET app.tenant_id = 'tenant-a'";
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.UNTRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {sql});
+
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUntrackedBeforeFailedBatch() throws Exception {
+    configureAuthorizationTracking();
+    final BatchUpdateException expectedException = new BatchUpdateException();
+    when(mockCallable.call()).thenThrow(expectedException);
+
+    final BatchUpdateException actualException = assertThrows(
+        BatchUpdateException.class,
+        () -> plugin.execute(
+            Void.class,
+            BatchUpdateException.class,
+            mockStatement,
+            JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+            mockCallable,
+            new Object[] {}));
+
+    assertSame(expectedException, actualException);
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUnknownAfterFailedStateChange() throws Exception {
+    configureAuthorizationTracking();
+    final String sql = "USE tenant_b; SELECT * FROM missing_table";
+    final SQLException expectedException = new SQLException();
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+    when(mockCallable.call()).thenThrow(expectedException);
+
+    final SQLException actualException = assertThrows(
+        SQLException.class,
+        () -> plugin.execute(
+            Void.class,
+            SQLException.class,
+            mockStatement,
+            JdbcMethod.STATEMENT_EXECUTE.methodName,
+            mockCallable,
+            new Object[] {sql}));
+
+    assertSame(expectedException, actualException);
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
   void test_notifyConnectionChanged_doesNotTrackUnsupportedDialects() throws SQLException {
     props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
@@ -1256,12 +1443,10 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_execute_bypassesCacheForAuthorizationStateChangingQuery() throws Exception {
-    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
-    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
-    plugin.setCacheConnection(mockCacheConn);
+    configureAuthorizationTracking();
 
     final String query = "SELECT set_config('search_path', 'tenant_a, public', false)";
-    when(mockTargetDriverDialect.getAuthorizationStateImpact(query))
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(anyString()))
         .thenReturn(AuthorizationStateImpact.UNTRACKED);
     when(mockCallable.call()).thenReturn(mockResult1);
 
@@ -1274,7 +1459,7 @@ public class RemoteQueryCachePluginTest {
         new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
 
     assertSame(mockResult1, result);
-    verify(mockPluginService, never()).getSessionStateService();
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
     verify(mockCacheBypassCounter).inc();
@@ -1286,6 +1471,15 @@ public class RemoteQueryCachePluginTest {
       assertEquals(expected.getObject(i), actual.getObject(i));
       i++;
     }
+  }
+
+  private void configureAuthorizationTracking() {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.isAuthorizationStateTrackingEnabled()).thenReturn(true);
   }
 
   private static String cacheKey(

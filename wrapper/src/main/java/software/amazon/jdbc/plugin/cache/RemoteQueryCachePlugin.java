@@ -51,6 +51,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.Authorizatio
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -68,6 +69,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  */
 public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
   private static final Logger LOGGER = Logger.getLogger(RemoteQueryCachePlugin.class.getName());
+  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
@@ -491,7 +493,11 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       throws E {
 
     if (resultClass != ResultSet.class) {
-      return jdbcMethodFunc.call();
+      return executeWithAuthorizationTracking(
+          methodInvokeOn,
+          methodName,
+          jdbcMethodFunc,
+          jdbcMethodArgs);
     }
 
     incrCounter(totalQueryCounter);
@@ -587,7 +593,11 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         TELEMETRY_DATABASE_QUERY, TelemetryTraceLevel.NESTED);
 
     try {
-      result = (ResultSet) jdbcMethodFunc.call();
+      result = (ResultSet) executeWithAuthorizationTracking(
+          methodInvokeOn,
+          methodName,
+          jdbcMethodFunc,
+          jdbcMethodArgs);
     } finally {
       if (dbContext != null) {
         dbContext.closeContext();
@@ -626,6 +636,115 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     }
 
     return resultClass.cast(result);
+  }
+
+  private <T, E extends Exception> T executeWithAuthorizationTracking(
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final @Nullable Object[] jdbcMethodArgs)
+      throws E {
+
+    if (!this.enableDatabaseMultiTenancy) {
+      return jdbcMethodFunc.call();
+    }
+
+    final TargetDriverDialect targetDriverDialect =
+        this.pluginService.getTargetDriverDialect();
+    final SessionStateService sessionStateService =
+        this.pluginService.getSessionStateService();
+    if (!targetDriverDialect.supportsAuthorizationSessionState()
+        || !sessionStateService.isAuthorizationStateTrackingEnabled()
+        || sessionStateService.hasUntrackedAuthorizationState()) {
+      return jdbcMethodFunc.call();
+    }
+
+    final boolean isBatchExecution = methodName.endsWith(".executeBatch");
+    if (isBatchExecution) {
+      // Batch entries cannot be inspected portably and may partially succeed.
+      sessionStateService.markAuthorizationStateUntracked();
+      return jdbcMethodFunc.call();
+    }
+
+    final boolean doesSwitchAutoCommitFalseTrue =
+        sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
+            this.pluginService.getCurrentConnection(),
+            methodName,
+            jdbcMethodArgs);
+    final boolean isStatementExecution = isStatementExecutionMethod(methodName);
+    final boolean isDatabaseContextSetter =
+        JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
+            || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
+    final @Nullable String sql =
+        isStatementExecution ? getQuery(methodInvokeOn, jdbcMethodArgs) : null;
+    final AuthorizationStateImpact impact =
+        methodName.startsWith("CallableStatement.execute")
+            ? AuthorizationStateImpact.UNTRACKED
+            : targetDriverDialect.getAuthorizationStateImpact(sql);
+
+    T result;
+    boolean executionSucceeded = false;
+    try {
+      result = jdbcMethodFunc.call();
+      executionSucceeded = true;
+    } finally {
+      if (!executionSucceeded) {
+        if (impact == AuthorizationStateImpact.UNTRACKED) {
+          sessionStateService.markAuthorizationStateUntracked();
+        } else if (impact == AuthorizationStateImpact.TRACKED) {
+          sessionStateService.markAuthorizationStateUnknown();
+        }
+      }
+    }
+
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    if (methodInvokeOn instanceof Connection && methodInvokeOn != currentConnection) {
+      return result;
+    }
+
+    if (impact == AuthorizationStateImpact.UNTRACKED) {
+      // Custom settings and opaque calls can change authorization context that is not represented
+      // by AuthorizationSessionState. Once observed, caching must remain disabled for this
+      // connection rather than risk reusing results across security contexts.
+      sessionStateService.markAuthorizationStateUntracked();
+      return result;
+    }
+
+    final boolean doesCloseTransaction =
+        sqlMethodAnalyzer.doesCloseTransaction(
+            currentConnection,
+            methodName,
+            jdbcMethodArgs);
+    if (impact != AuthorizationStateImpact.TRACKED
+        && !isDatabaseContextSetter
+        && !doesCloseTransaction
+        && !doesSwitchAutoCommitFalseTrue) {
+      return result;
+    }
+
+    try {
+      if (!currentConnection.getAutoCommit()) {
+        // Avoid issuing an internal query inside the application's transaction. Transaction-local
+        // authorization state is reacquired when autoCommit is switched back to true.
+        sessionStateService.markAuthorizationStateUnknown();
+      } else {
+        sessionStateService.refreshAuthorizationState();
+      }
+    } catch (final SQLException e) {
+      sessionStateService.markAuthorizationStateUnknown();
+      LOGGER.log(
+          Level.WARNING,
+          Messages.get("RemoteQueryCachePlugin.errorRefreshingAuthorizationSessionState"),
+          e);
+    }
+
+    return result;
+  }
+
+  private static boolean isStatementExecutionMethod(final String methodName) {
+    return methodName.startsWith("Statement.execute")
+        || methodName.startsWith("PreparedStatement.execute")
+        || methodName.startsWith("CallableStatement.execute");
   }
 
   private static boolean isSingleStatement(final @Nullable String sql) {
