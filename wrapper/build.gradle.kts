@@ -249,7 +249,7 @@ dependencies {
     // dependency supplied by the application.
     add(java24.compileOnlyConfigurationName, "org.postgresql:postgresql:42.7.13")
     // Hibernate test dependencies (Java 17+)
-    add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.7.Final")
+    add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.9.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
 }
 
