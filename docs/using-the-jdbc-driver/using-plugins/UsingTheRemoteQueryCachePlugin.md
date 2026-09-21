@@ -153,9 +153,9 @@ If the physical connection changes while a cache miss is executed, the returned 
 not written to the cache because it may use a different authorization context.
 Batch execution disables remote query caching for the connection before the batch runs because
 earlier entries may change session state even if a later entry fails.
-Creating PostgreSQL temporary relations, including with `CREATE TEMP` or `SELECT INTO TEMP`,
-disables remote query caching for the connection because temporary relations can change name
-resolution without changing the authorization-state cache key.
+Creating temporary relations or tables, including PostgreSQL `CREATE TEMP` and `SELECT INTO TEMP`,
+and MySQL/MariaDB `CREATE TEMPORARY TABLE`, disables remote query caching for the connection because
+temporary objects can change name resolution without changing the authorization-state cache key.
 If a recognized non-batch authorization-state change fails, the plugin invalidates its
 authorization snapshot because an earlier command may already have changed the session. Opaque
 failed operations mark the state untracked. The original JDBC exception is preserved.

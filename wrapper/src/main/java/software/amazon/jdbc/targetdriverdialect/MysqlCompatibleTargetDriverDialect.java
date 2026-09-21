@@ -48,6 +48,7 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
           + "|DO\\b"
           + "|SET\\s+@"
           + "|EXECUTE\\b"
+          + "|CREATE\\s+(?:OR\\s+REPLACE\\s+)?TEMPORARY\\s+TABLE\\b"
           + ")",
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 

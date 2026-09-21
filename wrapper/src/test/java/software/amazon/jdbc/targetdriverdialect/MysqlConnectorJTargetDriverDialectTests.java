@@ -141,7 +141,10 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "SET @tenant_id = 'tenant_a'",
       "EXECUTE tenant_stmt",
       "/*! USE tenant_b */",
-      "/*M! SET ROLE tenant_b */"
+      "/*M! SET ROLE tenant_b */",
+      "CREATE TEMPORARY TABLE tenant_orders (id bigint)",
+      "CREATE TEMPORARY TABLE tenant_orders SELECT * FROM orders",
+      "CREATE OR REPLACE TEMPORARY TABLE tenant_orders (id bigint)"
   })
   void detectsUntrackedAuthorizationStateChanges(final String sql) {
     assertEquals(AuthorizationStateImpact.UNTRACKED, dialect.getAuthorizationStateImpact(sql));
