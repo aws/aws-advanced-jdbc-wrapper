@@ -38,8 +38,9 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 
 ### Database multi-tenancy opt-in
 
-Enable this setting when query visibility depends on supported PostgreSQL role or search-path state,
-or MySQL/MariaDB account, role, or database state:
+Enable this setting only when query visibility depends exclusively on the supported PostgreSQL or
+MySQL/MariaDB session state documented below. This protection is not automatic tenant detection
+and does not cover arbitrary database authorization mechanisms:
 
 ```java
 props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
@@ -166,16 +167,31 @@ When database multi-tenancy protection is disabled, the plugin preserves legacy 
 callable and multi-statement queries remain eligible for caching, while transaction queries bypass
 cache reads but may write their database results to the cache.
 
+### Security scope and application requirements
+
 > [!WARNING]
-> When `cacheEnableDatabaseMultiTenancy=true`, the plugin does not automatically discover
-> application-specific PostgreSQL settings or
-> MySQL/MariaDB session variables used by authorization policies. If the wrapper observes a custom
-> setting, `set_config`, `SET @variable`, or an opaque statement that may change such state, remote
-> query caching is disabled for that connection. Changes hidden inside arbitrary SQL functions,
-> connection initialization commands, or target-driver APIs cannot be detected reliably. Do not
-> enable query caching for queries whose visibility depends on authorization state outside the
-> database-reported users, catalog/schema, active roles, and PostgreSQL search path currently
-> tracked by the plugin.
+> `cacheEnableDatabaseMultiTenancy=true` reduces the risk of cached results being reused across
+> different database tenant contexts, but it cannot detect every database operation that may affect
+> authorization, row visibility, or object resolution. Do not treat this option as a complete
+> tenant-isolation or authorization boundary.
+>
+> Applications should use remote query caching for database multi-tenancy only when all
+> tenant-affecting session state is changed through the supported operations documented below:
+>
+> - PostgreSQL: `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, `SET SCHEMA`, their
+>   supported `RESET` forms, and JDBC `Connection.setSchema(...)`.
+> - MySQL and MariaDB: `SET ROLE`, `USE`, `RESET CONNECTION`, and JDBC
+>   `Connection.setCatalog(...)`.
+>
+> Operations such as callable statements, dynamic SQL, batches, user variables, executable
+> comments, custom settings, and temporary-object creation are handled conservatively by disabling
+> remote caching when the plugin recognizes them. However, state changes hidden inside SQL
+> functions, stored procedure internals, connection initialization SQL, target-driver-specific
+> APIs, or other mechanisms may not be observable by the plugin.
+>
+> If query visibility depends on state outside the documented PostgreSQL role/search-path state or
+> MySQL/MariaDB account/role/database state, do not cache those queries. Applications remain
+> responsible for enforcing tenant isolation at the database and application layers.
 
 > [!WARNING]
 > Cache hits do not query the database to revalidate authorization. External changes such as

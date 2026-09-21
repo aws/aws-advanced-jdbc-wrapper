@@ -37,8 +37,11 @@ The driver includes [Remote Query Cache Plugin](./docs/using-the-jdbc-driver/usi
 
 Database multi-tenancy protection is disabled by default. Enable
 `cacheEnableDatabaseMultiTenancy` when query visibility depends on supported database authorization
-or session state. See the [Remote Query Cache Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md)
-for supported state, limitations, and performance implications.
+or session state. The protection covers only documented PostgreSQL and MySQL/MariaDB session state
+and is not a complete tenant-isolation boundary. See the
+[Remote Query Cache Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md)
+for supported operations, limitations, application security requirements, and performance
+implications.
 
 ### Preserve Existing Workflows
 
