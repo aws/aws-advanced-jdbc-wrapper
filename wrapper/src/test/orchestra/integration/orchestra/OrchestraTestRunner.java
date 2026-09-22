@@ -555,8 +555,16 @@ public class OrchestraTestRunner {
       // The topology itself: one global cluster, the primary regional cluster, and a cluster in each secondary
       // region. Bound to a role of its own rather than to Database, because it is not something a workload
       // connects to - it is how a workload learns which regions exist and how to address them.
+      //
+      // The suite parameters travel inside the instrument rather than through a parameter-group binding,
+      // because a parameter group is regional: a topology spanning regions needs one group per region, created
+      // with that region's client, and the regions are the instrument's knowledge. The values are the same
+      // ones the non-global branch below sets - max_prepared_transactions so the PostgreSQL XA tests run
+      // rather than skip - and the instrument adds the engine's own (require_secure_transport off is what lets
+      // the MariaDB driver reach a MySQL global database at all).
       builder.addInstrument(
-          GlobalDatabase.class, new AuroraGlobalClusterInstrumentDefinition(engines()[0]));
+          GlobalDatabase.class, new AuroraGlobalClusterInstrumentDefinition(
+              engines()[0], EngineVariation.suiteParameters(engines()[0])));
 
     } else {
       // The engine axis. Absent from a global run, which is why the engine matrix is rejected there: this
@@ -566,14 +574,10 @@ public class OrchestraTestRunner {
       builder.addVariation(new EngineVariation(deployment(), IAM_USERNAME, features, engines()));
 
       // The parameter group the database is created with, and a default EngineVariation rebinds per slot
-      // for the same reason it rebinds the database: a group belongs to one engine family. Unconditional
-      // outside a global run, because PostgreSQL needs max_prepared_transactions for the XA tests to run
-      // rather than skip, and MySQL needs require_secure_transport off to be connectable at all.
-      //
-      // Absent on a global run, and that is a known gap rather than a decision that a global database needs
-      // no parameters: a parameter group is regional, so a global database needs one per region, created with
-      // that region's client. Until then a global run takes the engine defaults, which means its PostgreSQL
-      // XA tests would skip and the MariaDB driver cannot reach a MySQL global database.
+      // for the same reason it rebinds the database: a group belongs to one engine family. Unconditional,
+      // because PostgreSQL needs max_prepared_transactions for the XA tests to run rather than skip, and
+      // MySQL needs require_secure_transport off to be connectable at all. A global run gets the same
+      // parameters through its topology instrument above, one group per region.
       builder.addInstrument(
           EngineVariation.parameterGroupRole(deployment()),
           EngineVariation.parameterGroupFor(deployment(), engines()[0]));
