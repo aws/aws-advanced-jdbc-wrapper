@@ -243,7 +243,7 @@ public class EngineVariation implements Variation {
    * @param engine the engine of the slot
    * @return the parameters by name, empty when the engine needs none
    */
-  private static Map<String, String> suiteParameters(final RdsEngine engine) {
+  static Map<String, String> suiteParameters(final RdsEngine engine) {
     return RdsEngine.POSTGRES.equals(engine)
         ? Collections.singletonMap("max_prepared_transactions", "100")
         : Collections.emptyMap();

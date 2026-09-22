@@ -75,10 +75,10 @@ jobs:
         run: |
           case "${{ matrix.testTask }}" in
             pg-aurora-global)    ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg" ;;
-            # The MariaDB driver is not exercised against a global database: it needs
-            # require_secure_transport turned off, which is a parameter group setting, and a global run has no
-            # parameter group because a group is regional. See OrchestraTestRunner for that gap.
-            mysql-aurora-global) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql" ;;
+            # Both MySQL-capable drivers. The MariaDB driver needs require_secure_transport turned off, which
+            # is a parameter group setting; a global run creates one group per region for exactly this, so the
+            # driver that used to be locked out of MySQL global databases runs here too.
+            mysql-aurora-global) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql,mariadb" ;;
             *) echo "Unknown testTask ${{ matrix.testTask }}"; exit 1 ;;
           esac
           ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora \
