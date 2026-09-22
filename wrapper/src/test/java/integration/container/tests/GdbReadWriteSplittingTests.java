@@ -191,31 +191,101 @@ public class GdbReadWriteSplittingTests {
   /**
    * Writes through a secondary-region connection and reads the row back.
    *
-   * <p>{@code aurora_replica_read_consistency} has to be set for forwarding to engage. It is a session setting on
-   * the server and the driver does not set it - reasonably, since it also decides how much replication lag the
-   * session will tolerate, which is an application's choice rather than a driver's. Without it Aurora refuses the
-   * write, and the refusal looks exactly like the read-only error a non-forwarding secondary gives, so a test that
-   * omitted it would report the feature broken.
+   * <p>Shaped by what write forwarding actually carries, which the first version of this method got wrong twice
+   * and a real run caught both times. Forwarding carries <em>DML only</em> - DDL is explicitly unsupported - so
+   * the table is created and dropped on the primary directly, and only the {@code INSERT} travels through the
+   * forwarded connection. And the consistency parameter is per engine: PostgreSQL calls it
+   * {@code apg_write_forward.consistency_mode} where MySQL calls it {@code aurora_replica_read_consistency};
+   * sending MySQL's name to PostgreSQL fails with "unrecognized configuration parameter", which reads like
+   * forwarding being broken rather than a wrong spelling.
    *
-   * <p>{@code eventual} is the weakest and fastest of the three levels, which is what a test wants: the read-back
-   * happens on the same session that did the write, so session consistency is not required for it to see the row.
+   * <p>The consistency level is {@code session}, not {@code eventual}, because the assertion is read-your-own-
+   * write: session consistency makes the read wait for this session's forwarded writes to replicate back, which
+   * is exactly the guarantee the assertion needs, while eventual explicitly permits the read to see stale data
+   * and would make this test flaky by design.
    */
   private void assertForwardedWriteSucceeds(final Connection conn) throws SQLException {
-    try (Statement statement = conn.createStatement()) {
-      statement.execute("SET SESSION aurora_replica_read_consistency = 'eventual'");
+    final TestRegionalClusterInfo primary = global().getRegion(global().getPrimaryRegion());
 
-      statement.execute("DROP TABLE IF EXISTS " + GWF_TABLE);
-      statement.execute("CREATE TABLE " + GWF_TABLE + " (id INT NOT NULL PRIMARY KEY)");
-      statement.executeUpdate("INSERT INTO " + GWF_TABLE + " (id) VALUES (1)");
+    // The plain target driver, not the wrapper: this connection exists only to run DDL somewhere writable, and
+    // the wrapper refuses to connect to a global database without topology configuration this helper does not
+    // need.
+    final Properties ddlProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    final String ddlUrl = ConnectionStringHelper.getUrl(
+        primary.getClusterEndpoint(),
+        primary.getPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-      try (ResultSet rs = statement.executeQuery("SELECT COUNT(*) FROM " + GWF_TABLE)) {
-        assertTrue(rs.next(), "the count query returned no row");
-        assertEquals(1, rs.getInt(1),
-            "the write was routed through Global Write Forwarding but the row is not there");
+    try (Connection primaryConn = DriverManager.getConnection(ddlUrl, ddlProps)) {
+      try (Statement ddl = primaryConn.createStatement()) {
+        ddl.execute("DROP TABLE IF EXISTS " + GWF_TABLE);
+        ddl.execute("CREATE TABLE " + GWF_TABLE + " (id INT NOT NULL PRIMARY KEY)");
       }
 
-      statement.execute("DROP TABLE IF EXISTS " + GWF_TABLE);
+      try (Statement statement = conn.createStatement()) {
+        statement.execute(consistencyModeSql());
+
+        // The table has to replicate before the secondary can accept a statement naming it: the INSERT is
+        // parsed against the secondary's own catalog before it is forwarded, and session consistency only
+        // waits for this session's forwarded writes - the CREATE TABLE was neither. Without this wait the
+        // INSERT fails with "relation does not exist" a few milliseconds after the table was created, which
+        // reads like forwarding being broken rather than like replication lag.
+        awaitTableVisible(statement);
+
+        statement.executeUpdate("INSERT INTO " + GWF_TABLE + " (id) VALUES (1)");
+
+        try (ResultSet rs = statement.executeQuery("SELECT COUNT(*) FROM " + GWF_TABLE)) {
+          assertTrue(rs.next(), "the count query returned no row");
+          assertEquals(1, rs.getInt(1),
+              "the write was routed through Global Write Forwarding but the row is not there");
+        }
+      } finally {
+        try (Statement ddl = primaryConn.createStatement()) {
+          ddl.execute("DROP TABLE IF EXISTS " + GWF_TABLE);
+        }
+      }
     }
+  }
+
+  /**
+   * Waits until this connection's region has replicated the test table.
+   *
+   * <p>Probed through the catalog rather than by retrying the INSERT, so a genuine forwarding failure still
+   * surfaces as itself: an INSERT retried until it stops saying "relation does not exist" would also swallow a
+   * forwarding path that is actually broken for that long.
+   */
+  private void awaitTableVisible(final Statement statement) throws SQLException {
+    final boolean pg =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
+    final String probe = pg
+        ? "SELECT to_regclass('" + GWF_TABLE + "')"
+        : "SELECT COUNT(*) FROM information_schema.tables"
+            + " WHERE table_schema = DATABASE() AND table_name = '" + GWF_TABLE + "'";
+
+    final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(3);
+    while (System.nanoTime() < deadline) {
+      try (ResultSet rs = statement.executeQuery(probe)) {
+        if (rs.next() && (pg ? rs.getString(1) != null : rs.getInt(1) > 0)) {
+          return;
+        }
+      }
+      try {
+        TimeUnit.SECONDS.sleep(2);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new SQLException("Interrupted while waiting for " + GWF_TABLE + " to replicate.", e);
+      }
+    }
+
+    throw new SQLException("Table " + GWF_TABLE + " did not replicate to this region within 3 minutes, so "
+        + "the forwarded write cannot be attempted. That is a replication problem, not a driver one.");
+  }
+
+  /** The session parameter that engages write forwarding, under whichever name this engine gives it. */
+  private String consistencyModeSql() {
+    return TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG
+        ? "SET apg_write_forward.consistency_mode = 'session'"
+        : "SET aurora_replica_read_consistency = 'session'";
   }
 
   @TestTemplate

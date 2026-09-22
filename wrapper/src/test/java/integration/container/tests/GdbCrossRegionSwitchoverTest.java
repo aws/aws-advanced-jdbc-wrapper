@@ -208,22 +208,49 @@ public class GdbCrossRegionSwitchoverTest {
   /**
    * Returns the primary region to where it started.
    *
-   * <p>Best-effort, and logged rather than asserted. The environment is valid either way - it is a global
-   * database with a writer somewhere - and it is deleted at the end of the run; failing teardown here would
-   * replace whatever the test found with a message about a switchover.
+   * <p>Best-effort in the end - the environment is valid either way, and failing teardown here would replace
+   * whatever the test found with a message about a switchover - but persistent about it, because a mirrored
+   * topology is not as harmless as it first looked. Teardown deletes region by region, primary last, and RDS
+   * refuses to delete the actual master's last instance while a replica exists; on a run where this method gave
+   * up, that refusal ate the whole teardown budget and left clusters billing in two regions.
+   *
+   * <p>The retrying matters for a specific reason: the switchover this test performed reports complete on the
+   * <em>global</em> cluster while the regional clusters are still {@code modifying}, and RDS refuses a new
+   * switchover until they settle - "the source DB cluster is in the modifying state". A single immediate attempt
+   * therefore fails essentially every time, which is exactly how this was found.
    */
   private void switchBack(final TestGlobalDatabaseInfo info, final String homeRegion) {
-    try {
-      if (homeRegion.equals(auroraUtil.getGlobalClusterPrimaryRegion(info.getGlobalClusterIdentifier()))) {
-        return;
-      }
-      LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " back to " + homeRegion);
-      switchover(info, homeRegion);
+    final long deadline = System.nanoTime() + SWITCHOVER_TIMEOUT.toNanos();
+    String lastRefusal = "not attempted";
 
-    } catch (final RuntimeException e) {
-      LOGGER.warning("Could not switch " + info.getGlobalClusterIdentifier() + " back to " + homeRegion
-          + ": " + e.getMessage() + ". The environment is still usable, with its writer in another region.");
+    while (System.nanoTime() < deadline) {
+      try {
+        if (homeRegion.equals(auroraUtil.getGlobalClusterPrimaryRegion(info.getGlobalClusterIdentifier()))) {
+          LOGGER.info(info.getGlobalClusterIdentifier() + " is back on " + homeRegion);
+          return;
+        }
+        LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " back to " + homeRegion);
+        switchover(info, homeRegion);
+        return;
+
+      } catch (final RuntimeException e) {
+        // Almost always the modifying-state refusal above; anything rarer is equally well served by waiting
+        // and asking again, since the loop re-reads the primary region on every pass.
+        lastRefusal = e.getMessage();
+        LOGGER.info("Switch-back not possible yet: " + lastRefusal);
+      }
+
+      try {
+        TimeUnit.SECONDS.sleep(15);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
     }
+
+    LOGGER.warning("Could not switch " + info.getGlobalClusterIdentifier() + " back to " + homeRegion
+        + " within " + SWITCHOVER_TIMEOUT.toMinutes() + " minutes; last refusal: " + lastRefusal
+        + ". Teardown must not assume the provisioning-time primary still holds the writer.");
   }
 
   private void assertWritable(final Connection conn) throws SQLException {
