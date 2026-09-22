@@ -105,6 +105,14 @@ public class GdbCrossRegionSwitchoverTest {
    */
   private static final Duration SWITCHOVER_TIMEOUT = Duration.ofMinutes(20);
 
+  /**
+   * How long to wait for the home region to be able to serve a writer again after the switch back.
+   *
+   * <p>Shorter than {@link #SWITCHOVER_TIMEOUT} because this is not waiting for the switchover, which has
+   * already been confirmed by the time this applies - only for the regional clusters to finish following it.
+   */
+  private static final Duration HOME_WRITABLE_TIMEOUT = Duration.ofMinutes(10);
+
   private static final String TABLE = "gdb_switchover_test";
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
@@ -162,7 +170,7 @@ public class GdbCrossRegionSwitchoverTest {
       assertWritable(conn);
 
     } finally {
-      switchBack(info, homeRegion);
+      switchBack(info, homeRegion, testDriver);
     }
   }
 
@@ -196,13 +204,45 @@ public class GdbCrossRegionSwitchoverTest {
         : DialectCodes.GLOBAL_AURORA_MYSQL;
   }
 
+  /**
+   * Switches the writer to another region, retrying while RDS refuses to start.
+   *
+   * <p>The retrying is not decoration. This test runs once per driver, and the second pass's forward
+   * switchover arrives while the first pass's switch-back is still settling - RDS answers "a switchover is
+   * currently in progress" or "the source DB cluster is in the modifying state" for a while after the previous
+   * one reports complete, because the global cluster's state changes before its members' do. A single attempt
+   * therefore fails on every multi-driver run, and only the second driver's pass, which reads like a driver
+   * difference rather than the scheduling artifact it is.
+   */
   private void switchover(final TestGlobalDatabaseInfo info, final String toRegion) {
     final String targetArn =
         auroraUtil.getGlobalClusterMemberArn(info.getGlobalClusterIdentifier(), toRegion);
 
-    auroraUtil.switchoverGlobalCluster(info.getGlobalClusterIdentifier(), targetArn);
-    auroraUtil.waitUntilGlobalClusterPrimaryRegionIs(
-        info.getGlobalClusterIdentifier(), toRegion, SWITCHOVER_TIMEOUT);
+    final long deadline = System.nanoTime() + SWITCHOVER_TIMEOUT.toNanos();
+    RuntimeException lastRefusal = null;
+
+    while (System.nanoTime() < deadline) {
+      try {
+        auroraUtil.switchoverGlobalCluster(info.getGlobalClusterIdentifier(), targetArn);
+        auroraUtil.waitUntilGlobalClusterPrimaryRegionIs(
+            info.getGlobalClusterIdentifier(), toRegion, SWITCHOVER_TIMEOUT);
+        return;
+
+      } catch (final RuntimeException e) {
+        lastRefusal = e;
+        LOGGER.info("Switchover to " + toRegion + " not possible yet: " + e.getMessage());
+      }
+
+      try {
+        TimeUnit.SECONDS.sleep(15);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Interrupted while waiting to switch over to " + toRegion, e);
+      }
+    }
+
+    throw new RuntimeException("Could not switch " + info.getGlobalClusterIdentifier() + " over to "
+        + toRegion + " within " + SWITCHOVER_TIMEOUT.toMinutes() + " minutes.", lastRefusal);
   }
 
   /**
@@ -219,7 +259,9 @@ public class GdbCrossRegionSwitchoverTest {
    * switchover until they settle - "the source DB cluster is in the modifying state". A single immediate attempt
    * therefore fails essentially every time, which is exactly how this was found.
    */
-  private void switchBack(final TestGlobalDatabaseInfo info, final String homeRegion) {
+  private void switchBack(
+      final TestGlobalDatabaseInfo info, final String homeRegion, final TestDriver testDriver) {
+
     final long deadline = System.nanoTime() + SWITCHOVER_TIMEOUT.toNanos();
     String lastRefusal = "not attempted";
 
@@ -227,10 +269,12 @@ public class GdbCrossRegionSwitchoverTest {
       try {
         if (homeRegion.equals(auroraUtil.getGlobalClusterPrimaryRegion(info.getGlobalClusterIdentifier()))) {
           LOGGER.info(info.getGlobalClusterIdentifier() + " is back on " + homeRegion);
+          awaitHomeRegionWritable(info, homeRegion, testDriver);
           return;
         }
         LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " back to " + homeRegion);
         switchover(info, homeRegion);
+        awaitHomeRegionWritable(info, homeRegion, testDriver);
         return;
 
       } catch (final RuntimeException e) {
@@ -251,6 +295,79 @@ public class GdbCrossRegionSwitchoverTest {
     LOGGER.warning("Could not switch " + info.getGlobalClusterIdentifier() + " back to " + homeRegion
         + " within " + SWITCHOVER_TIMEOUT.toMinutes() + " minutes; last refusal: " + lastRefusal
         + ". Teardown must not assume the provisioning-time primary still holds the writer.");
+  }
+
+  /**
+   * Waits until the home region's cluster endpoint actually fronts a writer.
+   *
+   * <p>The control-plane flag is not that signal, and the difference is what made this test fail on its second
+   * driver. {@code DescribeGlobalClusters} reports the role swap as soon as RDS records it, while the regional
+   * clusters are still {@code modifying} and the home region's writer cluster endpoint still answers as a
+   * reader. Returning on the flag alone hands the next parameterized case a topology that has not settled: it
+   * opens its first connection through that endpoint with the {@code initialConnection} plugin demanding a
+   * writer, gets none, and gives up after the plugin's default 30 seconds - which reads as a difference between
+   * the two drivers and is really this test's own leftovers.
+   *
+   * <p>Probed with a plain connection rather than the wrapper, because the wrapper is the thing under test. A
+   * driver that resolved this correctly would mask an environment that had not settled, and one that did not
+   * would be blamed for the environment.
+   *
+   * <p>Best-effort, like the switch back it completes: a slow region is not a finding about the driver, and
+   * throwing here would replace whatever the test found with a message about an endpoint.
+   */
+  private void awaitHomeRegionWritable(
+      final TestGlobalDatabaseInfo info, final String homeRegion, final TestDriver testDriver) {
+
+    final TestRegionalClusterInfo home = info.getRegion(homeRegion);
+    final String url = ConnectionStringHelper.getUrl(
+        testDriver,
+        home.getClusterEndpoint(),
+        home.getPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+
+    final long deadline = System.nanoTime() + HOME_WRITABLE_TIMEOUT.toNanos();
+    String lastReason = "not attempted";
+
+    while (System.nanoTime() < deadline) {
+      try (Connection conn = DriverManager.getConnection(url, props);
+          Statement statement = conn.createStatement();
+          ResultSet rs = statement.executeQuery(readOnlyProbe())) {
+
+        if (rs.next() && !rs.getBoolean(1)) {
+          LOGGER.info(homeRegion + " serves a writer again");
+          return;
+        }
+        lastReason = "the cluster endpoint still answers as a reader";
+
+      } catch (final SQLException e) {
+        lastReason = e.getMessage();
+      }
+
+      LOGGER.info("Waiting for " + homeRegion + " to serve a writer: " + lastReason);
+      try {
+        TimeUnit.SECONDS.sleep(10);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      }
+    }
+
+    LOGGER.warning(homeRegion + " still did not serve a writer after " + HOME_WRITABLE_TIMEOUT.toMinutes()
+        + " minutes; last reason: " + lastReason + ". A test that connects there next may fail for that "
+        + "reason rather than its own.");
+  }
+
+  /**
+   * Returns a query that answers whether the server it runs on is read-only, which is to say a reader.
+   */
+  private String readOnlyProbe() {
+    return TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG
+        ? "SELECT pg_is_in_recovery()"
+        : "SELECT @@innodb_read_only";
   }
 
   private void assertWritable(final Connection conn) throws SQLException {
