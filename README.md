@@ -328,13 +328,22 @@ To find all the documentation and concrete examples on how to use the AWS Advanc
 
 #### MariaDB
 
-The MariaDB driver uses pipelining, which is not compatible with Aurora. If you use the MariaDB driver against Aurora, you should disable the following properties, because they rely on pipelining.
+The MariaDB driver uses pipelining for some optimizations, and Aurora does not support pipelining. MariaDB removed its own `aurora` failover mode in MariaDB Connector/J 3.0 for that reason. The AWS Advanced JDBC Wrapper does not use that mode, because it provides failover itself.
+
+The wrapper's integration tests cover MariaDB Connector/J 3.5.x against Aurora MySQL. MariaDB Connector/J 3.x enables its pipelining-dependent features only when the server advertises MariaDB bulk-operation support, which Aurora MySQL does not, so those features are not used in that configuration.
+
+To disable pipelining explicitly, use the property that matches your driver version:
+
+- MariaDB Connector/J 3.1 and above: set `disablePipeline` to `true`.
+- MariaDB Connector/J 2.x: set `usePipelineAuth` and `useBatchMultiSend` to `false`.
 
 ```java
+// MariaDB Connector/J 3.1 and above
 Properties props = new Properties();
-props.setProperty("usePipelineAuth", "false");
-props.setProperty("useBatchMultiSend", "false");
+props.setProperty("disablePipeline", "true");
 ```
+
+Note that `usePipelineAuth` and `useBatchMultiSend` do not exist in MariaDB Connector/J 3.x; they were removed in version 3.0. MariaDB Connector/J accepts unknown properties without raising an error, so setting them on a 3.x driver has no effect.
 
 #### Amazon RDS Blue/Green Deployments
 
