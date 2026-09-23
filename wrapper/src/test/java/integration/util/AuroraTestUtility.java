@@ -1922,15 +1922,21 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Triggers a cluster failover and waits until the writer instance has changed.
-   * If the writer does not change within the timeout period, the method will retry
-   * the entire failover operation up to {@code maxRetries} times.
+   * Triggers a cluster failover and waits until the writer instance has changed and the change has
+   * settled. A failover that the RDS API reports and then reverts counts as no failover at all, so
+   * it is retried like a request that was never acted on. The method returns only once
+   * {@code initialWriterId} is out of the writer role, and throws otherwise, so a caller can rely
+   * on the writer having actually moved.
+   *
+   * <p>The entire failover operation is retried up to {@code maxRetries} times.
    *
    * @param clusterId       the cluster identifier
    * @param initialWriterId the current writer instance ID before failover
    * @param targetWriterId  the desired target writer instance ID (suggestion only for Aurora)
    * @param maxRetries      maximum number of retry attempts if the writer does not change
    * @throws InterruptedException if the thread is interrupted while waiting
+   * @throws RuntimeException if the writer has not moved off {@code initialWriterId} after
+   *                          {@code maxRetries} attempts
    */
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
       String clusterId, String initialWriterId, String targetWriterId, int maxRetries)
@@ -1958,10 +1964,17 @@ public class AuroraTestUtility {
     // long timeout (which previously caused intermittent CI failures on Aurora clusters).
     final long writerChangeTimeoutMinutes = 5;
 
+    // Timeout for the cluster to settle once the API has reported a new writer. Settling is not the
+    // slow part of a failover: every successful failover observed in CI moved the cluster endpoint
+    // and dropped the old writer's role within ten seconds. A short timeout here keeps the retries
+    // below bounded while still detecting a failover that was reported and then reverted.
+    final long settleTimeoutMinutes = 1;
+
     int attempt = 0;
     String newWriterId = getDBClusterWriterInstanceId(clusterId);
+    boolean settled = false;
 
-    while (attempt < maxRetries) {
+    while (attempt < maxRetries && !settled) {
       attempt++;
       LOGGER.finest(String.format("Failover attempt %d of %d", attempt, maxRetries));
 
@@ -1980,46 +1993,109 @@ public class AuroraTestUtility {
       LOGGER.finest("Writer (after wait): " + newWriterId);
 
       if (!initialWriterId.equalsIgnoreCase(newWriterId)) {
-        // Writer has changed, break out of retry loop
-        break;
+        // The API reporting a new writer does not mean the election stuck. Aurora can promote a
+        // reader, report it as the writer, and put the original instance back in that role seconds
+        // later, in which case no failover happened at all. Confirm before reporting success.
+        settled = awaitFailoverSettled(
+            clusterId, deployment, initialWriterId, clusterEndpoint, clusterIp, settleTimeoutMinutes);
+        if (settled) {
+          break;
+        }
+        LOGGER.warning(String.format(
+            "Aurora reported '%s' as the new writer but the role reverted to '%s' on attempt %d.",
+            newWriterId, initialWriterId, attempt));
+        newWriterId = initialWriterId;
       }
 
       if (attempt < maxRetries) {
         LOGGER.warning(String.format(
-            "Writer hasn't changed (API) after %d min on attempt %d. Retrying failover...",
-            writerChangeTimeoutMinutes, attempt));
+            "Attempt %d did not leave the cluster on a new writer. Retrying failover...", attempt));
         // Brief pause before retrying to allow cluster to stabilize
         TimeUnit.SECONDS.sleep(10);
         // Re-fetch writer ID in case it changed during the pause
         newWriterId = getDBClusterWriterInstanceId(clusterId);
         if (!initialWriterId.equalsIgnoreCase(newWriterId)) {
           LOGGER.finest("Writer changed during retry pause: " + newWriterId);
-          break;
+          settled = awaitFailoverSettled(
+              clusterId, deployment, initialWriterId, clusterEndpoint, clusterIp, settleTimeoutMinutes);
+          if (settled) {
+            break;
+          }
+          // Reset so the next attempt waits for the writer to change again instead of acting on a
+          // reading that has since been reverted.
+          newWriterId = initialWriterId;
         }
       }
     }
 
-    if (initialWriterId.equalsIgnoreCase(newWriterId)) {
+    if (!settled) {
       throw new RuntimeException(String.format(
-          "Writer hasn't changed (API) after %d min with %d attempt(s). It seems that failover hasn't occurred.",
-          writerChangeTimeoutMinutes, maxRetries));
+          "Failover from '%s' did not take effect after %d attempt(s); the writer per the RDS API is '%s'.",
+          initialWriterId, maxRetries, getDBClusterWriterInstanceId(clusterId)));
     }
+
+    LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
+  }
+
+  /**
+   * Waits for a failover that the RDS API has already reported to settle.
+   *
+   * <p>For Aurora this means the cluster endpoint stops resolving to the old writer's address and
+   * {@code initialWriterId} stays out of the writer role. Aurora occasionally reports a promoted
+   * reader as the writer and then puts the original instance back in that role, in which case no
+   * failover has occurred; returning {@code false} lets the caller re-issue the request rather than
+   * leaving a test to assert against a writer that never changed.
+   *
+   * @param clusterId       the cluster identifier
+   * @param deployment      the deployment under test
+   * @param initialWriterId the writer instance ID from before the failover was requested
+   * @param clusterEndpoint the cluster endpoint to resolve
+   * @param clusterIp       the address the cluster endpoint resolved to before the failover
+   * @param timeoutMinutes  how long to wait for each settling step
+   * @return true if the failover settled on a writer other than {@code initialWriterId}
+   * @throws InterruptedException if the thread is interrupted while waiting
+   */
+  private boolean awaitFailoverSettled(
+      String clusterId,
+      DatabaseEngineDeployment deployment,
+      String initialWriterId,
+      String clusterEndpoint,
+      @Nullable String clusterIp,
+      long timeoutMinutes) throws InterruptedException {
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
     if (deployment == DatabaseEngineDeployment.AURORA) {
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterIp = hostToIP(clusterEndpoint);
-      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
+      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(timeoutMinutes);
+      int pollCount = 0;
       while (clusterIp != null && clusterIp.equals(newClusterIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
+        // Consult the API every 5s rather than on every poll: once the original instance holds the
+        // writer role again the cluster endpoint will never move, so waiting out the full timeout
+        // here only delays the retry.
+        if (++pollCount % 5 == 0 && isDBInstanceWriter(clusterId, initialWriterId)) {
+          LOGGER.warning(String.format(
+              "The RDS API reports '%s' as the writer again while waiting for DNS to be updated.",
+              initialWriterId));
+          return false;
+        }
         newClusterIp = hostToIP(clusterEndpoint);
       }
       LOGGER.finest("Cluster endpoint resolves to (after wait): " + newClusterIp);
 
-      // Wait for initial writer instance to be verified as not writer.
-      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
-      while (isDBInstanceWriter(initialWriterId) && waitTillNanoTime > System.nanoTime()) {
+      // Wait for initial writer instance to be verified as not writer. A DNS update that never
+      // arrives is tolerated, but the old instance holding the writer role is not: that means the
+      // failover was reverted.
+      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(timeoutMinutes);
+      while (isDBInstanceWriter(clusterId, initialWriterId) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
+      }
+      if (isDBInstanceWriter(clusterId, initialWriterId)) {
+        LOGGER.warning(String.format(
+            "'%s' is still the writer %d min after the failover was reported complete.",
+            initialWriterId, timeoutMinutes));
+        return false;
       }
 
     } else if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
@@ -2032,7 +2108,9 @@ public class AuroraTestUtility {
       // Waiting for clusterEndpoint changes IP address
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterEndpointIp = hostToIP(clusterEndpoint);
-      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(writerChangeTimeoutMinutes);
+      // Kept at 5 minutes rather than the Aurora settle timeout: the target instance is unknown for
+      // a Multi-AZ cluster, so the endpoint moving is the only completion signal available here.
+      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
       while (clusterIp.equals(newClusterEndpointIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         newClusterEndpointIp = hostToIP(clusterEndpoint);
@@ -2046,7 +2124,7 @@ public class AuroraTestUtility {
           .collect(Collectors.toList());
       makeSureInstancesUp(instances, TimeUnit.MINUTES.toSeconds(5));
     }
-    LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
+    return true;
   }
 
   public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId) throws InterruptedException {
