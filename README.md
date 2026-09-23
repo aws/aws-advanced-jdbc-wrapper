@@ -8,7 +8,7 @@ The **Amazon Web Services (AWS) JDBC Driver** has been redesigned as an advanced
 
 The wrapper is complementary to an existing JDBC driver and aims to extend the functionality of the driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In other words, the AWS Advanced JDBC Wrapper does not connect directly to any database, but enables support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice. This approach enables service-specific enhancements, without requiring users to change their workflow and existing JDBC driver tooling.
 
-The AWS Advanced JDBC Wrapper is targeted to work with **any** existing JDBC driver. Currently, the AWS Advanced JDBC Wrapper has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+The AWS Advanced JDBC Wrapper is targeted to work with **any** existing JDBC driver. Currently, the AWS Advanced JDBC Wrapper has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) (with some caveats, see [below](#mariadb)).
 
 The AWS Advanced JDBC Wrapper provides modular functionality through feature plugins, with each plugin being relevant to specific database services based on their architecture and capabilities. For example, [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) authentication is supported across multiple services, while [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) applies to services that support password-based authentication. The fast failover plugin provides reduced recovery time during failover for Aurora PostgreSQL and Aurora MySQL clusters.
 
@@ -138,6 +138,25 @@ Technical documentation regarding the functionality of the AWS Advanced JDBC Wra
 To find all the documentation and concrete examples on how to use the AWS Advanced JDBC Wrapper, please refer to the [AWS Advanced JDBC Wrapper Documentation](./docs/Documentation.md) page.
 
 ### Known Limitations
+
+#### MariaDB
+
+The MariaDB driver uses pipelining for some optimizations, and Aurora does not support pipelining. MariaDB removed its own `aurora` failover mode in MariaDB Connector/J 3.0 for that reason. The AWS Advanced JDBC Wrapper does not use that mode, because it provides failover itself.
+
+The wrapper's integration tests cover MariaDB Connector/J 3.5.x against Aurora MySQL. MariaDB Connector/J 3.x enables its pipelining-dependent features only when the server advertises MariaDB bulk-operation support, which Aurora MySQL does not, so those features are not used in that configuration.
+
+To disable pipelining explicitly, use the property that matches your driver version:
+
+- MariaDB Connector/J 3.1 and above: set `disablePipeline` to `true`.
+- MariaDB Connector/J 2.x: set `usePipelineAuth` and `useBatchMultiSend` to `false`.
+
+```java
+// MariaDB Connector/J 3.1 and above
+Properties props = new Properties();
+props.setProperty("disablePipeline", "true");
+```
+
+Note that `usePipelineAuth` and `useBatchMultiSend` do not exist in MariaDB Connector/J 3.x; they were removed in version 3.0. MariaDB Connector/J accepts unknown properties without raising an error, so setting them on a 3.x driver has no effect.
 
 #### Amazon RDS Blue/Green Deployments
 
