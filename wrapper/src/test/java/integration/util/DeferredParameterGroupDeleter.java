@@ -40,9 +40,12 @@ import software.amazon.jdbc.util.StringUtils;
  * Deleting the group inline instead fails with {@link InvalidDbParameterGroupStateException} and leaks
  * the group, which eventually exhausts the region's parameter group quota.
  *
- * <p>Each request is therefore queued here and retried on a daemon thread until RDS accepts it.
- * Whatever is still pending when the JVM exits is awaited for a bounded time and then reported at
- * WARNING. {@link AuroraTestUtility#testClusterParameterGroupsCleanUp()} and
+ * <p>Each request is therefore queued here and retried on a daemon thread until RDS accepts it, and a
+ * shutdown hook holds the JVM at exit until the queue drains or {@link #SHUTDOWN_TIMEOUT_MS} passes. That
+ * hook is not a nicety: the CI workflows give each job a single test environment, so teardown is the last
+ * thing that happens before the JVM exits and the retries have nothing else to run alongside.
+ *
+ * <p>{@link AuroraTestUtility#testClusterParameterGroupsCleanUp()} and
  * {@link AuroraTestUtility#testDbParameterGroupsCleanUp()} remain the backstop for groups that outlive
  * the run entirely, for instance when the run is killed.
  */
@@ -58,12 +61,15 @@ public class DeferredParameterGroupDeleter {
   private static final long RETRY_TIMEOUT_MS = TimeUnit.HOURS.toMillis(3);
   private static final long RETRY_DELAY_MS = TimeUnit.SECONDS.toMillis(30);
 
-  // How long the JVM is held at exit waiting for outstanding deletions. This is a short courtesy for
-  // deletions that are nearly done, not a guarantee: deleting a database takes longer than this, so the
-  // last environment of a run will often still have its group pending. Waiting it out would put the
-  // minutes this class exists to avoid straight back into the run, and the periodic sweep in
-  // AuroraTestUtility collects whatever is left.
-  private static final long SHUTDOWN_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(2);
+  // How long the JVM is held at exit waiting for outstanding deletions.
+  //
+  // This has to cover a whole database deletion, not just a nearly-finished one. The CI workflows shard
+  // the matrix so that a job runs a single test environment, which means teardown is the last thing that
+  // happens before the JVM exits: there is no "rest of the run" for the retries to hide behind, and this
+  // timeout is the entire budget in practice. A 3-instance Aurora cluster takes around 6 minutes to
+  // disappear, so anything shorter simply leaks the group. The wait ends as soon as the deletions land, so
+  // the ceiling only matters when something is genuinely stuck.
+  private static final long SHUTDOWN_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(12);
   private static final long SHUTDOWN_POLL_MS = TimeUnit.SECONDS.toMillis(5);
 
   private static final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
@@ -191,15 +197,26 @@ public class DeferredParameterGroupDeleter {
       return;
     }
 
-    LOGGER.info(String.format(
+    // Print rather than log. java.util.logging installs its own shutdown hook that resets the handlers,
+    // and because hooks run concurrently it can win the race and silently discard anything logged from
+    // here -- which is exactly what made an earlier run impossible to diagnose. This wait can last
+    // minutes, so it has to explain itself reliably.
+    report(String.format(
         "Waiting up to %d minutes for %d parameter group deletion(s) to complete: %s",
         TimeUnit.MILLISECONDS.toMinutes(SHUTDOWN_TIMEOUT_MS), pending.size(), pending));
 
-    if (!RetryHelper.retryUntil(SHUTDOWN_TIMEOUT_MS, SHUTDOWN_POLL_MS, pending::isEmpty)) {
-      LOGGER.warning(String.format(
+    if (RetryHelper.retryUntil(SHUTDOWN_TIMEOUT_MS, SHUTDOWN_POLL_MS, pending::isEmpty)) {
+      report("All pending parameter group deletions completed.");
+    } else {
+      report(String.format(
           "Exiting with %d parameter group(s) not deleted: %s. They are left for the periodic test "
               + "resource cleanup to remove.",
           pending.size(), pending));
     }
+  }
+
+  private static void report(final String message) {
+    System.out.println("[" + DeferredParameterGroupDeleter.class.getSimpleName() + "] " + message);
+    System.out.flush();
   }
 }
