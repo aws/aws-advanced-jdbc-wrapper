@@ -185,6 +185,13 @@ public class AuroraTestUtility {
   private static final String PG_MAX_PREPARED_TRANSACTIONS = "100";
   // Used to build a PostgreSQL parameter group family name when the engine version is unknown.
   private static final String DEFAULT_PG_MAJOR_VERSION = "17";
+  // How long an unattached test parameter group is left alone before the periodic cleanup removes it.
+  // The guard only has to outlast the gap between creating a group and attaching it to a database, which
+  // is part of a single environment build, so a few hours is already generous. Keeping it longer only
+  // means leftovers occupy the region's parameter group quota for longer: every run that leaks a group
+  // leaves it in place for this many hours, and the cleanup only runs when another run starts in the same
+  // region, so the account carries at least this much debris at any time.
+  private static final int PARAMETER_GROUP_CLEANUP_AGE_HOURS = 6;
   private static final Random rand = new Random();
 
   private final RdsClient rdsClient;
@@ -2954,7 +2961,11 @@ public class AuroraTestUtility {
           }
         }
       } catch (Exception ex) {
-        LOGGER.warning("Error listing clusters for parameter group cleanup: " + ex.getMessage());
+        // Without the in-use list every group looks unused, and the age guard is then the only thing
+        // standing between this sweep and a parameter group belonging to a concurrently running suite.
+        // Skip this round instead: a leftover group costs quota, deleting a live one fails a whole run.
+        LOGGER.warning("Error listing clusters for parameter group cleanup, skipping it: " + ex.getMessage());
+        return;
       }
 
       DescribeDbClusterParameterGroupsResponse response = rdsClient.describeDBClusterParameterGroups();
@@ -3002,7 +3013,9 @@ public class AuroraTestUtility {
           dbInstance.dbParameterGroups().forEach(group -> inUseParameterGroups.add(group.dbParameterGroupName()));
         }
       } catch (Exception ex) {
-        LOGGER.warning("Error listing instances for parameter group cleanup: " + ex.getMessage());
+        // See testClusterParameterGroupsCleanUp(): an empty in-use list makes every group look orphaned.
+        LOGGER.warning("Error listing instances for parameter group cleanup, skipping it: " + ex.getMessage());
+        return;
       }
 
       DescribeDbParameterGroupsResponse response = rdsClient.describeDBParameterGroups();
@@ -3032,10 +3045,11 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Returns true when the resource carries a "created" tag that is less than 12 hours old, which
-   * protects a parameter group that has been created but not yet attached to a database. A resource
-   * without a readable or parsable tag is treated as old (best-effort cleanup), which matches the
-   * behavior for legacy parameter groups created before the tag was introduced.
+   * Returns true when the resource carries a "created" tag that is younger than
+   * {@link #PARAMETER_GROUP_CLEANUP_AGE_HOURS}, which protects a parameter group that has been created
+   * but not yet attached to a database. A resource without a readable or parsable tag is treated as old
+   * (best-effort cleanup), which matches the behavior for legacy parameter groups created before the tag
+   * was introduced.
    */
   private boolean isRecentlyCreated(final @Nullable String resourceArn, final String resourceName) {
     if (resourceArn == null) {
@@ -3057,7 +3071,9 @@ public class AuroraTestUtility {
         try {
           ZonedDateTime createdTime = ZonedDateTime.parse(
               createdValue, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzz"));
-          return createdTime.toInstant().plus(12, ChronoUnit.HOURS).isAfter(Instant.now());
+          return createdTime.toInstant()
+              .plus(PARAMETER_GROUP_CLEANUP_AGE_HOURS, ChronoUnit.HOURS)
+              .isAfter(Instant.now());
         } catch (Exception parseEx) {
           // If we can't parse the tag, proceed with deletion (best-effort)
           LOGGER.finest("Could not parse 'created' tag for " + resourceName + ": " + parseEx.getMessage());
