@@ -1234,9 +1234,9 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `cacheConnectionTimeoutMs` | `2000` | Cache connect timeout. |
 | `cacheConnectionPoolSize` | `20` | Cache connection pool size. |
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
-| `cacheKeyPrefix` | (none) | Prefix for cache keyspace isolation (≤10 chars). This does not track database authorization state. |
+| `cacheKeyPrefix` | (none) | Optional static prefix for separating cache keyspaces (≤10 chars). The prefix itself does not provide database authorization-state isolation; use `cacheEnableDatabaseMultiTenancy` for supported authorization/session state. |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
-| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for supported PostgreSQL, MySQL, and MariaDB session state. |
+| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for supported PostgreSQL role/search-path state and MySQL/MariaDB account/role/database state. |
 
 Enable this when query visibility depends on supported database authorization or session state:
 

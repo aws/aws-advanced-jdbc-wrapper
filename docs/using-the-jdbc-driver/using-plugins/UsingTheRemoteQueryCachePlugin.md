@@ -52,26 +52,26 @@ isolation.
 
 ## Configuration Parameters
 
-| Parameter                           | Available Since Version |  Value  | Required | Description                                                                                                                                             | Default Value |
-|-------------------------------------|-------------------------|:-------:|:--------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `cacheEndpointAddrRw`               | 3.3.0 | String  |   Yes    | The cache read-write server endpoint address.                                                                                                           | `null`        |
-| `cacheEndpointAddrRo`               | 3.3.0 | String  |    No    | The cache read-only server endpoint address. This is an optional parameter to allow performing read operations from read replica cache nodes.           | `null`        |
-| `cacheUseSSL`                       | 3.3.0 | Boolean |    No    | Whether to use SSL for cache connection.                                                                                                                | `true`        |
-| `cacheTlsCaCertPath`                | 3.3.0 | String  |    No    | File path to the CA certificate (PEM) file for verifying the cache server's TLS certificate. Mainly for using self signed TLS certificates for testing. | `null`        |
-| `cacheUsername`                     | 3.3.0 | String  |    No    | Username for Valkey cache regular authentication.                                                                                                       | `null`        |
-| `cachePassword`                     | 3.3.0 | String  |    No    | Password for Valkey cache regular authentication.                                                                                                       | `null`        |
-| `cacheName`                         | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                 | `null`        |
-| `cacheIamRegion`                    | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                          | `null`        |
-| `cacheMaxQuerySize`                 | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                         | `16384`       |
-| `cacheEnableDatabaseMultiTenancy`   | 4.5.0 | Boolean |    No    | Enables authorization-aware cache isolation when query visibility depends on supported PostgreSQL role/search-path state or MySQL/MariaDB account/role/database state. | `false` |
-| `cacheConnectionTimeoutMs`          | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                              | `2000`        |
-| `cacheConnectionPoolSize`           | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                             | `20`          |
-| `cacheKeyPrefix`                    | 3.3.0 | String  |    No    | Optional static prefix for separating cache keyspaces (max 10 characters). This property does not track database authorization state. Enable `cacheEnableDatabaseMultiTenancy` to include supported database authorization/session state in cache keys.                           | `null`        |
-| `failWhenCacheDown`                 | 3.3.0 | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                          | `false`       |
-| `cacheInFlightWriteSizeLimitBytes`  | 3.3.0 | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                              | `50MB`        |
-| `cacheHealthCheckInHealthyState`    | 3.3.0 | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                  | `false`       |
-| `cacheAllowStreamSource`            | 4.3.0 | Boolean |    No    | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below. | `false` |
-| `cacheAllowUrl`                     | 4.3.0 | Boolean |    No    | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below. | `false` |
+| Parameter                           | Available Since Version |  Value  | Required | Description                                                                                                                                                                                                                                                 | Default Value |
+|-------------------------------------|-------------------------|:-------:|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `cacheEndpointAddrRw`               | 3.3.0 | String  |   Yes    | The cache read-write server endpoint address.                                                                                                                                                                                                               | `null`        |
+| `cacheEndpointAddrRo`               | 3.3.0 | String  |    No    | The cache read-only server endpoint address. This is an optional parameter to allow performing read operations from read replica cache nodes.                                                                                                               | `null`        |
+| `cacheUseSSL`                       | 3.3.0 | Boolean |    No    | Whether to use SSL for cache connection.                                                                                                                                                                                                                    | `true`        |
+| `cacheTlsCaCertPath`                | 3.3.0 | String  |    No    | File path to the CA certificate (PEM) file for verifying the cache server's TLS certificate. Mainly for using self signed TLS certificates for testing.                                                                                                     | `null`        |
+| `cacheUsername`                     | 3.3.0 | String  |    No    | Username for Valkey cache regular authentication.                                                                                                                                                                                                           | `null`        |
+| `cachePassword`                     | 3.3.0 | String  |    No    | Password for Valkey cache regular authentication.                                                                                                                                                                                                           | `null`        |
+| `cacheName`                         | 3.3.0 | String  |    No    | Explicit cache name for ElastiCache IAM authentication.                                                                                                                                                                                                     | `null`        |
+| `cacheIamRegion`                    | 3.3.0 | String  |    No    | AWS region for ElastiCache IAM authentication.                                                                                                                                                                                                              | `null`        |
+| `cacheMaxQuerySize`                 | 3.3.0 | Integer |    No    | The max length of the query for remote caching.                                                                                                                                                                                                             | `16384`       |
+| `cacheEnableDatabaseMultiTenancy`   | 4.5.0 | Boolean |    No    | Enables authorization-aware cache isolation when query visibility depends on supported PostgreSQL role/search-path state or MySQL/MariaDB account/role/database state.                                                                                      | `false` |
+| `cacheConnectionTimeoutMs`          | 3.3.0 | Integer |    No    | Cache connection request timeout duration in milliseconds.                                                                                                                                                                                                  | `2000`        |
+| `cacheConnectionPoolSize`           | 3.3.0 | Integer |    No    | Cache connection pool size.                                                                                                                                                                                                                                 | `20`          |
+| `cacheKeyPrefix`                    | 3.3.0 | String  |    No    | Optional static prefix for separating cache keyspaces (max 10 characters). The prefix itself does not track database authorization state. Enable `cacheEnableDatabaseMultiTenancy` to include supported database authorization/session state in cache keys. | `null`        |
+| `failWhenCacheDown`                 | 3.3.0 | Boolean |    No    | Whether to throw SQLException on cache failures under Degraded mode or make queries fall back to the database.                                                                                                                                              | `false`       |
+| `cacheInFlightWriteSizeLimitBytes`  | 3.3.0 | Integer |    No    | Maximum in-flight write size in Bytes to the cache server before triggering degraded mode.                                                                                                                                                                  | `50MB`        |
+| `cacheHealthCheckInHealthyState`    | 3.3.0 | Boolean |    No    | Whether to run health checks (pings) in healthy state.                                                                                                                                                                                                      | `false`       |
+| `cacheAllowStreamSource`            | 4.3.0 | Boolean |    No    | Whether `SQLXML.getSource(StreamSource.class)` is allowed for XML values retrieved from the cache. See [XML Columns](#xml-columns) below.                                                                                                                   | `false` |
+| `cacheAllowUrl`                     | 4.3.0 | Boolean |    No    | Whether `java.net.URL` values are allowed to be reconstructed from the cache. See [URL Columns](#url-columns) below.                                                                                                                                        | `false` |
 
 
 ## Overall Design
@@ -101,7 +101,7 @@ In the case when the configured TTL is too long and causes stale data to be retu
 ### Query result correctness
 
 Every query cache entry is indexed by a hashed caching key containing:
-- Configure database username - different database users can have different permissions on various tables.
+- Configured database username - different database users can have different permissions on various tables.
 - Tracked database catalog/schema name - same table name can exist in a different database catalog/schema which contains different data
 - The SQL query string
 
@@ -170,10 +170,10 @@ cache reads but may write their database results to the cache.
 ### Security scope and application requirements
 
 > [!WARNING]
-> `cacheEnableDatabaseMultiTenancy=true` reduces the risk of cached results being reused across
-> different database tenant contexts, but it cannot detect every database operation that may affect
-> authorization, row visibility, or object resolution. Do not treat this option as a complete
-> tenant-isolation or authorization boundary.
+> `cacheEnableDatabaseMultiTenancy=true` is a best-effort cache security hardening
+> measure, not a complete tenant-isolation boundary or authorization firewall. It reduces the risk
+> of cached results being reused across database tenant contexts, but cannot detect every operation
+> affecting authorization, row visibility, or object resolution.
 >
 > Applications should use remote query caching for database multi-tenancy only when all
 > tenant-affecting session state is changed through the supported operations documented below:
@@ -183,15 +183,18 @@ cache reads but may write their database results to the cache.
 > - MySQL and MariaDB: `SET ROLE`, `USE`, `RESET CONNECTION`, and JDBC
 >   `Connection.setCatalog(...)`.
 >
-> Operations such as callable statements, dynamic SQL, batches, user variables, executable
-> comments, custom settings, and temporary-object creation are handled conservatively by disabling
-> remote caching when the plugin recognizes them. However, state changes hidden inside SQL
-> functions, stored procedure internals, connection initialization SQL, target-driver-specific
-> APIs, or other mechanisms may not be observable by the plugin.
+> Recognized opaque or unsupported operations—including PostgreSQL `set_config(...)`, qualified
+> custom settings, `CALL`/`DO`, MySQL/MariaDB user variables and dynamic `EXECUTE`, executable
+> comments, batches, and temporary-object creation—conservatively disable remote caching.
+> However, state changes hidden inside SQL functions, stored procedure internals, connection
+> initialization SQL, target-driver-specific APIs, or other mechanisms may not be observable by
+> the plugin.
 >
 > If query visibility depends on state outside the documented PostgreSQL role/search-path state or
-> MySQL/MariaDB account/role/database state, do not cache those queries. Applications remain
-> responsible for enforcing tenant isolation at the database and application layers.
+> MySQL/MariaDB account/role/database state, do not cache those queries. Use outside these
+> documented paths is unsupported. Applications that do so accept the risk that cached results
+> could be reused across tenant contexts and must not rely on this feature as an authorization
+> boundary.
 
 > [!WARNING]
 > Cache hits do not query the database to revalidate authorization. External changes such as

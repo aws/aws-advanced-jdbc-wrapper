@@ -118,8 +118,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       new AwsWrapperProperty(
           "cacheEnableDatabaseMultiTenancy",
           "false",
-          "Enables authorization-aware remote query cache isolation for database multi-tenancy. "
-              + "Applications using database-level tenant isolation must enable this setting.");
+          "Enables authorization-aware remote query cache isolation for supported PostgreSQL "
+              + "role/search-path state and MySQL/MariaDB account/role/database state.");
 
   private static final AwsWrapperProperty CACHE_ALLOW_STREAM_SOURCE =
       new AwsWrapperProperty(
