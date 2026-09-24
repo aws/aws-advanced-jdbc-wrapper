@@ -145,7 +145,8 @@ public class CacheConnection {
       new AwsWrapperProperty(
           "cacheKeyPrefix",
           null,
-          "Optional prefix for cache keys (max 10 characters). Enables multi-tenant cache isolation.");
+          "Optional static prefix for separating cache keyspaces (max 10 characters). "
+              + "The prefix itself does not provide database authorization-state isolation.");
 
   private final String cacheRwServerAddr; // read-write cache server
   private final @Nullable String cacheRoServerAddr; // read-only cache server

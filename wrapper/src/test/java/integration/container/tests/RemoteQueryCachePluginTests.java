@@ -20,12 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.MethodOrderer;
@@ -45,6 +48,8 @@ import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Null
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.cache.CacheConnection;
 import software.amazon.jdbc.plugin.cache.CachedResultSet;
+import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -294,6 +299,48 @@ public class RemoteQueryCachePluginTests {
       assertFalse(rs3.next());
 
       dropTestTable(conn, tableName);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  public void testPostgresAuthorizationStateQueryCannotBeShadowed() throws SQLException {
+    final String shadowSchema = "cache_auth_shadow";
+
+    try (Connection conn = createCacheEnabledConnection(null, 0, false);
+        Statement statement = conn.createStatement()) {
+      statement.execute("DROP SCHEMA IF EXISTS " + shadowSchema + " CASCADE");
+      statement.execute("CREATE SCHEMA " + shadowSchema);
+
+      try {
+        statement.execute(
+            "CREATE FUNCTION " + shadowSchema + ".current_setting(pg_catalog.text) "
+                + "RETURNS pg_catalog.text LANGUAGE SQL "
+                + "AS 'SELECT ''forged_search_path''::pg_catalog.text'");
+        statement.execute(
+            "CREATE FUNCTION " + shadowSchema + ".current_schemas(pg_catalog.bool) "
+                + "RETURNS pg_catalog.name[] LANGUAGE SQL "
+                + "AS 'SELECT ARRAY[''forged_schema''::pg_catalog.name]'");
+        statement.execute(
+            "CREATE FUNCTION " + shadowSchema + ".array_to_json(pg_catalog.name[]) "
+                + "RETURNS pg_catalog.json LANGUAGE SQL "
+                + "AS 'SELECT pg_catalog.to_json(''forged_resolved_path''::pg_catalog.text)'");
+        statement.execute("SET search_path TO " + shadowSchema + ", pg_catalog, public");
+
+        final Optional<AuthorizationSessionState> result =
+            new PgTargetDriverDialect().readAuthorizationSessionState(conn);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+            shadowSchema + ", pg_catalog, public",
+            result.get().getSearchPath());
+        assertEquals(
+            "[\"" + shadowSchema + "\",\"pg_catalog\",\"public\"]",
+            result.get().getResolvedSearchPath());
+      } finally {
+        statement.execute("SET search_path TO DEFAULT");
+        statement.execute("DROP SCHEMA IF EXISTS " + shadowSchema + " CASCADE");
+      }
     }
   }
 

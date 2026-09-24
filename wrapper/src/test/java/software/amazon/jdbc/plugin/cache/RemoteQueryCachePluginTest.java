@@ -18,16 +18,22 @@ package software.amazon.jdbc.plugin.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -35,18 +41,26 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Properties;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.NodeChangeOptions;
+import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
-import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -84,6 +98,8 @@ public class RemoteQueryCachePluginTest {
   @Mock
   ResultSet mockResult1;
   @Mock
+  ResultSet mockResult2;
+  @Mock
   Statement mockStatement;
   @Mock
   PreparedStatement mockPreparedStatement;
@@ -93,6 +109,8 @@ public class RemoteQueryCachePluginTest {
   Connection mockConnection;
   @Mock
   SessionStateService mockSessionStateService;
+  @Mock
+  TargetDriverDialect mockTargetDriverDialect;
   @Mock
   DatabaseMetaData mockDbMetadata;
   @Mock
@@ -110,6 +128,11 @@ public class RemoteQueryCachePluginTest {
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(anyString()))
+        .thenReturn(AuthorizationStateImpact.NONE);
+    when(mockConnection.getAutoCommit()).thenReturn(true);
     when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.hit")).thenReturn(mockCacheHitCounter);
     when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.miss")).thenReturn(mockCacheMissCounter);
     when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.totalQueries")).thenReturn(mockTotalQueryCounter);
@@ -118,6 +141,7 @@ public class RemoteQueryCachePluginTest {
     when(mockTelemetryFactory.createCounter("remoteQueryCache.cache.bypass")).thenReturn(mockCacheBypassCounter);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
+    when(mockResult2.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
     when(mockMetaData.getColumnLabel(1)).thenReturn("fooName");
   }
@@ -215,7 +239,7 @@ public class RemoteQueryCachePluginTest {
     when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
-    verify(mockPluginService).isInTransaction();
+    verify(mockPluginService, times(1)).isInTransaction();
     verify(mockCallable).call();
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
@@ -242,7 +266,7 @@ public class RemoteQueryCachePluginTest {
     when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
-    verify(mockPluginService).isInTransaction();
+    verify(mockPluginService, times(1)).isInTransaction();
     verify(mockCallable).call();
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
@@ -260,8 +284,8 @@ public class RemoteQueryCachePluginTest {
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
-    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
-    when(mockPreparedStatement.toString()).thenReturn("", (String) null);
+    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement))
+        .thenReturn("", (String) null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
@@ -320,6 +344,7 @@ public class RemoteQueryCachePluginTest {
   void test_execute_cachingMissAndHit() throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
+    final String expectedCacheKey = cacheKey("mysql", null, "", "select * from A");
     // Query is not cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -329,7 +354,7 @@ public class RemoteQueryCachePluginTest {
     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
     when(mockConnection.getCatalog()).thenReturn("mysql");
     when(mockConnection.getSchema()).thenReturn(null);
-    when(mockCacheConn.readFromCache("mysql_null__select * from A")).thenReturn(null);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     // Result set contains 1 row
@@ -346,7 +371,7 @@ public class RemoteQueryCachePluginTest {
 
     rs.beforeFirst();
     byte[] serializedTestResultSet = ((CachedResultSet) rs).serializeIntoByteArray();
-    when(mockCacheConn.readFromCache("mysql_null__select * from A")).thenReturn(serializedTestResultSet);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(serializedTestResultSet);
 
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
         methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
@@ -355,8 +380,9 @@ public class RemoteQueryCachePluginTest {
     assertEquals("bar1", rs2.getString("fooName"));
     assertFalse(rs2.next());
     verify(mockPluginService, times(3)).getCurrentConnection();
+    verify(mockConnection, never()).getAutoCommit();
     verify(mockPluginService, times(2)).isInTransaction();
-    verify(mockCacheConn, times(2)).readFromCache("mysql_null__select * from A");
+    verify(mockCacheConn, times(2)).readFromCache(expectedCacheKey);
     verify(mockPluginService, times(3)).getSessionStateService();
     verify(mockSessionStateService, times(3)).getCatalog();
     verify(mockSessionStateService, times(3)).getSchema();
@@ -364,7 +390,7 @@ public class RemoteQueryCachePluginTest {
     verify(mockConnection).getSchema();
     verify(mockSessionStateService).setCatalog("mysql");
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("mysql_null__select * from A"), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
     verify(mockTotalQueryCounter, times(2)).inc();
     verify(mockCacheMissCounter, times(1)).inc();
     verify(mockCacheHitCounter, times(1)).inc();
@@ -386,6 +412,7 @@ public class RemoteQueryCachePluginTest {
   void test_cachingMissAndHit_preparedStatement() throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
+    final String expectedCacheKey = cacheKey("mysql", null, "", "select * from A");
     // Query is a cache miss
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -395,14 +422,14 @@ public class RemoteQueryCachePluginTest {
     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
     when(mockConnection.getCatalog()).thenReturn("mysql");
     when(mockConnection.getSchema()).thenReturn(null);
-    when(mockCacheConn.readFromCache("mysql_null__select * from A")).thenReturn(null);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     // Result set contains 1 row
     when(mockResult1.next()).thenReturn(true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1");
-    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
-    when(mockPreparedStatement.toString()).thenReturn("/* CACHE_PARAM(ttl=50s) */ select * from A");
+    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement))
+        .thenReturn("/* CACHE_PARAM(ttl=50s) */ select * from A");
 
     // Now query is a cache hit
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
@@ -415,7 +442,7 @@ public class RemoteQueryCachePluginTest {
 
     rs.beforeFirst();
     byte[] serializedTestResultSet = ((CachedResultSet) rs).serializeIntoByteArray();
-    when(mockCacheConn.readFromCache("mysql_null__select * from A")).thenReturn(serializedTestResultSet);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(serializedTestResultSet);
 
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
         methodName, mockCallable, new String[]{});
@@ -425,16 +452,15 @@ public class RemoteQueryCachePluginTest {
     assertFalse(rs2.next());
     verify(mockPluginService, times(3)).getCurrentConnection();
     verify(mockPluginService, times(2)).isInTransaction();
-    verify(mockCacheConn, times(2)).readFromCache("mysql_null__select * from A");
+    verify(mockCacheConn, times(2)).readFromCache(expectedCacheKey);
     verify(mockPluginService, times(3)).getSessionStateService();
     verify(mockSessionStateService, times(3)).getCatalog();
     verify(mockSessionStateService, times(3)).getSchema();
     verify(mockConnection).getCatalog();
     verify(mockConnection).getSchema();
     verify(mockSessionStateService).setCatalog("mysql");
-    verify(mockPluginService, times(2)).getTargetDriverDialect();
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("mysql_null__select * from A"), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
     verify(mockTotalQueryCounter, times(2)).inc();
     verify(mockCacheMissCounter, times(1)).inc();
     verify(mockCacheHitCounter, times(1)).inc();
@@ -455,6 +481,7 @@ public class RemoteQueryCachePluginTest {
   @Test
   void test_transaction_cacheQuery() throws Exception {
     props.setProperty("user", "dbuser");
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
@@ -475,22 +502,12 @@ public class RemoteQueryCachePluginTest {
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
         methodName, mockCallable, new String[]{"/*+ CACHE_PARAM(ttl=300s) */ select * from T"});
 
-    // Cached result set contains 1 row
-    assertTrue(rs.next());
-    assertEquals("bar1", rs.getString("fooName"));
-    assertFalse(rs.next());
-    verify(mockPluginService).getCurrentConnection();
+    assertSame(mockResult1, rs);
+    verify(mockPluginService, never()).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
-    verify(mockPluginService).getSessionStateService();
-    verify(mockSessionStateService).getSchema();
-    verify(mockSessionStateService).getCatalog();
-    verify(mockConnection).getSchema();
-    verify(mockConnection).getCatalog();
-    verify(mockSessionStateService).setSchema("public");
-    verify(mockSessionStateService).setCatalog("postgres");
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("postgres_public_dbuser_select * from T"), any(), eq(300));
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
     verify(mockCacheMissCounter, never()).inc();
@@ -506,6 +523,7 @@ public class RemoteQueryCachePluginTest {
 
   @Test
   void test_transaction_cacheQuery_multiple_query_params() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
@@ -526,21 +544,12 @@ public class RemoteQueryCachePluginTest {
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement, methodName, mockCallable,
         new String[]{"/*+ CACHE_PARAM(ttl=300s, otherParam=abc) */ select * from T"});
 
-    // Cached result set contains 1 row
-    assertTrue(rs.next());
-    assertEquals("bar1", rs.getString("fooName"));
-    assertFalse(rs.next());
-    verify(mockPluginService).getCurrentConnection();
+    assertSame(mockResult1, rs);
+    verify(mockPluginService, never()).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
-    verify(mockPluginService).getSessionStateService();
-    verify(mockSessionStateService).getCatalog();
-    verify(mockSessionStateService).getSchema();
-    verify(mockConnection).getSchema();
-    verify(mockConnection).getCatalog();
-    verify(mockSessionStateService).setSchema("mysql");
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("null_mysql__select * from T"), any(), eq(300));
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
     verify(mockCacheMissCounter, never()).inc();
@@ -657,6 +666,7 @@ public class RemoteQueryCachePluginTest {
     props.setProperty("user", "user");
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
+    final String expectedCacheKey = cacheKey(null, "public", "user", "select * from A");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
@@ -665,7 +675,7 @@ public class RemoteQueryCachePluginTest {
     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty()).thenReturn(Optional.of("public"));
     when(mockConnection.getSchema()).thenReturn("public");
     when(mockConnection.getCatalog()).thenReturn(null);
-    when(mockCacheConn.readFromCache("null_public_user_select * from A")).thenReturn(null);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     // Result set contains 1 row
@@ -682,7 +692,7 @@ public class RemoteQueryCachePluginTest {
 
     rs.beforeFirst();
     byte[] serializedTestResultSet = ((CachedResultSet) rs).serializeIntoByteArray();
-    when(mockCacheConn.readFromCache("null_public_user_select * from A")).thenReturn(serializedTestResultSet);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(serializedTestResultSet);
 
     for (int i = 0; i < 10; i++) {
       ResultSet curRs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
@@ -695,7 +705,7 @@ public class RemoteQueryCachePluginTest {
 
     verify(mockPluginService, times(12)).getCurrentConnection();
     verify(mockPluginService, times(11)).isInTransaction();
-    verify(mockCacheConn, times(11)).readFromCache("null_public_user_select * from A");
+    verify(mockCacheConn, times(11)).readFromCache(expectedCacheKey);
     verify(mockPluginService, times(12)).getSessionStateService();
     verify(mockSessionStateService, times(12)).getCatalog();
     verify(mockSessionStateService, times(12)).getSchema();
@@ -703,7 +713,7 @@ public class RemoteQueryCachePluginTest {
     verify(mockConnection).getCatalog();
     verify(mockSessionStateService).setSchema("public");
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("null_public_user_select * from A"), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
     verify(mockTotalQueryCounter, times(11)).inc();
     verify(mockCacheMissCounter, times(1)).inc();
     verify(mockCacheHitCounter, times(10)).inc();
@@ -719,11 +729,799 @@ public class RemoteQueryCachePluginTest {
     verify(mockTelemetryContext, times(12)).closeContext();
   }
 
+  @Test
+  void test_execute_partitionsCacheByPostgresqlAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final AuthorizationSessionState tenantAState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    final AuthorizationSessionState tenantBState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_b",
+        "\"tenant_b\", public",
+        "[\"pg_catalog\",\"tenant_b\",\"public\"]");
+    final String tenantAKey =
+        cacheKey("orders_db", "public", "application_user", tenantAState, query);
+    final String tenantBKey =
+        cacheKey("orders_db", "public", "application_user", tenantBState, query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(tenantAState), Optional.of(tenantBState));
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(tenantAKey)).thenReturn(null);
+    when(mockCacheConn.readFromCache(tenantBKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1, mockResult2);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-a-order");
+    when(mockResult2.next()).thenReturn(true, false);
+    when(mockResult2.getObject(1)).thenReturn("tenant-b-order");
+
+    final ResultSet tenantAResult = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+    final ResultSet tenantBResult = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertNotEquals(tenantAKey, tenantBKey);
+    assertTrue(tenantAResult.next());
+    assertEquals("tenant-a-order", tenantAResult.getString("fooName"));
+    assertTrue(tenantBResult.next());
+    assertEquals("tenant-b-order", tenantBResult.getString("fooName"));
+    verify(mockCacheConn).readFromCache(tenantAKey);
+    verify(mockCacheConn).readFromCache(tenantBKey);
+    verify(mockCacheConn).writeToCache(eq(tenantAKey), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq(tenantBKey), any(), eq(50));
+  }
+
+  @Test
+  void test_execute_partitionsCacheByMysqlAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final AuthorizationSessionState tenantAState = new AuthorizationSessionState(
+        "application_user@client.example",
+        "application_user@%",
+        "",
+        "",
+        "`tenant_a`@`%`",
+        "orders");
+    final AuthorizationSessionState tenantBState = new AuthorizationSessionState(
+        "application_user@client.example",
+        "application_user@%",
+        "",
+        "",
+        "`tenant_b`@`%`",
+        "orders");
+    final String tenantAKey =
+        cacheKey("orders", null, "application_user", tenantAState, query);
+    final String tenantBKey =
+        cacheKey("orders", null, "application_user", tenantBState, query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(tenantAState), Optional.of(tenantBState));
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(tenantAKey)).thenReturn(null);
+    when(mockCacheConn.readFromCache(tenantBKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1, mockResult2);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-a-order");
+    when(mockResult2.next()).thenReturn(true, false);
+    when(mockResult2.getObject(1)).thenReturn("tenant-b-order");
+
+    final ResultSet tenantAResult = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+    final ResultSet tenantBResult = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertNotEquals(tenantAKey, tenantBKey);
+    assertTrue(tenantAResult.next());
+    assertEquals("tenant-a-order", tenantAResult.getString("fooName"));
+    assertTrue(tenantBResult.next());
+    assertEquals("tenant-b-order", tenantBResult.getString("fooName"));
+    verify(mockCacheConn).readFromCache(tenantAKey);
+    verify(mockCacheConn).readFromCache(tenantBKey);
+    verify(mockCacheConn).writeToCache(eq(tenantAKey), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq(tenantBKey), any(), eq(50));
+  }
+
+  @Test
+  void test_execute_doesNotCacheWhenConnectionChangesDuringCacheMiss() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", authorizationState, query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(authorizationState));
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenAnswer(invocation -> {
+      plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.CONNECTION_OBJECT_CHANGED));
+      return mockResult1;
+    });
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+  }
+
+  @Test
+  void test_notifyConnectionChanged_refreshesAuthorizationStateForPhysicalConnections()
+      throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(authorizationState));
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)));
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.HOSTNAME)));
+
+    verify(mockSessionStateService, times(2)).enableAuthorizationStateTracking();
+    verify(mockSessionStateService, times(2)).refreshAuthorizationState();
+    assertTrue(plugin.getSubscribedMethods().contains(JdbcMethod.CONNECTION_SETCATALOG.methodName));
+  }
+
+  @Test
+  void test_notifyConnectionChanged_marksAuthorizationStateUnknownWhenRefreshFails()
+      throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    doThrow(new SQLException("authorization state unavailable"))
+        .when(mockSessionStateService).refreshAuthorizationState();
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+
+    verify(mockSessionStateService).enableAuthorizationStateTracking();
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void test_execute_refreshesAuthorizationStateAfterSetRole() throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact("SET ROLE tenant_a"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET ROLE tenant_a"});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void test_execute_getsSqlFromPreparedStatementForAuthorizationTracking() throws Exception {
+    configureAuthorizationTracking();
+    final String sql = "SET ROLE tenant_a";
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement)).thenReturn(sql);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockPreparedStatement,
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockTargetDriverDialect).getSQLQueryString(mockPreparedStatement);
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUnknownInsideTransaction() throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(
+        "SET LOCAL search_path TO tenant_a, public"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET LOCAL search_path TO tenant_a, public"});
+
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_refreshesAuthorizationStateAfterCommit() throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        JdbcMethod.CONNECTION_COMMIT.methodName,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"Connection.setCatalog", "Connection.setSchema"})
+  void test_execute_refreshesAuthorizationStateAfterDatabaseContextSetter(
+      final String methodName) throws Exception {
+    configureAuthorizationTracking();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        methodName,
+        mockCallable,
+        new Object[] {"tenant_a"});
+
+    verify(mockCallable).call();
+    verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_doesNotTrackAuthorizationStateWhenTrackingIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET ROLE tenant_a"});
+
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+  }
+
+  @Test
+  void test_execute_marksOpaqueAuthorizationStateUntracked() throws Exception {
+    configureAuthorizationTracking();
+    final String sql = "SET app.tenant_id = 'tenant-a'";
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.UNTRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {sql});
+
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUntrackedBeforeFailedBatch() throws Exception {
+    configureAuthorizationTracking();
+    final BatchUpdateException expectedException = new BatchUpdateException();
+    when(mockCallable.call()).thenThrow(expectedException);
+
+    final BatchUpdateException actualException = assertThrows(
+        BatchUpdateException.class,
+        () -> plugin.execute(
+            Void.class,
+            BatchUpdateException.class,
+            mockStatement,
+            JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+            mockCallable,
+            new Object[] {}));
+
+    assertSame(expectedException, actualException);
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUnknownAfterFailedStateChange() throws Exception {
+    configureAuthorizationTracking();
+    final String sql = "USE tenant_b; SELECT * FROM missing_table";
+    final SQLException expectedException = new SQLException();
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+    when(mockCallable.call()).thenThrow(expectedException);
+
+    final SQLException actualException = assertThrows(
+        SQLException.class,
+        () -> plugin.execute(
+            Void.class,
+            SQLException.class,
+            mockStatement,
+            JdbcMethod.STATEMENT_EXECUTE.methodName,
+            mockCallable,
+            new Object[] {sql}));
+
+    assertSame(expectedException, actualException);
+    verify(mockSessionStateService).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_notifyConnectionChanged_doesNotTrackUnsupportedDialects() throws SQLException {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(false);
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+
+    verify(mockSessionStateService, never()).enableAuthorizationStateTracking();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_bypassesCacheForUnsupportedDialectWhenDatabaseMultiTenancyIsEnabled()
+      throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(false);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+  }
+
+  @Test
+  void test_notifyConnectionChanged_preservesLegacyBehaviorByDefault() throws SQLException {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+
+    assertEquals(
+        OldConnectionSuggestedAction.NO_OPINION,
+        plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION)));
+
+    verify(mockSessionStateService, never()).enableAuthorizationStateTracking();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertEquals(6, plugin.getSubscribedMethods().size());
+    assertFalse(plugin.getSubscribedMethods().contains(JdbcMethod.CONNECTION_COMMIT.methodName));
+  }
+
+  @Test
+  void test_execute_cachesWhenDatabaseMultiTenancyIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-order");
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertTrue(result.next());
+    assertEquals("tenant-order", result.getString("fooName"));
+    assertFalse(result.next());
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+    verify(mockSessionStateService, times(2)).getCatalog();
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+    verify(mockSessionStateService, never()).hasUntrackedAuthorizationState();
+    verify(mockSessionStateService, never()).getAuthorizationState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_cachesCallableStatementWhenDatabaseMultiTenancyIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "call get_orders()";
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", query);
+
+    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement))
+        .thenReturn("/*+CACHE_PARAM(ttl=50s)*/ " + query);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-order");
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockPreparedStatement,
+        "CallableStatement.executeQuery",
+        mockCallable,
+        new Object[] {});
+
+    assertTrue(result.next());
+    assertEquals("tenant-order", result.getString("fooName"));
+    assertFalse(result.next());
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+  }
+
+  @Test
+  void test_execute_cachesMultiStatementQueryWhenDatabaseMultiTenancyIsDisabled() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders; select * from audit_log";
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", query);
+
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-order");
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertTrue(result.next());
+    assertEquals("tenant-order", result.getString("fooName"));
+    assertFalse(result.next());
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(anyString());
+  }
+
+  @Test
+  void test_execute_preservesLegacyTransactionWriteWhenDatabaseMultiTenancyIsDisabled()
+      throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "false");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", query);
+
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-order");
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertTrue(result.next());
+    assertEquals("tenant-order", result.getString("fooName"));
+    assertFalse(result.next());
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+  }
+
+  @Test
+  void test_execute_usesPreviouslyAcquiredPostgresqlAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    props.setProperty("user", "application_user");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    final String query = "select * from orders";
+    final AuthorizationSessionState authorizationState = new AuthorizationSessionState(
+        "application_user",
+        "tenant_a",
+        "\"tenant_a\", public",
+        "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+    final String expectedCacheKey =
+        cacheKey("orders_db", "public", "application_user", authorizationState, query);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getAuthorizationState())
+        .thenReturn(Optional.of(authorizationState));
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-a-order");
+
+    plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+  }
+
+  @Test
+  void test_execute_bypassesCacheWhenAuthorizationStateCannotBeRead() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getAuthorizationState()).thenReturn(Optional.empty());
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockCacheBypassCounter).inc();
+  }
+
+  @Test
+  void test_execute_bypassesCacheForUntrackedAuthorizationState() throws Exception {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.hasUntrackedAuthorizationState()).thenReturn(true);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    assertSame(mockResult1, result);
+    verify(mockSessionStateService, never()).getAuthorizationState();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockCacheBypassCounter).inc();
+  }
+
+  @Test
+  void test_execute_bypassesCacheForAuthorizationStateChangingQuery() throws Exception {
+    configureAuthorizationTracking();
+
+    final String query = "SELECT set_config('search_path', 'tenant_a, public', false)";
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(anyString()))
+        .thenReturn(AuthorizationStateImpact.UNTRACKED);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertSame(mockResult1, result);
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockCacheBypassCounter).inc();
+  }
+
   void compareResults(final ResultSet expected, final ResultSet actual) throws SQLException {
     int i = 1;
     while (expected.next() && actual.next()) {
       assertEquals(expected.getObject(i), actual.getObject(i));
       i++;
     }
+  }
+
+  private void configureAuthorizationTracking() {
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+    when(mockTargetDriverDialect.supportsAuthorizationSessionState()).thenReturn(true);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.isAuthorizationStateTrackingEnabled()).thenReturn(true);
+  }
+
+  private static String cacheKey(
+      final String catalog,
+      final String schema,
+      final String user,
+      final String query) {
+    return String.join(
+        "_",
+        catalog == null ? "null" : catalog,
+        schema == null ? "null" : schema,
+        user,
+        query == null ? "null" : query);
+  }
+
+  private static String cacheKey(
+      final String catalog,
+      final String schema,
+      final String user,
+      final AuthorizationSessionState authorizationState,
+      final String query) {
+    final StringBuilder cacheKey = new StringBuilder();
+    appendCacheKeyPart(cacheKey, catalog);
+    appendCacheKeyPart(cacheKey, schema);
+    appendCacheKeyPart(cacheKey, user);
+    if (authorizationState != null) {
+      appendCacheKeyPart(cacheKey, authorizationState.getSessionUser());
+      appendCacheKeyPart(cacheKey, authorizationState.getCurrentUser());
+      appendCacheKeyPart(cacheKey, authorizationState.getSearchPath());
+      appendCacheKeyPart(cacheKey, authorizationState.getResolvedSearchPath());
+      appendCacheKeyPart(cacheKey, authorizationState.getActiveRoles());
+      appendCacheKeyPart(cacheKey, authorizationState.getCurrentDatabase());
+    }
+    appendCacheKeyPart(cacheKey, query);
+    return cacheKey.toString();
+  }
+
+  private static void appendCacheKeyPart(final StringBuilder cacheKey, final String value) {
+    if (value == null) {
+      cacheKey.append("-1:");
+      return;
+    }
+    cacheKey.append(value.length()).append(':').append(value);
   }
 }

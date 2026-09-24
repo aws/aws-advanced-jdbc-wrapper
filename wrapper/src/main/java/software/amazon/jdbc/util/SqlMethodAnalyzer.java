@@ -122,7 +122,20 @@ public class SqlMethodAnalyzer {
    * <p>Each comment is replaced by a single space so that adjacent tokens do not merge, matching
    * the behavior of the block-comment handling this replaces.
    */
-  private static String stripComments(final String sql) {
+  public static String stripComments(final String sql) {
+    return stripCommentsInternal(sql, false);
+  }
+
+  /**
+   * Removes SQL comments while supporting nested block comments, as required by PostgreSQL.
+   */
+  public static String stripCommentsWithNestedBlockComments(final String sql) {
+    return stripCommentsInternal(sql, true);
+  }
+
+  private static String stripCommentsInternal(
+      final String sql,
+      final boolean supportsNestedBlockComments) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
@@ -144,12 +157,12 @@ public class SqlMethodAnalyzer {
         i = skipToEndOfLine(sql, i);
         result.append(' ');
       } else if (c == '/' && i + 1 < length && sql.charAt(i + 1) == '*') {
-        final int end = sql.indexOf("*/", i + 2);
+        final int end = skipBlockComment(sql, i, supportsNestedBlockComments);
         if (end < 0) {
           result.append(sql, i, length);
           i = length;
         } else {
-          i = end + 2;
+          i = end;
           result.append(' ');
         }
       } else {
@@ -159,6 +172,31 @@ public class SqlMethodAnalyzer {
     }
 
     return result.toString();
+  }
+
+  private static int skipBlockComment(
+      final String sql,
+      final int start,
+      final boolean supportsNestedBlockComments) {
+    int depth = 1;
+
+    for (int i = start + 2; i + 1 < sql.length(); i++) {
+      if (supportsNestedBlockComments
+          && sql.charAt(i) == '/'
+          && sql.charAt(i + 1) == '*') {
+        depth++;
+        i++;
+      } else if (sql.charAt(i) == '*'
+          && sql.charAt(i + 1) == '/') {
+        depth--;
+        i++;
+        if (depth == 0) {
+          return i + 1;
+        }
+      }
+    }
+
+    return -1;
   }
 
   /**
