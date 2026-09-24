@@ -90,12 +90,12 @@ Query cache entry is indexed by a hashed caching key containing the following pa
 - Tracked database catalog/schema name - the same table name can exist in a different database catalog/schema which contains different data.
 - The SQL query string
 
-> [!WARNING]
-> The Remote Query Cache Plugin does not track database authorization or object-resolution state changed through SQL statements. Do not cache queries whose results depend on dynamic session state such as PostgreSQL `SET ROLE`, `SET SESSION AUTHORIZATION`, SQL-issued `SET search_path`, custom session variables or PostgreSQL configuration parameters used by row-level security policies, or MySQL/MariaDB `USE`. Catalog or schema changes made through SQL statements might not be reflected in the cache key.
+[!WARNING]
+> The Remote Query Cache Plugin does not support caching queries whose results depend on dynamic database session state, including state used to implement multi-tenancy. Examples include roles, session authorization, schema or search path, the current database or catalog, and custom variables or parameters used by row-level security policies. More generally, do not cache a query if session state can change which data it may access or which database objects it uses. This state is not included in the cache key, so the query might receive a cached response generated for a different tenant or authorization context.
 >
-> The username in the cache key is the username configured when the connection is created, not an effective role selected later in the session. A cache hit is returned without sending the query to the database, so database authorization and row-level security policies are not re-evaluated.
+> The username in the cache key is the username configured when the connection is created. A cache hit is returned without sending the query to the database. Therefore, database access controls, including row-level security policies, are not re-evaluated before the cached response is returned.
 >
-> Applications that share a configured database user, cache namespace, or pooled connection across tenants or authorization contexts must not cache affected queries. Omit the `CACHE_PARAM` hint for those queries or disable the plugin. The `cacheKeyPrefix` property is static and does not isolate tenants that are switched dynamically on the same connection.
+> Applications that use dynamic database session state for multi-tenancy should not cache read queries whose results can vary between tenants or authorization contexts.
 
 All queries inside a multi-statement transaction are inherently atomically consistent. When a readonly query is executed inside a multi-statement transaction, we can’t serve the query result from the cache because of consistency guarantee such as read-after-write consistency for a transaction would be violated. As a result, we need to fetch the query result from the database, and do a best-effort update to the cache with the new result set we fetched from the database. That way the subsequent queries that are standalone can fetch the newly updated result from the cache.
 
