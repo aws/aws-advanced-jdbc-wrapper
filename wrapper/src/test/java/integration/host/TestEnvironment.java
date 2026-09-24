@@ -34,6 +34,7 @@ import integration.TestTelemetryInfo;
 import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
+import integration.util.DeferredParameterGroupDeleter;
 import java.io.File;
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -1726,34 +1727,32 @@ public class TestEnvironment implements AutoCloseable {
     }
 
     switch (this.info.getRequest().getDatabaseEngineDeployment()) {
+      // The parameter group deletions below are queued before the database is deleted. They are retried
+      // in the background until the database has gone away, so queueing them first costs nothing and
+      // means a failure while deleting the database cannot leave the parameter group behind.
       case AURORA:
+        deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
         if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
           deleteDbCluster(true);
-          deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
         } else {
           deleteDbCluster(false);
-          if (!StringUtils.isNullOrEmpty(this.info.getClusterParameterGroupName())) {
-            deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
-          }
         }
         deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_CLUSTER:
+        deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
         deleteDbCluster(false);
-        if (!StringUtils.isNullOrEmpty(this.info.getClusterParameterGroupName())) {
-          deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
-        }
         deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_INSTANCE:
+        deleteCustomDbParameterGroup(this.info.getDbParameterGroupName());
         if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
         }
         deleteMultiAzInstance();
-        deleteCustomDbParameterGroup(this.info.getDbParameterGroupName());
         deAuthorizeIP(this);
         break;
       case RDS:
@@ -1878,22 +1877,38 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
+  /**
+   * Queues the DB cluster parameter group for deletion. RDS refuses to delete a parameter group while a
+   * database still references it, and this environment's database has only just been asked to delete
+   * itself, so the deletion is retried in the background instead of being attempted once here. See
+   * {@link DeferredParameterGroupDeleter}.
+   *
+   * @param groupName the name of the group to delete; a null or empty name is a no-op
+   */
   private void deleteCustomClusterParameterGroup(String groupName) {
     if (!this.reuseDb) {
       try {
-        this.auroraUtil.deleteCustomClusterParameterGroup(groupName);
+        DeferredParameterGroupDeleter.deleteClusterParameterGroupLater(this.auroraUtil, groupName);
       } catch (Exception ex) {
-        LOGGER.finest(String.format("Error deleting cluster parameter group %s. %s", groupName, ex));
+        // Queueing must never abort the rest of close(): the database deletion and deAuthorizeIP still
+        // have to run, and losing them costs far more than losing a parameter group.
+        LOGGER.finest(String.format("Error queueing cluster parameter group %s for deletion. %s", groupName, ex));
       }
     }
   }
 
+  /**
+   * Queues the DB parameter group for deletion, for the same reason as
+   * {@link #deleteCustomClusterParameterGroup(String)}.
+   *
+   * @param groupName the name of the group to delete; a null or empty name is a no-op
+   */
   private void deleteCustomDbParameterGroup(String groupName) {
-    if (!this.reuseDb && !StringUtils.isNullOrEmpty(groupName)) {
+    if (!this.reuseDb) {
       try {
-        this.auroraUtil.deleteCustomDbParameterGroup(groupName);
+        DeferredParameterGroupDeleter.deleteDbParameterGroupLater(this.auroraUtil, groupName);
       } catch (Exception ex) {
-        LOGGER.finest(String.format("Error deleting DB parameter group %s. %s", groupName, ex));
+        LOGGER.finest(String.format("Error queueing DB parameter group %s for deletion. %s", groupName, ex));
       }
     }
   }
