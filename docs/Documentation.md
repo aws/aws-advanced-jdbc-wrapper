@@ -17,6 +17,7 @@
     - [Blue/Green Deployment Plugin](./using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md)
       - [Using Roles in MySQL 8.0 to Grant Privileges to mysql.rds_topology](./using-the-jdbc-driver/using-plugins/GrantingPermissionsToNonAdminUserInMySQL.md)
     - [Custom Endpoint Plugin](./using-the-jdbc-driver/using-plugins/UsingTheCustomEndpointPlugin.md)
+    - [Data Local Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md)
     - [Driver Metadata Connection Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md)
     - [Failover Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
       - [Failover Configuration Guide](./using-the-jdbc-driver/FailoverConfigurationGuide.md)

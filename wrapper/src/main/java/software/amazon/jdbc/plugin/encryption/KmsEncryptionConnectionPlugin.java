@@ -230,9 +230,31 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
     final int paramIndex = (Integer) paramIndexArg;
 
-    final @Nullable String columnName = ctx.getColumnNameForParameter(paramIndex);
-    final @Nullable String tableName = ctx.tableName;
-    if (columnName == null || tableName == null) {
+    final @Nullable String columnIdentifier = ctx.getColumnNameForParameter(paramIndex);
+    if (columnIdentifier == null) {
+      return jdbcCallable.call();
+    }
+
+    // The parameter mapping carries two value formats. The positional mapping derived from the
+    // parsed statement holds bare column names, while an /*@encrypt:table.column*/ annotation holds
+    // a qualified identifier and overwrites the positional entry for that parameter. MetadataManager
+    // composes its lookup key as tableName + "." + columnName, so a qualified value has to be split
+    // here: otherwise the composed key is double-prefixed ("users" + "." + "users.ssn"), the lookup
+    // misses, and encryption is silently skipped for exactly the parameters the user marked
+    // explicitly. Splitting on the LAST dot keeps a schema-qualified "schema.table.column" intact.
+    final int separatorIndex = columnIdentifier.lastIndexOf('.');
+    final @Nullable String tableName;
+    final String columnName;
+    if (separatorIndex > 0 && separatorIndex < columnIdentifier.length() - 1) {
+      tableName = columnIdentifier.substring(0, separatorIndex);
+      columnName = columnIdentifier.substring(separatorIndex + 1);
+    } else {
+      // A bare column name: the table comes from the statement's parsed table set, as before.
+      tableName = ctx.tableName;
+      columnName = columnIdentifier;
+    }
+
+    if (tableName == null) {
       return jdbcCallable.call();
     }
 

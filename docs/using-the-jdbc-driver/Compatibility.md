@@ -12,6 +12,13 @@ We encourage users to verify their configurations and ensure that their configur
 - [Database URL type compatibility](./CompatibilityEndpoints.md)
 - [Cross Plugins compatibility](./CompatibilityCrossPlugins.md)
 
+## How to read the matrices
+
+Each cell is either compatible (&check;) or incompatible (&cross;).
+
+- A &cross; cell links to a note explaining **why** that combination is not supported.
+- A &check; cell that carries a note links to the **extra configuration** required to make the combination work.
+
 ## Universally Compatible Plugins
 
 The following plugins operate independently of connection management and are compatible with all plugins, database types, and endpoint types:

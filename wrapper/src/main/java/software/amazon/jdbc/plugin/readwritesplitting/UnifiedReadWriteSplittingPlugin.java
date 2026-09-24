@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -42,6 +43,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.Rebindable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.LoadBalancingPolicy;
@@ -183,6 +185,10 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   // bound statement is reused and rerouting cannot be applied.
   private final Map<Object, Boolean> seenBoundStatements =
       Collections.synchronizedMap(new WeakHashMap<>());
+
+  // Whether this connection has already reported that a read had to be served by the writer. Keeps
+  // the first occurrence at WARNING and the rest at FINE. See logReaderFallbackToWriter.
+  private boolean warnedReaderFallbackToWriter = false;
 
   protected volatile boolean inReadWriteSplit = false;
   protected @Nullable HostListProviderService hostListProviderService;
@@ -369,8 +375,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
             // is also unreachable.
             try {
               this.switchToWriter();
-              LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailure",
-                  new Object[] {this.pluginService.getCurrentHostSpec().getHostAndPort(), e.getMessage()}));
+              this.logReaderFallbackToWriter(e);
             } catch (final SQLException writerException) {
               if (!this.isConnectionUsable(currentConnection)) {
                 this.logAndThrowCause(
@@ -413,11 +418,48 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   }
 
   /**
+   * Reports that a read was served by the writer because no reader could be selected or reached.
+   *
+   * <p>The first occurrence on a connection is logged at {@code WARNING}: it means reads are not
+   * being offloaded at all, which is otherwise invisible because the fallback itself succeeds. Later
+   * occurrences drop to {@code FINE} so that a connection which keeps falling back does not flood
+   * the log.
+   *
+   * <p>A static host list gets a message of its own. There, a list in which no host carries the
+   * reader role is a likely cause and is something the user can fix, so the message names
+   * {@code singleWriterConnectionString}. With a topology-backed host list the roles come from the
+   * database, that advice would be misleading, and the plain message is used instead.
+   *
+   * @param cause the failure that prevented a reader from being used
+   */
+  private void logReaderFallbackToWriter(final SQLException cause) {
+    final Level level = this.warnedReaderFallbackToWriter ? Level.FINE : Level.WARNING;
+    this.warnedReaderFallbackToWriter = true;
+    if (!LOGGER.isLoggable(level)) {
+      return;
+    }
+    final String messageKey =
+        this.pluginService.getHostListProvider() instanceof StaticHostListProvider
+            ? "ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailureStaticHostList"
+            : "ReadWriteSplittingPlugin.fallbackToWriterOnReaderFailure";
+    LOGGER.log(level, Messages.get(messageKey,
+        new Object[] {this.pluginService.getCurrentHostSpec().getHostAndPort(), cause.getMessage()}));
+  }
+
+  /**
    * Handles SQL-driven routing for an already-bound plain {@code Statement}. When rebinding is
    * enabled and a reroute is required, switches the current connection to the target role and
    * re-creates the statement on it (via the {@link Rebindable} handle published on the call
    * context). When rebinding is unavailable, logs the bound-statement reuse warning once per
    * statement.
+   *
+   * <p>A plain {@code Statement} carries its SQL only at execute time, so it is never a routing
+   * point in its own right: the role is resolved here rather than by
+   * {@link #performSwitch(String, TargetRole)}. That makes this the only place query-level load
+   * balancing can act on such a statement. When the statement is already on a host of the required
+   * role and that role is READER, a rotation to another reader is therefore performed here if
+   * {@code queryLevelLoadBalancing} is enabled; a rotation that cannot be applied is silently
+   * skipped, since an uneven spread is not a correctness problem and this runs on every read.
    */
   private void maybeHandleBoundStatement(final String methodName, final Object methodInvokeOn)
       throws SQLException {
@@ -439,7 +481,15 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     final boolean alreadyOnTarget =
         (sqlRole == TargetRole.READER && this.helpers.roleClassifier.isReader(currentHost))
             || (sqlRole == TargetRole.WRITER && this.helpers.roleClassifier.isWriter(currentHost));
-    if (alreadyOnTarget) {
+
+    // Already on a host of the required role, so no reroute is needed. With query-level load
+    // balancing this is still a read-routing decision, and rotating to another reader is the whole
+    // point of the setting, so fall through to the rebinding path below. Writes never rotate.
+    final boolean rotateReader = alreadyOnTarget
+        && sqlRole == TargetRole.READER
+        && this.helpers.readerResolver.isPerQuery();
+
+    if (alreadyOnTarget && !rotateReader) {
       return;
     }
 
@@ -447,11 +497,25 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     final Rebindable rebindHandle = callContext == null ? null : callContext.getRebindHandle();
 
     if (!this.allowStatementRecreationOnConnectionSwitch || rebindHandle == null) {
+      if (rotateReader) {
+        // The statement is already on a reader and only a rotation was available, so running it
+        // where it is costs nothing but an uneven spread. Balancing is best-effort, and this is
+        // reached once per read, so it must not warn.
+        return;
+      }
       // Rerouting is wanted but cannot be applied to this bound statement.
       warnOnceReusedBoundStatement(methodInvokeOn);
       return;
     }
 
+    if (rotateReader && !rebindHandle.canRebind()) {
+      // Same reasoning as above, for a statement that reports it cannot be re-created. Checked only
+      // for a rotation: a role change still attempts the switch and lets rebind() report failure,
+      // because running a read on the writer (or a write on a reader) is not equivalent.
+      return;
+    }
+
+    final Connection connectionBeforeSwitch = this.pluginService.getCurrentConnection();
     this.performSwitch(methodName, sqlRole);
 
     final HostSpec newHost = this.pluginService.getCurrentHostSpec();
@@ -463,7 +527,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     }
 
     final Connection current = this.pluginService.getCurrentConnection();
-    if (current != null) {
+    if (current != null && current != connectionBeforeSwitch) {
       try {
         rebindHandle.rebind(current);
       } catch (final SQLException e) {

@@ -26,6 +26,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -106,6 +107,35 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
       throws SQLException, TimeoutException {
     init();
     return this.forceRefresh();
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The entry is replaced rather than mutated, because {@link HostSpec} holds its role
+   * immutably. The replacement is done in place in the backing list, so the lists previously handed
+   * out by {@link #refresh()} (which are unmodifiable views of it) report the new role as well.
+   */
+  @Override
+  public boolean updateHostRole(final String hostAndPort, final HostRole role) throws SQLException {
+    init();
+    for (int i = 0; i < this.hostList.size(); i++) {
+      final HostSpec host = this.hostList.get(i);
+      if (!hostAndPort.equalsIgnoreCase(host.getHostAndPort())) {
+        continue;
+      }
+      if (role.equals(host.getRole())) {
+        return false;
+      }
+      final HostRole previousRole = host.getRole();
+      // ArrayList.set does not change the list's structure, so the unmodifiable views already
+      // handed out stay safe to iterate.
+      this.hostList.set(i, new HostSpec(host, role));
+      LOGGER.finest(() -> Messages.get("ConnectionStringHostListProvider.hostRoleUpdated",
+          new Object[] {hostAndPort, previousRole, role}));
+      return true;
+    }
+    return false;
   }
 
   @Override

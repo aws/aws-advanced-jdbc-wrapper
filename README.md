@@ -158,7 +158,9 @@ For drop-in locations, example prompts, and usage details, see [Configuring the 
 | `customEndpointInfoRefreshRateMs`                   | 2.5.0 |              `CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS`               |                                                           [Custom Endpoint Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheCustomEndpointPlugin.md#custom-endpoint-plugin-parameters)                                                           |
 | `customEndpointMonitorExpirationMs`                 | 2.5.0 |           `CustomEndpointPlugin.CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS`            |                                                           [Custom Endpoint Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheCustomEndpointPlugin.md#custom-endpoint-plugin-parameters)                                                           |
 | `customEndpointRegion`                              | 2.5.0 |                         `CustomEndpointPlugin.REGION_PROPERTY`                         |                                                           [Custom Endpoint Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheCustomEndpointPlugin.md#custom-endpoint-plugin-parameters)                                                           |
-| `dataCacheTriggerCondition`                         | 0.1.0 |             `DataLocalCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION`              |                                                                    [Using the AWS Advanced JDBC Wrapper](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins)                                                                     |
+| `dataCacheMaxSize`                                  | 4.4.0 |                  `DataLocalCacheConnectionPlugin.DATA_CACHE_MAX_SIZE`                  |                                                                          [Data Local Cache Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md#configuration-parameters)                                                          |
+| `dataCacheTriggerCondition`                         | 0.1.0 |             `DataLocalCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION`              |                                                                          [Data Local Cache Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md#configuration-parameters)                                                          |
+| `dataCacheTtlMs`                                    | 4.4.0 |                    `DataLocalCacheConnectionPlugin.DATA_CACHE_TTL_MS`                  |                                                                          [Data Local Cache Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md#configuration-parameters)                                                          |
 | `dataKeyCacheEnabled`                               | 4.0.0 |                       `EncryptionConfig.DATA_KEY_CACHE_ENABLED`                        |                                                                             [KMS Encryption Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md)                                                                             |
 | `dataKeyCacheExpirationMs`                          | 4.0.0 |                    `EncryptionConfig.DATA_KEY_CACHE_EXPIRATION_MS`                     |                                                                             [KMS Encryption Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md)                                                                             |
 | `dataKeyCacheMaxSize`                               | 4.0.0 |                       `EncryptionConfig.DATA_KEY_CACHE_MAX_SIZE`                       |                                                                             [KMS Encryption Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md)                                                                             |
@@ -271,7 +273,7 @@ For drop-in locations, example prompts, and usage details, see [Configuring the 
 | `secretsManagerSecretId`                            | 1.0.0 |                 `AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY`                 |                                                                        [AWS Secrets Manager Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)                                                                         |
 | `secretsManagerSecretPasswordProperty`              | 3.1.0 |      `AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_PASSWORD_PROPERTY`      |                                                                        [AWS Secrets Manager Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)                                                                         |
 | `secretsManagerSecretUsernameProperty`              | 3.1.0 |      `AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_USERNAME_PROPERTY`      |                                                                        [AWS Secrets Manager Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)                                                                         |
-| `singleWriterConnectionString`                      | 1.0.1 |           `ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING`           |                                                                                                                                                                                                                                                            |
+| `singleWriterConnectionString`                      | 1.0.1 |           `ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING`           |                                                        [Read/Write Splitting Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#using-the-readwrite-splitting-plugin-with-a-host-list-from-the-connection-string)                                                        |
 | `skipFailoverOnInterruptedThread`                   | 2.5.5 | `FailoverConnectionPlugin.SKIP_FAILOVER_ON_INTERRUPTED_THREAD` | [Failover Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)<br>[Failover Plugin v2](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) |
 | `skipInactiveWriterClusterEndpointCheck`            | 3.2.0 |               `AuroraStaleDnsHelper.SKIP_INACTIVE_WRITER_CLUSTER_CHECK`                |                                                                      [Global Database (GDB) Failover Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheGdbFailoverPlugin.md)                                                                      |
 | `skipWrappingForPackages`                           | 2.6.3 | `PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES` | [AWS Advanced JDBC Wrapper Parameters](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters) |
@@ -326,13 +328,22 @@ To find all the documentation and concrete examples on how to use the AWS Advanc
 
 #### MariaDB
 
-The MariaDB driver uses pipelining, which is not compatible with Aurora. If you use the MariaDB driver against Aurora, you should disable the following properties, because they rely on pipelining.
+The MariaDB driver uses pipelining for some optimizations, and Aurora does not support pipelining. MariaDB removed its own `aurora` failover mode in MariaDB Connector/J 3.0 for that reason. The AWS Advanced JDBC Wrapper does not use that mode, because it provides failover itself.
+
+The wrapper's integration tests cover MariaDB Connector/J 3.5.x against Aurora MySQL. MariaDB Connector/J 3.x enables its pipelining-dependent features only when the server advertises MariaDB bulk-operation support, which Aurora MySQL does not, so those features are not used in that configuration.
+
+To disable pipelining explicitly, use the property that matches your driver version:
+
+- MariaDB Connector/J 3.1 and above: set `disablePipeline` to `true`.
+- MariaDB Connector/J 2.x: set `usePipelineAuth` and `useBatchMultiSend` to `false`.
 
 ```java
+// MariaDB Connector/J 3.1 and above
 Properties props = new Properties();
-props.setProperty("usePipelineAuth", "false");
-props.setProperty("useBatchMultiSend", "false");
+props.setProperty("disablePipeline", "true");
 ```
+
+Note that `usePipelineAuth` and `useBatchMultiSend` do not exist in MariaDB Connector/J 3.x; they were removed in version 3.0. MariaDB Connector/J accepts unknown properties without raising an error, so setting them on a 3.x driver has no effect.
 
 #### Amazon RDS Blue/Green Deployments
 

@@ -790,6 +790,63 @@ public class ConnectionPluginManagerTests {
         () -> connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
   }
 
+  /**
+   * A plugin that rejects the strategy leaves the strategy itself unsupported, which is reported as
+   * an {@link UnsupportedOperationException} cause.
+   */
+  @Test
+  public void testGetHostSpecByStrategy_givenNoPluginAcceptsStrategy_thenReportsUnsupportedStrategy()
+      throws SQLException {
+    final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
+    when(mockPlugin.getSubscribedMethods())
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
+    when(mockPlugin.getHostSpecByStrategy(any(), any(), any())).thenThrow(new UnsupportedOperationException());
+
+    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
+        mockConnectionProvider, null, new Properties(),
+        Collections.singletonList(mockPlugin), mockTelemetryFactory);
+
+    final List<HostSpec> inputHosts = Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance").build());
+
+    final SQLException exception = assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHosts, HostRole.READER, "roundRobin"));
+
+    assertTrue(exception.getCause() instanceof UnsupportedOperationException,
+        "an unsupported strategy should be reported as such, got: " + exception.getCause());
+  }
+
+  /**
+   * A plugin that understands the strategy but finds nothing eligible returns null. That is a host
+   * list problem, not a strategy problem, and must not be reported as an unsupported strategy.
+   */
+  @Test
+  public void testGetHostSpecByStrategy_givenNoEligibleHost_thenDoesNotReportUnsupportedStrategy()
+      throws SQLException {
+    final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
+    when(mockPlugin.getSubscribedMethods())
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
+    when(mockPlugin.getHostSpecByStrategy(any(), any(), any())).thenReturn(null);
+
+    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
+        mockConnectionProvider, null, new Properties(),
+        Collections.singletonList(mockPlugin), mockTelemetryFactory);
+
+    final List<HostSpec> inputHosts = Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("writer-only-instance").role(HostRole.WRITER).build());
+
+    final SQLException exception = assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHosts, HostRole.READER, "roundRobin"));
+
+    assertNull(exception.getCause(),
+        "a host list with no eligible host is not an unsupported strategy");
+    assertTrue(exception.getMessage().contains("READER"),
+        "the message should name the role that could not be satisfied, got: " + exception.getMessage());
+  }
+
   @Test
   public void testGetHostSpecByStrategy_givenSupportedSubscribedPlugin_thenThrowsSqlException() throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);

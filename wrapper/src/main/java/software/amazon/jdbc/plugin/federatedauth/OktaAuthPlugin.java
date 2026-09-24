@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.federatedauth;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -62,6 +63,16 @@ public class OktaAuthPlugin extends BaseSamlAuthPlugin {
       "Whether or not the SSL session is to be secure and the sever's certificates will be verified");
   public static final AwsWrapperProperty DB_USER =
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
+
+  static {
+    // Registration is what makes these wrapper-only properties get stripped from the property set
+    // handed to the target driver (see PropertyDefinition.removeAll / removeAllExceptCredentials).
+    // It has to happen on this class: registerPluginProperties reflects over getDeclaredFields, so
+    // registering from BaseSamlAuthPlugin would find nothing. Without it, properties that no other
+    // plugin happens to declare - "appId" in particular - are passed through to the target driver
+    // as unrecognised connection properties.
+    PropertyDefinition.registerPluginProperties(OktaAuthPlugin.class);
+  }
 
   public OktaAuthPlugin(
       FullServicesContainer servicesContainer, CredentialsProviderFactory credentialsProviderFactory) {

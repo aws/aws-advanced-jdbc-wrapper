@@ -672,6 +672,73 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
+  /**
+   * Covers the case an annotation actually exists for: a parameter whose <em>position</em> does not
+   * correspond to the annotated column.
+   *
+   * <p>The other annotation tests above all place the annotation on a parameter whose index already
+   * lines up with the target column, so the positional column mapping derived from the parsed
+   * statement resolves {@code ssn} on its own and the annotation makes no difference. That is why a
+   * defect in the annotation path was able to survive them: the metadata lookup key was composed as
+   * {@code tableName + "." + columnName} from an already-qualified annotation value, producing
+   * {@code users.users.ssn}, missing, and silently skipping encryption — but the positional mapping
+   * covered for it.
+   *
+   * <p>Here a literal in the {@code VALUES} list shifts the placeholder indices: the column list is
+   * {@code (name, email, ssn)} so the positional mapping is {@code 1 -> name, 2 -> email,
+   * 3 -> ssn}, while there are only two placeholders, parameter 1 being {@code email} and parameter
+   * 2 being {@code ssn}. Nothing but the annotation can tell the plugin that parameter 2 belongs to
+   * the encrypted column, so this test exercises the annotation path in isolation.
+   *
+   * <p>Verification reads the column back through a plain driver connection, bypassing the wrapper,
+   * because a round trip through the wrapper alone cannot distinguish a value that was encrypted
+   * from one that was stored as-is.
+   */
+  @TestTemplate
+  void testAnnotationOnPositionallyMismatchedParameter() throws Exception {
+    LOGGER.info("Starting testAnnotationOnPositionallyMismatchedParameter");
+
+    final String name = "Positional Mismatch";
+    final String ssn = "666-77-8888";
+    final String email = "mismatch@example.com";
+
+    final String insertSql =
+        "INSERT INTO users (name, email, ssn) VALUES ('" + name + "', ?, /*@encrypt:users.ssn*/ ?)";
+    try (PreparedStatement stmt = connection.prepareStatement(insertSql)) {
+      stmt.setString(1, email);
+      stmt.setString(2, ssn);
+      stmt.executeUpdate();
+      LOGGER.info("Inserted user with an annotation on a positionally mismatched parameter");
+    }
+
+    // The wrapper must still round-trip the value.
+    try (PreparedStatement stmt = connection.prepareStatement(
+        "SELECT name, ssn, email FROM users WHERE name = ?")) {
+      stmt.setString(1, name);
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find inserted user");
+        assertEquals(ssn, rs.getString("ssn"), "SSN should be decrypted through the wrapper");
+        assertEquals(email, rs.getString("email"));
+      }
+    }
+
+    // Read the stored column with a plain connection: it must not be the plaintext SSN.
+    final Properties plainProps = ConnectionStringHelper.getDefaultProperties();
+    final String plainUrl = ConnectionStringHelper.getUrl();
+    try (Connection plainConn = DriverManager.getConnection(plainUrl, plainProps);
+        PreparedStatement stmt = plainConn.prepareStatement(
+            "SELECT ssn FROM users WHERE name = ?")) {
+      stmt.setString(1, name);
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertNotEquals(ssn, rs.getString("ssn"),
+            "The annotated parameter must have been encrypted before it reached the database");
+      }
+    }
+
+    LOGGER.info("Successfully verified annotation on a positionally mismatched parameter");
+  }
+
   @TestTemplate
   void testAwsProfileSupport() throws Exception {
     LOGGER.info("Starting testAwsProfileSupport");

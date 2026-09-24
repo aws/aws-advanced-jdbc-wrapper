@@ -835,7 +835,7 @@ Reads `username`/`password` from an AWS Secrets Manager secret (JSON format).
 | Name | Default | Description |
 |---|---|---|
 | `secretsManagerSecretId` | (none) | Secret ARN or name. **Required.** |
-| `secretsManagerRegion` | `us-east-1` | Region (also auto-derived from ARN). |
+| `secretsManagerRegion` | (none) | Region. When unset it is derived from the region in the `secretsManagerSecretId` ARN; there is no fallback region, so a non-ARN secret ID requires this parameter. |
 | `secretsManagerEndpoint` | (none) | Override endpoint (e.g., for VPC endpoint). |
 | `secretsManagerSecretUsernameProperty` | `username` | Key in JSON secret containing username. |
 | `secretsManagerSecretPasswordProperty` | `password` | Key in JSON secret containing password. |
@@ -1205,7 +1205,16 @@ Caches SQL `ResultSet`s in-process for queries matching a regex.
 
 | Name | Default | Description |
 |---|---|---|
-| `dataCacheTriggerCondition` | (none) | Regex; matching queries are cached. |
+| `dataCacheTriggerCondition` | (none) | Regex matched against the full SQL text; matching queries are cached. |
+| `dataCacheTtlMs` | `300000` | How long a cached result stays valid. Nothing invalidates a cached result on write, so this bounds staleness. `0` disables expiration. |
+| `dataCacheMaxSize` | `1000` | Maximum number of distinct SQL statements held in the cache. `0` means no limit. |
+
+> This is a read-through cache with **no invalidation**. Do not recommend it for data an application reads back after writing. For a shared, per-query opt-in cache use `remoteQueryCache` instead. See [Data Local Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md).
+
+> [!WARNING]\
+> Setting `dataCacheTtlMs=0` and `dataCacheMaxSize=0` together leaves the cache unbounded in both staleness and size. That was the behaviour before version 4.4.0 and is not recommended.
+
+Both `dataCacheTtlMs` and `dataCacheMaxSize` reject negative values: a negative value throws `IllegalArgumentException` when the property is read, rather than being treated as "unlimited". Use `0` for that.
 
 ### 5.22 `remoteQueryCache` — Remote query result cache (universal)
 

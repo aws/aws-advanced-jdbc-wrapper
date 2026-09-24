@@ -57,6 +57,7 @@ import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StateSnapshotProvider;
@@ -485,6 +486,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
 
   public HostSpec getHostSpecByStrategy(@Nullable List<HostSpec> hosts, @Nullable HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException {
+    // Tracks whether any plugin understood the strategy. A plugin that understands it but finds no
+    // eligible host returns null instead of throwing, so without this flag the two outcomes are
+    // indistinguishable and both get reported as an unsupported strategy.
+    boolean strategyAccepted = false;
     try {
       for (ConnectionPlugin plugin : this.plugins) {
         Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
@@ -498,6 +503,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
                 ? plugin.getHostSpecByStrategy(role, strategy)
                 : plugin.getHostSpecByStrategy(hosts, role, strategy);
 
+            strategyAccepted = true;
             if (host != null) {
               return host;
             }
@@ -507,11 +513,23 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
         }
       }
 
-      throw new UnsupportedOperationException(
-          "The driver does not support the requested host selection strategy: " + strategy);
+      if (!strategyAccepted) {
+        throw new UnsupportedOperationException(Messages.get(
+            "ConnectionPluginManager.unsupportedHostSelectorStrategy", new Object[] {strategy}));
+      }
     } catch (Exception e) {
       throw new SQLException(e);
     }
+
+    // Every plugin that understands the strategy reported no host: nothing in the current host list
+    // carries the requested role and is available. Reported separately from an unsupported strategy
+    // so that a host list with no host in the requested role is not mistaken for a bad strategy name.
+    throw new SQLException(Messages.get(
+        "ConnectionPluginManager.noHostMatchingStrategy",
+        new Object[] {
+            strategy,
+            role == null ? "any" : role.toString(),
+            hosts == null ? "<current host list>" : LogUtils.logTopology(hosts, "")}));
   }
 
   public void initHostProvider(

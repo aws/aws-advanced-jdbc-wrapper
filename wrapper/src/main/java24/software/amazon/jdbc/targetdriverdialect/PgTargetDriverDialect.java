@@ -19,6 +19,7 @@ package software.amazon.jdbc.targetdriverdialect;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,11 +33,16 @@ import java.util.logging.Logger;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.encryption.wrapper.PgEncryptedDataHelper;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ResourceLock;
+import software.amazon.jdbc.util.StringUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -53,6 +59,26 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       POOLING_DS_CLASS_NAME,
       CP_DS_CLASS_NAME,
       XA_DS_CLASS_NAME));
+
+  /**
+   * Properties that make the PostgreSQL driver reject a node whose role does not match what the
+   * application asked for.
+   *
+   * <p>Whether {@code targetServerType} rejects a node depends on its value, not just on the node
+   * being read-only. After authenticating, the driver establishes whether the server accepts writes
+   * and compares that against the requested type: {@code primary} (and its {@code master} alias)
+   * refuses a read-only server, {@code secondary} refuses a writable one, {@code preferPrimary} and
+   * {@code preferSecondary} express a preference without refusing, and the default {@code any}
+   * refuses nothing.
+   *
+   * <p>The wrapper's monitors each target one specific node deliberately, so any value that refuses
+   * a node can break them in one direction or the other: under {@code primary} a monitor aimed at a
+   * reader or at a not-yet-promoted Blue/Green replica is refused, and under {@code secondary} a
+   * monitor aimed at the writer is. The property is therefore removed from monitoring connection
+   * properties whatever its value, rather than inspected.
+   */
+  private static final Set<String> HOST_SELECTION_PROPERTY_NAMES =
+      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("targetServerType")));
 
   private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -208,8 +234,85 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public String getSQLQueryString(PreparedStatement ps) {
+  public @Nullable String getSQLQueryString(PreparedStatement ps) {
     // For PG, this gives the raw query string itself. i.e. "select * from T where A = 1".
     return this.findSQLQueryString(ps, null);
+  }
+
+  // Everything below this point is duplicated verbatim from the base
+  // src/main/java PgTargetDriverDialect. A multi-release JAR replaces the class wholesale on JDK 24,
+  // so anything omitted here silently degrades to the GenericTargetDriverDialect behaviour instead
+  // of the PostgreSQL-specific behaviour. Keep the two variants in sync; the only intended
+  // differences are abortConnection (no Security Manager on JDK 24) and prepareConnectInfo.
+  // PgTargetDriverDialectVariantTest guards against renewed drift.
+
+  @Override
+  @SuppressWarnings("deprecation")
+  public void registerDataType(@NonNull Connection connection, @NonNull String typeName, @NonNull String className)
+      throws SQLException {
+    org.postgresql.PGConnection pgConn = connection.unwrap(org.postgresql.PGConnection.class);
+    pgConn.addDataType(typeName, className);
+  }
+
+  private final ResourceLock encryptedDataHelperLock = new ResourceLock();
+  private volatile PgEncryptedDataHelper pgEncryptedDataHelper;
+
+  private PgEncryptedDataHelper getPgEncryptedDataHelper() {
+    if (pgEncryptedDataHelper == null) {
+      try (ResourceLock ignored = encryptedDataHelperLock.obtain()) {
+        if (pgEncryptedDataHelper == null) {
+          pgEncryptedDataHelper = new PgEncryptedDataHelper();
+        }
+      }
+    }
+    return pgEncryptedDataHelper;
+  }
+
+  @Override
+  public void setEncryptedParameter(@NonNull PreparedStatement ps, int paramIndex, byte[] encrypted)
+      throws SQLException {
+    getPgEncryptedDataHelper().setEncryptedParameter(ps, paramIndex, encrypted);
+  }
+
+  @Override
+  public byte @Nullable [] getEncryptedBytes(@NonNull ResultSet rs, Object columnRef)
+      throws SQLException {
+    return getPgEncryptedDataHelper().getEncryptedBytes(rs, columnRef);
+  }
+
+  @Override
+  public void updateInternalState(
+      final @NonNull PluginService pluginService,
+      final @NonNull Properties props) throws SQLException {
+
+    final String currentSchema = props.getProperty("currentSchema");
+    if (!StringUtils.isNullOrEmpty(currentSchema)) {
+      LOGGER.finest(() -> Messages.get(
+          "PgTargetDriverDialect.transferringPropertyToSessionState",
+          new Object[] {"currentSchema", currentSchema}));
+      pluginService.getSessionStateService().setupPristineSchema(currentSchema);
+      pluginService.getSessionStateService().setSchema(currentSchema);
+    }
+
+    final String readOnlyValue = props.getProperty("readOnly");
+    if (!StringUtils.isNullOrEmpty(readOnlyValue)) {
+      final boolean readOnly = Boolean.parseBoolean(readOnlyValue);
+      LOGGER.finest(() -> Messages.get(
+          "PgTargetDriverDialect.transferringPropertyToSessionState",
+          new Object[] {"readOnly", readOnly}));
+      pluginService.getSessionStateService().setupPristineReadOnly(readOnly);
+      pluginService.getSessionStateService().setReadOnly(readOnly);
+    }
+  }
+
+  @Override
+  public Set<String> removeHostSelectionProperties(final @NonNull Properties props) {
+    final Set<String> removed = new HashSet<>();
+    for (final String propertyName : HOST_SELECTION_PROPERTY_NAMES) {
+      if (props.remove(propertyName) != null) {
+        removed.add(propertyName);
+      }
+    }
+    return removed;
   }
 }
