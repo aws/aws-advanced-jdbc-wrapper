@@ -91,8 +91,11 @@ public class XaFailoverTest {
 
   @BeforeEach
   public void setUpEach() {
+    // The direct info, for the same reason as FailoverTest: only the instance id is read, the proxy list is
+    // derived from this one so the id is identical, and taking it from the proxy made a class gated on
+    // FAILOVER_SUPPORTED fail in @BeforeEach whenever NETWORK_OUTAGES_ENABLED was absent.
     this.currentWriter =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0).getInstanceId();
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getInstanceId();
     this.executor = Executors.newFixedThreadPool(1, r -> {
       final Thread thread = new Thread(r);
       thread.setDaemon(true);
@@ -107,6 +110,11 @@ public class XaFailoverTest {
 
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // The proxy is what makes this test possible - it connects through a proxied datasource and breaks
+  // connectivity to force the failover - so it cannot run in an environment without one. Previously
+  // unstated, which was harmless only because every configuration that set FAILOVER_SUPPORTED also set
+  // this; stated now so the test skips rather than failing on a null proxy.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_failoverDuringXaBranch_failsFast() throws Exception {
     // The post-failover verification commits a new XA transaction, which goes through prepare.
     XaTestUtility.assumePreparedTransactionsSupported();
@@ -220,6 +228,8 @@ public class XaFailoverTest {
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Proxied like the test above, and unrunnable without a proxy for the same reason.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_failoverDuringXaBranch_transactionIsRolledBack() throws Exception {
     recreateTable();
     final int id = 40;
@@ -310,6 +320,9 @@ public class XaFailoverTest {
   private void recreateTable() throws SQLException {
     try (final Connection conn = openPlainConnection();
         final Statement stmt = conn.createStatement()) {
+      // Bounded: a branch left prepared by an earlier failure holds this table's lock, and waiting for it is
+      // waiting forever. See XaTestUtility.boundLockWait.
+      XaTestUtility.boundLockWait(stmt);
       stmt.execute("DROP TABLE IF EXISTS " + TABLE);
       stmt.execute("CREATE TABLE " + TABLE + " (id INT NOT NULL PRIMARY KEY)");
     }

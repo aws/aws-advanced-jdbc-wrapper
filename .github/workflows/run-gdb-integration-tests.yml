@@ -1,0 +1,136 @@
+name: Run Aurora Global Database Integration Tests
+
+# Aurora Global Database is the one deployment whose cost is not proportional to the tests it runs: a global
+# database is a cluster in every region it spans, all of them billing for the whole run. So this workflow is
+# manual by default and scheduled only weekly, where the other integration workflows run nightly.
+on:
+  workflow_dispatch:
+    inputs:
+      secondaryRegions:
+        description: 'Comma-separated secondary regions for the global database. More regions means more clusters, and each one bills for the whole run.'
+        required: false
+        default: 'us-west-2'
+      secondaryInstances:
+        description: 'Instances per secondary region. Two is the minimum for in-region reader failover to have anywhere to go.'
+        required: false
+        default: '2'
+  schedule:
+    # Sundays at 8:00 PM PST (4:00 AM UTC Monday). Weekly rather than nightly: see the note above.
+    - cron: '0 4 * * 1'
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+concurrency:
+  # Shared with every other workflow that creates real RDS resources, so only one runs at a time. A global run
+  # claims clusters and security group rules in more than one region, which makes it a heavier draw on the same
+  # quotas rather than a separate one. `queue: max` makes the others wait rather than be cancelled.
+  group: rds-integration-tests
+  queue: max
+
+jobs:
+  gdb-integration-tests:
+    name: Run Aurora Global Database integration tests
+    runs-on: ubuntu-latest
+    strategy:
+      # One engine's failure says nothing about the other's, and each run costs too much to repeat for the sake
+      # of learning what the second one would have done.
+      fail-fast: false
+      matrix:
+        testTask: [ "pg-aurora-global", "mysql-aurora-global" ]
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8 and 17'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: |
+            8
+            17
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c  # v6
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: run_gdb_integration_test
+          # The maximum, and a global run needs it. Creating a cluster in a second region and then tearing the
+          # whole topology down - detach, delete, wait for each - takes well over an hour before any test runs.
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      - name: 'Resolve run parameters'
+        id: params
+        run: |
+          # Defaulted here rather than only in the input block so the scheduled run gets them too: workflow_dispatch
+          # input defaults are empty when the trigger is a schedule.
+          SECONDARY_REGIONS="${{ github.event.inputs.secondaryRegions }}"
+          SECONDARY_INSTANCES="${{ github.event.inputs.secondaryInstances }}"
+          echo "secondaryRegions=${SECONDARY_REGIONS:-us-west-2}" >> $GITHUB_OUTPUT
+          echo "secondaryInstances=${SECONDARY_INSTANCES:-2}" >> $GITHUB_OUTPUT
+      - name: Run Aurora Global Database integration tests
+        run: |
+          case "${{ matrix.testTask }}" in
+            pg-aurora-global)    ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg" ;;
+            # Both MySQL-capable drivers. The MariaDB driver needs require_secure_transport turned off, which
+            # is a parameter group setting; a global run creates one group per region for exactly this, so the
+            # driver that used to be locked out of MySQL global databases runs here too.
+            mysql-aurora-global) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql,mariadb" ;;
+            *) echo "Unknown testTask ${{ matrix.testTask }}"; exit 1 ;;
+          esac
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora \
+            -Dorchestra-deployment=aurora-global \
+            -Dorchestra-secondary-regions=${{ steps.params.outputs.secondaryRegions }} \
+            -Dorchestra-secondary-instances=${{ steps.params.outputs.secondaryInstances }} \
+            $ARGS
+        env:
+          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          MYSQL_VERSION: "latest"
+          PG_VERSION: "latest"
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: Archive junit results for ${{ matrix.testTask }}
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: junit-report-gdb-${{ matrix.testTask }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: Archive html summary report for ${{ matrix.testTask }}
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: html-summary-report-gdb-${{ matrix.testTask }}
+          path: ./wrapper/build/report
+          retention-days: 5
+      - name: Get Github Action IP
+        if: always()
+        id: ip
+        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+      - name: Remove Github Action IP
+        if: always()
+        run: |
+          # Once per region, because a security group is regional: a global run whitelists this runner in the
+          # primary region and in every secondary, so revoking only the primary would leave a rule behind in each
+          # of the others. Those rules accumulate against the 60-per-group quota and eventually fail later runs
+          # with an error that points at the group rather than at whoever left them.
+          #
+          # Best-effort per region: a rule the run already revoked is not an error worth failing teardown over,
+          # and failing here would leave the remaining regions untouched.
+          for region in ${{ secrets.AWS_DEFAULT_REGION }} $(echo "${{ steps.params.outputs.secondaryRegions }}" | tr ',' ' '); do
+            echo "Revoking ${{ steps.ip.outputs.ipv4 }}/32 in $region"
+            aws ec2 revoke-security-group-ingress \
+              --region "$region" \
+              --group-name default \
+              --protocol all \
+              --port 0-65535 \
+              --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
+          done

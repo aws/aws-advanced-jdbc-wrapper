@@ -108,14 +108,20 @@ dependencies {
     testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
     testImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
     testImplementation("software.amazon.awssdk:signin:$awsSdkVersion")
+
+    // The two Orchestra jars the in-container code reads its environment through, and only those two.
+    // orchestra-core and orchestra-instruments are deliberately absent: they target Java 17 while this source
+    // set compiles for Java 8, and they provision environments, which is no business of code running inside
+    // one. orchestra-contract and orchestra-client-java are Java 8 precisely so they can be used here.
+    testImplementation(files("lib/orchestra/orchestra-contract-0.1.0-SNAPSHOT.jar"))
+    testImplementation(files("lib/orchestra/orchestra-client-java-0.1.0-SNAPSHOT.jar"))
+
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:$testcontainersVersion")
     testImplementation("org.testcontainers:mysql:$testcontainersVersion")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
     testImplementation("org.testcontainers:mariadb:$testcontainersVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
-    testImplementation("org.testcontainers:toxiproxy:$testcontainersVersion")
-    testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.11")
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.19")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.2")
@@ -236,6 +242,36 @@ tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
     dependsOn(tasks.compileTestJava)
 }
 
+// Orchestra targets Java 17, and the `test` source set is compiled for Java 8 because the same classes run
+// inside the container against every supported JVM. Putting the Orchestra-based host runner in `test` fails
+// with "cannot access software.amazon.orchestra.EnvConfiguration" - a Java 8 compiler cannot read Java 17
+// class files.
+//
+// So it gets its own source set, exactly as hibernateTest does for the same reason. That split is not a
+// workaround: this code only ever runs in the outer JVM that provisions environments, which already requires
+// a modern JDK, while the in-container code has to stay Java 8 compatible.
+val orchestraTest = sourceSets.create("orchestraTest") {
+    java {
+        srcDir("src/test/orchestra")
+    }
+    val outputs = sourceSets.main.get().output + sourceSets.test.get().output
+    compileClasspath += outputs + sourceSets.test.get().compileClasspath
+    // Runtime borrows test's *runtime* classpath, not its compile classpath. The JUnit Jupiter engine is a
+    // testRuntimeOnly dependency, so a runtime classpath built from compileClasspath has no engine - and
+    // without an engine nothing is discovered, which presents as "No tests found for given includes" rather
+    // than as a missing dependency. hibernateTest gets away with the compile-only form because it is only
+    // ever compiled, never run as its own task.
+    runtimeClasspath += outputs + sourceSets.test.get().runtimeClasspath
+}
+
+tasks.named<JavaCompile>(orchestraTest.compileJavaTaskName) {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+    options.release.set(17)
+    dependsOn(tasks.compileTestJava)
+}
+
 dependencies {
     add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
@@ -251,6 +287,22 @@ dependencies {
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.9.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
+
+    // Orchestra, the environment-provisioning library replacing this harness's TestEnvironment,
+    // TestEnvironmentProvider, AuroraTestUtility and ContainerHelper.
+    //
+    // Copied jars rather than a Maven coordinate, because Orchestra is not published yet. Each jar's name
+    // and manifest carry the version and OrchestraVersion logs it at the start of every run, so a result can
+    // still be attributed to a build after the jars are copied. Replace with a normal dependency once
+    // Orchestra publishes.
+    add(orchestraTest.implementationConfigurationName, fileTree("lib/orchestra") { include("*.jar") })
+    // Orchestra's own transitive needs. It uses Testcontainers to provision Docker resources and the AWS
+    // SDK to provision RDS, and a fileTree dependency carries no transitives.
+    add(orchestraTest.implementationConfigurationName, "org.testcontainers:testcontainers:$testcontainersVersion")
+    add(orchestraTest.implementationConfigurationName, "software.amazon.awssdk:rds:$awsSdkVersion")
+    add(orchestraTest.implementationConfigurationName, "software.amazon.awssdk:ec2:$awsSdkVersion")
+    add(orchestraTest.implementationConfigurationName, "software.amazon.awssdk:sts:$awsSdkVersion")
+    add(orchestraTest.implementationConfigurationName, "software.amazon.awssdk:secretsmanager:$awsSdkVersion")
 }
 
 fun CopySpec.addMultiReleaseContents() {
@@ -655,16 +707,10 @@ tasks.withType<Test> {
     testClassesDirs += hibernateTest.output.classesDirs
     classpath += hibernateTest.output
 
-    System.getProperties().forEach {
-        if (it.key.toString().startsWith("test-no-")
-            || it.key.toString() == "test-include-tags"
-            || it.key.toString() == "test-exclude-tags"
-            || it.key.toString() == "test-shard-index"
-            || it.key.toString() == "test-shard-count"
-        ) {
-            systemProperty(it.key.toString(), it.value.toString())
-        }
-    }
+    // No blanket property forwarding. The retired harness selected environments with test-no-* properties,
+    // so this block forwarded anything with that prefix to every Test task; Orchestra tasks declare what
+    // they accept, and forward exactly that, which is what makes an unsupported request visible instead of
+    // silently dropped.
 
     // Disable the test report for the individual test task
     reports.junitXml.required.set(true)
@@ -695,907 +741,222 @@ tasks.register("maskJunitHtmlReport") {
     }
 }
 
-tasks.register<Test>("test-all-environments") {
+// The migrated equivalent of test-all-pg-aurora, provisioned by Orchestra.
+//
+// A separate task rather than a replacement, so the existing harness stays runnable while the migration is
+// proven. It selects nothing with test-no-* properties: the composition is declared in OrchestraTestRunner,
+// which is the difference the migration is about.
+tasks.register<Test>("orchestra-test-pg-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    description = "Runs the in-container suite against an Orchestra-provisioned Aurora PostgreSQL cluster."
+
+    testClassesDirs = orchestraTest.output.classesDirs
+    classpath = orchestraTest.runtimeClasspath
+
+    // Name the exact driver jar to give the container, and depend on it so it exists.
+    //
+    // Replaces copying all of build/libs, which accumulates. A real checkout had six jars there - three
+    // driver versions plus sources, javadoc and a shaded federated-auth bundle - and the in-container build
+    // globs libs/*.jar, so every one of them landed on the test classpath. The bundle's module-info requires
+    // commons.math3, which is absent, so the test JVM died during boot layer initialisation: no tests, no
+    // JUnit XML, just "Gradle Test Executor 1 finished with non-zero exit value 1". It was intermittent
+    // too, since it depended on what previous builds had left behind.
+    val driverJar = tasks.named<Jar>("jar")
+    dependsOn(driverJar)
+    systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
+
+    // Java 17, not the Java 8 launcher the other test tasks use. Orchestra's classes are version 61 and a
+    // Java 8 JVM refuses to load them: "has been compiled by a more recent version of the Java Runtime".
+    // This task only provisions - the suite it launches still runs on whatever JVM the container has, which
+    // is what the target-JVM axis varies.
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+
+    // Only the runner. Everything else in this source set is an instrument or a configuration object, and
+    // JUnit's scanning tries to execute them as test classes otherwise.
+    filter.includeTestsMatching("integration.orchestra.OrchestraTestRunner.runTests")
+
+    useJUnitPlatform()
+    // Never up to date: whether an AWS call still behaves the way an instrument assumes is not a function
+    // of the source tree, which is all Gradle's staleness check can see.
+    outputs.upToDateWhen { false }
+
+    // The suite runs inside a container and provisions a real cluster, so the run is long and its output is
+    // the only progress indicator.
+    testLogging {
+        this.showStandardStreams = true
+    }
+
+    // Forward the suite-selection properties from the Gradle JVM into this task's JVM.
+    //
+    // Without this they never arrive. OrchestraAuroraConfig reads them with System.getProperty in order to
+    // pass them on to the in-container Gradle, but it runs in the forked test JVM, which does not inherit
+    // Gradle's own -D options - so every filter passed on the command line was silently ignored and the full
+    // suite ran regardless. Silently, because an ignored filter looks like a slow run rather than an error.
     doFirst {
-        systemProperty("test-no-performance", "true")
+        listOf(
+            "test-include-tags",
+            "test-exclude-tags",
+            "test-shard-index",
+            "test-shard-count",
+            "test-classes",
+            // The matrix axes. Omitting them here is exactly the failure this block was written for: the
+            // run reported "running 1 composition(s)" and provisioned the default slice, so a matrix
+            // request looked like it had been honoured when it had been dropped.
+            "orchestra-engines",
+            "orchestra-instances",
+            "orchestra-bluegreen",
+            "orchestra-deployment",
+            // Which JDBC driver(s) the in-container suite connects with, which is a different axis from the
+            // engine: the MariaDB driver runs against a MySQL engine, and CI pins it that way in
+            // test-bgd-mysql-aurora-mariadb-driver and test-bgd-mysql-rds-instance-mariadb-driver.
+            "orchestra-drivers",
+            // Which JVM(s) the suite runs on, named by TargetJvm. It works by overriding the container
+            // image, which is also where the published shape reads the JVM from.
+            "orchestra-jvms",
+            // Whether to bind the host's ~/.aws into the test container instead of copying resolved keys.
+            // Off by default: CI credentials last six hours, longer than a run, and there is no credentials
+            // file there to bind. A developer's session token lasts one hour and is refreshed on a timer, so
+            // a long local run needs the file rather than a snapshot of it.
+            "orchestra-aws-credentials-bind",
+
+            // Which suite to run: the harness's *_ONLY flags and PERFORMANCE, as one choice. It narrows the
+            // run to a single test class rather than adding to it, which is why it is a mode.
+            "orchestra-suite",
+
+            // The KMS key the encryption suite needs, for a local run that would rather pass it here than
+            // export KMS_KEY_ID. CI sets the variable, so it needs neither.
+            "orchestra-kms-key",
+
+            // How many times the performance suites repeat each measurement, overriding their built-in
+            // defaults. Unset leaves those defaults alone, which is what a real measurement wants; a run that
+            // only needs to know the suite works wants one pass.
+            "orchestra-repeat-times",
+
+            // Whether to provision telemetry backends. On by default, as in the harness; none disables both.
+            "orchestra-telemetry",
+
+            // The regions of an Aurora global database beyond the primary, and how large each one is. Only
+            // read when orchestra-deployment=aurora-global; forwarded unconditionally because a property the
+            // runner cannot see is indistinguishable from one that was never passed, and each of these costs
+            // a region's worth of provisioning time to get wrong.
+            "orchestra-secondary-regions",
+            "orchestra-secondary-instances"
+        ).forEach { name ->
+            System.getProperty(name)?.let { systemProperty(name, it) }
+        }
+    }
+
+    // The in-container build needs the wrapper jars and the compiled test classes, both of which the
+    // configuration copies into the container from build output.
+    dependsOn("jar", tasks.compileTestJava)
+}
+
+// The migrated equivalent of test-all-docker, provisioned by Orchestra and needing no AWS account.
+//
+// The first step in retiring Toxiproxy rather than working around it: Toxiproxy's last user is the legacy
+// harness, and the harness cannot go until every environment kind it provides exists here. This is the
+// cheapest of those to prove - a container provisions in under a minute, where a cluster costs an hour.
+tasks.register<Test>("orchestra-test-docker") {
+    group = "verification"
+    description = "Runs the in-container suite against Orchestra-provisioned database containers."
+
+    testClassesDirs = orchestraTest.output.classesDirs
+    classpath = orchestraTest.runtimeClasspath
+
+    val driverJar = tasks.named<Jar>("jar")
+    dependsOn(driverJar)
+    systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
+
+    // Java 17 for the same reason as the Aurora task: Orchestra's classes are version 61.
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+
+    filter.includeTestsMatching("integration.orchestra.OrchestraDockerRunner.runTests")
+
+    useJUnitPlatform()
+    outputs.upToDateWhen { false }
+
+    testLogging {
+        this.showStandardStreams = true
+    }
+
+    listOf(
+        "test-include-tags",
+        "test-exclude-tags",
+        "test-shard-index",
+        "test-shard-count",
+        "test-classes",
+        // The JVM axis applies to Docker environments too, and this is the cheapest task to exercise it in.
+        "orchestra-jvms",
+        // Which database server to run: pg or mysql. The harness's Docker matrix varies the server, and that
+        // matrix is the PR gate, so this axis is what makes this task a replacement for it rather than a
+        // narrower version of it.
+        "orchestra-engines",
+
+        // Whether to provision the four Valkey caches and run the caching tests instead of the rest of the
+        // suite. The harness splits these into two jobs over the same matrix - test-all-docker excludes the
+        // caching tag, test-all-caching includes it - and this is that split.
+        "orchestra-caching",
+        // Telemetry applies here too, and is on by default. Forwarded so that asking for none is honoured
+        // rather than dropped: the runner reads this forked JVM's properties, not the Gradle command line, so
+        // a property missing from this list is invisible to it.
+        "orchestra-telemetry",
+        // Not because a suite runs here - none does - but so that asking for one is rejected rather than
+        // silently ignored, which is what an unforwarded property would produce.
+        "orchestra-suite"
+    ).forEach { name ->
+        System.getProperty(name)?.let { systemProperty(name, it) }
     }
 }
 
-tasks.register<Test>("test-all-docker") {
+// The migrated equivalent of test-hibernate-only, provisioned by Orchestra and needing no AWS account.
+//
+// A separate task because it is a separate composition: nothing of this repository's suite runs. The container
+// holds a pinned Hibernate ORM checkout, the wrapper is on its driver path, and what executes is Hibernate's
+// own test suite against a Postgis database. See OrchestraHibernateRunner.
+//
+// Hours rather than minutes, and the first run on a machine pays for an image build and Hibernate's entire
+// dependency graph on top of that.
+//
+// Run one Orchestra task at a time in a checkout. Every Test task here clears build/test-results before it
+// runs, and the orchestra tasks bind that directory into their containers, so starting a second task pulls the
+// results directory out from under the first. That cost a 43-minute Aurora run whose test had already passed:
+// its in-container build died on a missing output.bin.idx. This task writes its own archives elsewhere, which
+// removes half of the collision; the other half is a property of the shared build directory.
+tasks.register<Test>("orchestra-test-hibernate") {
     group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-exclude-tags", "caching")
+    description = "Runs Hibernate ORM's own test suite against Postgis, with the wrapper as its JDBC driver."
+
+    testClassesDirs = orchestraTest.output.classesDirs
+    classpath = orchestraTest.runtimeClasspath
+
+    // The jar Hibernate's build will use as its driver. Named by the build rather than globbed, for the reason
+    // the other orchestra tasks give: build/libs accumulates, and a shaded bundle on the classpath kills the
+    // JVM during boot layer initialisation.
+    val driverJar = tasks.named<Jar>("jar")
+    dependsOn(driverJar)
+    systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
+
+    // Java 17 to run Orchestra itself, as the other orchestra tasks do. Unrelated to the JVM inside the
+    // container, which is what Hibernate's suite runs on and which must be 17 or later for Hibernate 7.3.
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    })
+
+    filter.includeTestsMatching("integration.orchestra.OrchestraHibernateRunner.runTests")
+
+    useJUnitPlatform()
+    outputs.upToDateWhen { false }
+
+    // The only progress indicator for a run measured in hours.
+    testLogging {
+        this.showStandardStreams = true
     }
-}
 
-tasks.register<Test>("test-all-caching") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-valkey-cache", "true")
-        systemProperty("test-include-tags", "caching")
-    }
-}
-
-tasks.register<Test>("test-hibernate-only") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk11", "true")
-        // Test hibernate against Java 17+
-        systemProperty("test-no-openjdk17", "false")
-        systemProperty("test-no-openjdk21", "false")
-        systemProperty("test-no-openjdk22", "false")
-        systemProperty("test-no-openjdk24", "false")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-hibernate-only", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-multi-az") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-pg-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-pg-multi-az") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora-mariadb-driver") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-multi-az") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-bgd-mysql-rds-instance-mysql-driver") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-bg-only", "true")
-    }
-}
-
-tasks.register<Test>("test-bgd-mysql-rds-instance-mariadb-driver") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-bg-only", "true")
-    }
-}
-
-tasks.register<Test>("test-bgd-mysql-aurora-mysql-driver") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "false")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-bg-only", "true")
-    }
-}
-
-tasks.register<Test>("test-bgd-mysql-aurora-mariadb-driver") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "false")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-bg-only", "true")
-    }
-}
-
-tasks.register<Test>("test-bgd-pg-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-bg-only", "true")
-    }
-}
-
-tasks.register<Test>("test-bgd-pg-rds-instance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-bg-only", "true")
-    }
-}
-
-// Debug
-
-tasks.register<Test>("debug-all-environments") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("debug-all-docker") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("debug-all-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-    }
-}
-
-tasks.register<Test>("debug-hibernate-only") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-hibernate-only", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-// Performance
-
-tasks.register<Test>("test-all-aurora-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-aurora-pg-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("debug-aurora-pg-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-aurora-mysql-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("debug-aurora-mysql-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-aurora-pg-advanced-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-include-tags", "advanced")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-aurora-mysql-advanced-performance") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-include-tags", "advanced")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-// Autoscaling
-
-tasks.register<Test>("test-autoscaling-only") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-autoscaling-only", "true")
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-    }
-}
-
-tasks.register<Test>("debug-autoscaling-only") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-autoscaling-only", "true")
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora-java8") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "false")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora-java11") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk11", "false")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora-java17") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "false")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora-java21") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "false")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-tasks.register<Test>("test-all-mysql-aurora-java24") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "false")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-    }
-}
-
-// Metrics
-
-tasks.register<Test>("test-all-metrics") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-metrics-only", "true")
-    }
-}
-
-tasks.register<Test>("test-metrics-mysql-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-metrics-only", "true")
-
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-pg-engine", "true")
-    }
-}
-
-tasks.register<Test>("test-metrics-mysql-multi-az") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-metrics-only", "true")
-
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-pg-engine", "true")
-    }
-}
-
-tasks.register<Test>("test-metrics-pg-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-3", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-metrics-only", "true")
-
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-mysql-engine", "true")
-    }
-}
-
-tasks.register<Test>("test-metrics-pg-multi-az") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk21", "true")
-        systemProperty("test-no-openjdk24", "true")
-        systemProperty("test-no-failover", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-instances-5", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-metrics-only", "true")
-
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-mysql-engine", "true")
-    }
-}
-
-tasks.register<Test>("test-encryption-only") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-multi-az-cluster", "true")
-        systemProperty("test-no-multi-az-instance", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-openjdk17", "true")
-        systemProperty("test-no-openjdk22", "true")
-        systemProperty("test-no-bg", "true")
-        systemProperty("test-encryption-only", "true")
-    }
-}
-
-tasks.register<Test>("test-kms-encryption") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-
-    systemProperty("test-no-docker", "true")
-    systemProperty("test-no-performance", "true")
-    systemProperty("test-no-mariadb-engine", "true")
-    systemProperty("test-no-mariadb-driver", "true")
-    systemProperty("test-no-graalvm", "true")
-    systemProperty("test-no-openjdk11", "true")
-    systemProperty("test-no-openjdk17", "true")
-    systemProperty("test-no-openjdk22", "true")
-    systemProperty("test-no-multi-az-instance", "true")
-    systemProperty("test-no-failover", "true")
-    systemProperty("test-no-secrets-manager", "true")
-    systemProperty("test-no-hikari", "true")
-    systemProperty("test-no-instances-1", "true")
-    systemProperty("test-no-instances-3", "true")
-    systemProperty("test-no-instances-5", "true")
-    systemProperty("test-no-multi-az-cluster", "true")
-    systemProperty("test-no-bg", "true")
-    systemProperty("test-encryption-only", "true")
-
+    // No test-selection properties. They select tests in our suite, and none of it runs here; the runner's
+    // configuration returns an empty set for exactly that reason.
+    dependsOn("jar")
 }
