@@ -119,7 +119,7 @@ dependencies {
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.20")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
-    testImplementation("tools.jackson.core:jackson-databind:3.2.2") // Required for java17 multi-release classes under Java 17+
+    testImplementation("tools.jackson.core:jackson-databind:3.2.3") // Required for java17 multi-release classes under Java 17+
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.21.1")
     testImplementation("io.opentelemetry:opentelemetry-api:$openTelemetryVersion")
     testImplementation("io.opentelemetry:opentelemetry-sdk:$openTelemetryVersion")
@@ -239,7 +239,7 @@ tasks.named<JavaCompile>(hibernateTest.compileJavaTaskName) {
 dependencies {
     add(java11.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     add(java17.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
-    add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.2.2")
+    add(java17.implementationConfigurationName, "tools.jackson.core:jackson-databind:3.2.3")
     add(java24.compileOnlyConfigurationName, "org.checkerframework:checker-qual:3.55.1")
     // The java24 variant of PgTargetDriverDialect has to declare every method the base variant
     // declares - a multi-release JAR replaces the class wholesale, so an omitted method silently
