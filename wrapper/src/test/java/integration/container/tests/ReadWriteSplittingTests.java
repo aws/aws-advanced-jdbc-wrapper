@@ -540,6 +540,10 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
+  // Connects through a proxied URL, so it needs a proxy. Previously undeclared, which was harmless only
+  // because every configuration that reached this class also enabled network outages; without one the test
+  // failed on a null proxy instead of skipping.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnly_closedConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
@@ -1004,7 +1008,11 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+  // Both features, not just failover: it uses proxied properties to break the connection mid-transaction,
+  // so the proxy is as necessary as the failover support. Only the latter was declared.
+  @EnableOnTestFeature({
+      TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+      TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   public void test_pooledConnection_failoverInTransaction() throws SQLException {
     Properties props = getProxiedPropsWithFailover();
 
