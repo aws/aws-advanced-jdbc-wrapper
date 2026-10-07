@@ -38,6 +38,7 @@ import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -114,6 +115,20 @@ class DefaultConnectionPluginTest {
     when(this.pluginService.getCurrentConnection()).thenReturn(conn);
     plugin.execute(Void.class, SQLException.class, conn, "Connection.close", mockSqlFunction, new Object[]{});
     verify(pluginManagerService, times(1)).setInTransaction(false);
+  }
+
+  @Test
+  void testExecute_registersMethodCall() throws SQLException {
+    when(this.pluginService.getCurrentConnection()).thenReturn(conn);
+    final Statement statement = mock(Statement.class);
+
+    plugin.execute(
+        Void.class, SQLException.class, statement, "Statement.executeQuery", mockSqlFunction, new Object[]{});
+
+    // Every pipelined call is recorded in the bounded method-call history, not in the event queue.
+    verify(mockImportantEventService, times(1)).registerMethodCall("Statement.executeQuery");
+    verify(mockImportantEventService, never()).registerEvent(anyString());
+    verify(mockImportantEventService, never()).registerEvent(any(Supplier.class));
   }
 
   @Test

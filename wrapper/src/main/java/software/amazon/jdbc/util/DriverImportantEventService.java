@@ -19,10 +19,16 @@ package software.amazon.jdbc.util;
 public class DriverImportantEventService {
 
   private static final ImportantEventService INSTANCE = new ImportantEventService(
-      Boolean.parseBoolean(
-          System.getProperty("aws.jdbc.config.exception.context.enabled", "true")),
+      ImportantEventService.isEnabledByDefault(),
       Long.parseLong(
-          System.getProperty("aws.jdbc.config.exception.context.driver.queue.ttl", "60000")));
+          System.getProperty(
+              ImportantEventService.DRIVER_QUEUE_TTL_PROPERTY,
+              String.valueOf(ImportantEventService.DEFAULT_QUEUE_TTL_MS))),
+      Integer.parseInt(
+          System.getProperty(
+              ImportantEventService.DRIVER_QUEUE_MAX_SIZE_PROPERTY,
+              String.valueOf(ImportantEventService.DEFAULT_QUEUE_MAX_SIZE))),
+      ImportantEventService.defaultMethodHistorySize());
 
   private DriverImportantEventService() {}
 
