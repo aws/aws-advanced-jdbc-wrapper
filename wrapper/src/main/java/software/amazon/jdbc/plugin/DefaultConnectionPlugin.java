@@ -118,8 +118,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     LOGGER.finest(
         () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
-    this.servicesContainer.getImportantEventService().registerEvent(
-        () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
+    this.servicesContainer.getImportantEventService().registerMethodCall(methodName);
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
