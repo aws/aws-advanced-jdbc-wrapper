@@ -23,7 +23,7 @@ permissions:
 jobs:
   check-changes:
     name: 'Check for changes'
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     outputs:
       only_docs: ${{ steps.check.outputs.ONLY_DOCS }}
       docs_changed: ${{ steps.check.outputs.DOCS_CHANGED }}
@@ -56,7 +56,6 @@ jobs:
             echo "DOCS_CHANGED=false" >> $GITHUB_OUTPUT
           fi
 
-  # Deliberately left on a GitHub-hosted runner while the rest of this workflow runs on CodeBuild.
   markdown-link-check:
     name: 'Markdown link check'
     needs: check-changes
@@ -74,7 +73,7 @@ jobs:
     name: 'Static analysis'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -117,7 +116,7 @@ jobs:
     name: 'Nullness (Checker Framework)'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -149,7 +148,7 @@ jobs:
     name: 'Unit tests and coverage'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -183,7 +182,7 @@ jobs:
     name: 'CI Gate'
     needs: [check-changes, markdown-link-check, lint, checker-framework, test]
     if: ${{ always() }}
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - name: 'Verify required jobs did not fail'
         run: |

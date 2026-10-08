@@ -1,4 +1,11 @@
-name: Run Aurora 5-Instance Integration Tests Latest
+# CodeBuild variant of run-autoscaling-tests.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Autoscaling Tests (CodeBuild)
 
 on:
   workflow_dispatch:
@@ -17,14 +24,15 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
-  aurora-5-instance-integration-tests-latest:
-    name: 'Run Aurora 5-instance integration tests with latest engine version'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dbEngine: [ "mysql-aurora", "pg-aurora" ]
+  all-integration-tests:
+    name: 'Run Autoscaling tests'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -40,58 +48,35 @@ jobs:
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: run_integration_test_5_instance_latest
+          role-session-name: run_autoscale_test
           role-duration-seconds: 21600
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           output-credentials: true
-      - name: Run 5-instance integration tests
+      - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} -Dtest-no-instances-2=true -Dtest-no-instances-3=true -Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true
+          ./gradlew --no-parallel --no-daemon test-autoscaling-only
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
-          MYSQL_VERSION: "latest"
-          PG_VERSION: "latest"
+          MYSQL_VERSION: "default"
+          PG_VERSION: "default"
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
-      - name: Archive junit results for ${{ matrix.dbEngine }}
+      - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-latest-5-instance-${{ matrix.dbEngine }}
+          name: junit-report
           path: ./wrapper/build/test-results
           retention-days: 5
-      - name: Archive html summary report for ${{ matrix.dbEngine }}
+      - name: 'Archive autoscaling report'
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-latest-5-instance-${{ matrix.dbEngine }}
+          name: autoscaling-report
           path: ./wrapper/build/report
           retention-days: 5
-      # The test host records the address it whitelisted in the region's default security group (see
-      # TestEnvironment.authorizeIP). Prefer that over asking checkip.amazonaws.com again: a
-      # GitHub-hosted runner's egress address can change during a job, in which case a fresh lookup
-      # revokes a rule that never existed and leaves the real one behind, consuming the group's
-      # 60-rule quota. No recorded address means the test host either never authorized one or has
-      # already revoked it, so there is nothing to clean up.
-      - name: Get Github Action IP
-        if: always()
-        id: ip
-        run: |
-          ipFile=./wrapper/build/authorized-runner-ip.txt
-          if [ -s "$ipFile" ]; then
-            ipv4=$(tr -d '[:space:]' < "$ipFile")
-            echo "Authorized runner IP recorded by the test host: $ipv4"
-            echo "ipv4=$ipv4" >> $GITHUB_OUTPUT
-          else
-            echo "No authorized runner IP was recorded; nothing to revoke."
-          fi
-
-      - name: Remove Github Action IP
-        if: always() && steps.ip.outputs.ipv4 != ''
-        run: |
-          aws ec2 revoke-security-group-ingress --group-name default --protocol all --port 0-65535 --cidr ${{ steps.ip.outputs.ipv4 }}/32

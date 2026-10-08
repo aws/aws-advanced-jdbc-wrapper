@@ -17,13 +17,10 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
-env:
-  TEST_CONTAINER_REGISTRY: ecr
-
 jobs:
   all-integration-tests:
     name: 'Run Autoscaling tests'
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

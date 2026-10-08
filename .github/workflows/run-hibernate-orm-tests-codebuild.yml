@@ -1,19 +1,27 @@
-name: Run Hibernate ORM integration tests
+# CodeBuild variant of run-hibernate-orm-tests.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Hibernate ORM integration tests (CodeBuild)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - main-2.x
 
 permissions:
   contents: read
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   hibernate-integration-tests:
     name: 'Run Hibernate ORM integration tests'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

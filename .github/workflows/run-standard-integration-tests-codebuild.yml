@@ -1,25 +1,27 @@
-name: Run Standard Integration Tests
+# CodeBuild variant of run-standard-integration-tests.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Standard Integration Tests (CodeBuild)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - main-2.x
-  pull_request:
-    branches:
-      - '*'
-    paths-ignore:
-      - '**/release_draft.yml'
-      - '**/maven*.yml'
 
 permissions:
   contents: read
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   check-changes:
     name: 'Check for non-doc changes'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     outputs:
       only_docs: ${{ steps.changed-files.outputs.ONLY_DOCS }}
     steps:
@@ -50,7 +52,7 @@ jobs:
     name: 'Docker [${{ matrix.engine }}, ${{ matrix.jvm }}]'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +112,7 @@ jobs:
     name: 'Caching [${{ matrix.engine }}, ${{ matrix.jvm }}]'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
@@ -170,7 +172,7 @@ jobs:
     name: 'Standard Integration Tests Gate'
     needs: [check-changes, docker-tests, caching-tests]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Verify required jobs did not fail'
         run: |

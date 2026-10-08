@@ -1,11 +1,14 @@
-name: End-to-End Encryption Tests
+# CodeBuild variant of test-encryption-e2e.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: End-to-End Encryption Tests (CodeBuild)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - kms_encryption_rebased
 
 concurrency:
   # These workflows create real RDS clusters and whitelist the runner's IP in the region's
@@ -21,10 +24,15 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   test-encryption:
     name: 'Test KMS Encryption End-to-End'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - name: 'Clone repository'

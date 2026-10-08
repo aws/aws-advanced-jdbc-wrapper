@@ -1,4 +1,11 @@
-name: Run Aurora Mysql Performance Tests
+# CodeBuild variant of mysql_performance.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Aurora Mysql Performance Tests (CodeBuild)
 
 on:
   workflow_dispatch:
@@ -17,11 +24,16 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   aurora-mysql-performance-tests:
     concurrency: PerformanceTests-Aurora
     name: 'Run Aurora MySQL container performance tests'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

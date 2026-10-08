@@ -1,4 +1,11 @@
-name: Run Aurora Mysql Performance Tests
+# CodeBuild variant of mysql_advanced_performance.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Aurora Mysql Advanced Performance Tests (CodeBuild)
 
 on:
   workflow_dispatch:
@@ -17,11 +24,16 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   aurora-mysql-performance-tests:
-    concurrency: PerformanceTests-Aurora
-    name: 'Run Aurora MySQL container performance tests'
-    runs-on: ubuntu-latest
+    concurrency: AdvancedPerformanceTests-Aurora
+    name: 'Run Aurora MySQL container advanced performance tests'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -37,13 +49,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: run_perf_test_mysql
+          role-session-name: run_adv_perf_test_mysql
           role-duration-seconds: 21600
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           output-credentials: true
       - name: 'Run performance tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-aurora-mysql-performance
+          ./gradlew --no-parallel --no-daemon test-aurora-mysql-advanced-performance
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}

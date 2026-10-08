@@ -1,15 +1,31 @@
-name: Run Blue/Green Integration Tests Latest
+# CodeBuild variant of run-integration-tests-full-matrix-weekly.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Aurora Integration Tests Full Matrix Weekly (CodeBuild)
 
 on:
   workflow_dispatch:
-  schedule:
-    # Every working day (Mon-Fri) at 8:00 PM PST (4:00 AM UTC next day)
-    - cron: '0 4 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
   contents: read    # This is required for actions/checkout
 
+# The daily "default" and "latest" workflows skip the 2-instance Aurora environment: it re-runs
+# almost exactly the same tests as the 3-instance environment for ~60 minutes per engine, and only
+# these 9 tests genuinely need a 2-node topology:
+#
+#   FailoverTest / Failover2Test / GdbFailoverTest       test_failFromReaderToWriter
+#   ReadWriteSplittingTests / AutoReadWriteSplittingTests
+#       test_setReadOnlyTrue_oneReaderDown_failoverRecovers
+#       test_setReadOnlyTrue_oneReaderDown_fallsBackToWriter
+#       test_setReadOnlyTrue_oneReaderDown_readThrows
+#
+# This workflow keeps that coverage on a weekly cadence. It runs the 2-instance environment only
+# (the other topologies are covered daily), unsharded, one job per engine.
 concurrency:
   # These workflows create real RDS clusters and whitelist the runner's IP in the region's
   # default security group. Running two of them at once risks exhausting the security group
@@ -20,14 +36,19 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
-  all-bg-integration-tests-latest:
-    name: Run Blue/Green integration tests with latest engine version
-    runs-on: ubuntu-latest
+  two-instance-integration-tests:
+    name: 'Weekly 2-instance / ${{ matrix.dbEngine }}'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
-        testTask: [ "mysql-aurora-mariadb-driver", "mysql-aurora-mysql-driver", "mysql-rds-instance-mariadb-driver", "mysql-rds-instance-mysql-driver", "pg-aurora", "pg-rds-instance" ]
+        dbEngine: [ "mysql-aurora", "mysql-aurora-mariadb-driver", "pg-aurora" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -38,18 +59,22 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: 8
+          cache: 'gradle'
       - name: 'Configure AWS credentials'
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         id: creds
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: run_bg_integration_test_latest
+          role-session-name: run_integration_test_weekly_full_matrix
           role-duration-seconds: 21600
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           output-credentials: true
-      - name: Run Blue/Green integration tests
+      - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-bgd-${{ matrix.testTask }}
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} \
+            -Dtest-no-instances-1=true \
+            -Dtest-no-instances-3=true \
+            -Dtest-no-instances-5=true
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -61,18 +86,18 @@ jobs:
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
-      - name: Archive junit results for ${{ matrix.testTask }}
+      - name: Archive junit results for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-latest-${{ matrix.testTask }}
+          name: junit-report-weekly-2inst-${{ matrix.dbEngine }}
           path: ./wrapper/build/test-results
           retention-days: 5
-      - name: Archive html summary report for ${{ matrix.testTask }}
+      - name: Archive html summary report for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-latest-${{ matrix.testTask }}
+          name: html-summary-report-weekly-2inst-${{ matrix.dbEngine }}
           path: ./wrapper/build/report
           retention-days: 5
       # The test host records the address it whitelisted in the region's default security group (see
@@ -93,6 +118,7 @@ jobs:
           else
             echo "No authorized runner IP was recorded; nothing to revoke."
           fi
+
       - name: Remove Github Action IP
         if: always() && steps.ip.outputs.ipv4 != ''
         run: |

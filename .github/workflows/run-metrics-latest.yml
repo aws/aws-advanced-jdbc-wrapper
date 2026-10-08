@@ -19,13 +19,10 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
-env:
-  TEST_CONTAINER_REGISTRY: ecr
-
 jobs:
   run-metrics-with-latest:
     name: Run Metrics with latest engine version
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
