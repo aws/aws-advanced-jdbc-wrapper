@@ -32,10 +32,13 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   all-integration-tests-latest:
     name: 'Latest / ${{ matrix.name }}'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:

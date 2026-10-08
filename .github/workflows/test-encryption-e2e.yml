@@ -21,10 +21,13 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   test-encryption:
     name: 'Test KMS Encryption End-to-End'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - name: 'Clone repository'

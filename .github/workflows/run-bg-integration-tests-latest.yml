@@ -20,10 +20,13 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   all-bg-integration-tests-latest:
     name: Run Blue/Green integration tests with latest engine version
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:

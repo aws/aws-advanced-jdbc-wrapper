@@ -16,10 +16,13 @@ on:
 permissions:
   contents: read
 
+env:
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   check-changes:
     name: 'Check for non-doc changes'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     outputs:
       only_docs: ${{ steps.changed-files.outputs.ONLY_DOCS }}
     steps:
@@ -50,7 +53,7 @@ jobs:
     name: 'Docker [${{ matrix.engine }}, ${{ matrix.jvm }}]'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +113,7 @@ jobs:
     name: 'Caching [${{ matrix.engine }}, ${{ matrix.jvm }}]'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
@@ -170,7 +173,7 @@ jobs:
     name: 'Standard Integration Tests Gate'
     needs: [check-changes, docker-tests, caching-tests]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Verify required jobs did not fail'
         run: |
