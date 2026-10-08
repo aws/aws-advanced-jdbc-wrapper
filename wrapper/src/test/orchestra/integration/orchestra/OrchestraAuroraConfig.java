@@ -17,13 +17,17 @@
 package integration.orchestra;
 
 import integration.TargetJvm;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.orchestra.EnvConfiguration;
@@ -312,18 +316,23 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
     copies.put(driverJar(), "/app/libs/aws-advanced-jdbc-wrapper.jar");
     copies.put(MODULE.resolve("src/test/build.gradle.kts"), "/app/build.gradle.kts");
 
-    // The client and the contract, so in-container code can call OrchestraClient.
+    // Orchestra, so in-container code can call OrchestraClient.
     //
-    // Named individually and placed directly in /app/libs, not as a directory. The in-container build puts
+    // Placed directly in /app/libs, not in a subdirectory. The in-container build puts
     // fileTree("./libs") { include("*.jar") } on the test classpath, and that pattern does not recurse - a
     // libs/orchestra/ subdirectory produced NoClassDefFoundError: OrchestraClient at the first call site.
     //
-    // Only these two. orchestra-core and orchestra-instruments provision environments, which is no business
-    // of code running inside one, and they target Java 17 while this classpath is Java 8.
-    copies.put(MODULE.resolve("lib/orchestra/orchestra-contract-0.1.0-SNAPSHOT.jar"),
-        "/app/libs/orchestra-contract.jar");
-    copies.put(MODULE.resolve("lib/orchestra/orchestra-client-java-0.1.0-SNAPSHOT.jar"),
-        "/app/libs/orchestra-client-java.jar");
+    // Whatever the client dependency resolved to, which today is the client and the contract. Not named
+    // individually here: Orchestra declares that relationship with `api`, so the build resolves it and
+    // this copies what it was given. A module added or removed on that side arrives as a different set
+    // of files rather than as a missing one.
+    //
+    // Only those two, and not by accident. They are the Orchestra modules compiled for Java 8, which is
+    // what this classpath is; core and the instruments are Java 17 and provision environments, which is
+    // no business of code running inside one.
+    for (final Path jar : orchestraLibraryJars()) {
+      copies.put(jar, "/app/libs/" + jar.getFileName());
+    }
 
     copies.put(MODULE.resolve("src/test/resources/rds-ca-2019-root.pem"),
         "/app/test/resources/rds-ca-2019-root.pem");
@@ -755,6 +764,58 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
               + "has probably not been built.");
     }
     return jar;
+  }
+
+  /**
+   * The Orchestra jars to copy into the test container.
+   *
+   * <p>Supplied by the build through {@code orchestra-library-jars}, as a list separated by the
+   * platform's path separator, rather than read from paths in the working tree. These jars used to be
+   * checked in under {@code lib/orchestra}, which meant the version the container ran could drift from
+   * the version the host compiled against; now both come from the same resolved dependency, so they
+   * cannot disagree.
+   *
+   * <p>A list rather than a single file because the client library brings the contract with it, and
+   * without a fixed count because that is Orchestra's business rather than this harness's: if its
+   * module structure changes, the build resolves a different set and this copies it.
+   *
+   * <p>Validated here rather than left to fail inside the container. A missing Orchestra jar surfaces as
+   * {@code NoClassDefFoundError: OrchestraClient} at the first call site, after an environment has been
+   * provisioned - which, for an Aurora cluster, is an hour of waiting to be told something the build knew
+   * at the start.
+   *
+   * @return the Orchestra jars to copy, in the order the build resolved them
+   * @throws IllegalStateException if the property is unset, or names anything that is not a file
+   */
+  static List<Path> orchestraLibraryJars() {
+    final String configured = System.getProperty("orchestra-library-jars");
+    if (configured == null || configured.trim().isEmpty()) {
+      throw new IllegalStateException(
+          "The system property orchestra-library-jars is not set, so the Orchestra jars to give the "
+              + "container are unknown. The orchestra-test tasks set it from the resolved Orchestra "
+              + "client dependency; running this test outside those tasks needs it supplied.");
+    }
+
+    final List<Path> jars = new ArrayList<>();
+    for (final String entry : configured.split(Pattern.quote(File.pathSeparator))) {
+      if (entry.trim().isEmpty()) {
+        continue;
+      }
+      final Path jar = Path.of(entry);
+      if (!Files.isRegularFile(jar)) {
+        throw new IllegalStateException(
+            "orchestra-library-jars names " + jar.toAbsolutePath() + ", which is not a file. The "
+                + "Orchestra dependency has probably not been resolved.");
+      }
+      jars.add(jar);
+    }
+
+    if (jars.isEmpty()) {
+      throw new IllegalStateException(
+          "orchestra-library-jars is set but names no files, so the container would start without the "
+              + "Orchestra client and fail at the first OrchestraClient call.");
+    }
+    return jars;
   }
 
   private static void forward(final Map<String, String> properties, final String name) {

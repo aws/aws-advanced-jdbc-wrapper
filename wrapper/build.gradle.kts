@@ -46,6 +46,24 @@ val junitPlatformVersion = "1.14.4"
 val junitJupiterVersion = "5.14.4"
 val openTelemetryVersion = "1.62.0"
 
+// Orchestra, the environment-provisioning library this harness is migrating onto.
+//
+// Two coordinates, because the two sides of this build need different halves of it and Orchestra wires
+// its modules together with `api`:
+//
+//   - instruments, for the host side that provisions environments. Brings core and the contract.
+//   - client-java, for code running inside a container. Brings the contract, and nothing else at all:
+//     no Testcontainers, no AWS SDK. It is compiled for Java 8 and says so in its metadata, which is
+//     what lets the Java 8 `test` source set below depend on it.
+//
+// A snapshot, and temporarily so. Orchestra is in a private repository with no release yet, and
+// publishes a snapshot on every push to its main. Change these to a release version once there is one,
+// and the snapshot repository declared below goes at the same time.
+val orchestraVersion = "0.1.0-SNAPSHOT"
+val orchestraGroup = "software.amazon.orchestra"
+val orchestraInstruments = "$orchestraGroup:advanced-wrapper-orchestra-instruments:$orchestraVersion"
+val orchestraClient = "$orchestraGroup:advanced-wrapper-orchestra-client-java:$orchestraVersion"
+
 dependencies {
 
     optionalImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
@@ -109,12 +127,14 @@ dependencies {
     testImplementation("software.amazon.awssdk:sts:$awsSdkVersion")
     testImplementation("software.amazon.awssdk:signin:$awsSdkVersion")
 
-    // The two Orchestra jars the in-container code reads its environment through, and only those two.
-    // orchestra-core and orchestra-instruments are deliberately absent: they target Java 17 while this source
-    // set compiles for Java 8, and they provision environments, which is no business of code running inside
-    // one. orchestra-contract and orchestra-client-java are Java 8 precisely so they can be used here.
-    testImplementation(files("lib/orchestra/orchestra-contract-0.1.0-SNAPSHOT.jar"))
-    testImplementation(files("lib/orchestra/orchestra-client-java-0.1.0-SNAPSHOT.jar"))
+    // Orchestra, for the in-container code that reads its environment through OrchestraClient.
+    //
+    // The client only, which brings the contract with it and nothing else. This source set compiles for
+    // Java 8, and these are the two Orchestra modules compiled for Java 8 and declaring it, so ordinary
+    // dependency resolution accepts them here. Asking for core or the instruments would be rejected
+    // rather than quietly mis-compiled, because they declare Java 17 - which is the right answer, since
+    // provisioning environments is no business of code running inside one.
+    testImplementation(orchestraClient)
 
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:$testcontainersVersion")
@@ -147,6 +167,40 @@ dependencies {
 
 repositories {
     mavenCentral()
+
+    // Orchestra's snapshots, which is the only place it is published until its first release. Temporary:
+    // remove this along with the -SNAPSHOT version above once Orchestra publishes a release to Central.
+    //
+    // Scoped twice over, so adding a snapshot repository to this build changes nothing else. snapshotsOnly
+    // stops Gradle asking it for release versions, and the group restriction stops any other dependency
+    // being resolved from here - without which a typo in any coordinate could silently be answered by a
+    // snapshot, and every resolution would pay for an extra repository to search.
+    maven {
+        name = "orchestraSnapshots"
+        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        mavenContent { snapshotsOnly() }
+        content { includeGroup(orchestraGroup) }
+    }
+}
+
+// The Orchestra jars to copy into the test container.
+//
+// The in-container code needs the files, not a classpath entry: it runs in a container, against a JVM
+// this build does not control, and receives its dependencies as jars copied into /app/libs. Resolving
+// them through a configuration of their own means the paths come from the same dependency resolution as
+// everything else, rather than from checked-in copies that could drift from what the host compiled
+// against.
+//
+// Transitive, unlike everything else here, and that is the point: asking for the client yields the
+// client and the contract, which is exactly what a workload needs. Orchestra declares that relationship
+// with `api`, so this build does not have to name the contract and then keep remembering to.
+val orchestraContainerJars: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+dependencies {
+    orchestraContainerJars(orchestraClient)
 }
 
 if (useJacoco) {
@@ -291,13 +345,16 @@ dependencies {
     // Orchestra, the environment-provisioning library replacing this harness's TestEnvironment,
     // TestEnvironmentProvider, AuroraTestUtility and ContainerHelper.
     //
-    // Copied jars rather than a Maven coordinate, because Orchestra is not published yet. Each jar's name
-    // and manifest carry the version and OrchestraVersion logs it at the start of every run, so a result can
-    // still be attributed to a build after the jars are copied. Replace with a normal dependency once
-    // Orchestra publishes.
-    add(orchestraTest.implementationConfigurationName, fileTree("lib/orchestra") { include("*.jar") })
-    // Orchestra's own transitive needs. It uses Testcontainers to provision Docker resources and the AWS
-    // SDK to provision RDS, and a fileTree dependency carries no transitives.
+    // Resolved dependencies rather than checked-in jars. This source set is the host side, so it takes
+    // the instruments, which bring core and the contract with them through `api`, along with the
+    // Testcontainers and AWS SDK dependencies they declare.
+    add(orchestraTest.implementationConfigurationName, orchestraInstruments)
+
+    // Still named explicitly, even though the POM now supplies them transitively, so that this build
+    // keeps deciding their versions. Leaving it to the POM would mean a version bump in Orchestra
+    // silently moving the Testcontainers and AWS SDK versions the rest of this build is pinned to.
+    // They agree today - Orchestra's POM asks for the same testcontainers 1.21.4 and AWS SDK 2.46.10
+    // declared above - and the point is that they keep agreeing by construction rather than by luck.
     add(orchestraTest.implementationConfigurationName, "org.testcontainers:testcontainers:$testcontainersVersion")
     add(orchestraTest.implementationConfigurationName, "software.amazon.awssdk:rds:$awsSdkVersion")
     add(orchestraTest.implementationConfigurationName, "software.amazon.awssdk:ec2:$awsSdkVersion")
@@ -765,6 +822,22 @@ tasks.register<Test>("orchestra-test-pg-aurora") {
     dependsOn(driverJar)
     systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
 
+    // The Orchestra jars to copy into the container, named the same way as the driver jar above rather
+    // than found by path. They used to be checked-in files; now they are whatever the dependency
+    // resolves to, so the container gets what the host compiled against.
+    //
+    // Passed as a path-separated list rather than one file, because the client brings the contract with
+    // it, and as a list rather than a count so that a change in Orchestra's module structure arrives
+    // here as a different set of files instead of a failure.
+    //
+    // Declared as an input so a change to them is not treated as up to date, and resolved in doFirst
+    // rather than while configuring: resolving a dependency configuration at configuration time makes
+    // every invocation of this build pay for it, including the ones that never run this task.
+    inputs.files(orchestraContainerJars)
+    doFirst {
+        systemProperty("orchestra-library-jars", orchestraContainerJars.asPath)
+    }
+
     // Java 17, not the Java 8 launcher the other test tasks use. Orchestra's classes are version 61 and a
     // Java 8 JVM refuses to load them: "has been compiled by a more recent version of the Java Runtime".
     // This task only provisions - the suite it launches still runs on whatever JVM the container has, which
@@ -869,6 +942,22 @@ tasks.register<Test>("orchestra-test-docker") {
     dependsOn(driverJar)
     systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
 
+    // The Orchestra jars to copy into the container, named the same way as the driver jar above rather
+    // than found by path. They used to be checked-in files; now they are whatever the dependency
+    // resolves to, so the container gets what the host compiled against.
+    //
+    // Passed as a path-separated list rather than one file, because the client brings the contract with
+    // it, and as a list rather than a count so that a change in Orchestra's module structure arrives
+    // here as a different set of files instead of a failure.
+    //
+    // Declared as an input so a change to them is not treated as up to date, and resolved in doFirst
+    // rather than while configuring: resolving a dependency configuration at configuration time makes
+    // every invocation of this build pay for it, including the ones that never run this task.
+    inputs.files(orchestraContainerJars)
+    doFirst {
+        systemProperty("orchestra-library-jars", orchestraContainerJars.asPath)
+    }
+
     // Java 17 for the same reason as the Aurora task: Orchestra's classes are version 61.
     javaLauncher.set(javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(17))
@@ -939,6 +1028,22 @@ tasks.register<Test>("orchestra-test-hibernate") {
     val driverJar = tasks.named<Jar>("jar")
     dependsOn(driverJar)
     systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
+
+    // The Orchestra jars to copy into the container, named the same way as the driver jar above rather
+    // than found by path. They used to be checked-in files; now they are whatever the dependency
+    // resolves to, so the container gets what the host compiled against.
+    //
+    // Passed as a path-separated list rather than one file, because the client brings the contract with
+    // it, and as a list rather than a count so that a change in Orchestra's module structure arrives
+    // here as a different set of files instead of a failure.
+    //
+    // Declared as an input so a change to them is not treated as up to date, and resolved in doFirst
+    // rather than while configuring: resolving a dependency configuration at configuration time makes
+    // every invocation of this build pay for it, including the ones that never run this task.
+    inputs.files(orchestraContainerJars)
+    doFirst {
+        systemProperty("orchestra-library-jars", orchestraContainerJars.asPath)
+    }
 
     // Java 17 to run Orchestra itself, as the other orchestra tasks do. Unrelated to the JVM inside the
     // container, which is what Hibernate's suite runs on and which must be 17 or later for Hibernate 7.3.
