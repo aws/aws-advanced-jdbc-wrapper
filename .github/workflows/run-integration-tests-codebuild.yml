@@ -2,6 +2,9 @@ name: Run Aurora Integration Tests Custom Service Endpoint
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - chore/codebuild
 
 permissions:
   id-token: write   # This is required for requesting the JWT
@@ -23,7 +26,6 @@ jobs:
       matrix:
         environment: ["mysql", "pg"]
     runs-on: ubuntu-latest
-    environment: ${{ matrix.environment }}_integ
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -45,16 +47,15 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora-internal
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora
         env:
-          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          RDS_DB_REGION: ${{ env.SERVICE_REGION }}
+          RDS_DB_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
-          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
-          MYSQL_VERSION: ${{ env.MYSQL_ENGINE_VERSION }}
-          PG_VERSION: ${{ env.PG_ENGINE_VERSION }}
+          MYSQL_VERSION: "latest"
+          PG_VERSION: "latest"
 
       - name: 'Archive junit results ${{ matrix.environment }}'
         if: always()

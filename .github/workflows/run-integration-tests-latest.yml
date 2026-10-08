@@ -100,7 +100,7 @@ jobs:
             -Dtest-shard-index=${{ matrix.shard }} \
             -Dtest-shard-count=${{ matrix.shardCount }}
         env:
-          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_DB_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
