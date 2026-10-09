@@ -41,15 +41,15 @@ import java.sql.Statement;
 import java.util.Base64;
 import java.util.Properties;
 import java.util.logging.Logger;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
@@ -91,8 +91,27 @@ public class KmsEncryptionIntegrationTest {
   private static String kmsKeyArn;
   private static String region;
 
-  @BeforeAll
-  static void setUp() throws Exception {
+  /**
+   * Prepares the schema and the encrypted connection, once per test rather than once per class.
+   *
+   * <p>{@code @BeforeEach}, and it has to be: this method builds a JDBC URL through
+   * {@link ConnectionStringHelper}, which resolves the driver of the current test invocation, and that driver
+   * is registered by {@code TestDriverProvider}'s own per-invocation callback. A {@code @BeforeAll} runs before
+   * any invocation exists, so the same call fails with "Cannot invoke TestDriver.ordinal() because testDriver
+   * is null".
+   *
+   * <p>That was latent rather than visible. The precondition below is an assumption, so a missing key aborts
+   * this method and the class reports as skipped - and the key was always missing, because the harness passes
+   * {@code KMS_KEY_ID} while this reads {@code AWS_KMS_KEY_ARN}. The suite therefore reported success without
+   * ever reaching the line that would have failed. Once the key is supplied under the name this expects, it
+   * fails immediately.
+   *
+   * <p>Re-running the setup per test costs a schema drop and create each time, which is what the assertions
+   * already assume: every test inserts the rows it reads, so none of them depends on what an earlier one left
+   * behind.
+   */
+  @BeforeEach
+  void setUp() throws Exception {
     kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
     assumeTrue(
         kmsKeyArn != null && !kmsKeyArn.isEmpty(),
@@ -169,8 +188,14 @@ public class KmsEncryptionIntegrationTest {
      */
   }
 
-  @AfterAll
-  static void tearDown() throws Exception {
+  /**
+   * Closes the connection this invocation opened.
+   *
+   * <p>{@code @AfterEach} to match {@link #setUp()}: a connection is now opened per test, so closing once per
+   * class would leak every one but the last.
+   */
+  @AfterEach
+  void tearDown() throws Exception {
     if (connection != null && !connection.isClosed()) {
       connection.close();
     }
@@ -514,7 +539,13 @@ public class KmsEncryptionIntegrationTest {
   private static void insertKeyAndMetadata(Connection conn, String metadataSchema)
       throws Exception {
     // Generate KMS data key
-    KmsClient kmsClient = KmsClient.builder().region(Region.of(region)).build();
+    // The provider is supplied explicitly on purpose. A builder left without one pins a static ProfileFile
+    // and never re-reads the credentials file (aws/aws-sdk-java-v2#5073), which breaks a run that outlives
+    // its starting session token.
+    KmsClient kmsClient = KmsClient.builder()
+        .region(Region.of(region))
+        .credentialsProvider(DefaultCredentialsProvider.create())
+        .build();
     GenerateDataKeyRequest dataKeyRequest =
         GenerateDataKeyRequest.builder().keyId(kmsKeyArn).keySpec("AES_256").build();
     GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
