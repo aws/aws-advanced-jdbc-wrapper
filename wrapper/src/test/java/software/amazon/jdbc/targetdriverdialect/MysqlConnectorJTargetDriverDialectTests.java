@@ -74,6 +74,28 @@ public class MysqlConnectorJTargetDriverDialectTests {
   }
 
   @Test
+  void testGetStatementTextFromPreparedStatement() {
+    when(mockStatement.toString())
+        .thenReturn("com.mysql.cj.jdbc.ClientPreparedStatement: SET ROLE tenant_b")
+        .thenReturn("com.mysql.cj.jdbc.ServerPreparedStatement[3]: USE tenant_b")
+        .thenReturn("not a proper response")
+        .thenReturn(null);
+    assertEquals("SET ROLE tenant_b", dialect.getSQLStatementText(mockStatement));
+    assertEquals("USE tenant_b", dialect.getSQLStatementText(mockStatement));
+    assertNull(dialect.getSQLStatementText(mockStatement));
+    assertNull(dialect.getSQLStatementText(mockStatement));
+  }
+
+  @Test
+  void tracksAuthorizationStateChangesFromServerPreparedStatements() {
+    when(mockStatement.toString())
+        .thenReturn("com.mysql.cj.jdbc.ServerPreparedStatement[3]: USE tenant_b");
+    assertEquals(
+        AuthorizationStateImpact.TRACKED,
+        dialect.getAuthorizationStateImpact(dialect.getSQLStatementText(mockStatement)));
+  }
+
+  @Test
   void readsAuthorizationSessionState() throws SQLException {
     when(mockConnection.createStatement()).thenReturn(mockJdbcStatement);
     when(mockJdbcStatement.executeQuery(anyString())).thenReturn(mockResultSet);
@@ -129,8 +151,7 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "USE tenant_a",
       "RESET CONNECTION",
       "SELECT 1; /* tenant switch */ USE tenant_b",
-      "SET ROLE 'tenant_a'@'%'",
-      "SET ROLE tenant_a@localhost"
+      "SET ROLE 'tenant_a'@'%'"
   })
   void detectsTrackedAuthorizationStateChanges(final String sql) {
     assertEquals(AuthorizationStateImpact.TRACKED, dialect.getAuthorizationStateImpact(sql));
@@ -150,7 +171,12 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "handler orders READ FIRST",
       "SELECT @tenant_id := 'tenant_a'",
       "SELECT * FROM orders WHERE tenant_id = @tenant_id",
-      "SELECT * FROM orders WHERE tenant_id=@`tenant id`"
+      "SELECT * FROM orders WHERE tenant_id=@`tenant id`",
+      "SET@tenant_id='tenant_a'",
+      "SELECT@tenant_id",
+      "SELECT * FROM orders WHERE 'a'='a'OR@tenant_id='x'",
+      // An unquoted account name cannot be distinguished from a variable reference.
+      "SET ROLE tenant_a@localhost"
   })
   void detectsUntrackedAuthorizationStateChanges(final String sql) {
     assertEquals(AuthorizationStateImpact.UNTRACKED, dialect.getAuthorizationStateImpact(sql));
@@ -160,7 +186,9 @@ public class MysqlConnectorJTargetDriverDialectTests {
   @ValueSource(strings = {
       "SELECT LAST_INSERT_ID()",
       "SELECT found_rows()",
-      "SELECT ROW_COUNT ()"
+      "SELECT ROW_COUNT ()",
+      "SELECT @@session.sql_mode",
+      "SHOW SESSION VARIABLES"
   })
   void detectsQueriesThatDependOnUntrackedSessionState(final String sql) {
     assertEquals(AuthorizationStateImpact.UNCACHEABLE, dialect.getAuthorizationStateImpact(sql));
@@ -176,7 +204,6 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "SELECT 1 /* USE tenant_a */",
       "SELECT * FROM users WHERE email = 'tenant@example.com'",
       "SELECT `tenant@id` FROM orders",
-      "SELECT @@session.sql_mode",
       "SELECT last_insert_id_column FROM orders"
   })
   void ignoresStatementsThatDoNotChangeAuthorizationSessionState(final String sql) {

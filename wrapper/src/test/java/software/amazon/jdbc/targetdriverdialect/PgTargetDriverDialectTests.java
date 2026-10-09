@@ -165,7 +165,9 @@ public class PgTargetDriverDialectTests {
       "SELECT * FROM orders WHERE tenant_id = current_setting('app.tenant_id')",
       "SELECT \"current_setting\"('app.tenant_id')",
       "SELECT currval('orders_id_seq')",
-      "SELECT LASTVAL()"
+      "SELECT LASTVAL()",
+      "SELECT * FROM pg_catalog.pg_prepared_statements",
+      "SELECT setting FROM pg_settings WHERE name = 'app.tenant_id'"
   })
   void detectsQueriesThatDependOnUntrackedSessionState(final String sql) {
     assertEquals(AuthorizationStateImpact.UNCACHEABLE, dialect.getAuthorizationStateImpact(sql));

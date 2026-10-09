@@ -46,7 +46,7 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
       "(?:^|;)\\s*(?:"
           + "CALL\\b"
           + "|DO\\b"
-          + "|SET\\s+@"
+          + "|SET\\s*@"
           + "|EXECUTE\\b"
           // HANDLER reads through a table handler opened earlier in the session, so the SQL text
           // does not identify the table or read position.
@@ -60,6 +60,11 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
 
   private static final Pattern SESSION_DEPENDENT_FUNCTION_PATTERN = Pattern.compile(
       "\\b(?:LAST_INSERT_ID|FOUND_ROWS|ROW_COUNT)\\s*\\(",
+      Pattern.CASE_INSENSITIVE);
+
+  // SHOW output depends on session state such as session variables, warnings, and profiles.
+  private static final Pattern SESSION_DEPENDENT_STATEMENT_PATTERN = Pattern.compile(
+      "(?:^|;)\\s*SHOW\\b",
       Pattern.CASE_INSENSITIVE);
 
   @Override
@@ -127,8 +132,9 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
     }
 
     final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
+    final AuthorizationStateImpact variableImpact = classifyVariableReferences(sqlWithoutComments);
     if (UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
-        || referencesUserVariable(sqlWithoutComments)) {
+        || variableImpact == AuthorizationStateImpact.UNTRACKED) {
       return AuthorizationStateImpact.UNTRACKED;
     }
 
@@ -136,7 +142,9 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
       return AuthorizationStateImpact.TRACKED;
     }
 
-    if (SESSION_DEPENDENT_FUNCTION_PATTERN.matcher(sqlWithoutComments).find()) {
+    if (SESSION_DEPENDENT_FUNCTION_PATTERN.matcher(sqlWithoutComments).find()
+        || SESSION_DEPENDENT_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
+        || variableImpact == AuthorizationStateImpact.UNCACHEABLE) {
       return AuthorizationStateImpact.UNCACHEABLE;
     }
 
@@ -144,44 +152,57 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
   }
 
   /**
-   * Returns whether the SQL references a user-defined variable such as {@code @tenant},
-   * {@code @'tenant'}, or {@code @`tenant`} outside quoted text. Account names such as
-   * {@code 'app'@'%'} or {@code app@localhost} and system variables such as {@code @@sql_mode} are
-   * not user-defined variables.
+   * Classifies variable references outside quoted text: {@code UNTRACKED} for a user-defined
+   * variable such as {@code @tenant}, {@code @'tenant'}, or {@code SELECT@tenant} (no whitespace
+   * is required before {@code @}), {@code UNCACHEABLE} for a session-dependent system variable
+   * read such as {@code @@sql_mode}, and {@code NONE} otherwise. An {@code @} directly following
+   * quoted text is the user-host separator of an account name such as {@code 'app'@'%'}, not a
+   * variable; an unquoted account name such as {@code app@localhost} cannot be distinguished from
+   * a variable reference and is conservatively classified {@code UNTRACKED}.
    */
-  static boolean referencesUserVariable(final String sql) {
+  static AuthorizationStateImpact classifyVariableReferences(final String sql) {
     // Whether a backslash escapes a quote depends on the NO_BACKSLASH_ESCAPES SQL mode, which the
-    // driver cannot observe. Report a reference if either interpretation contains one.
-    return referencesUserVariable(sql, true) || referencesUserVariable(sql, false);
+    // driver cannot observe. Use the stricter classification of the two interpretations.
+    final AuthorizationStateImpact first = classifyVariableReferences(sql, true);
+    if (first == AuthorizationStateImpact.UNTRACKED) {
+      return first;
+    }
+    final AuthorizationStateImpact second = classifyVariableReferences(sql, false);
+    return second == AuthorizationStateImpact.NONE ? first : second;
   }
 
-  private static boolean referencesUserVariable(final String sql, final boolean backslashEscapes) {
+  private static AuthorizationStateImpact classifyVariableReferences(
+      final String sql, final boolean backslashEscapes) {
     final int length = sql.length();
-    // True when the previous character ends a name or quoted text, so a following '@' separates the
-    // user and host parts of an account name rather than starting a variable.
-    boolean previousEndsName = false;
+    // True when the previous character closes quoted text, so a following '@' separates the user
+    // and host parts of an account name rather than starting a variable.
+    boolean previousEndsQuote = false;
+    boolean readsSystemVariable = false;
     int i = 0;
     while (i < length) {
       final char c = sql.charAt(i);
       if (c == '\'' || c == '"' || c == '`') {
         i = skipQuoted(sql, i, backslashEscapes && c != '`');
-        previousEndsName = true;
+        previousEndsQuote = true;
       } else if (c == '@') {
         if (i + 1 < length && sql.charAt(i + 1) == '@') {
           // System variable, for example @@session.sql_mode.
+          readsSystemVariable = true;
           i += 2;
-        } else if (!previousEndsName && i + 1 < length && isUserVariableNameStart(sql.charAt(i + 1))) {
-          return true;
+        } else if (!previousEndsQuote && i + 1 < length && isUserVariableNameStart(sql.charAt(i + 1))) {
+          return AuthorizationStateImpact.UNTRACKED;
         } else {
           i++;
         }
-        previousEndsName = false;
+        previousEndsQuote = false;
       } else {
-        previousEndsName = Character.isLetterOrDigit(c) || c == '_' || c == '$';
+        previousEndsQuote = false;
         i++;
       }
     }
-    return false;
+    return readsSystemVariable
+        ? AuthorizationStateImpact.UNCACHEABLE
+        : AuthorizationStateImpact.NONE;
   }
 
   private static boolean isUserVariableNameStart(final char c) {

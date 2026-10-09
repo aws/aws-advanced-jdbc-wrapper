@@ -118,6 +118,11 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       "(?:^|;)\\s*SHOW\\b",
       Pattern.CASE_INSENSITIVE);
 
+  // Catalog relations that expose the same session-scoped state as SHOW and current_setting().
+  private static final Pattern SESSION_DEPENDENT_RELATION_PATTERN = Pattern.compile(
+      "\\bPG_(?:SETTINGS|PREPARED_STATEMENTS|CURSORS)\\b",
+      Pattern.CASE_INSENSITIVE);
+
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
       POOLING_DS_CLASS_NAME,
@@ -362,7 +367,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     }
 
     if (SESSION_DEPENDENT_FUNCTION_PATTERN.matcher(sqlWithoutComments).find()
-        || SESSION_DEPENDENT_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+        || SESSION_DEPENDENT_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
+        || SESSION_DEPENDENT_RELATION_PATTERN.matcher(sqlWithoutComments).find()) {
       return AuthorizationStateImpact.UNCACHEABLE;
     }
 

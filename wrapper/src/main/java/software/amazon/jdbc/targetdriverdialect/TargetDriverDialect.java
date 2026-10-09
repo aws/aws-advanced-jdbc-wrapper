@@ -103,6 +103,16 @@ public interface TargetDriverDialect {
   @Nullable String getSQLQueryString(PreparedStatement ps);
 
   /**
+   * Returns the SQL text of a prepared statement for detecting session-state changes. Unlike
+   * {@link #getSQLQueryString(PreparedStatement)}, whose result is used in cache keys and may wrap
+   * the SQL in driver-specific formatting, the returned text starts with the statement itself.
+   * Returns {@code null} if the SQL text cannot be determined.
+   */
+  default @Nullable String getSQLStatementText(final PreparedStatement ps) {
+    return this.getSQLQueryString(ps);
+  }
+
+  /**
    * Whether this dialect can acquire database session state that affects authorization and object
    * resolution.
    */

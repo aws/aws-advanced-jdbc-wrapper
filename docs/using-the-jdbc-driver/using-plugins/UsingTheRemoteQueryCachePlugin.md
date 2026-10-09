@@ -157,11 +157,19 @@ state is acquired from the database and updated after operations such as `SET RO
 `RESET CONNECTION`, and successful JDBC `Connection.setCatalog(...)` calls. MySQL servers that do
 not support roles omit only the active-role component.
 Opaque statements and session-variable use such as `CALL`, `DO`, user-defined variable references
-(`@variable`), `HANDLER`, and dynamically prepared SQL (`EXECUTE`) disable remote query caching for
-that connection. PostgreSQL `EXECUTE` (including `EXPLAIN ... EXECUTE`) and cursor `FETCH` do the
-same. Session-dependent queries, such as PostgreSQL `SHOW`, `current_setting(...)`, `currval(...)`,
-and `lastval()`, and MySQL/MariaDB `LAST_INSERT_ID()`, `FOUND_ROWS()`, and `ROW_COUNT()`, bypass
+(`@variable`, with or without surrounding whitespace), `HANDLER`, and dynamically prepared SQL
+(`EXECUTE`) disable remote query caching for that connection. An account name with an unquoted user
+or role part, such as `SET ROLE tenant_a@localhost`, cannot be distinguished from a user-defined
+variable reference and also disables caching for the connection; use the quoted form
+(`SET ROLE 'tenant_a'@'localhost'`) to keep the statement tracked. PostgreSQL `EXECUTE` (including
+`EXPLAIN ... EXECUTE`) and cursor `FETCH` do the same. Session-dependent queries, such as
+PostgreSQL `SHOW`, `current_setting(...)`, `currval(...)`, `lastval()`, and the `pg_settings`,
+`pg_prepared_statements`, and `pg_cursors` catalog relations, and MySQL/MariaDB `SHOW`, system
+variable reads (`@@variable`), `LAST_INSERT_ID()`, `FOUND_ROWS()`, and `ROW_COUNT()`, bypass
 the cache for that query only.
+Setting a non-authorization session variable without `@`, such as MySQL/MariaDB `SET sql_mode = ...`
+or PostgreSQL `SET datestyle = ...`, is not detected; queries whose results depend on such settings
+should not be cached.
 
 When database multi-tenancy protection is enabled, statements containing MySQL or MariaDB
 executable comments (`/*! ... */` or `/*M! ... */`) bypass remote cache reads and writes. The SQL
@@ -212,16 +220,18 @@ cache reads but may write their database results to the cache.
 >
 > - PostgreSQL: `SET ROLE`, `SET SESSION AUTHORIZATION`, `SET search_path`, `SET SCHEMA`, their
 >   supported `RESET` forms, and JDBC `Connection.setSchema(...)`.
-> - MySQL and MariaDB: `SET ROLE`, `USE`, `RESET CONNECTION`, and JDBC
->   `Connection.setCatalog(...)`.
+> - MySQL and MariaDB: `SET ROLE` (quote account names that include a host, for example
+>   `'tenant_a'@'%'`), `USE`, `RESET CONNECTION`, and JDBC `Connection.setCatalog(...)`.
 >
 > Recognized opaque or unsupported operations—including PostgreSQL `set_config(...)`, qualified
 > custom settings, `CALL`/`DO`, `EXECUTE`, and `FETCH`; MySQL/MariaDB user variables, `EXECUTE`,
 > and `HANDLER`; and executable comments, batches, and temporary-object creation—conservatively
-> disable remote caching. This detection is pattern-based and not exhaustive, and it may differ between
-> dialects; an operation that is not recognized is not thereby supported. State changes hidden
-> inside SQL functions, stored procedure internals, connection initialization SQL,
-> target-driver-specific APIs, or other mechanisms may not be observable by the plugin.
+> disable remote caching. This detection is pattern-based and not exhaustive, and it may differ
+> between dialects; an operation that is not recognized is not thereby supported. For example,
+> settings changed with plain `SET`, such as MySQL/MariaDB `sql_mode` or PostgreSQL `datestyle`,
+> are not detected. State changes hidden inside SQL functions, stored procedure internals,
+> connection initialization SQL, target-driver-specific APIs, or other mechanisms may not be
+> observable by the plugin.
 >
 > If query visibility depends on state outside the documented PostgreSQL role/search-path state or
 > MySQL/MariaDB account/role/database state, do not cache those queries. Use outside these

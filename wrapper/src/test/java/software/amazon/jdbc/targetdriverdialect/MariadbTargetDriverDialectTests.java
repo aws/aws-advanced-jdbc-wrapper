@@ -37,6 +37,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.states.AuthorizationSessionState;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 
 public class MariadbTargetDriverDialectTests {
   @Mock private PreparedStatement mockStatement;
@@ -67,6 +68,28 @@ public class MariadbTargetDriverDialectTests {
         dialect.getSQLQueryString(mockStatement));
     assertNull(dialect.getSQLQueryString(mockStatement));
     assertNull(dialect.getSQLQueryString(mockStatement));
+  }
+
+  @Test
+  void testGetStatementTextFromPreparedStatement() {
+    when(mockStatement.toString())
+        .thenReturn("ClientPreparedStatement{sql:'SET ROLE tenant_b', parameters:[]}")
+        .thenReturn("ServerPreparedStatement{sql:'USE tenant_b', parameters:[]}")
+        .thenReturn("not a proper response")
+        .thenReturn(null);
+    assertEquals("SET ROLE tenant_b", dialect.getSQLStatementText(mockStatement));
+    assertEquals("USE tenant_b", dialect.getSQLStatementText(mockStatement));
+    assertNull(dialect.getSQLStatementText(mockStatement));
+    assertNull(dialect.getSQLStatementText(mockStatement));
+  }
+
+  @Test
+  void tracksAuthorizationStateChangesFromPreparedStatements() {
+    when(mockStatement.toString())
+        .thenReturn("ClientPreparedStatement{sql:'SET ROLE tenant_b', parameters:[]}");
+    assertEquals(
+        AuthorizationStateImpact.TRACKED,
+        dialect.getAuthorizationStateImpact(dialect.getSQLStatementText(mockStatement)));
   }
 
   @Test
