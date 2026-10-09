@@ -1236,7 +1236,7 @@ Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL
 | `failWhenCacheDown` | `false` | Throw on cache failure (Degraded mode). |
 | `cacheKeyPrefix` | (none) | Optional static prefix for separating cache keyspaces (≤10 chars). The prefix itself does not provide database authorization-state isolation; use `cacheEnableDatabaseMultiTenancy` for supported authorization/session state. |
 | `cacheMaxQuerySize` | `16384` | Max query size considered for caching. |
-| `cacheEnableDatabaseMultiTenancy` | `false` | Enable authorization-aware cache isolation for supported PostgreSQL role/search-path state and MySQL/MariaDB account/role/database state. |
+| `cacheEnableDatabaseMultiTenancy` | `false` | Add supported PostgreSQL role/search-path state and MySQL/MariaDB account/role/database state to cache keys as best-effort hardening. Not a security boundary. |
 
 Enable this when query visibility depends on supported database authorization or session state:
 
@@ -1244,7 +1244,16 @@ Enable this when query visibility depends on supported database authorization or
 props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
 ```
 
-See [Remote Query Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md)
+> **Not a security boundary.** Database multi-tenancy is not an intended use case of the plugin.
+> This setting is best-effort hardening: within the documented usage it is designed to keep cached
+> results for different supported tenant contexts separate, outside that usage it does not isolate
+> tenants, and it is not an authorization firewall. Applications that enable it accept
+> the risk of possible cache authorization bypass, cache poisoning across tenants, and other
+> security issues. Do not cache data that must never be disclosed across tenants. For stronger
+> separation, use a database user per tenant, or a separate pool with a distinct `cacheKeyPrefix` per
+> tenant.
+
+See [Remote Query Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md#security-scope-and-application-requirements)
 for supported state, limitations, fail-closed behavior, and performance implications.
 
 ### 5.23 `logQuery` — SQL logging (universal)

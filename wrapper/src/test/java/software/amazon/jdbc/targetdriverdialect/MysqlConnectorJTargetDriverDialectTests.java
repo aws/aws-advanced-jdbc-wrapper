@@ -128,7 +128,9 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "SET ROLE DEFAULT",
       "USE tenant_a",
       "RESET CONNECTION",
-      "SELECT 1; /* tenant switch */ USE tenant_b"
+      "SELECT 1; /* tenant switch */ USE tenant_b",
+      "SET ROLE 'tenant_a'@'%'",
+      "SET ROLE tenant_a@localhost"
   })
   void detectsTrackedAuthorizationStateChanges(final String sql) {
     assertEquals(AuthorizationStateImpact.TRACKED, dialect.getAuthorizationStateImpact(sql));
@@ -144,10 +146,24 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "/*M! SET ROLE tenant_b */",
       "CREATE TEMPORARY TABLE tenant_orders (id bigint)",
       "CREATE TEMPORARY TABLE tenant_orders SELECT * FROM orders",
-      "CREATE OR REPLACE TEMPORARY TABLE tenant_orders (id bigint)"
+      "CREATE OR REPLACE TEMPORARY TABLE tenant_orders (id bigint)",
+      "handler orders READ FIRST",
+      "SELECT @tenant_id := 'tenant_a'",
+      "SELECT * FROM orders WHERE tenant_id = @tenant_id",
+      "SELECT * FROM orders WHERE tenant_id=@`tenant id`"
   })
   void detectsUntrackedAuthorizationStateChanges(final String sql) {
     assertEquals(AuthorizationStateImpact.UNTRACKED, dialect.getAuthorizationStateImpact(sql));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+      "SELECT LAST_INSERT_ID()",
+      "SELECT found_rows()",
+      "SELECT ROW_COUNT ()"
+  })
+  void detectsQueriesThatDependOnUntrackedSessionState(final String sql) {
+    assertEquals(AuthorizationStateImpact.UNCACHEABLE, dialect.getAuthorizationStateImpact(sql));
   }
 
   @ParameterizedTest
@@ -157,7 +173,11 @@ public class MysqlConnectorJTargetDriverDialectTests {
       "PREPARE tenant_stmt FROM 'USE tenant_a'",
       "DEALLOCATE PREPARE tenant_stmt",
       "SELECT 'SET ROLE tenant_a'",
-      "SELECT 1 /* USE tenant_a */"
+      "SELECT 1 /* USE tenant_a */",
+      "SELECT * FROM users WHERE email = 'tenant@example.com'",
+      "SELECT `tenant@id` FROM orders",
+      "SELECT @@session.sql_mode",
+      "SELECT last_insert_id_column FROM orders"
   })
   void ignoresStatementsThatDoNotChangeAuthorizationSessionState(final String sql) {
     assertEquals(AuthorizationStateImpact.NONE, dialect.getAuthorizationStateImpact(sql));

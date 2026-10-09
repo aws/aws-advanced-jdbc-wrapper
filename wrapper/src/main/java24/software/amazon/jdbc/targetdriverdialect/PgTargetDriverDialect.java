@@ -92,13 +92,31 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final Pattern UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN = Pattern.compile(
       "(?:^|;)\\s*(?:"
           + "(?:CALL|DO)\\b"
-          + "|CREATE\\s+(?:(?:GLOBAL|LOCAL)\\s+)?TEMP(?:ORARY)?\\b"
+          + "|CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:(?:GLOBAL|LOCAL)\\s+)?TEMP(?:ORARY)?\\b"
           + "|SELECT\\b.*?\\bINTO\\s+TEMP(?:ORARY)?(?:\\s+TABLE)?\\b"
+          // Named prepared statements and cursors run a session-scoped definition that the SQL
+          // text does not identify, and that definition may itself change session state.
+          + "|(?:EXPLAIN\\b[^;]*?\\b)?EXECUTE\\b"
+          + "|FETCH\\b"
           + "|(?:SET|RESET)\\s+(?:(?:SESSION|LOCAL)\\s+)?"
           + "(?:\"(?:[^\"]|\"\")*\\.(?:[^\"]|\"\")*\""
           + "|[A-Z_][A-Z0-9_$]*\\s*\\.\\s*[A-Z_][A-Z0-9_$]*)"
           + ")",
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+  // Objects qualified with the session's temporary schema shadow or extend name resolution
+  // without changing the authorization-state cache key.
+  private static final Pattern TEMP_SCHEMA_REFERENCE_PATTERN = Pattern.compile(
+      "(?:\\bPG_TEMP(?:_[0-9]+)?\\b|\"PG_TEMP(?:_[0-9]+)?\")\\s*\\.",
+      Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern SESSION_DEPENDENT_FUNCTION_PATTERN = Pattern.compile(
+      "(?:\\b(?:CURRENT_SETTING|CURRVAL|LASTVAL)\\b|\"(?:CURRENT_SETTING|CURRVAL|LASTVAL)\")\\s*\\(",
+      Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern SESSION_DEPENDENT_STATEMENT_PATTERN = Pattern.compile(
+      "(?:^|;)\\s*SHOW\\b",
+      Pattern.CASE_INSENSITIVE);
 
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
@@ -334,12 +352,18 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     final String sqlWithoutComments =
         SqlMethodAnalyzer.stripCommentsWithNestedBlockComments(sql);
     if (SET_CONFIG_PATTERN.matcher(sqlWithoutComments).find()
-        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+        || UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
+        || TEMP_SCHEMA_REFERENCE_PATTERN.matcher(sqlWithoutComments).find()) {
       return AuthorizationStateImpact.UNTRACKED;
     }
 
     if (AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
       return AuthorizationStateImpact.TRACKED;
+    }
+
+    if (SESSION_DEPENDENT_FUNCTION_PATTERN.matcher(sqlWithoutComments).find()
+        || SESSION_DEPENDENT_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.UNCACHEABLE;
     }
 
     return AuthorizationStateImpact.NONE;

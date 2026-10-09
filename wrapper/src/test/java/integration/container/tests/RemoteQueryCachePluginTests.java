@@ -344,6 +344,48 @@ public class RemoteQueryCachePluginTests {
     }
   }
 
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  public void testPostgresNamedPreparedStatementsAndCursorsBypassCache() throws SQLException {
+    final String tableName = "cache_named_session_object_test";
+    final Properties props = getCacheEnabledProperties(null, 0, false);
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+
+    // Both connections have identical authorization state. Only the session-scoped statement and
+    // cursor definitions differ, and those are not part of the cache key.
+    try (Connection tenantA = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+        Connection tenantB = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+        Statement statementA = tenantA.createStatement();
+        Statement statementB = tenantB.createStatement()) {
+      createTestTable(tenantA, tableName);
+      try {
+        statementA.execute("insert into " + tableName + " values (1, 'tenant_a'), (2, 'tenant_b')");
+
+        statementA.execute("PREPARE tenant_stmt AS SELECT id, name FROM " + tableName + " WHERE id = 1");
+        statementB.execute("PREPARE tenant_stmt AS SELECT id, name FROM " + tableName + " WHERE id = 2");
+        try (ResultSet rs = executeQueryWithCacheHint(statementA, "EXECUTE tenant_stmt")) {
+          validateRow(rs, 1, "tenant_a");
+        }
+        try (ResultSet rs = executeQueryWithCacheHint(statementB, "EXECUTE tenant_stmt")) {
+          validateRow(rs, 2, "tenant_b");
+        }
+
+        statementA.execute(
+            "DECLARE tenant_cursor CURSOR WITH HOLD FOR SELECT id, name FROM " + tableName + " WHERE id = 1");
+        statementB.execute(
+            "DECLARE tenant_cursor CURSOR WITH HOLD FOR SELECT id, name FROM " + tableName + " WHERE id = 2");
+        try (ResultSet rs = executeQueryWithCacheHint(statementA, "FETCH ALL FROM tenant_cursor")) {
+          validateRow(rs, 1, "tenant_a");
+        }
+        try (ResultSet rs = executeQueryWithCacheHint(statementB, "FETCH ALL FROM tenant_cursor")) {
+          validateRow(rs, 2, "tenant_b");
+        }
+      } finally {
+        dropTestTable(tenantA, tableName);
+      }
+    }
+  }
+
   private void verifyResultSetForTestTable(ResultSet testResultSet) throws SQLException {
     assertTrue(testResultSet.next());
     assertEquals(10, testResultSet.getObject(1));

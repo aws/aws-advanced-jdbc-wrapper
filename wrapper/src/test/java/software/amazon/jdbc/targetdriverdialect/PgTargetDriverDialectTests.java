@@ -146,7 +146,14 @@ public class PgTargetDriverDialectTests {
       "CREATE TEMP TABLE tenant_orders (id bigint)",
       "CREATE TEMPORARY TABLE tenant_orders (id bigint)",
       "SELECT * INTO TEMP tenant_orders FROM orders",
-      "SELECT * INTO TEMPORARY TABLE tenant_orders FROM orders"
+      "SELECT * INTO TEMPORARY TABLE tenant_orders FROM orders",
+      "CREATE OR REPLACE TEMP VIEW tenant_orders AS SELECT * FROM orders",
+      "CREATE TABLE pg_temp.tenant_orders (id bigint)",
+      "SELECT * FROM \"pg_temp\".tenant_orders",
+      "SELECT * FROM pg_temp_3 . tenant_orders",
+      "/* CACHE_PARAM(ttl=600s) */ EXECUTE tenant_stmt",
+      "EXPLAIN (ANALYZE, BUFFERS) EXECUTE tenant_stmt",
+      "FETCH ALL FROM tenant_cursor"
   })
   void detectsUntrackedAuthorizationStateChanges(final String sql) {
     assertEquals(AuthorizationStateImpact.UNTRACKED, dialect.getAuthorizationStateImpact(sql));
@@ -154,10 +161,26 @@ public class PgTargetDriverDialectTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
-      "SELECT * FROM orders",
       "SHOW search_path",
+      "SELECT * FROM orders WHERE tenant_id = current_setting('app.tenant_id')",
+      "SELECT \"current_setting\"('app.tenant_id')",
+      "SELECT currval('orders_id_seq')",
+      "SELECT LASTVAL()"
+  })
+  void detectsQueriesThatDependOnUntrackedSessionState(final String sql) {
+    assertEquals(AuthorizationStateImpact.UNCACHEABLE, dialect.getAuthorizationStateImpact(sql));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+      "SELECT * FROM orders",
       "SELECT current_user",
-      "SELECT 'SET ROLE tenant_a'"
+      "SELECT 'SET ROLE tenant_a'",
+      "PREPARE tenant_stmt AS SELECT * FROM orders",
+      "DECLARE tenant_cursor CURSOR WITH HOLD FOR SELECT * FROM orders",
+      "SELECT executed_at, fetch_count FROM jobs",
+      "SELECT * FROM my_pg_temp_archive",
+      "EXPLAIN SELECT * FROM orders"
   })
   void ignoresStatementsThatDoNotChangeAuthorizationSessionState(final String sql) {
     assertEquals(AuthorizationStateImpact.NONE, dialect.getAuthorizationStateImpact(sql));

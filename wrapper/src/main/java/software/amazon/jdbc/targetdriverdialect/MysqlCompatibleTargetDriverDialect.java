@@ -48,12 +48,19 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
           + "|DO\\b"
           + "|SET\\s+@"
           + "|EXECUTE\\b"
+          // HANDLER reads through a table handler opened earlier in the session, so the SQL text
+          // does not identify the table or read position.
+          + "|HANDLER\\b"
           + "|CREATE\\s+(?:OR\\s+REPLACE\\s+)?TEMPORARY\\s+TABLE\\b"
           + ")",
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
   private static final Pattern EXECUTABLE_COMMENT_PATTERN =
       Pattern.compile("/\\*(?:!|M!)", Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern SESSION_DEPENDENT_FUNCTION_PATTERN = Pattern.compile(
+      "\\b(?:LAST_INSERT_ID|FOUND_ROWS|ROW_COUNT)\\s*\\(",
+      Pattern.CASE_INSENSITIVE);
 
   @Override
   public boolean supportsAuthorizationSessionState() {
@@ -120,7 +127,8 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
     }
 
     final String sqlWithoutComments = SqlMethodAnalyzer.stripComments(sql);
-    if (UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()) {
+    if (UNTRACKED_AUTHORIZATION_STATE_STATEMENT_PATTERN.matcher(sqlWithoutComments).find()
+        || referencesUserVariable(sqlWithoutComments)) {
       return AuthorizationStateImpact.UNTRACKED;
     }
 
@@ -128,6 +136,82 @@ abstract class MysqlCompatibleTargetDriverDialect extends GenericTargetDriverDia
       return AuthorizationStateImpact.TRACKED;
     }
 
+    if (SESSION_DEPENDENT_FUNCTION_PATTERN.matcher(sqlWithoutComments).find()) {
+      return AuthorizationStateImpact.UNCACHEABLE;
+    }
+
     return AuthorizationStateImpact.NONE;
+  }
+
+  /**
+   * Returns whether the SQL references a user-defined variable such as {@code @tenant},
+   * {@code @'tenant'}, or {@code @`tenant`} outside quoted text. Account names such as
+   * {@code 'app'@'%'} or {@code app@localhost} and system variables such as {@code @@sql_mode} are
+   * not user-defined variables.
+   */
+  static boolean referencesUserVariable(final String sql) {
+    // Whether a backslash escapes a quote depends on the NO_BACKSLASH_ESCAPES SQL mode, which the
+    // driver cannot observe. Report a reference if either interpretation contains one.
+    return referencesUserVariable(sql, true) || referencesUserVariable(sql, false);
+  }
+
+  private static boolean referencesUserVariable(final String sql, final boolean backslashEscapes) {
+    final int length = sql.length();
+    // True when the previous character ends a name or quoted text, so a following '@' separates the
+    // user and host parts of an account name rather than starting a variable.
+    boolean previousEndsName = false;
+    int i = 0;
+    while (i < length) {
+      final char c = sql.charAt(i);
+      if (c == '\'' || c == '"' || c == '`') {
+        i = skipQuoted(sql, i, backslashEscapes && c != '`');
+        previousEndsName = true;
+      } else if (c == '@') {
+        if (i + 1 < length && sql.charAt(i + 1) == '@') {
+          // System variable, for example @@session.sql_mode.
+          i += 2;
+        } else if (!previousEndsName && i + 1 < length && isUserVariableNameStart(sql.charAt(i + 1))) {
+          return true;
+        } else {
+          i++;
+        }
+        previousEndsName = false;
+      } else {
+        previousEndsName = Character.isLetterOrDigit(c) || c == '_' || c == '$';
+        i++;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isUserVariableNameStart(final char c) {
+    return Character.isLetterOrDigit(c)
+        || c == '_'
+        || c == '$'
+        || c == '.'
+        || c == '\''
+        || c == '"'
+        || c == '`';
+  }
+
+  private static int skipQuoted(final String sql, final int start, final boolean backslashEscapes) {
+    final char quote = sql.charAt(start);
+    final int length = sql.length();
+    int i = start + 1;
+    while (i < length) {
+      final char c = sql.charAt(i);
+      if (backslashEscapes && c == '\\') {
+        i += 2;
+      } else if (c == quote) {
+        if (i + 1 < length && sql.charAt(i + 1) == quote) {
+          i += 2;
+        } else {
+          return i + 1;
+        }
+      } else {
+        i++;
+      }
+    }
+    return length;
   }
 }

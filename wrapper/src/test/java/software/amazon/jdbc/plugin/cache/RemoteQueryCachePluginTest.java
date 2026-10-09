@@ -1465,6 +1465,32 @@ public class RemoteQueryCachePluginTest {
     verify(mockCacheBypassCounter).inc();
   }
 
+  @Test
+  void test_execute_bypassesCacheForSessionDependentQueryWithoutChangingState() throws Exception {
+    configureAuthorizationTracking();
+
+    final String query = "SELECT * FROM orders WHERE tenant_id = current_setting('app.tenant_id')";
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(anyString()))
+        .thenReturn(AuthorizationStateImpact.UNCACHEABLE);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockCacheBypassCounter).inc();
+  }
+
   void compareResults(final ResultSet expected, final ResultSet actual) throws SQLException {
     int i = 1;
     while (expected.next() && actual.next()) {

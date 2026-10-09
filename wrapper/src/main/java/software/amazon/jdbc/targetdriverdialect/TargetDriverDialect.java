@@ -119,13 +119,21 @@ public interface TargetDriverDialect {
   }
 
   enum AuthorizationStateImpact {
+    /** The SQL neither changes nor reads session state that is excluded from the cache key. */
     NONE,
+    /** The SQL can change session state that is represented in the cache key. */
     TRACKED,
-    UNTRACKED
+    /** The SQL can change session state that cannot be represented in the cache key. */
+    UNTRACKED,
+    /**
+     * The SQL does not change session state, but its result depends on session state that is not
+     * represented in the cache key.
+     */
+    UNCACHEABLE
   }
 
   /**
-   * Returns how the SQL can affect authorization session state.
+   * Returns how the SQL can affect or depend on authorization session state.
    */
   default AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
     return AuthorizationStateImpact.NONE;
