@@ -59,6 +59,8 @@ public class MariadbTargetDriverDialect extends MysqlCompatibleTargetDriverDiale
   private static final String DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbDataSource";
   private static final String CP_DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbPoolDataSource";
   private static final String PREPARED_STATEMENT_QUERY_HEADER = "sql:";
+  private static final String PREPARED_STATEMENT_SQL_START = "sql:'";
+  private static final String PREPARED_STATEMENT_SQL_END = "', parameters:[";
 
   private static final Set<String> MARIADB_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -266,5 +268,21 @@ public class MariadbTargetDriverDialect extends MysqlCompatibleTargetDriverDiale
   public @Nullable String getSQLQueryString(PreparedStatement ps) {
     // For MariaDB, this gives something like "ClientPreparedStatement{sql:'select * from T where A=1', parameters:[]}"
     return this.findSQLQueryString(ps, PREPARED_STATEMENT_QUERY_HEADER);
+  }
+
+  @Override
+  public @Nullable String getSQLStatementText(final PreparedStatement ps) {
+    // Return only the SQL from "ClientPreparedStatement{sql:'SET ROLE r', parameters:[]}" or the
+    // equivalent ServerPreparedStatement format.
+    final String rawStatementStr = ps.toString();
+    if (rawStatementStr == null) {
+      return null;
+    }
+    final int start = rawStatementStr.indexOf(PREPARED_STATEMENT_SQL_START);
+    final int end = rawStatementStr.lastIndexOf(PREPARED_STATEMENT_SQL_END);
+    if (start < 0 || end < start + PREPARED_STATEMENT_SQL_START.length()) {
+      return null;
+    }
+    return rawStatementStr.substring(start + PREPARED_STATEMENT_SQL_START.length(), end);
   }
 }

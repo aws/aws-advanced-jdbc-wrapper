@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -41,6 +43,8 @@ public class MysqlConnectorJTargetDriverDialect extends MysqlCompatibleTargetDri
   private static final String CP_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlConnectionPoolDataSource";
   private static final String XA_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlXADataSource";
   private static final String PREPARED_STATEMENT_QUERY_HEADER = "PreparedStatement:";
+  private static final Pattern PREPARED_STATEMENT_HEADER_PATTERN =
+      Pattern.compile("^[\\w.$]+PreparedStatement(?:\\[\\d+\\])?: ");
 
   private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -160,5 +164,17 @@ public class MysqlConnectorJTargetDriverDialect extends MysqlCompatibleTargetDri
   public @Nullable String getSQLQueryString(PreparedStatement ps) {
     // For MySQL, this gives something like "com.mysql.cj.jdbc.ClientPreparedStatement: select * from T where A=1"
     return this.findSQLQueryString(ps, PREPARED_STATEMENT_QUERY_HEADER);
+  }
+
+  @Override
+  public @Nullable String getSQLStatementText(final PreparedStatement ps) {
+    // "com.mysql.cj.jdbc.ClientPreparedStatement: <sql>", or
+    // "com.mysql.cj.jdbc.ServerPreparedStatement[<id>]: <sql>" when useServerPrepStmts=true.
+    final String rawStatementStr = ps.toString();
+    if (rawStatementStr == null) {
+      return null;
+    }
+    final Matcher matcher = PREPARED_STATEMENT_HEADER_PATTERN.matcher(rawStatementStr);
+    return matcher.lookingAt() ? rawStatementStr.substring(matcher.end()) : null;
   }
 }

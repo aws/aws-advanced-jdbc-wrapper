@@ -676,11 +676,16 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
             || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
     final @Nullable String sql =
-        isStatementExecution ? getQuery(methodInvokeOn, jdbcMethodArgs) : null;
-    final AuthorizationStateImpact impact =
-        methodName.startsWith("CallableStatement.execute")
-            ? AuthorizationStateImpact.UNTRACKED
-            : targetDriverDialect.getAuthorizationStateImpact(sql);
+        isStatementExecution ? getStatementText(methodInvokeOn, jdbcMethodArgs) : null;
+    final AuthorizationStateImpact impact;
+    if (methodName.startsWith("CallableStatement.execute")) {
+      impact = AuthorizationStateImpact.UNTRACKED;
+    } else if (isStatementExecution && sql == null) {
+      // The executed SQL cannot be inspected, so it may have changed session state.
+      impact = AuthorizationStateImpact.UNTRACKED;
+    } else {
+      impact = targetDriverDialect.getAuthorizationStateImpact(sql);
+    }
 
     T result;
     boolean executionSucceeded = false;
@@ -780,6 +785,25 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         return pluginService.getTargetDriverDialect().getSQLQueryString((PreparedStatement) methodInvokeOn);
       } catch (Exception e) {
         // Unable to get the query string, bypass caching
+        LOGGER.log(Level.FINE, Messages.get("RemoteQueryCachePlugin.unableToGetQueryString"), e);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Returns the executed SQL without driver-specific formatting, for session-state analysis only.
+  private @Nullable String getStatementText(
+      final Object methodInvokeOn, final @Nullable Object[] jdbcMethodArgs) {
+    if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
+      return jdbcMethodArgs[0].toString().trim();
+    }
+
+    if (methodInvokeOn instanceof PreparedStatement) {
+      try {
+        return pluginService.getTargetDriverDialect()
+            .getSQLStatementText((PreparedStatement) methodInvokeOn);
+      } catch (Exception e) {
         LOGGER.log(Level.FINE, Messages.get("RemoteQueryCachePlugin.unableToGetQueryString"), e);
         return null;
       }

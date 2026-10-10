@@ -979,7 +979,7 @@ public class RemoteQueryCachePluginTest {
     configureAuthorizationTracking();
     final String sql = "SET ROLE tenant_a";
     when(mockConnection.getAutoCommit()).thenReturn(true);
-    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement)).thenReturn(sql);
+    when(mockTargetDriverDialect.getSQLStatementText(mockPreparedStatement)).thenReturn(sql);
     when(mockTargetDriverDialect.getAuthorizationStateImpact(sql))
         .thenReturn(AuthorizationStateImpact.TRACKED);
 
@@ -991,8 +991,27 @@ public class RemoteQueryCachePluginTest {
         mockCallable,
         new Object[] {});
 
-    verify(mockTargetDriverDialect).getSQLQueryString(mockPreparedStatement);
+    verify(mockTargetDriverDialect).getSQLStatementText(mockPreparedStatement);
     verify(mockSessionStateService).refreshAuthorizationState();
+  }
+
+  @Test
+  void test_execute_marksAuthorizationStateUntrackedWhenPreparedStatementSqlIsUnavailable()
+      throws Exception {
+    configureAuthorizationTracking();
+    when(mockTargetDriverDialect.getSQLStatementText(mockPreparedStatement)).thenReturn(null);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockPreparedStatement,
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockSessionStateService).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    verify(mockTargetDriverDialect, never()).getAuthorizationStateImpact(any());
   }
 
   @Test
@@ -1462,6 +1481,42 @@ public class RemoteQueryCachePluginTest {
     verify(mockSessionStateService).markAuthorizationStateUntracked();
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockCacheBypassCounter).inc();
+  }
+
+  @Test
+  void test_execute_bypassesCacheForSessionDependentQueryWithoutChangingState() throws Exception {
+    configureAuthorizationTracking();
+    // Provide everything a cache key needs, so only the UNCACHEABLE classification prevents caching.
+    when(mockSessionStateService.getAuthorizationState()).thenReturn(Optional.of(
+        new AuthorizationSessionState(
+            "application_user",
+            "tenant_a",
+            "\"tenant_a\", public",
+            "[\"pg_catalog\",\"tenant_a\",\"public\"]")));
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+
+    final String query = "SELECT * FROM orders WHERE tenant_id = current_setting('app.tenant_id')";
+    when(mockTargetDriverDialect.getAuthorizationStateImpact(anyString()))
+        .thenReturn(AuthorizationStateImpact.UNCACHEABLE);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ " + query});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockSessionStateService, never()).markAuthorizationStateUntracked();
+    verify(mockSessionStateService, never()).markAuthorizationStateUnknown();
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
     verify(mockCacheBypassCounter).inc();
   }
 

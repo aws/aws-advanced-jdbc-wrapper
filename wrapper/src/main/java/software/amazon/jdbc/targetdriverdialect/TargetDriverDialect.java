@@ -103,6 +103,16 @@ public interface TargetDriverDialect {
   @Nullable String getSQLQueryString(PreparedStatement ps);
 
   /**
+   * Returns the SQL text of a prepared statement for detecting session-state changes. Unlike
+   * {@link #getSQLQueryString(PreparedStatement)}, whose result is used in cache keys and may wrap
+   * the SQL in driver-specific formatting, the returned text starts with the statement itself.
+   * Returns {@code null} if the SQL text cannot be determined.
+   */
+  default @Nullable String getSQLStatementText(final PreparedStatement ps) {
+    return this.getSQLQueryString(ps);
+  }
+
+  /**
    * Whether this dialect can acquire database session state that affects authorization and object
    * resolution.
    */
@@ -119,13 +129,21 @@ public interface TargetDriverDialect {
   }
 
   enum AuthorizationStateImpact {
+    /** The SQL neither changes nor reads session state that is excluded from the cache key. */
     NONE,
+    /** The SQL can change session state that is represented in the cache key. */
     TRACKED,
-    UNTRACKED
+    /** The SQL can change session state that cannot be represented in the cache key. */
+    UNTRACKED,
+    /**
+     * The SQL does not change session state, but its result depends on session state that is not
+     * represented in the cache key.
+     */
+    UNCACHEABLE
   }
 
   /**
-   * Returns how the SQL can affect authorization session state.
+   * Returns how the SQL can affect or depend on authorization session state.
    */
   default AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
     return AuthorizationStateImpact.NONE;

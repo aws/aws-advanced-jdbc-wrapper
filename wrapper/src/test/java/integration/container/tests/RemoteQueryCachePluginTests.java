@@ -344,6 +344,56 @@ public class RemoteQueryCachePluginTests {
     }
   }
 
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  public void testPostgresNamedPreparedStatementsBypassCache() throws SQLException {
+    // Both connections prepare a statement with the same name but a different definition.
+    verifySessionObjectsBypassCache(
+        "cache_named_statement_test",
+        "PREPARE tenant_stmt AS SELECT id, name FROM %s WHERE id = %d",
+        "EXECUTE tenant_stmt");
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  public void testPostgresCursorsBypassCache() throws SQLException {
+    // Both connections declare a cursor with the same name but a different definition.
+    verifySessionObjectsBypassCache(
+        "cache_cursor_test",
+        "DECLARE tenant_cursor CURSOR WITH HOLD FOR SELECT id, name FROM %s WHERE id = %d",
+        "FETCH ALL FROM tenant_cursor");
+  }
+
+  // Uses fresh connections with identical authorization state, so only the session-scoped object
+  // definition, which is not part of the cache key, differs between them.
+  private void verifySessionObjectsBypassCache(
+      final String tableName,
+      final String defineObjectSqlFormat,
+      final String cachedQuery) throws SQLException {
+    final Properties props = getCacheEnabledProperties(null, 0, false);
+    props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
+
+    try (Connection tenantA = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+        Connection tenantB = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+        Statement statementA = tenantA.createStatement();
+        Statement statementB = tenantB.createStatement()) {
+      createTestTable(tenantA, tableName);
+      try {
+        statementA.execute("insert into " + tableName + " values (1, 'tenant_a'), (2, 'tenant_b')");
+        statementA.execute(String.format(defineObjectSqlFormat, tableName, 1));
+        statementB.execute(String.format(defineObjectSqlFormat, tableName, 2));
+        try (ResultSet rs = executeQueryWithCacheHint(statementA, cachedQuery)) {
+          validateRow(rs, 1, "tenant_a");
+        }
+        try (ResultSet rs = executeQueryWithCacheHint(statementB, cachedQuery)) {
+          validateRow(rs, 2, "tenant_b");
+        }
+      } finally {
+        dropTestTable(tenantA, tableName);
+      }
+    }
+  }
+
   private void verifyResultSetForTestTable(ResultSet testResultSet) throws SQLException {
     assertTrue(testResultSet.next());
     assertEquals(10, testResultSet.getObject(1));
