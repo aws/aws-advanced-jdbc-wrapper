@@ -34,6 +34,7 @@ import integration.TestTelemetryInfo;
 import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
+import integration.util.ContainerImages;
 import integration.util.DeferredParameterGroupDeleter;
 import java.io.File;
 import java.io.IOException;
@@ -1384,7 +1385,7 @@ public class TestEnvironment implements AutoCloseable {
       env.testContainer =
           containerHelper.createTestContainer(
                   "aws/rds-test-container",
-                  getContainerBaseImageName(env.info.getRequest()),
+                  ContainerImages.jvmBase(env.info.getRequest().getTargetJvm()),
                   builder -> builder
                       .run("apk", "add", "--no-cache", "--upgrade", "bash")
                       .run("apk", "add", "git")
@@ -1430,7 +1431,7 @@ public class TestEnvironment implements AutoCloseable {
     } else {
       env.testContainer = containerHelper.createTestContainer(
           "aws/rds-test-container",
-          getContainerBaseImageName(env.info.getRequest()));
+          ContainerImages.jvmBase(env.info.getRequest().getTargetJvm()));
     }
 
     env.testContainer
@@ -1517,25 +1518,6 @@ public class TestEnvironment implements AutoCloseable {
 
     LOGGER.finest("Starting OTLP telemetry container");
     env.telemetryOtlpContainer.start();
-  }
-
-  private static String getContainerBaseImageName(TestEnvironmentRequest request) {
-    switch (request.getTargetJvm()) {
-      case OPENJDK8:
-        return "amazoncorretto:8-alpine";
-      case OPENJDK11:
-        return "amazoncorretto:11.0.19-alpine3.17";
-      case OPENJDK17:
-        return "amazoncorretto:17-alpine3.21";
-      case OPENJDK21:
-        return "amazoncorretto:21-alpine-full";
-      case OPENJDK24:
-        return "amazoncorretto:24-alpine-full";
-      case GRAALVM:
-        return "ghcr.io/graalvm/jdk:22.2.0";
-      default:
-        throw new NotImplementedException(request.getTargetJvm().toString());
-    }
   }
 
   private static void configureIamAccess(TestEnvironment env) {

@@ -1,0 +1,93 @@
+# CodeBuild variant of run-metrics-latest.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Metrics Latest (CodeBuild)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+concurrency:
+  # These workflows create real RDS clusters and whitelist the runner's IP in the region's
+  # default security group. Running two of them at once risks exhausting the security group
+  # rule quota (60 inbound rules per group) and the DB cluster/instance quotas, since a single
+  # sharded run already claims 20 clusters and 20 rules. Every quota-consuming workflow shares
+  # this group so only one runs at a time; `queue: max` makes the others wait their turn
+  # instead of being cancelled (the default `queue: single` would drop them).
+  group: rds-integration-tests
+  queue: max
+
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
+jobs:
+  run-metrics-with-latest:
+    name: Run Metrics with latest engine version
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    strategy:
+      fail-fast: false
+      matrix:
+        dbEngine: [ "mysql-aurora", "mysql-multi-az", "pg-aurora", "pg-multi-az" ]
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: run_integration_test_latest
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      - name: Run integration tests
+        run: |
+          ./gradlew --no-parallel --no-daemon test-metrics-${{ matrix.dbEngine }}
+        env:
+          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          MYSQL_VERSION: "latest"
+          PG_VERSION: "latest"
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: Archive junit results for ${{ matrix.dbEngine }}
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: junit-report-latest-${{ matrix.dbEngine }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: Archive html summary report for ${{ matrix.dbEngine }}
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: html-summary-report-latest-${{ matrix.dbEngine }}
+          path: ./wrapper/build/report
+          retention-days: 5
+      - name: Archive metrics for ${{ matrix.dbEngine }}
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: metrics-latest-${{ matrix.dbEngine }}
+          path: ./wrapper/build/reports/tests
+          retention-days: 5

@@ -1,10 +1,14 @@
-name: Run Aurora Integration Tests Latest
+# CodeBuild variant of run-integration-tests-latest.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Aurora Integration Tests Latest (CodeBuild)
 
 on:
   workflow_dispatch:
-  schedule:
-    # Every working day (Mon-Fri) at 12:30 AM PST (8:30 AM UTC), ~4.5 hours after "default"
-    - cron: '30 8 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
@@ -32,10 +36,15 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
   all-integration-tests-latest:
     name: 'Latest / ${{ matrix.name }}'
-    runs-on: ubuntu-latest
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:

@@ -1,4 +1,11 @@
-name: Run Aurora Integration Tests Custom Service Endpoint
+# CodeBuild variant of run-autoscaling-tests.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Autoscaling Tests (CodeBuild)
 
 on:
   workflow_dispatch:
@@ -17,18 +24,20 @@ concurrency:
   group: rds-integration-tests
   queue: max
 
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
 jobs:
-  aurora-integration-tests:
-    strategy:
-      matrix:
-        environment: ["mysql", "pg"]
-    runs-on: ubuntu-latest
-    environment: ${{ matrix.environment }}_integ
+  all-integration-tests:
+    name: 'Run Autoscaling tests'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 50
       - name: 'Set up JDK 8'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
@@ -39,34 +48,35 @@ jobs:
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: run_integration_test_codebuild
+          role-session-name: run_autoscale_test
           role-duration-seconds: 21600
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora-internal
+          ./gradlew --no-parallel --no-daemon test-autoscaling-only
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          RDS_DB_REGION: ${{ env.SERVICE_REGION }}
+          AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
-          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
-          MYSQL_VERSION: ${{ env.MYSQL_ENGINE_VERSION }}
-          PG_VERSION: ${{ env.PG_ENGINE_VERSION }}
-
-      - name: 'Archive junit results ${{ matrix.environment }}'
+          MYSQL_VERSION: "default"
+          PG_VERSION: "default"
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: junit-report-${{ matrix.environment }}
+          name: junit-report
           path: ./wrapper/build/test-results
           retention-days: 5
-      - name: 'Archive html summary report ${{ matrix.environment }}'
+      - name: 'Archive autoscaling report'
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: html-summary-report-${{ matrix.environment }}
+          name: autoscaling-report
           path: ./wrapper/build/report
           retention-days: 5

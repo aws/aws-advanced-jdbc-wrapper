@@ -1,0 +1,187 @@
+# CodeBuild variant of run-standard-integration-tests.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Manual dispatch only: the original keeps the schedule/push triggers, so this copy never
+# provisions a second set of RDS clusters alongside it. It does share the original's
+# concurrency group, so a run here still waits its turn behind any other RDS workflow.
+
+name: Run Standard Integration Tests (CodeBuild)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
+jobs:
+  check-changes:
+    name: 'Check for non-doc changes'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    outputs:
+      only_docs: ${{ steps.changed-files.outputs.ONLY_DOCS }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Get changed files'
+        id: changed-files-specific
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96  # v47.0.6
+        with:
+          files_yaml: |
+            doc:
+              - '**/*.md'
+              - '**/docs/**'
+              - '**/*.jpg'
+              - '**/*.png'
+      - name: 'Check changed files'
+        id: changed-files
+        run: |
+          if [[ "${{ steps.changed-files-specific.outputs.doc_only_changed }}" == "true" || "${{ steps.changed-files-specific.outputs.doc_only_modified }}" == "true" ]]; then
+            echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
+          else
+            echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
+          fi
+
+  docker-tests:
+    name: 'Docker [${{ matrix.engine }}, ${{ matrix.jvm }}]'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [mysql, pg, mariadb]
+        jvm: ${{ github.event_name == 'pull_request' && fromJSON('["openjdk8", "openjdk21"]') || fromJSON('["openjdk8", "openjdk11", "openjdk17", "openjdk21", "openjdk24", "graalvm"]') }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run standard integration tests'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-all-docker \
+            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
+            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }} \
+            -Dtest-no-mariadb-engine=${{ matrix.engine != 'mariadb' }} \
+            -Dtest-no-openjdk8=${{ matrix.jvm != 'openjdk8' }} \
+            -Dtest-no-openjdk11=${{ matrix.jvm != 'openjdk11' }} \
+            -Dtest-no-openjdk17=${{ matrix.jvm != 'openjdk17' }} \
+            -Dtest-no-openjdk21=${{ matrix.jvm != 'openjdk21' }} \
+            -Dtest-no-openjdk24=${{ matrix.jvm != 'openjdk24' }} \
+            -Dtest-no-graalvm=${{ matrix.jvm != 'graalvm' }}
+      - name: Mask data
+        if: ${{ !cancelled() }}
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: 'Archive junit results'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: junit-report-docker-${{ matrix.engine }}-${{ matrix.jvm }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: 'Archive html summary report'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: html-summary-report-docker-${{ matrix.engine }}-${{ matrix.jvm }}
+          path: ./wrapper/build/report
+          retention-days: 5
+
+  caching-tests:
+    name: 'Caching [${{ matrix.engine }}, ${{ matrix.jvm }}]'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [mysql, pg, mariadb]
+        jvm: ${{ github.event_name == 'pull_request' && fromJSON('["openjdk8", "openjdk21"]') || fromJSON('["openjdk8", "openjdk11", "openjdk17", "openjdk21", "openjdk24", "graalvm"]') }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run caching integration tests'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-all-caching \
+            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
+            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }} \
+            -Dtest-no-mariadb-engine=${{ matrix.engine != 'mariadb' }} \
+            -Dtest-no-openjdk8=${{ matrix.jvm != 'openjdk8' }} \
+            -Dtest-no-openjdk11=${{ matrix.jvm != 'openjdk11' }} \
+            -Dtest-no-openjdk17=${{ matrix.jvm != 'openjdk17' }} \
+            -Dtest-no-openjdk21=${{ matrix.jvm != 'openjdk21' }} \
+            -Dtest-no-openjdk24=${{ matrix.jvm != 'openjdk24' }} \
+            -Dtest-no-graalvm=${{ matrix.jvm != 'graalvm' }}
+      - name: Mask data
+        if: ${{ !cancelled() }}
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: 'Archive junit results'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: junit-report-caching-${{ matrix.engine }}-${{ matrix.jvm }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: 'Archive html summary report'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: html-summary-report-caching-${{ matrix.engine }}-${{ matrix.jvm }}
+          path: ./wrapper/build/report
+          retention-days: 5
+
+  integration-gate:
+    name: 'Standard Integration Tests Gate'
+    needs: [check-changes, docker-tests, caching-tests]
+    if: ${{ always() }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Verify required jobs did not fail'
+        run: |
+          # Fail only if a needed job actually failed or was cancelled.
+          # Skipped jobs (e.g. tests on doc-only PRs) are treated as passing,
+          # so this gate is the single required status check for branch protection.
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" \
+             || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "A required job failed or was cancelled."
+            exit 1
+          fi
+          echo "All required jobs passed or were legitimately skipped."

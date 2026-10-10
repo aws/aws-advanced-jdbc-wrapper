@@ -661,6 +661,7 @@ tasks.withType<Test> {
             || it.key.toString() == "test-exclude-tags"
             || it.key.toString() == "test-shard-index"
             || it.key.toString() == "test-shard-count"
+            || it.key.toString() == "test-container-registry"
         ) {
             systemProperty(it.key.toString(), it.value.toString())
         }
