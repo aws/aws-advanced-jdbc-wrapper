@@ -21,5 +21,15 @@ public enum DatabaseEngineDeployment {
   RDS,
   RDS_MULTI_AZ_CLUSTER,
   RDS_MULTI_AZ_INSTANCE,
-  AURORA
+  AURORA,
+
+  /**
+   * An Aurora global database: regional clusters in two or more regions under one global cluster.
+   *
+   * <p>Its own deployment rather than a feature of {@link #AURORA}, because what a test may assume differs.
+   * A secondary region holds no writer, so "the writer" is not local; a cluster endpoint exists per region and
+   * only one of them is writable; and the topology a driver sees spans regions, which is what the GDB plugins
+   * exist to handle. A test written for {@link #AURORA} would quietly assume all three.
+   */
+  AURORA_GLOBAL
 }

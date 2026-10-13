@@ -96,8 +96,15 @@ public class FailoverTest {
 
   @BeforeEach
   public void setUpEach() {
+    // Read from the direct database info, not the proxied one. Only the instance id is wanted here, and the
+    // proxy list is built by iterating this one - same ids, same order - so the value is identical. Taking it
+    // from the proxy made every test in this class require a proxy, including the ones that never touch it:
+    // the class is gated on FAILOVER_SUPPORTED, while the proxy needs NETWORK_OUTAGES_ENABLED, so an
+    // environment with failover but no network impairment failed here in @BeforeEach with a
+    // NullPointerException before any test ran. The methods that genuinely need the proxy are individually
+    // annotated with NETWORK_OUTAGES_ENABLED and still are.
     this.currentWriter =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0).getInstanceId();
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getInstanceId();
     this.executor = Executors.newFixedThreadPool(1, r -> {
       final Thread thread = new Thread(r);
       thread.setDaemon(true);
@@ -115,6 +122,10 @@ public class FailoverTest {
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Connects through a proxied endpoint and crashes the writer, so it needs proxies. Previously
+  // unstated, which was harmless only because every configuration setting FAILOVER_SUPPORTED also set
+  // NETWORK_OUTAGES_ENABLED. Stated now so it skips instead of failing on a null proxy.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_writerFailover_failOnConnectionInvocation() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
@@ -144,6 +155,8 @@ public class FailoverTest {
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Proxied endpoint, so proxies are required.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_writerFailover_failOnConnectionBoundObjectInvocation() throws SQLException {
 
     final String initialWriterId = this.currentWriter;
@@ -175,6 +188,8 @@ public class FailoverTest {
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2, max = 2)
+  // Proxied endpoint, so proxies are required.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_failFromReaderToWriter() throws SQLException {
     // Connect to the only available reader instance
     final TestInstanceInfo instanceInfo =
@@ -207,6 +222,8 @@ public class FailoverTest {
   /** Writer fails within a transaction. Open transaction with setAutoCommit(false) */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Proxied endpoint, so proxies are required.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_writerFailWithinTransaction_setAutoCommitFalse() throws SQLException {
 
     final String initialWriterId = this.currentWriter;
@@ -260,6 +277,8 @@ public class FailoverTest {
   /** Writer fails within a transaction. Open transaction with "START TRANSACTION". */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Proxied endpoint, so proxies are required.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_writerFailWithinTransaction_startTransaction()
       throws SQLException {
 
@@ -408,6 +427,8 @@ public class FailoverTest {
 
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Builds its DataSource from the proxied instance list, so proxies are required.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_DataSourceWriterConnection_BasicFailover() throws SQLException {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     TestProxyDatabaseInfo proxyInfo = envInfo.getProxyDatabaseInfo();
@@ -471,6 +492,10 @@ public class FailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   @EnableOnTestDriver(TestDriver.MYSQL)
+  // initDefaultProxiedProps reads the proxied endpoint suffix, so every caller needs proxies - this one
+  // included, even though it never touches a proxied endpoint directly. It escaped the PG run only
+  // because it is MySQL-only.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_takeOverConnectionProperties() throws SQLException {
     final Properties props = initDefaultProxiedProps();
     props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "false");
@@ -516,6 +541,8 @@ public class FailoverTest {
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
+  // Proxied endpoint, so proxies are required.
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_failFromWriter() throws SQLException {
 
     final String initialWriterId = this.currentWriter;

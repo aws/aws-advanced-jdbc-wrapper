@@ -30,7 +30,9 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
@@ -42,10 +44,11 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-autoscaling-only
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-suite=autoscaling -Dorchestra-instances=5
         env:
-          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          # RDS_DB_REGION, not AURORA_DB_REGION: TestEnvironmentConfiguration reads the former, so this job
+          # ran with no region configured at all. Every other AWS workflow already spells it this way.
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}

@@ -97,17 +97,12 @@ import software.amazon.awssdk.services.ec2.model.SecurityGroup;
 import software.amazon.awssdk.services.ec2.model.SecurityGroupRule;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
-import software.amazon.awssdk.services.rds.model.ApplyMethod;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeploymentNotFoundException;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentResponse;
-import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRequest;
-import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
-import software.amazon.awssdk.services.rds.model.CreateDbParameterGroupRequest;
-import software.amazon.awssdk.services.rds.model.CreateDbParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DBClusterParameterGroup;
@@ -118,11 +113,9 @@ import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DbInstanceNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentResponse;
-import software.amazon.awssdk.services.rds.model.DeleteDbClusterParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
-import software.amazon.awssdk.services.rds.model.DeleteDbParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.DescribeBlueGreenDeploymentsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterParameterGroupsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
@@ -132,16 +125,16 @@ import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRespons
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbParameterGroupsResponse;
+import software.amazon.awssdk.services.rds.model.DescribeGlobalClustersRequest;
+import software.amazon.awssdk.services.rds.model.DescribeGlobalClustersResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
+import software.amazon.awssdk.services.rds.model.GlobalCluster;
+import software.amazon.awssdk.services.rds.model.GlobalClusterMember;
 import software.amazon.awssdk.services.rds.model.InvalidDbClusterStateException;
 import software.amazon.awssdk.services.rds.model.InvalidDbInstanceStateException;
 import software.amazon.awssdk.services.rds.model.ListTagsForResourceRequest;
 import software.amazon.awssdk.services.rds.model.ListTagsForResourceResponse;
-import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupRequest;
-import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupResponse;
-import software.amazon.awssdk.services.rds.model.ModifyDbParameterGroupRequest;
-import software.amazon.awssdk.services.rds.model.ModifyDbParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.Parameter;
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterResponse;
@@ -152,6 +145,8 @@ import software.amazon.awssdk.services.rds.model.RebootDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.RebootDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentResponse;
+import software.amazon.awssdk.services.rds.model.SwitchoverGlobalClusterRequest;
+import software.amazon.awssdk.services.rds.model.SwitchoverGlobalClusterResponse;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
 import software.amazon.awssdk.utils.builder.SdkBuilder;
@@ -180,11 +175,6 @@ public class AuroraTestUtility {
   // adaptive retry strategy (adds a client-side rate limiter that backs off on throttling responses)
   // with a higher attempt count so transient throttling is ridden out instead of failing the run.
   private static final int RDS_API_MAX_RETRY_ATTEMPTS = 13;
-  // Number of concurrently prepared (two-phase) transactions the PostgreSQL test databases allow.
-  // The XA tests never hold more than a handful, and each unused slot only costs shared memory.
-  private static final String PG_MAX_PREPARED_TRANSACTIONS = "100";
-  // Used to build a PostgreSQL parameter group family name when the engine version is unknown.
-  private static final String DEFAULT_PG_MAJOR_VERSION = "17";
   // How long an unattached test parameter group is left alone before the periodic cleanup removes it.
   // The guard only has to outlast the gap between creating a group and attaching it to a database, which
   // is part of a single environment build, so a few hours is already generous. Keeping it longer only
@@ -196,6 +186,14 @@ public class AuroraTestUtility {
 
   private final RdsClient rdsClient;
   private final Ec2Client ec2Client;
+
+  // Kept so that clients for other regions can be built on demand. A global database spans regions, and an RDS
+  // client only ever sees the one it was built for: an instance in a secondary region is simply not found by the
+  // primary region's client. Everything else in this class works against a single region and uses rdsClient.
+  private final Region region;
+  private final String rdsEndpoint;
+  private final AwsCredentialsProvider credentialsProvider;
+  private final ConcurrentHashMap<String, RdsClient> regionalRdsClients = new ConcurrentHashMap<>();
 
   public AuroraTestUtility(String region, String endpoint) {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
@@ -223,6 +221,10 @@ public class AuroraTestUtility {
    * @param credentialsProvider The AWS credential provider to use to initialize the RdsClient and Ec2Client.
    */
   public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
+    this.region = region;
+    this.rdsEndpoint = rdsEndpoint;
+    this.credentialsProvider = credentialsProvider;
+
     final ClientOverrideConfiguration overrideConfiguration = ClientOverrideConfiguration.builder()
         .retryStrategy(buildThrottlingResilientRetryStrategy())
         .build();
@@ -648,216 +650,6 @@ public class AuroraTestUtility {
       throw new InterruptedException(
           "Instance deletion timeout for " + instanceToDelete.getInstanceId()
               + ". The instance was not deleted within 5 minutes");
-    }
-  }
-
-  public void createCustomClusterParameterGroup(
-      String groupName, String engine, String engineVersion, DatabaseEngine databaseEngine) {
-    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
-                CreateDbClusterParameterGroupRequest.builder()
-                .dbClusterParameterGroupName(groupName)
-                .description("Test custom cluster parameter group for BGD.")
-                .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
-                .tags(this.getTag())
-                .build());
-
-    if (!response.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException("Error creating custom cluster parameter group. " + response.sdkHttpResponse());
-    }
-
-    ModifyDbClusterParameterGroupResponse response2;
-    switch (databaseEngine) {
-      case MYSQL:
-        response2 = rdsClient.modifyDBClusterParameterGroup(
-            ModifyDbClusterParameterGroupRequest.builder()
-                .dbClusterParameterGroupName(groupName)
-                .parameters(
-                    Parameter.builder()
-                        .parameterName("binlog_format")
-                        .parameterValue("ROW")
-                        .applyMethod(ApplyMethod.PENDING_REBOOT)
-                        .build(),
-                    Parameter.builder()
-                        .parameterName("require_secure_transport")
-                        .parameterValue("OFF")
-                        .applyMethod(ApplyMethod.IMMEDIATE)
-                        .build())
-                .build());
-        break;
-      case PG:
-        response2 = rdsClient.modifyDBClusterParameterGroup(
-            ModifyDbClusterParameterGroupRequest.builder()
-                .dbClusterParameterGroupName(groupName)
-                .parameters(
-                    Parameter.builder()
-                        .parameterName("rds.logical_replication")
-                        .parameterValue("true")
-                        .applyMethod(ApplyMethod.PENDING_REBOOT)
-                        .build(),
-                    maxPreparedTransactionsParameter())
-                .build());
-        break;
-      default:
-        throw new UnsupportedOperationException(databaseEngine.toString());
-    }
-
-    if (!response2.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException("Error updating parameter. " + response2.sdkHttpResponse());
-    }
-  }
-
-  /**
-   * Creates a cluster parameter group for MySQL Aurora clusters that disables require_secure_transport.
-   * This is needed because recent Aurora MySQL versions enable require_secure_transport by default,
-   * which prevents the MariaDB driver from connecting without explicit SSL configuration in health
-   * check connections (e.g., makeSureInstancesUp).
-   */
-  public void createMysqlClusterParameterGroup(String groupName, String engine, String engineVersion) {
-    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
-        CreateDbClusterParameterGroupRequest.builder()
-            .dbClusterParameterGroupName(groupName)
-            .description("Test cluster parameter group with require_secure_transport disabled.")
-            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
-            .tags(this.getTag())
-            .build());
-
-    if (!response.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException(
-          "Error creating MySQL cluster parameter group. " + response.sdkHttpResponse());
-    }
-
-    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
-        ModifyDbClusterParameterGroupRequest.builder()
-            .dbClusterParameterGroupName(groupName)
-            .parameters(Parameter.builder()
-                .parameterName("require_secure_transport")
-                .parameterValue("OFF")
-                .applyMethod(ApplyMethod.IMMEDIATE)
-                .build())
-            .build());
-
-    if (!response2.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException(
-          "Error setting require_secure_transport=OFF. " + response2.sdkHttpResponse());
-    }
-  }
-
-  /**
-   * Creates a DB cluster parameter group for PostgreSQL clusters (Aurora or RDS multi-az) that enables
-   * prepared (two-phase) transactions. A cluster's DB cluster parameter group carries the
-   * instance-level parameters as well, and it is the only parameter group {@code CreateDBCluster}
-   * accepts; see {@link #createPgDbParameterGroup} for a standalone (multi-az) instance.
-   *
-   * @param groupName     the name of the parameter group to create
-   * @param engine        the database engine the group is created for
-   * @param engineVersion the database engine version the group is created for
-   */
-  public void createPgClusterParameterGroup(String groupName, String engine, String engineVersion) {
-    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
-        CreateDbClusterParameterGroupRequest.builder()
-            .dbClusterParameterGroupName(groupName)
-            .description("Test cluster parameter group with prepared (two-phase) transactions enabled.")
-            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
-            .tags(this.getTag())
-            .build());
-
-    if (!response.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException(
-          "Error creating PG cluster parameter group. " + response.sdkHttpResponse());
-    }
-
-    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
-        ModifyDbClusterParameterGroupRequest.builder()
-            .dbClusterParameterGroupName(groupName)
-            .parameters(maxPreparedTransactionsParameter())
-            .build());
-
-    if (!response2.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException(
-          "Error setting max_prepared_transactions. " + response2.sdkHttpResponse());
-    }
-  }
-
-  /**
-   * Creates a DB parameter group for an RDS PostgreSQL instance (the multi-az instance deployment) that
-   * enables prepared (two-phase) transactions. A standalone instance has no cluster, so the setting is
-   * applied through the instance-level parameter group that {@code CreateDBInstance} accepts.
-   *
-   * @param groupName     the name of the parameter group to create
-   * @param engine        the database engine the group is created for
-   * @param engineVersion the database engine version the group is created for
-   */
-  public void createPgDbParameterGroup(String groupName, String engine, String engineVersion) {
-    CreateDbParameterGroupResponse response = rdsClient.createDBParameterGroup(
-        CreateDbParameterGroupRequest.builder()
-            .dbParameterGroupName(groupName)
-            .description("Test DB parameter group with prepared (two-phase) transactions enabled.")
-            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
-            .tags(this.getTag())
-            .build());
-
-    if (!response.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException("Error creating PG DB parameter group. " + response.sdkHttpResponse());
-    }
-
-    ModifyDbParameterGroupResponse response2 = rdsClient.modifyDBParameterGroup(
-        ModifyDbParameterGroupRequest.builder()
-            .dbParameterGroupName(groupName)
-            .parameters(maxPreparedTransactionsParameter())
-            .build());
-
-    if (!response2.sdkHttpResponse().isSuccessful()) {
-      throw new RuntimeException(
-          "Error setting max_prepared_transactions. " + response2.sdkHttpResponse());
-    }
-  }
-
-  /**
-   * PostgreSQL disables prepared (two-phase) transactions by default
-   * ({@code max_prepared_transactions = 0}), which makes {@code XAResource.prepare} fail with
-   * "prepared transactions are disabled". The parameter is static, so it is applied on the next start
-   * of the database: setting it in the parameter group that the database is created with means the
-   * database comes up with prepared transactions already enabled, without an extra reboot.
-   */
-  private Parameter maxPreparedTransactionsParameter() {
-    return Parameter.builder()
-        .parameterName("max_prepared_transactions")
-        .parameterValue(PG_MAX_PREPARED_TRANSACTIONS)
-        .applyMethod(ApplyMethod.PENDING_REBOOT)
-        .build();
-  }
-
-  public void deleteCustomClusterParameterGroup(String groupName) {
-    rdsClient.deleteDBClusterParameterGroup(
-        DeleteDbClusterParameterGroupRequest.builder()
-            .dbClusterParameterGroupName(groupName)
-            .build()
-    );
-  }
-
-  public void deleteCustomDbParameterGroup(String groupName) {
-    rdsClient.deleteDBParameterGroup(
-        DeleteDbParameterGroupRequest.builder()
-            .dbParameterGroupName(groupName)
-            .build()
-    );
-  }
-
-  /** Deletes a DB cluster parameter group, ignoring the case where it was never created. */
-  public void deleteCustomClusterParameterGroupSafely(String groupName) {
-    try {
-      deleteCustomClusterParameterGroup(groupName);
-    } catch (Exception ex) {
-      LOGGER.finest("Could not delete cluster parameter group " + groupName + ": " + ex.getMessage());
-    }
-  }
-
-  /** Deletes a DB parameter group, ignoring the case where it was never created. */
-  public void deleteCustomDbParameterGroupSafely(String groupName) {
-    try {
-      deleteCustomDbParameterGroup(groupName);
-    } catch (Exception ex) {
-      LOGGER.finest("Could not delete DB parameter group " + groupName + ": " + ex.getMessage());
     }
   }
 
@@ -1359,84 +1151,6 @@ public class AuroraTestUtility {
     }
   }
 
-  /**
-   * Returns the parameter group family of the given engine version, covering both the Aurora engines
-   * and the RDS engines used by the multi-az deployments. The family name is shared by the DB cluster
-   * parameter groups and the DB parameter groups of an engine.
-   *
-   * <p>The family is looked up from RDS, so that a parameter group is always created in the family the
-   * database actually requires. A hardcoded mapping goes stale as soon as a new major version becomes
-   * the default (RDS then rejects the group with "cannot be used for this instance"), so it is only
-   * used as a fallback when the lookup fails.
-   *
-   * @param engine        the database engine, for example {@code aurora-postgresql} or {@code postgres}
-   * @param engineVersion the database engine version
-   * @return the parameter group family name
-   */
-  public String getParameterGroupFamily(String engine, String engineVersion) {
-    final String family = queryParameterGroupFamily(engine, engineVersion);
-    if (!StringUtils.isNullOrEmpty(family)) {
-      return family;
-    }
-    return buildParameterGroupFamily(engine, engineVersion);
-  }
-
-  /**
-   * Asks RDS for the parameter group family of an engine version, or returns null when it cannot be
-   * determined.
-   */
-  private @Nullable String queryParameterGroupFamily(String engine, String engineVersion) {
-    try {
-      final DescribeDbEngineVersionsRequest.Builder request =
-          DescribeDbEngineVersionsRequest.builder().engine(engine);
-      if (!StringUtils.isNullOrEmpty(engineVersion)) {
-        request.engineVersion(engineVersion);
-      }
-      final DescribeDbEngineVersionsResponse response = rdsClient.describeDBEngineVersions(request.build());
-      return response.dbEngineVersions().stream()
-          .map(DBEngineVersion::dbParameterGroupFamily)
-          .filter(family -> !StringUtils.isNullOrEmpty(family))
-          .findFirst()
-          .orElse(null);
-    } catch (Exception ex) {
-      LOGGER.finest(String.format(
-          "Could not query the parameter group family of %s %s: %s", engine, engineVersion, ex.getMessage()));
-      return null;
-    }
-  }
-
-  /** Best-effort parameter group family name, used when RDS cannot be queried. */
-  private String buildParameterGroupFamily(String engine, String engineVersion) {
-    switch (engine) {
-      case "aurora-postgresql":
-      case "postgres":
-        // The PostgreSQL families are named after the major version, for example "aurora-postgresql17".
-        return engine + majorVersion(engineVersion, DEFAULT_PG_MAJOR_VERSION);
-      case "aurora-mysql":
-        if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
-          return "aurora-mysql8.0";
-        }
-        if (engineVersion.contains("8.4")) {
-          return "aurora-mysql8.4";
-        }
-        return "aurora-mysql5.7";
-      default:
-        throw new UnsupportedOperationException(engine);
-    }
-  }
-
-  private String majorVersion(String engineVersion, String defaultMajorVersion) {
-    if (StringUtils.isNullOrEmpty(engineVersion)) {
-      return defaultMajorVersion;
-    }
-    final int dotIndex = engineVersion.indexOf('.');
-    return dotIndex < 0 ? engineVersion : engineVersion.substring(0, dotIndex);
-  }
-
-  /** Kept for compatibility; {@link #getParameterGroupFamily} also covers the non-Aurora engines. */
-  public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
-    return getParameterGroupFamily(engine, engineVersion);
-  }
 
   public List<TestInstanceInfo> getTestInstancesInfo(final String clusterId) {
     List<DBInstance> dbInstances = getDBInstances(clusterId);
@@ -1571,7 +1285,12 @@ public class AuroraTestUtility {
 
     String retrieveTopologySql;
     switch (deployment) {
+      // As in getInstanceIdSql: a global database is Aurora in every region, and aurora_replica_status()
+      // reports the local region's members. Note that means this returns one region's topology, not the whole
+      // global one - which is what callers of this method want, since they are asking about the cluster they
+      // are connected to.
       case AURORA:
+      case AURORA_GLOBAL:
         switch (databaseEngine) {
           case MYSQL:
             retrieveTopologySql =
@@ -1730,7 +1449,14 @@ public class AuroraTestUtility {
     List<TestInstanceInfo> instances = new ArrayList<>();
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     instances.addAll(envInfo.getDatabaseInfo().getInstances());
-    instances.addAll(envInfo.getProxyDatabaseInfo().getInstances());
+    // Proxied endpoints only when there are proxies. This runs from TestDriverProvider's beforeEach for
+    // every test in an environment that reboots instances, so in an environment without proxies the null
+    // list threw here before any test body ran - which is why the failure named this helper instead of the
+    // test. Waiting for the direct endpoints is still the check that matters; the proxied ones are the same
+    // instances reached through Toxiproxy.
+    if (envInfo.getRequest().getFeatures().contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
+      instances.addAll(envInfo.getProxyDatabaseInfo().getInstances());
+    }
     makeSureInstancesUp(instances, timeoutSec);
   }
 
@@ -2186,6 +1912,135 @@ public class AuroraTestUtility {
     throw new RuntimeException("Failed to request a cluster reboot.");
   }
 
+  /**
+   * Returns an RDS client for one region, building it the first time it is asked for.
+   *
+   * <p>Only global-database tests need this. An RDS client is bound to a single region and an instance in another
+   * region does not exist as far as it is concerned, so a test that wants to reboot a reader in a secondary region
+   * cannot use {@link #rdsClient}. Cached because the tests ask per operation and building a client is not free.
+   *
+   * <p>The endpoint override is deliberately not carried over to other regions: it names a specific regional
+   * endpoint, so applying it to a different region would send the request to the wrong place.
+   *
+   * @param regionName the region wanted
+   * @return an RDS client for that region
+   */
+  private RdsClient rdsClientFor(String regionName) {
+    final Region wanted = getRegionInternal(regionName);
+    if (wanted.equals(this.region)) {
+      return this.rdsClient;
+    }
+
+    return this.regionalRdsClients.computeIfAbsent(wanted.id(), id -> RdsClient.builder()
+        .region(wanted)
+        .credentialsProvider(this.credentialsProvider)
+        .overrideConfiguration(ClientOverrideConfiguration.builder()
+            .retryStrategy(buildThrottlingResilientRetryStrategy())
+            .build())
+        .build());
+  }
+
+  /**
+   * Reboots one instance in one region, to take a single host away without disturbing anything else.
+   *
+   * <p>What in-region failover has to be triggered with on a global database, because the usual lever does not
+   * apply. {@link #crashInstance} fails the cluster over, which needs a writer to move - and a secondary region
+   * of a global database has none, only readers. Rebooting is narrower and is the right shape here: connections
+   * to that instance drop, the topology is untouched, no role changes, and the instance returns by itself, so the
+   * environment is the same afterwards for the next test.
+   *
+   * @param regionName the region the instance is in
+   * @param instanceId the instance to reboot
+   * @throws InterruptedException if interrupted while retrying
+   */
+  public void rebootInstanceIn(String regionName, String instanceId) throws InterruptedException {
+    final RdsClient client = rdsClientFor(regionName);
+    int remainingAttempts = 5;
+
+    // Kept so the final failure can say what actually went wrong. Retrying while discarding the cause turns an
+    // expired token or a missing permission into "the reboot could not be requested", which is true and useless -
+    // it sends the reader of a failed test looking at the instance rather than at their credentials.
+    Exception lastFailure = null;
+    String lastHttpStatus = null;
+
+    while (--remainingAttempts > 0) {
+      try {
+        final RebootDbInstanceResponse response = client.rebootDBInstance(
+            builder -> builder.dbInstanceIdentifier(instanceId).build());
+
+        if (response.sdkHttpResponse().isSuccessful()) {
+          LOGGER.finest(String.format("rebootDBInstance for %s in %s request is sent", instanceId, regionName));
+          return;
+        }
+
+        lastHttpStatus = response.sdkHttpResponse().statusCode()
+            + " " + response.sdkHttpResponse().statusText().orElse("");
+        LOGGER.finest(String.format("rebootDBInstance for %s in %s response: %s",
+            instanceId, regionName, lastHttpStatus));
+
+      } catch (final Exception e) {
+        lastFailure = e;
+        LOGGER.finest(String.format("rebootDBInstance '%s' in %s failed: %s",
+            instanceId, regionName, e.getMessage()));
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
+    }
+
+    final String detail = lastFailure != null
+        ? lastFailure.getMessage()
+        : "last response was " + lastHttpStatus;
+
+    throw new RuntimeException(
+        String.format("Failed to request a reboot of instance %s in %s: %s", instanceId, regionName, detail),
+        lastFailure);
+  }
+
+  /**
+   * Waits until an instance in a given region reports itself available.
+   *
+   * <p>Used to hand the environment back in the state it was found in. A rebooted reader is unavailable for a
+   * minute or two, and a later test connecting to it would fail for a reason that has nothing to do with what it
+   * is testing.
+   *
+   * @param regionName the region the instance is in
+   * @param instanceId the instance to wait for
+   * @param timeout how long to wait
+   * @throws RuntimeException if the instance is still not available when the timeout elapses
+   */
+  public void waitUntilInstanceAvailableIn(String regionName, String instanceId, Duration timeout) {
+    final RdsClient client = rdsClientFor(regionName);
+    final long deadline = System.nanoTime() + timeout.toNanos();
+
+    while (System.nanoTime() < deadline) {
+      try {
+        final DescribeDbInstancesResponse response = client.describeDBInstances(
+            DescribeDbInstancesRequest.builder().dbInstanceIdentifier(instanceId).build());
+
+        final String status = response.dbInstances().isEmpty()
+            ? null
+            : response.dbInstances().get(0).dbInstanceStatus();
+
+        if ("available".equalsIgnoreCase(status)) {
+          return;
+        }
+        LOGGER.finest(String.format("Waiting for %s in %s; status is %s", instanceId, regionName, status));
+
+      } catch (final DbInstanceNotFoundException e) {
+        LOGGER.finest(String.format("Instance %s in %s not found yet.", instanceId, regionName));
+      }
+
+      try {
+        TimeUnit.SECONDS.sleep(10);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Interrupted while waiting for an instance to become available.", e);
+      }
+    }
+
+    throw new RuntimeException(String.format(
+        "Instance %s in %s was not available within %d minutes.", instanceId, regionName, timeout.toMinutes()));
+  }
+
   public void rebootInstance(String instanceId) throws InterruptedException {
     int remainingAttempts = 5;
     while (--remainingAttempts > 0) {
@@ -2364,7 +2219,12 @@ public class AuroraTestUtility {
 
   protected String getInstanceIdSql(DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment) {
     switch (deployment) {
+      // A global database's regional clusters are Aurora clusters, so they answer the same question the same
+      // way - aurora_db_instance_identifier() and @@aurora_server_id are available on every member, primary
+      // region or secondary. Without this case every GDB test that asks "which instance am I on" fails with
+      // UnsupportedOperationException rather than with anything about what it was testing.
       case AURORA:
+      case AURORA_GLOBAL:
         switch (databaseEngine) {
           case MYSQL:
             return "SELECT @@aurora_server_id as id";
@@ -2679,6 +2539,141 @@ public class AuroraTestUtility {
     } else {
       LOGGER.finest("switchoverBlueGreenDeployment request is sent");
     }
+  }
+
+  /**
+   * Moves an Aurora global database's primary region to one of its secondary regions, without data loss.
+   *
+   * <p>A planned switchover, not a failover. RDS stops writes on the current primary, waits for the target to
+   * catch up, and then swaps the roles - so nothing is lost and the topology stays intact afterwards. That is
+   * what makes it usable in a test suite: an unplanned {@code FailoverGlobalCluster} leaves the old primary
+   * detached and needing to be rebuilt, which a shared environment cannot absorb more than once.
+   *
+   * <p>Issued against the global cluster, in the region the global cluster lives in - which is the region this
+   * utility is built for, because a global database's primary region is the composition's region. The member is
+   * named by ARN, since a cluster identifier is only unique within a region.
+   *
+   * @param globalClusterId the global cluster
+   * @param targetClusterArn the ARN of the regional cluster that should become primary
+   */
+  public void switchoverGlobalCluster(String globalClusterId, String targetClusterArn) {
+    SwitchoverGlobalClusterResponse response = rdsClient.switchoverGlobalCluster(
+        SwitchoverGlobalClusterRequest.builder()
+            .globalClusterIdentifier(globalClusterId)
+            .targetDbClusterIdentifier(targetClusterArn)
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      LOGGER.finest(String.format("switchoverGlobalCluster response: %d, %s",
+          response.sdkHttpResponse().statusCode(),
+          response.sdkHttpResponse().statusText()));
+      throw new RuntimeException(response.sdkHttpResponse().statusText().orElse("Unspecified error."));
+    } else {
+      LOGGER.finest("switchoverGlobalCluster request is sent");
+    }
+  }
+
+  /**
+   * Returns the region whose cluster currently holds the writer of a global database.
+   *
+   * <p>Read from the member list rather than from any endpoint, because that is the only place the answer is
+   * unambiguous: every region has a writer cluster endpoint and all of them answer, so connecting somewhere
+   * cannot tell you which region is primary.
+   *
+   * @param globalClusterId the global cluster
+   * @return the primary region, or {@code null} while a switchover is in progress and no member claims the role
+   */
+  public String getGlobalClusterPrimaryRegion(String globalClusterId) {
+    final DescribeGlobalClustersResponse response = rdsClient.describeGlobalClusters(
+        DescribeGlobalClustersRequest.builder()
+            .globalClusterIdentifier(globalClusterId)
+            .build());
+
+    for (final GlobalCluster global : response.globalClusters()) {
+      for (final GlobalClusterMember member : global.globalClusterMembers()) {
+        if (Boolean.TRUE.equals(member.isWriter())) {
+          return regionOfArn(member.dbClusterArn());
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Waits until a global database reports its writer in the given region.
+   *
+   * <p>What a switchover has to be waited on with. The API call returns as soon as the request is accepted, and
+   * the roles change some minutes later; a test that continued immediately would be asserting against the
+   * topology it started with.
+   *
+   * @param globalClusterId the global cluster
+   * @param region the region expected to hold the writer
+   * @param timeout how long to wait
+   * @throws RuntimeException if the writer is still elsewhere when the timeout elapses
+   */
+  public void waitUntilGlobalClusterPrimaryRegionIs(
+      String globalClusterId, String region, Duration timeout) {
+
+    final long deadline = System.nanoTime() + timeout.toNanos();
+
+    while (System.nanoTime() < deadline) {
+      final String primary = getGlobalClusterPrimaryRegion(globalClusterId);
+      if (region.equals(primary)) {
+        LOGGER.finest(String.format("Global cluster %s is now primary in %s", globalClusterId, region));
+        return;
+      }
+
+      LOGGER.finest(String.format("Waiting for %s to become primary in %s; it is %s",
+          globalClusterId, region, primary == null ? "mid-switchover" : "primary in " + primary));
+
+      try {
+        TimeUnit.SECONDS.sleep(20);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Interrupted while waiting for a global cluster switchover.", e);
+      }
+    }
+
+    throw new RuntimeException(String.format(
+        "Global cluster %s did not report its writer in %s within %d minutes.",
+        globalClusterId, region, timeout.toMinutes()));
+  }
+
+  /**
+   * Returns the ARN of one regional cluster of a global database.
+   *
+   * @param globalClusterId the global cluster
+   * @param region the region whose member is wanted
+   * @return the member's ARN
+   * @throws RuntimeException if that region is not a member, which means the test asked for a region the
+   *     environment was not built with
+   */
+  public String getGlobalClusterMemberArn(String globalClusterId, String region) {
+    final DescribeGlobalClustersResponse response = rdsClient.describeGlobalClusters(
+        DescribeGlobalClustersRequest.builder()
+            .globalClusterIdentifier(globalClusterId)
+            .build());
+
+    for (final GlobalCluster global : response.globalClusters()) {
+      for (final GlobalClusterMember member : global.globalClusterMembers()) {
+        if (region.equals(regionOfArn(member.dbClusterArn()))) {
+          return member.dbClusterArn();
+        }
+      }
+    }
+
+    throw new RuntimeException(String.format(
+        "Global cluster %s has no member in %s.", globalClusterId, region));
+  }
+
+  /** Returns the region an RDS ARN names, or null when it cannot be read. */
+  private static String regionOfArn(String arn) {
+    if (arn == null) {
+      return null;
+    }
+    // arn:aws:rds:<region>:<account>:cluster:<name>
+    final String[] parts = arn.split(":");
+    return parts.length > 3 ? parts[3] : null;
   }
 
   public boolean doesBlueGreenDeploymentExist(String blueGreenId) {

@@ -36,7 +36,9 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
 
       - name: 'Configure AWS credentials'
         id: creds
@@ -147,7 +149,7 @@ jobs:
 
       - name: 'Build and Test Encryption Plugin'
         run: |
-          ./gradlew --no-parallel --no-daemon test-kms-encryption
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-suite=encryption -Dorchestra-instances=2
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
           AWS_REGION: ${{ inputs.aws_region || secrets.AWS_DEFAULT_REGION }}

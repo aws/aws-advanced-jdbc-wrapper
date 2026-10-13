@@ -270,7 +270,14 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       // instance to position 0.
       TestDatabaseInfo dbInfo = testInfo.getDatabaseInfo();
       dbInfo.moveInstanceFirst(currentWriter);
-      testInfo.getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
+      if (testInfo.getRequest().getFeatures().contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
+        // Only when a proxy exists. @MakeSureFirstInstanceWriter is applied to many classes that never
+        // touch the proxy, and reordering a proxy list that was never built threw a NullPointerException
+        // here for every one of them - before the test body ran, so the failure named this helper rather
+        // than anything the test did. The reorder is bookkeeping to keep the two lists in step, so
+        // skipping it when there is no second list to keep in step is the whole fix.
+        testInfo.getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
+      }
 
       // Wait for cluster endpoint to resolve to the writer
       final boolean dnsOk = auroraUtil.waitDnsEqual(

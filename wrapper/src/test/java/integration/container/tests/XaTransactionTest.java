@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.XAConnection;
+import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.junit.jupiter.api.MethodOrderer;
@@ -100,6 +101,9 @@ public class XaTransactionTest {
   private void recreateTable() throws SQLException {
     try (final Connection conn = openPlainConnection();
         final Statement stmt = conn.createStatement()) {
+      // Bounded, because a branch left prepared by an earlier failure holds this table's lock and the
+      // server's default is to wait for it indefinitely. See XaTestUtility.boundLockWait.
+      XaTestUtility.boundLockWait(stmt);
       stmt.execute("DROP TABLE IF EXISTS " + TABLE);
       stmt.execute("CREATE TABLE " + TABLE + " (id INT NOT NULL PRIMARY KEY)");
     }
@@ -216,6 +220,9 @@ public class XaTransactionTest {
   @TestTemplate
   public void test_recover_returnsPreparedBranch() throws Exception {
     XaTestUtility.assumePreparedTransactionsSupported();
+    // Skipped rather than failed where the server will not let this user list in-doubt branches, which on
+    // MySQL 8 is a privilege the provider grants or does not. See XaTestUtility.assumeXaRecoverSupported.
+    XaTestUtility.assumeXaRecoverSupported();
     recreateTable();
     final int id = 4;
     final AwsWrapperXADataSource ds = createXaDataSource();
@@ -232,12 +239,28 @@ public class XaTransactionTest {
       xaResource.end(xid, XAResource.TMSUCCESS);
       xaResource.prepare(xid);
 
-      // The prepared (in-doubt) branch should be discoverable via recover and resolvable by Xid.
-      final Xid[] recovered = xaResource.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
-      final boolean found = recovered != null && Arrays.stream(recovered).anyMatch(r -> xidEquals(r, xid));
-      assertTrue(found, "prepared branch should be returned by recover()");
+      // Resolved on every path from here, because a prepared branch holds this table's locks until it is.
+      // Leaving one behind does not fail this test - it blocks the next one, which is a far worse way to
+      // find out. The rollback is best-effort and never replaces the real failure.
+      boolean resolved = false;
+      try {
+        // The prepared (in-doubt) branch should be discoverable via recover and resolvable by Xid.
+        final Xid[] recovered = xaResource.recover(XAResource.TMSTARTRSCAN | XAResource.TMENDRSCAN);
+        final boolean found = recovered != null && Arrays.stream(recovered).anyMatch(r -> xidEquals(r, xid));
+        assertTrue(found, "prepared branch should be returned by recover()");
 
-      xaResource.commit(xid, false);
+        xaResource.commit(xid, false);
+        resolved = true;
+      } finally {
+        if (!resolved) {
+          try {
+            xaResource.rollback(xid);
+          } catch (final XAException rollbackFailed) {
+            LOGGER.finest(() -> "Could not roll back the prepared branch after a failure: "
+                + rollbackFailed.getMessage());
+          }
+        }
+      }
     } finally {
       xaConn.close();
     }

@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.TestEnvironmentFeatures;
 import integration.TestInstanceInfo;
+import integration.TestTags;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriverProvider;
@@ -35,6 +36,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +54,12 @@ import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+// These tests need a global database, and this is what says so to the suites that do not provide one.
+// Without it they ran against a regional Aurora cluster, where the plugin under test has no secondary
+// region to fail over to, and twelve of thirteen failed: the conditions above are satisfied by any
+// Aurora cluster with two instances, so nothing else here was keeping them out. Every other Gdb* test
+// in this package carries this tag.
+@Tag(TestTags.GDB)
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 @Order(26)

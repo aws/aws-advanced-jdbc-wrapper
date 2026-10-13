@@ -41,36 +41,36 @@ jobs:
       matrix:
         include:
           # --- Aurora PG, 3 instances: 95.6 min of tests -> 3 shards (~47 min)
-          - { name: pg-aurora-3inst-1of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
-          - { name: pg-aurora-3inst-2of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
-          - { name: pg-aurora-3inst-3of3, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
+          - { name: pg-aurora-3inst-1of3, shard: 1, shardCount: 3 }
+          - { name: pg-aurora-3inst-2of3, shard: 2, shardCount: 3 }
+          - { name: pg-aurora-3inst-3of3, shard: 3, shardCount: 3 }
           # --- Aurora PG, single instance: 4.9 min of tests -> 1 shard
-          - { name: pg-aurora-1inst, task: test-all-pg-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
+          - { name: pg-aurora-1inst, shard: 1, shardCount: 1 }
 
           # --- Aurora MySQL (MySQL driver), 3 instances: 126.8 min -> 4 shards (~47 min)
-          - { name: mysql-aurora-3inst-1of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 4 }
-          - { name: mysql-aurora-3inst-2of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 4 }
-          - { name: mysql-aurora-3inst-3of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 4 }
-          - { name: mysql-aurora-3inst-4of4, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-1=true', shard: 4, shardCount: 4 }
-          - { name: mysql-aurora-1inst, task: test-all-mysql-aurora, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
+          - { name: mysql-aurora-3inst-1of4, shard: 1, shardCount: 4 }
+          - { name: mysql-aurora-3inst-2of4, shard: 2, shardCount: 4 }
+          - { name: mysql-aurora-3inst-3of4, shard: 3, shardCount: 4 }
+          - { name: mysql-aurora-3inst-4of4, shard: 4, shardCount: 4 }
+          - { name: mysql-aurora-1inst, shard: 1, shardCount: 1 }
 
           # --- Aurora MySQL (MariaDB driver), 3 instances: 114.8 min -> 3 shards (~54 min).
           #     This is the critical path; give it a 4th shard first if more clusters become available.
-          - { name: mysql-aurora-mariadb-3inst-1of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 1, shardCount: 3 }
-          - { name: mysql-aurora-mariadb-3inst-2of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 2, shardCount: 3 }
-          - { name: mysql-aurora-mariadb-3inst-3of3, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-1=true', shard: 3, shardCount: 3 }
-          - { name: mysql-aurora-mariadb-1inst, task: test-all-mysql-aurora-mariadb-driver, envArgs: '-Dtest-no-instances-3=true', shard: 1, shardCount: 1 }
+          - { name: mysql-aurora-mariadb-3inst-1of3, shard: 1, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-2of3, shard: 2, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-3inst-3of3, shard: 3, shardCount: 3 }
+          - { name: mysql-aurora-mariadb-1inst, shard: 1, shardCount: 1 }
 
           # --- RDS Multi-AZ MySQL cluster: 97.1 min -> 3 shards (~50 min)
-          - { name: mysql-multi-az-cluster-1of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 3 }
-          - { name: mysql-multi-az-cluster-2of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 3 }
-          - { name: mysql-multi-az-cluster-3of3, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 3, shardCount: 3 }
-          - { name: mysql-multi-az-instance, task: test-all-mysql-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
+          - { name: mysql-multi-az-cluster-1of3, shard: 1, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-2of3, shard: 2, shardCount: 3 }
+          - { name: mysql-multi-az-cluster-3of3, shard: 3, shardCount: 3 }
+          - { name: mysql-multi-az-instance, shard: 1, shardCount: 1 }
 
           # --- RDS Multi-AZ PG cluster: 44.2 min -> 2 shards (~43 min)
-          - { name: pg-multi-az-cluster-1of2, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 1, shardCount: 2 }
-          - { name: pg-multi-az-cluster-2of2, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-instance=true', shard: 2, shardCount: 2 }
-          - { name: pg-multi-az-instance, task: test-all-pg-multi-az, envArgs: '-Dtest-no-multi-az-cluster=true', shard: 1, shardCount: 1 }
+          - { name: pg-multi-az-cluster-1of2, shard: 1, shardCount: 2 }
+          - { name: pg-multi-az-cluster-2of2, shard: 2, shardCount: 2 }
+          - { name: pg-multi-az-instance, shard: 1, shardCount: 1 }
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -80,7 +80,9 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
           cache: 'gradle'
       - name: 'Configure AWS credentials'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
@@ -93,10 +95,20 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon ${{ matrix.task }} \
-            -Dtest-no-instances-2=true \
-            -Dtest-no-instances-5=true \
-            ${{ matrix.envArgs }} \
+          case "${{ matrix.name }}" in
+            pg-aurora-3inst-*)            ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=3" ;;
+            pg-aurora-1inst)              ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=1" ;;
+            mysql-aurora-mariadb-3inst-*) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=3" ;;
+            mysql-aurora-mariadb-1inst)   ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=1" ;;
+            mysql-aurora-3inst-*)         ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=3" ;;
+            mysql-aurora-1inst)           ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=1" ;;
+            mysql-multi-az-cluster-*)     ARGS="-Dorchestra-deployment=multi-az-cluster -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=3" ;;
+            mysql-multi-az-instance)      ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=1" ;;
+            pg-multi-az-cluster-*)        ARGS="-Dorchestra-deployment=multi-az-cluster -Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=3" ;;
+            pg-multi-az-instance)         ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=1" ;;
+            *) echo "Unknown matrix entry ${{ matrix.name }}"; exit 1 ;;
+          esac
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora $ARGS \
             -Dtest-shard-index=${{ matrix.shard }} \
             -Dtest-shard-count=${{ matrix.shardCount }}
         env:

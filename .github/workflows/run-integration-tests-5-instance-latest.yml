@@ -34,7 +34,9 @@ jobs:
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
@@ -46,7 +48,12 @@ jobs:
           output-credentials: true
       - name: Run 5-instance integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} -Dtest-no-instances-2=true -Dtest-no-instances-3=true -Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true
+          case "${{ matrix.dbEngine }}" in
+            mysql-aurora) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql" ;;
+            pg-aurora)    ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg" ;;
+            *) echo "Unknown dbEngine ${{ matrix.dbEngine }}"; exit 1 ;;
+          esac
+          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora $ARGS -Dorchestra-instances=5
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}

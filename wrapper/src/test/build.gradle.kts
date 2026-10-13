@@ -51,7 +51,6 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.20.4")
     testImplementation("org.testcontainers:mariadb:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
-    testImplementation("org.testcontainers:toxiproxy:1.20.4")
     testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
@@ -300,10 +299,31 @@ tasks.register<Test>("in-container") {
     val shardIndex = (System.getProperty("test-shard-index") ?: "1").toInt()
     val shardCount = (System.getProperty("test-shard-count") ?: "1").toInt()
 
+    // Explicit class selection, as an alternative to editing the filter below by hand. Takes a
+    // comma-separated list of Gradle test filter patterns, so a single class, a suffix wildcard, or a
+    // handful of classes can be selected from the command line:
+    //
+    //   -Dtest-classes=integration.container.tests.AwsIamIntegrationTest
+    //   -Dtest-classes=integration.container.tests.AwsIam*,integration.container.tests.BasicConnectivityTests
+    //
+    // Useful because a full run against a provisioned cluster takes about an hour, which is longer than a
+    // temporary AWS session token lives - so verifying one behaviour has to be able to run just that class.
+    val explicitClasses = System.getProperty("test-classes")
+
     if (shardCount <= 1) {
-        // modify below filter to select specific integration tests
-        // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
-        filter.includeTestsMatching("integration.container.tests.*")
+        if (!explicitClasses.isNullOrBlank()) {
+            explicitClasses.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .forEach { pattern ->
+                    println("Include tests matching: $pattern")
+                    filter.includeTestsMatching(pattern)
+                }
+        } else {
+            // modify below filter to select specific integration tests
+            // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
+            filter.includeTestsMatching("integration.container.tests.*")
+        }
     } else {
         require(shardIndex in 1..shardCount) {
             "test-shard-index must be between 1 and test-shard-count ($shardCount), got $shardIndex"
@@ -321,9 +341,32 @@ tasks.register<Test>("in-container") {
                 "in nonTestHelperClasses, so it is unclear whether they must be run. Rename them or " +
                 "add them to nonTestHelperClasses in wrapper/src/test/build.gradle.kts."
         }
-        val allClasses = discovered.filter { !nonTestHelperClasses.contains(it) }
+        var allClasses = discovered.filter { !nonTestHelperClasses.contains(it) }
+
+        // Sharding narrows whatever test-classes selected, rather than ignoring it.
+        //
+        // Previously the two did not compose: test-classes was only consulted when shardCount was 1, so
+        // asking for both silently ran the whole shard and dropped the selection. Silent is the problem -
+        // against a provisioned cluster that wastes most of an hour before the mistake is visible.
+        //
+        // Patterns are matched against discovered class names with '*' as a wildcard, which is the subset of
+        // Gradle's filter syntax these are written in.
+        if (!explicitClasses.isNullOrBlank()) {
+            val patterns = explicitClasses.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .map { Regex(Regex.escape(it).replace("\\*", "\\E.*\\Q")) }
+
+            allClasses = allClasses.filter { className -> patterns.any { it.matches(className) } }
+            require(allClasses.isNotEmpty()) {
+                "test-classes ($explicitClasses) matched none of the discovered test classes, so this " +
+                    "shard would have nothing to run."
+            }
+            println("test-classes narrowed the shardable set to ${allClasses.size} class(es)")
+        }
+
         require(allClasses.size >= shardCount) {
-            "test-shard-count ($shardCount) exceeds the number of discovered test classes " +
+            "test-shard-count ($shardCount) exceeds the number of test classes to shard " +
                 "(${allClasses.size}); some shards would have nothing to run."
         }
         val shardClasses = selectShard(allClasses, shardIndex, shardCount)
