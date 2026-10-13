@@ -169,8 +169,11 @@ public class AuroraStaleDnsHelper {
         );
       }
 
+      // The host recorded for the stale connection must not be reused for the writer connection.
+      this.pluginService.setRoutedHostSpec(null);
       final Connection writerConn = this.pluginService.connect(writerHost, props);
       if (isInitialConnection) {
+        this.pluginService.setRoutedHostSpec(writerHost);
         hostListProviderService.setInitialConnectionHostSpec(writerHost);
       }
 
