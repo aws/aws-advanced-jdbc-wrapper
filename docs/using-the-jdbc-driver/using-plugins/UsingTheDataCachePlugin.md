@@ -8,7 +8,7 @@ The cached value is a materialized copy of the rows, not the driver's own result
 
 ## Plugin Availability
 
-The plugin is available since version 1.0.0. The `dataCacheTtlMs` and `dataCacheMaxSize` parameters are available since version 4.4.0.
+The plugin is available since version 1.0.0. The `dataCacheTtlMs` and `dataCacheMaxSize` parameters are available since version 4.5.0.
 
 ## When not to use this plugin
 
@@ -46,13 +46,13 @@ ResultSet rs = stmt.executeQuery("SELECT code, rate FROM currency_rates");
 | Parameter                   | Available Since Version | Value   | Required | Description                                                                                                                                                                                                                              | Default Value |
 |-----------------------------|-------------------------|:-------:|:--------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | `dataCacheTriggerCondition` | 1.0.0                   | String  |   Yes    | A regular expression matched against the full SQL text. Results are cached only for statements that match. When unset, the plugin caches nothing.                                                                                         | `null`        |
-| `dataCacheTtlMs`            | 4.4.0                   | Long    |    No    | Time in milliseconds that a cached result stays valid. Since nothing invalidates a cached result on write, this is the longest an application can observe stale data. Set to `0` to keep entries until the cache is cleared.               | `300000`      |
-| `dataCacheMaxSize`          | 4.4.0                   | Long    |    No    | Maximum number of distinct SQL statements held in the cache. Once the limit is reached, expired entries are purged first; if the cache is still full, further results are returned to the application without being cached. Set to `0` for no limit. | `1000`        |
+| `dataCacheTtlMs`            | 4.5.0                   | Long    |    No    | Time in milliseconds that a cached result stays valid. Since nothing invalidates a cached result on write, this is the longest an application can observe stale data. Set to `0` to keep entries until the cache is cleared.               | `300000`      |
+| `dataCacheMaxSize`          | 4.5.0                   | Long    |    No    | Maximum number of distinct SQL statements held in the cache. Once the limit is reached, expired entries are purged first; if the cache is still full, further results are returned to the application without being cached. Set to `0` for no limit. | `1000`        |
 
 Both `dataCacheTtlMs` and `dataCacheMaxSize` must be zero or positive. A negative value throws an `IllegalArgumentException` when the property is read rather than being interpreted as "unlimited"; `0` is the value that opts out of expiration or the size limit.
 
 > [!WARNING]\
-> Setting `dataCacheTtlMs=0` and `dataCacheMaxSize=0` together leaves the cache unbounded in both staleness and size. That was the behaviour before version 4.4.0 and is not recommended.
+> Setting `dataCacheTtlMs=0` and `dataCacheMaxSize=0` together leaves the cache unbounded in both staleness and size. That was the behaviour before version 4.5.0 and is not recommended.
 
 ## Clearing the cache
 
