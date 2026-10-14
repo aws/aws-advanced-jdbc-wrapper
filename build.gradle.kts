@@ -17,6 +17,11 @@
 import com.github.vlsi.gradle.dsl.configureEach
 import com.github.vlsi.gradle.properties.dsl.props
 import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
+// Imported rather than fully qualified at the use site: inside a Kotlin DSL build script `java`
+// resolves to the `java` plugin extension, so `java.net.*` / `java.util.*` fail to compile.
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Base64
 
 plugins {
     java
@@ -171,17 +176,90 @@ allprojects {
     }
 }
 
-tasks.register<Exec>("postPublishToMaven") {
-    doFirst {
-        val username = System.getenv("MAVEN_USERNAME")
-        val password = System.getenv("MAVEN_PASSWORD")
+/**
+ * Transfers the staging repository created by the preceding upload to the Central Publisher Portal.
+ *
+ * This deliberately does NOT use `POST /manual/upload/defaultRepository/<namespace>`. That endpoint
+ * resolves a namespace to "the" default staging repository, and once a nested namespace was also
+ * registered on the same Sonatype account (`software.amazon.orchestra` alongside `software.amazon`)
+ * it resolved the parent to the child and answered
+ * `No repository found for .../software.amazon.orchestra--default-repository`. Looking the repository
+ * up by key removes that ambiguity. See
+ * https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/ ("Make Separate Requests").
+ *
+ * Two constraints this task depends on:
+ *  - The OSSRH Staging API isolates staging repositories by the uploading client's IP, so this must
+ *    run in the same CI job as the upload.
+ *  - Every HTTP call is status-checked. The previous implementation was a bare `curl` with no
+ *    `--fail`, so an API error printed under `BUILD SUCCESSFUL` and a release silently published
+ *    nothing to Maven Central.
+ */
+tasks.register("postPublishToMaven") {
+    group = "publishing"
+    description = "Transfers the staged release upload to the Central Publisher Portal."
 
-        commandLine(
-            "curl", "-X", "POST",
-            "-u", "$username:$password",
-            "-H", "Content-Type: application/json",
-            "-d", "{}",
-            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/software.amazon"
+    doLast {
+        val namespace = "software.amazon"
+        val apiBase = "https://ossrh-staging-api.central.sonatype.com"
+
+        val username = System.getenv("MAVEN_USERNAME")
+            ?: throw GradleException("MAVEN_USERNAME is not set; cannot promote the staging repository.")
+        val password = System.getenv("MAVEN_PASSWORD")
+            ?: throw GradleException("MAVEN_PASSWORD is not set; cannot promote the staging repository.")
+        val authorization = "Bearer " + Base64.getEncoder()
+            .encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
+
+        fun call(method: String, url: String): String {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = method
+                connection.setRequestProperty("Authorization", authorization)
+                connection.setRequestProperty("Accept", "application/json")
+                connection.connectTimeout = 30_000
+                connection.readTimeout = 120_000
+                if (method == "POST") {
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.outputStream.use { it.write("{}".toByteArray(Charsets.UTF_8)) }
+                }
+                val status = connection.responseCode
+                val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() } ?: ""
+                if (status !in 200..299) {
+                    throw GradleException("$method $url failed with HTTP $status: $body")
+                }
+                return body
+            } finally {
+                connection.disconnect()
+            }
+        }
+
+        // Defaults to ip=client, which is what we want: the repository we are promoting is the one
+        // this job's upload just created.
+        val response = call("GET", "$apiBase/manual/search/repositories?profile_id=$namespace")
+        val keys = Regex("\"key\"\\s*:\\s*\"([^\"]+)\"")
+            .findAll(response)
+            .map { it.groupValues[1] }
+            .toList()
+
+        if (keys.isEmpty()) {
+            throw GradleException(
+                "No staging repository found for namespace '$namespace'. Either the upload step did "
+                    + "not create one, or it was created from a different IP than this task is "
+                    + "calling from. Response: $response"
+            )
+        }
+        if (keys.size > 1) {
+            logger.lifecycle("Found {} staging repositories for '{}': {}", keys.size, namespace, keys)
+        }
+        keys.forEach { key ->
+            logger.lifecycle("Promoting staging repository '{}' to the Central Publisher Portal.", key)
+            call("POST", "$apiBase/manual/upload/repository/$key")
+        }
+        logger.lifecycle(
+            "Promoted {} staging repository/repositories. Verify at "
+                + "https://central.sonatype.com/publishing/deployments",
+            keys.size
         )
     }
 }
