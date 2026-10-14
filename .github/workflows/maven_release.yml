@@ -4,21 +4,20 @@ on:
   release:
     types:
       - published
-  # Manual trigger, for re-running a publish that failed after its release was already
-  # published. Re-running the release-triggered run is not a way out: it replays the same
-  # commit, and the tag of a published release must not be moved.
+  # Manual trigger, for republishing a tag whose automatic publish failed. Re-running the
+  # release-triggered run is not a way out: it replays the same commit with the same workflow
+  # file, and the tag of a published release must not be moved.
   #
-  # Two things to know before using it:
-  #   - GitHub only offers this trigger for workflow files that exist on the default branch,
-  #     and the run then executes the workflow file and the code from the ref you select.
-  #   - The published version comes from gradle.properties on the selected ref, NOT from a
-  #     tag. Selecting a ref whose gradle.properties says 4.5.0 publishes 4.5.0, whichever
-  #     branch or tag that ref happens to be. The 'version' input below exists so that a
-  #     mismatch fails the job instead of publishing something unintended.
+  # Pick the tag with the 'tag' input, not with the ref selector. The ref you dispatch against
+  # only decides which version of THIS WORKFLOW FILE runs - GitHub requires that ref's copy to
+  # declare 'workflow_dispatch', so in practice dispatch against the default branch. The
+  # artifacts are built from the 'tag' input, which is what gets published. That split is
+  # deliberate: it means a tag can be republished with the current publishing logic even when
+  # that tag predates it.
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to publish. Must match gradle.properties on the selected ref (e.g. 4.5.0).'
+      tag:
+        description: 'Tag to build and republish, e.g. 4.5.0. The published version comes from gradle.properties at this tag.'
         required: true
         type: string
 
@@ -34,37 +33,26 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 50
-      # Only for a manual run. A release-triggered run needs no such check: its ref is the
-      # tag of the release being published, so there is no ref to get wrong.
-      - name: 'Confirm the version on the selected ref'
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          # Via env rather than inlined into the script, so the value cannot be interpreted
-          # as shell.
-          REQUESTED_VERSION: ${{ inputs.version }}
+          # Empty on a release trigger, which leaves checkout at its default: the tag of the
+          # release being published.
+          ref: ${{ inputs.tag }}
+      # Does not gate anything - it records in the log which version this run published, so a
+      # run can be audited afterwards without guessing.
+      - name: 'Report the version being published'
         run: |
           set -euo pipefail
-          # Values are stripped of surrounding whitespace: .gitattributes marks the repository
-          # 'text=auto', so gradle.properties arrives with LF on a Linux runner, but a CRLF
-          # checkout would otherwise leave a trailing carriage return on every value and make
-          # every comparison below fail.
           prop() {
+            # Trailing whitespace is stripped because .gitattributes marks the repository
+            # 'text=auto'; a CRLF checkout would otherwise leave a carriage return behind.
             grep -E "^$1=" gradle.properties | cut -d= -f2 | tr -d '[:space:]'
           }
           major=$(prop 'aws-advanced-jdbc-wrapper\.version\.major')
           minor=$(prop 'aws-advanced-jdbc-wrapper\.version\.minor')
           subminor=$(prop 'aws-advanced-jdbc-wrapper\.version\.subminor')
           snapshot=$(prop 'snapshot')
-          declared="${major}.${minor}.${subminor}"
-          echo "ref declares version ${declared} (snapshot=${snapshot}); requested ${REQUESTED_VERSION}"
-          if [ "${declared}" != "${REQUESTED_VERSION}" ]; then
-            echo "::error::Requested ${REQUESTED_VERSION} but the selected ref declares ${declared}. Select the ref whose gradle.properties matches, or correct the input."
-            exit 1
-          fi
-          if [ "${snapshot}" != "false" ]; then
-            echo "::error::This ref has snapshot=${snapshot}; a release publish requires snapshot=false."
-            exit 1
-          fi
+          echo "event=${GITHUB_EVENT_NAME} checked out ref=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo detached) sha=$(git rev-parse HEAD)"
+          echo "publishing version ${major}.${minor}.${subminor} (snapshot=${snapshot})"
+          echo "### Publishing \`${major}.${minor}.${subminor}\` (snapshot=\`${snapshot}\`) from \`$(git rev-parse HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
       - name: 'Set up JDK 8'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
@@ -87,7 +75,76 @@ jobs:
       - name: 'Publish to Maven'
         run: |
           ./gradlew --no-parallel --no-daemon publishAllPublicationsToMavenRepository -Prelease=true -PjacocoEnabled=false -Psigning.keyId=${{secrets.GPG_KEY_ID}} -Psigning.password=${{secrets.GPG_PASSPHRASE}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)
-          ./gradlew --no-parallel --no-daemon postPublishToMaven
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      # The upload above only places files in a staging repository on the OSSRH Staging API.
+      # They reach the Central Publisher Portal - and therefore Maven Central - only once that
+      # repository is transferred, which is what this step does.
+      - name: 'Transfer the upload to the Portal'
+        if: github.event_name == 'release'
+        run: ./gradlew --no-parallel --no-daemon postPublishToMaven
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      # Same transfer, done here in the workflow rather than through the Gradle task, because
+      # a republished tag may predate the fixed task and would otherwise call the old
+      # implementation that asked for a repository by namespace and swallowed the error.
+      - name: 'Transfer the upload to the Portal (republish)'
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          api='https://ossrh-staging-api.central.sonatype.com'
+          auth=$(printf '%s:%s' "${MAVEN_USERNAME}" "${MAVEN_PASSWORD}" | base64 -w0)
+
+          get() {
+            curl -sS -o /tmp/staging.json -w '%{http_code}' \
+              -H "Authorization: Bearer ${auth}" \
+              -H 'Accept: application/json' \
+              "$1"
+          }
+
+          # Repositories are looked up by key rather than through
+          # /manual/upload/defaultRepository/<namespace>: that endpoint resolves a namespace to
+          # "the" default repository and, with a nested namespace registered on the same
+          # account, resolved software.amazon to software.amazon.orchestra and failed.
+          # 'ip' is left at its default of 'client', so only this runner's own upload matches.
+          for query in '?profile_id=software.amazon' ''; do
+            code=$(get "${api}/manual/search/repositories${query}")
+            if [ "${code}" != '200' ]; then
+              echo "::error::staging search '${query}' returned HTTP ${code}: $(cat /tmp/staging.json)"
+              exit 1
+            fi
+            echo "search '${query}' -> $(cat /tmp/staging.json)"
+            keys=$(grep -o '"key"[[:space:]]*:[[:space:]]*"[^"]*"' /tmp/staging.json \
+              | sed 's/.*"\([^"]*\)"$/\1/' || true)
+            if [ -n "${keys}" ]; then
+              break
+            fi
+          done
+
+          if [ -z "${keys}" ]; then
+            echo "::error::The upload left no staging repository behind, so there is nothing to transfer to the Portal and this run would publish nothing. Last search response: $(cat /tmp/staging.json)"
+            exit 1
+          fi
+
+          for key in ${keys}; do
+            echo "transferring staging repository ${key}"
+            code=$(curl -sS -o /tmp/upload.json -w '%{http_code}' -X POST \
+              -H "Authorization: Bearer ${auth}" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json' \
+              -d '{}' \
+              "${api}/manual/upload/repository/${key}")
+            if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+              echo "::error::transfer of ${key} returned HTTP ${code}: $(cat /tmp/upload.json)"
+              exit 1
+            fi
+            echo "transferred ${key}: $(cat /tmp/upload.json)"
+            echo "Transferred staging repository \`${key}\` to the Portal." >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo 'Review and release the deployment at https://central.sonatype.com/publishing/deployments'
