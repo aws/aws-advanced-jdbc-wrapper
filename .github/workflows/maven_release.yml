@@ -4,6 +4,23 @@ on:
   release:
     types:
       - published
+  # Manual trigger, for re-running a publish that failed after its release was already
+  # published. Re-running the release-triggered run is not a way out: it replays the same
+  # commit, and the tag of a published release must not be moved.
+  #
+  # Two things to know before using it:
+  #   - GitHub only offers this trigger for workflow files that exist on the default branch,
+  #     and the run then executes the workflow file and the code from the ref you select.
+  #   - The published version comes from gradle.properties on the selected ref, NOT from a
+  #     tag. Selecting a ref whose gradle.properties says 4.5.0 publishes 4.5.0, whichever
+  #     branch or tag that ref happens to be. The 'version' input below exists so that a
+  #     mismatch fails the job instead of publishing something unintended.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish. Must match gradle.properties on the selected ref (e.g. 4.5.0).'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +34,37 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 50
+      # Only for a manual run. A release-triggered run needs no such check: its ref is the
+      # tag of the release being published, so there is no ref to get wrong.
+      - name: 'Confirm the version on the selected ref'
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          # Via env rather than inlined into the script, so the value cannot be interpreted
+          # as shell.
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # Values are stripped of surrounding whitespace: .gitattributes marks the repository
+          # 'text=auto', so gradle.properties arrives with LF on a Linux runner, but a CRLF
+          # checkout would otherwise leave a trailing carriage return on every value and make
+          # every comparison below fail.
+          prop() {
+            grep -E "^$1=" gradle.properties | cut -d= -f2 | tr -d '[:space:]'
+          }
+          major=$(prop 'aws-advanced-jdbc-wrapper\.version\.major')
+          minor=$(prop 'aws-advanced-jdbc-wrapper\.version\.minor')
+          subminor=$(prop 'aws-advanced-jdbc-wrapper\.version\.subminor')
+          snapshot=$(prop 'snapshot')
+          declared="${major}.${minor}.${subminor}"
+          echo "ref declares version ${declared} (snapshot=${snapshot}); requested ${REQUESTED_VERSION}"
+          if [ "${declared}" != "${REQUESTED_VERSION}" ]; then
+            echo "::error::Requested ${REQUESTED_VERSION} but the selected ref declares ${declared}. Select the ref whose gradle.properties matches, or correct the input."
+            exit 1
+          fi
+          if [ "${snapshot}" != "false" ]; then
+            echo "::error::This ref has snapshot=${snapshot}; a release publish requires snapshot=false."
+            exit 1
+          fi
       - name: 'Set up JDK 8'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
         with:
