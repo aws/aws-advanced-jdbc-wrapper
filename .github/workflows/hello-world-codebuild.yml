@@ -1,0 +1,31 @@
+# Smoke test for the self-hosted CodeBuild runners.
+#
+# Does no real work: it prints the runner's identity and then sleeps for a minute so a run is
+# long enough to observe in the Actions UI and in the CodeBuild console. Use it to confirm a
+# runner starts, picks the job up and reports back before pointing a real workflow at it.
+# Manual dispatch only.
+
+name: Hello World (CodeBuild)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hello-world:
+    name: 'Hello World'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    timeout-minutes: 10
+    steps:
+      - name: Say hello
+        run: |
+          echo "Hello from $(hostname) on $(uname -srm)"
+          echo "Runner: ${RUNNER_NAME:-unknown} (${RUNNER_OS}/${RUNNER_ARCH})"
+          echo "Workflow: ${GITHUB_WORKFLOW} run ${GITHUB_RUN_ID} attempt ${GITHUB_RUN_ATTEMPT}"
+      - name: Simulate work
+        run: |
+          echo "Sleeping for 60 seconds..."
+          sleep 60
+          echo "Done."
