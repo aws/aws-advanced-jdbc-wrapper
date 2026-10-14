@@ -110,7 +110,7 @@ The file follows the [Agent Skills](https://agentskills.io) format. It is large:
    - **ChatGPT custom GPT**: upload it as a knowledge file.
    - **Amazon Bedrock**: send the file as the system prompt of your `InvokeModel` or `Converse` request. Avoid attaching it to a Bedrock knowledge base: a knowledge base passes the model only the passages that match each question, so the skill's interview steps and rules (section 1 of the file) may be missing.
    - **Plain chat (ChatGPT, Claude, Gemini)**: paste it at the start of a new conversation, then ask your question.
-3. Ask the AI for help. It will interview you when it needs more details.
+3. Ask the AI for help. It will interview you when it needs more details, or give you a configuration straight away if you ask it to skip the interview.
 
 ### Example prompts
 
