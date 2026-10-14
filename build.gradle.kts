@@ -234,19 +234,35 @@ tasks.register("postPublishToMaven") {
             }
         }
 
-        // Defaults to ip=client, which is what we want: the repository we are promoting is the one
-        // this job's upload just created.
-        val response = call("GET", "$apiBase/manual/search/repositories?profile_id=$namespace")
-        val keys = Regex("\"key\"\\s*:\\s*\"([^\"]+)\"")
-            .findAll(response)
-            .map { it.groupValues[1] }
-            .toList()
+        // Try the namespace-filtered search first, then an unfiltered one. Both leave `ip` at its
+        // default of `client`, so even the unfiltered query only returns repositories created from
+        // this runner - that is, by the upload that just ran in this job. The fallback exists
+        // because namespace handling on this service has proven unreliable: a request about
+        // `software.amazon` resolved to the registered child namespace `software.amazon.orchestra`.
+        val searches = listOf(
+            "$apiBase/manual/search/repositories?profile_id=$namespace",
+            "$apiBase/manual/search/repositories"
+        )
+        var response = ""
+        var keys = emptyList<String>()
+        for (search in searches) {
+            response = call("GET", search)
+            keys = Regex("\"key\"\\s*:\\s*\"([^\"]+)\"")
+                .findAll(response)
+                .map { it.groupValues[1] }
+                .toList()
+            if (keys.isNotEmpty()) {
+                break
+            }
+            logger.lifecycle("No staging repository returned by {} - response: {}", search, response)
+        }
 
         if (keys.isEmpty()) {
             throw GradleException(
-                "No staging repository found for namespace '$namespace'. Either the upload step did "
-                    + "not create one, or it was created from a different IP than this task is "
-                    + "calling from. Response: $response"
+                "No staging repository found after the upload, with or without a namespace filter. "
+                    + "The upload step did not leave one behind, so there is nothing to transfer to "
+                    + "the Central Publisher Portal and this release would otherwise publish "
+                    + "nothing. Last response: $response"
             )
         }
         if (keys.size > 1) {
