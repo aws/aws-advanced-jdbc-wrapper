@@ -17,7 +17,7 @@ permissions:
 # Each matrix entry below pins itself to exactly ONE test environment and runs ONE shard of the
 # integration test classes against its own database cluster, so the whole suite runs in parallel
 # instead of one engine at a time. 20 entries => at most 20 concurrent clusters / 50 DB instances,
-# and 20 inbound rules in the region's default security group (quota is 60 per security group).
+# and 2 inbound rules per distinct egress address in the region's default security group (quota 60).
 #
 # Shard counts are sized from the per-environment totals measured in run 30645460736, and the
 # per-class weight table in wrapper/src/test/build.gradle.kts keeps the shards within a group evenly
@@ -28,7 +28,7 @@ permissions:
 # one and is exercised by run-integration-tests-full-matrix-weekly.yml instead.
 concurrency:
   # All CodeBuild RDS workflows share this group, so CodeBuild runs still serialize against each
-  # other and only one sharded run at a time claims its 20 clusters / 20 security-group rules.
+  # other and only one sharded run at a time claims its 20 clusters and its security-group rules.
   # They deliberately no longer serialize against the GitHub-hosted workflows in the
   # `rds-integration-tests` group: a CodeBuild dispatch provisions its own runner, so it should
   # not inherit the GitHub runner queue.
@@ -145,8 +145,9 @@ jobs:
       # AuroraTestUtility.securityGroupRulesCleanUp(), run at the start of every job, leave the rule
       # alone for 12 hours and revoke it after that if revoke-runner-ip never ran. The sweep calls
       # Instant.parse on the remainder, so appending anything (a run id, say) opts the rule out.
-      # Jobs sharing an address share the rule: InvalidPermission.Duplicate means another job (or a
-      # leaked earlier rule) already grants this job what it needs.
+      # Jobs sharing an address share the rule. On InvalidPermission.Duplicate (a sibling's rule, or
+      # one leaked by an earlier run) the description is refreshed to now, so the sweep keeps the
+      # rule for this run. If 3306 succeeds and 5432 fails, nothing is recorded; the sweep reclaims it.
       - name: 'Authorize this job''s egress IP address'
         shell: bash
         env:
@@ -162,7 +163,12 @@ jobs:
                 --group-name default --ip-permissions "$permissions" 2>&1); then
               echo "Authorized TCP $port from $ipv4/32."
             elif [ "${output#*InvalidPermission.Duplicate}" != "$output" ]; then
-              echo "TCP $port from $ipv4/32 was already authorized."
+              if ! output=$(aws ec2 update-security-group-rule-descriptions-ingress \
+                  --group-name default --ip-permissions "$permissions" 2>&1); then
+                echo "$output"
+                exit 1
+              fi
+              echo "TCP $port from $ipv4/32 was already authorized; refreshed its description."
             else
               echo "$output"
               exit 1
