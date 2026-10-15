@@ -114,8 +114,9 @@ public class TestEnvironmentConfiguration {
   // the runner's address in the region's default security group, and does not ask
   // checkip.amazonaws.com for it. Intended for runner fleets where every job shares one egress
   // address (the self-hosted CodeBuild fleet behind a NAT gateway), where per-job rules collide:
-  // the first job to finish revokes the rule its siblings are still using. Such an address is
-  // stable, so it is allow-listed once, by hand, outside the test run.
+  // the first job to finish revokes the rule its siblings are still using. The address is then
+  // authorized once per run from outside the test host - see the CI job that does it in
+  // .github/workflows/run-integration-tests-latest-codebuild.yml.
   public final boolean skipIpAuthorization = Boolean.parseBoolean(System.getenv("SKIP_IP_AUTHORIZATION"));
 
   // "cluster-mysql", "instance-name", "cluster-multi-az-name"
