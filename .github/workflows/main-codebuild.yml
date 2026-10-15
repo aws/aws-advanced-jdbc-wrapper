@@ -1,0 +1,195 @@
+# CodeBuild variant of main.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: manual dispatch only.
+# There is deliberately no push or pull_request trigger: this repository is public and these
+# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+
+name: Main CI (CodeBuild)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-changes:
+    name: 'Check for changes'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    outputs:
+      only_docs: ${{ steps.check.outputs.ONLY_DOCS }}
+      docs_changed: ${{ steps.check.outputs.DOCS_CHANGED }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Get changed files'
+        id: changed-files-specific
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96  # v47.0.6
+        with:
+          files_yaml: |
+            doc:
+              - '**/*.md'
+              - '**/docs/**'
+              - '**/*.jpg'
+              - '**/*.png'
+      - name: 'Determine change type'
+        id: check
+        run: |
+          if [[ "${{ steps.changed-files-specific.outputs.doc_only_changed }}" == "true" || "${{ steps.changed-files-specific.outputs.doc_only_modified }}" == "true" ]]; then
+            echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
+          else
+            echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{ steps.changed-files-specific.outputs.doc_any_changed }}" == "true" ]]; then
+            echo "DOCS_CHANGED=true" >> $GITHUB_OUTPUT
+          else
+            echo "DOCS_CHANGED=false" >> $GITHUB_OUTPUT
+          fi
+
+  markdown-link-check:
+    name: 'Markdown link check'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs_changed == 'true' }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: tcort/github-action-markdown-link-check@e047c5b37f24ab722bbef1a27b6fab7f96bc4068  # v1
+        with:
+          use-quiet-mode: 'yes'
+          folder-path: 'docs'
+          config-file: '.github/workflows/mlc_config.json'
+
+  lint:
+    name: 'Static analysis'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run checkstyle and spotbugs'
+        run: ./gradlew --build-cache checkstyleMain checkstyleTest spotbugsMain spotbugsTest
+      # The JMH benchmarks live in the `jmh` source set of the :benchmarks module, so neither
+      # `test` nor `checkstyleMain` compiles them. They reach into the wrapper's internal APIs
+      # and silently stop compiling when those change, so compile them here.
+      - name: 'Compile JMH benchmarks'
+        run: ./gradlew --build-cache :benchmarks:jmhJar
+
+  # Nullness analysis in enforcing mode: any new Checker Framework finding fails the build.
+  # This lives in main.yml (rather than only in run-checker-framework.yml) so it is covered by
+  # the ci-gate aggregation below, which is the single required status check for branch
+  # protection. A job in a separate workflow file cannot be a `needs:` of ci-gate and would
+  # therefore run without blocking a merge.
+  #
+  # JDK 8 is the project's toolchain, but the checker needs JDK 11+, so the guarded block in
+  # wrapper/build.gradle.kts retargets compileJava onto JDK 17. Both JDKs are installed and
+  # Gradle's toolchain detection picks them up. No --build-cache here: this compile targets
+  # release 11 rather than the shipped Java 8, so it must not share cache entries with the
+  # normal compileJava.
+  checker-framework:
+    name: 'Nullness (Checker Framework)'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8 and 17'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: |
+            8
+            17
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run NullnessChecker (enforcing)'
+        run: |
+          ./gradlew --no-daemon --console=plain \
+            :aws-advanced-jdbc-wrapper:compileJava \
+            -PenableCheckerFramework
+
+  test:
+    name: 'Unit tests and coverage'
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: 'Run tests with coverage'
+        run: ./gradlew --build-cache test jacocoTestReport jacocoTestCoverageVerification
+      - name: 'Archive test results'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: 'junit-report'
+          path: ./wrapper/build/reports/tests/test/
+          retention-days: 3
+
+  ci-gate:
+    # Not the original's name: a dispatched run must never post the branch-protection check name.
+    name: 'CI Gate (CodeBuild)'
+    needs: [check-changes, markdown-link-check, lint, checker-framework, test]
+    if: ${{ always() }}
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Verify required jobs did not fail'
+        run: |
+          # Fail only if a needed job actually failed or was cancelled.
+          # Skipped jobs (e.g. tests on doc-only PRs) are treated as passing,
+          # so this gate is the single required status check for branch protection.
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" \
+             || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "A required job failed or was cancelled."
+            exit 1
+          fi
+          echo "All required jobs passed or were legitimately skipped."
