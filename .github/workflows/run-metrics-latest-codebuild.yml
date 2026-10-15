@@ -12,7 +12,9 @@ name: Run Metrics Latest (CodeBuild)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "8 0 * * *" # Runs daily at 8am UTC (1am PST)
+    # Daily 08:33 UTC (1:33 AM PDT / 12:33 AM PST). Slot 5 of 5 in the nightly CodeBuild RDS
+    # sequence listed in run-integration-tests-latest-codebuild.yml; the longest run goes last.
+    - cron: '33 8 * * *'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

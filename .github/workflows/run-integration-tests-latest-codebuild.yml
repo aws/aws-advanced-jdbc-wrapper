@@ -11,8 +11,12 @@ name: Run Aurora Integration Tests Latest (CodeBuild)
 on:
   workflow_dispatch:
   schedule:
-    # Every working day (Mon-Fri) at 12:30 AM PST (8:30 AM UTC), ~4.5 hours after "default"
-    - cron: '30 8 * * 2-6'
+    # Tue-Sat 07:09 UTC (Tue-Sat 12:09 AM PDT / Mon-Fri 11:09 PM PST). Slot 4 of 5 in the nightly
+    # sequence of the rds-integration-tests-codebuild group (UTC): java-lts 00:23, bg-latest 03:53,
+    # default 05:47, latest 07:09, metrics 08:33 daily; full-matrix-weekly Sundays 06:13. Each slot
+    # starts after the previous slot's longest measured run plus 20%, so the set ends by about
+    # 12:30 UTC. A late run makes the next one wait in the queue; nothing is cancelled.
+    - cron: '9 7 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
