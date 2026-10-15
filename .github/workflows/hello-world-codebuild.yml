@@ -162,6 +162,47 @@ jobs:
           echo "=== VERDICT: bind runner->container=$inbound, bind container->runner=$outbound, docker cp=$copy"
           rm -rf "$probe"
 
+      # Without a VPC, jobs leave through a pool of addresses. A per-job security group rule only
+      # works if a job keeps ONE address for its whole life, so sample it over a minute, one new
+      # connection per sample.
+      - name: Check whether the job's egress address is stable
+        continue-on-error: true
+        run: |
+          samples=""
+          for i in $(seq 1 12); do
+            ip=$(curl -fsS --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]' || echo "error")
+            echo "PROBE: egress sample $i: $ip"
+            samples="$samples $ip"
+            sleep 5
+          done
+          distinct=$(echo $samples | tr ' ' '\n' | sort -u | tr '\n' ' ')
+          echo "PROBE: distinct egress addresses: $distinct"
+
+      # In run 38623414788 Testcontainers waited for the test container's published port 5005 at
+      # 172.18.0.1 and timed out. Publish 5005 exactly as the harness does (nothing listens inside)
+      # plus 5006 with a real listener, then try each candidate host. The host that reaches 5005 is
+      # the TESTCONTAINERS_HOST_OVERRIDE value the integration workflow needs.
+      - name: Check which host address reaches a published container port
+        continue-on-error: true
+        run: |
+          image=public.ecr.aws/docker/library/alpine:latest
+          docker run -d --rm --name probe5005 -p 5005:5005 "$image" sleep 120 >/dev/null
+          docker run -d --rm --name probe5006 -p 5006:5006 "$image" \
+            sh -c 'while true; do nc -l -p 5006 < /dev/null; done' >/dev/null
+          sleep 3
+          gw_hex=$(awk '$2 == "00000000" { print $3; exit }' /proc/net/route)
+          gw=$(printf '%d.%d.%d.%d' 0x${gw_hex:6:2} 0x${gw_hex:4:2} 0x${gw_hex:2:2} 0x${gw_hex:0:2})
+          bridge=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || echo "")
+          echo "PROBE: runner default gateway: $gw, docker bridge gateway: ${bridge:-unknown}"
+          for port in 5005 5006; do
+            for host in localhost 127.0.0.1 "$bridge" 172.17.0.1 172.18.0.1 "$gw"; do
+              [ -z "$host" ] && continue
+              if timeout 3 bash -c "</dev/tcp/$host/$port" 2>/dev/null; then r=REACHABLE; else r=unreachable; fi
+              echo "PROBE: port $port at $host: $r"
+            done
+          done
+          docker rm -f probe5005 probe5006 >/dev/null 2>&1 || true
+
       - name: Simulate work
         run: |
           echo "Sleeping for 60 seconds..."
