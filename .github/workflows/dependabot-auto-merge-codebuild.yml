@@ -2,11 +2,13 @@
 #
 # Runs the same job on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
 # Triggers: the same as dependabot-auto-merge.yml (pull_request to main and main-2.x). That
-# trigger is commented out in dependabot-auto-merge.yml, so each event runs only this copy.
+# trigger is commented out in dependabot-auto-merge.yml, so each PR to main runs only this copy.
+# Dependabot opens PRs against main only (.github/dependabot.yml); a PR to main-2.x would use
+# main-2.x's own workflow files and run the GitHub-hosted original there.
 # pull_request: the job checks out no code, and its `if:` skips it, before any runner starts, for
 # every PR not authored by Dependabot, so a fork PR never gets one of these runners from here.
 # Beyond that, the repository requires maintainer approval before workflows run for all external
-# contributors, and each runner is ephemeral (one per job).
+# contributors.
 # The gh CLI used below ships with the CodeBuild image (aws/codebuild/amazonlinux-x86_64-standard:6.0
 # installs it from cli.github.com), so the steps are unchanged.
 

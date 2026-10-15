@@ -3,8 +3,9 @@
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
 # Triggers: the same as maven_snapshot.yml (push to main and main-2.x, manual dispatch).
 # The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
-# No double publish: the push trigger is commented out in maven_snapshot.yml, so each push
-# publishes its snapshot once, from here.
+# No double publish: the push trigger is commented out in maven_snapshot.yml, so each push to main
+# publishes its snapshot once, from here. Pushes to main-2.x use main-2.x's own workflow files, so
+# they keep publishing from the GitHub-hosted maven_snapshot.yml until this change is backported.
 
 name: 'Snapshot to Maven (CodeBuild)'
 

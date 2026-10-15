@@ -2,11 +2,15 @@
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
 # Triggers: the same as main.yml (manual dispatch, push to main and main-2.x, pull_request). The
-# push and pull_request triggers are commented out in main.yml, so each event runs only this copy.
-# pull_request runs a fork PR's code on these self-hosted runners. Mitigations: the repository
-# requires maintainer approval before workflows run for all external contributors, and each runner
-# is ephemeral (one per job). As on GitHub-hosted runners, a fork PR's run gets no secrets and no
-# id-token: write; it can still reach the CodeBuild project's own service role.
+# push and pull_request triggers are commented out in main.yml, so each event on main runs only
+# this copy. Pushes to main-2.x and PRs targeting it use main-2.x's own workflow files, so they keep
+# running the GitHub-hosted main.yml until this change is backported there.
+# pull_request runs a fork PR's code on these self-hosted runners. In place: the repository requires
+# maintainer approval before workflows run for all external contributors, and each job is a
+# separate CodeBuild build. As on GitHub-hosted runners, a fork PR's run gets no secrets and no
+# id-token: write. Residual risks: approved fork code can use the CodeBuild project's service role,
+# and if the project uses a CodeBuild Docker server (one daemon shared by its builds), it can leave
+# images there that later trusted jobs reuse.
 # The ci-gate job keeps the original's name, 'CI Gate', the required status check on main.
 
 name: Main CI (CodeBuild)

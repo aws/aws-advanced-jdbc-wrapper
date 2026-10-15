@@ -5,7 +5,8 @@
 # tag, described below).
 # The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
 # No double publish: the release trigger is commented out in maven_release.yml, so each published
-# release is published to Maven once, from here.
+# release is published to Maven once, from here. A release runs the workflow files of its tag's
+# commit, so only releases whose tag is on a commit that contains this file run it.
 
 name: 'Release to Maven (CodeBuild)'
 

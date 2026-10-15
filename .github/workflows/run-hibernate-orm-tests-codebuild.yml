@@ -2,7 +2,9 @@
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
 # Triggers: the same as run-hibernate-orm-tests.yml (manual dispatch, push to main and main-2.x).
-# The push trigger is commented out in run-hibernate-orm-tests.yml, so each push runs only this copy.
+# The push trigger is commented out in run-hibernate-orm-tests.yml, so each push to main runs only
+# this copy. Pushes to main-2.x use main-2.x's own workflow files, so they keep running the
+# GitHub-hosted original until this change is backported there.
 
 name: Run Hibernate ORM integration tests (CodeBuild)
 
