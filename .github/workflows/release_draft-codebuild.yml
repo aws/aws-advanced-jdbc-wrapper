@@ -1,19 +1,22 @@
 # CodeBuild variant of release_draft.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the same as release_draft.yml (push of a tag X.Y.Z), plus manual dispatch.
 # The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
-# The original stays active and runs for every pushed release tag, so this copy has no tag-push
-# trigger; a second one would create a second draft release. Dispatch it against the release tag
-# ("Use workflow from" > Tags): the version and the release's tag come from github.ref, which must
-# be refs/tags/X.Y.Z. Only tags created after this file reached main contain it and can be used.
-# The provenance job calls the SLSA reusable workflow, which picks its own GitHub-hosted runner.
+# No second draft release: the tag-push trigger is commented out in release_draft.yml, so each
+# release tag drafts one release, from here. A tag runs the workflow files of its own commit, so
+# only tags on commits that contain this file run it. To re-run by hand, dispatch against the
+# release tag ("Use workflow from" > Tags): the version and the release's tag come from github.ref,
+# which must be refs/tags/X.Y.Z.
+# The provenance job calls the SLSA generator's reusable workflow, which always runs on
+# GitHub-hosted runners; a caller cannot move it. It attests the jars the build job made here.
 
 name: 'Release Draft (CodeBuild)'
 
 on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
 
 permissions:

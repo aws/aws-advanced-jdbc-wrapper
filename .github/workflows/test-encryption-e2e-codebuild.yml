@@ -1,9 +1,9 @@
 # CodeBuild variant of test-encryption-e2e.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the same as test-encryption-e2e.yml (manual dispatch, push to main and
+# kms_encryption_rebased). The push trigger is commented out in test-encryption-e2e.yml, so each
+# push runs only this copy.
 # Shares the rds-integration-tests-codebuild concurrency group with the other CodeBuild RDS
 # workflows - see the caution on that group in run-integration-tests-latest-codebuild.yml.
 
@@ -11,6 +11,10 @@ name: End-to-End Encryption Tests (CodeBuild)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - kms_encryption_rebased
 
 concurrency:
   # Shared by every CodeBuild RDS workflow, so only one of them at a time claims DB clusters and

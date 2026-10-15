@@ -1,14 +1,28 @@
 # CodeBuild variant of main.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the same as main.yml (manual dispatch, push to main and main-2.x, pull_request). The
+# push and pull_request triggers are commented out in main.yml, so each event runs only this copy.
+# pull_request runs a fork PR's code on these self-hosted runners. Mitigations: the repository
+# requires maintainer approval before workflows run for all external contributors, and each runner
+# is ephemeral (one per job). As on GitHub-hosted runners, a fork PR's run gets no secrets and no
+# id-token: write; it can still reach the CodeBuild project's own service role.
+# The ci-gate job keeps the original's name, 'CI Gate', the required status check on main.
 
 name: Main CI (CodeBuild)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - main-2.x
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '**/release_draft.yml'
+      - '**/maven*.yml'
 
 concurrency:
   # Runs in this group execute one at a time; with `queue: max`, later runs wait in FIFO order
@@ -178,8 +192,7 @@ jobs:
           retention-days: 3
 
   ci-gate:
-    # Not the original's name: a dispatched run must never post the branch-protection check name.
-    name: 'CI Gate (CodeBuild)'
+    name: 'CI Gate'
     needs: [check-changes, markdown-link-check, lint, checker-framework, test]
     if: ${{ always() }}
     runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}

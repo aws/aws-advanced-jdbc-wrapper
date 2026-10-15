@@ -1,14 +1,17 @@
 # CodeBuild variant of run-hibernate-orm-tests.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the same as run-hibernate-orm-tests.yml (manual dispatch, push to main and main-2.x).
+# The push trigger is commented out in run-hibernate-orm-tests.yml, so each push runs only this copy.
 
 name: Run Hibernate ORM integration tests (CodeBuild)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - main-2.x
 
 permissions:
   contents: read

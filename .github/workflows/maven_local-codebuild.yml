@@ -1,9 +1,7 @@
 # CodeBuild variant of maven_local.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: manual dispatch only, the same as maven_local.yml.
 # The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
 # publishToMavenLocal writes to the runner's own ~/.m2, which goes away with the runner, so a run
 # here only proves that the signed build and publication succeed.

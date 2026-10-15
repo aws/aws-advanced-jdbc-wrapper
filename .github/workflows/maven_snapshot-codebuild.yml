@@ -1,16 +1,18 @@
 # CodeBuild variant of maven_snapshot.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the same as maven_snapshot.yml (push to main and main-2.x, manual dispatch).
 # The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
-# The original stays active and publishes a snapshot on every push to main and main-2.x, so this
-# copy has no push trigger; a push-triggered copy would publish every snapshot twice.
+# No double publish: the push trigger is commented out in maven_snapshot.yml, so each push
+# publishes its snapshot once, from here.
 
 name: 'Snapshot to Maven (CodeBuild)'
 
 on:
+  push:
+    branches:
+      - main
+      - main-2.x
   workflow_dispatch:
 
 permissions:

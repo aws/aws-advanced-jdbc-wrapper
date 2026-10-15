@@ -1,16 +1,18 @@
 # CodeBuild variant of maven_release.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the same as maven_release.yml (release published, plus manual dispatch to republish a
+# tag, described below).
 # The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
-# There is deliberately no release trigger either: the original still publishes every published
-# release, so a release-triggered copy would publish it twice. Dispatch it as described below.
+# No double publish: the release trigger is commented out in maven_release.yml, so each published
+# release is published to Maven once, from here.
 
 name: 'Release to Maven (CodeBuild)'
 
 on:
+  release:
+    types:
+      - published
   # Manual trigger, for republishing a tag whose automatic publish failed. Re-running the
   # release-triggered run is not a way out: it replays the same commit with the same workflow
   # file, and the tag of a published release must not be moved.

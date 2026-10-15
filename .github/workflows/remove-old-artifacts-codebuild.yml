@@ -1,9 +1,8 @@
 # CodeBuild variant of remove-old-artifacts.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch, plus the schedule moved here from remove-old-artifacts.yml.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: the schedule of remove-old-artifacts.yml (re-timed; see the cron below), plus manual
+# dispatch. The schedule is commented out in remove-old-artifacts.yml, so only this copy runs on schedule.
 
 name: Remove Old Artifacts (CodeBuild)
 

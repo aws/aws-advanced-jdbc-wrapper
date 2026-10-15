@@ -1,9 +1,7 @@
 # CodeBuild variant of mysql_advanced_performance.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
-# There is deliberately no push or pull_request trigger: this repository is public and these
-# self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
+# Triggers: manual dispatch only, the same as mysql_advanced_performance.yml.
 # Shares the rds-integration-tests-codebuild concurrency group with the other CodeBuild RDS
 # workflows - see the caution on that group in run-integration-tests-latest-codebuild.yml.
 
