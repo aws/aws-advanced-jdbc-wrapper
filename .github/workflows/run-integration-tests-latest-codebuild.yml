@@ -1,14 +1,18 @@
 # CodeBuild variant of run-integration-tests-latest.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Manual dispatch only: the original keeps the schedule trigger, so this copy never
-# provisions a second set of RDS clusters alongside it. It uses its own concurrency group, so a
-# run here waits only behind other CodeBuild RDS workflows - see the caution on that group below.
+# Manual dispatch, plus the schedule moved here from the original (where it is now commented
+# out), so the scheduled suite still provisions only one set of RDS clusters. It uses its own
+# concurrency group, so a run here waits only behind other CodeBuild RDS workflows - see the
+# caution on that group below.
 
 name: Run Aurora Integration Tests Latest (CodeBuild)
 
 on:
   workflow_dispatch:
+  schedule:
+    # Every working day (Mon-Fri) at 12:30 AM PST (8:30 AM UTC), ~4.5 hours after "default"
+    - cron: '30 8 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

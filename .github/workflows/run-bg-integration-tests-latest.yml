@@ -2,9 +2,10 @@ name: Run Blue/Green Integration Tests Latest
 
 on:
   workflow_dispatch:
-  schedule:
-    # Every working day (Mon-Fri) at 8:00 PM PST (4:00 AM UTC next day)
-    - cron: '0 4 * * 2-6'
+  # The schedule moved to the CodeBuild variant run-bg-integration-tests-latest-codebuild.yml.
+  # schedule:
+  #   # Every working day (Mon-Fri) at 8:00 PM PST (4:00 AM UTC next day)
+  #   - cron: '0 4 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

@@ -1,7 +1,7 @@
 # CodeBuild variant of run-integration-tests-full-matrix-weekly.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
+# Triggers: manual dispatch, plus the schedule moved here from run-integration-tests-full-matrix-weekly.yml.
 # There is deliberately no push or pull_request trigger: this repository is public and these
 # self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
 # Shares the rds-integration-tests-codebuild concurrency group with the other CodeBuild RDS
@@ -11,6 +11,10 @@ name: Run Aurora Integration Tests Full Matrix Weekly (CodeBuild)
 
 on:
   workflow_dispatch:
+  schedule:
+    # Sundays at 12:30 AM PST (8:30 AM UTC). Sunday is the only day with no other scheduled
+    # integration test workflow, so this never has to queue behind one.
+    - cron: '30 8 * * 0'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

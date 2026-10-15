@@ -1,7 +1,7 @@
 # CodeBuild variant of run-bg-integration-tests-latest.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only.
+# Triggers: manual dispatch, plus the schedule moved here from run-bg-integration-tests-latest.yml.
 # There is deliberately no push or pull_request trigger: this repository is public and these
 # self-hosted runners hold AWS credentials, so they must never run code from a fork's pull request.
 # Shares the rds-integration-tests-codebuild concurrency group with the other CodeBuild RDS
@@ -11,6 +11,9 @@ name: Run Blue/Green Integration Tests Latest (CodeBuild)
 
 on:
   workflow_dispatch:
+  schedule:
+    # Every working day (Mon-Fri) at 8:00 PM PST (4:00 AM UTC next day)
+    - cron: '0 4 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

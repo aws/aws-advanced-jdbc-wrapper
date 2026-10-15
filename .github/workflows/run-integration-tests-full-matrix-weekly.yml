@@ -2,10 +2,11 @@ name: Run Aurora Integration Tests Full Matrix Weekly
 
 on:
   workflow_dispatch:
-  schedule:
-    # Sundays at 12:30 AM PST (8:30 AM UTC). Sunday is the only day with no other scheduled
-    # integration test workflow, so this never has to queue behind one.
-    - cron: '30 8 * * 0'
+  # The schedule moved to the CodeBuild variant run-integration-tests-full-matrix-weekly-codebuild.yml.
+  # schedule:
+  #   # Sundays at 12:30 AM PST (8:30 AM UTC). Sunday is the only day with no other scheduled
+  #   # integration test workflow, so this never has to queue behind one.
+  #   - cron: '30 8 * * 0'
 
 permissions:
   id-token: write   # This is required for requesting the JWT

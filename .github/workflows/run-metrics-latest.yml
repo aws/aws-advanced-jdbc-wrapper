@@ -2,8 +2,9 @@ name: Run Metrics Latest
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "8 0 * * *" # Runs daily at 8am UTC (1am PST)
+  # The schedule moved to the CodeBuild variant run-metrics-latest-codebuild.yml.
+  # schedule:
+  #   - cron: "8 0 * * *" # Runs daily at 8am UTC (1am PST)
 
 permissions:
   id-token: write   # This is required for requesting the JWT
