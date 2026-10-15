@@ -91,14 +91,20 @@ jobs:
       # AuroraTestUtility.ec2AuthorizeIP creates: a standing all-ports rule trips port-restriction
       # compliance checks such as AWS Config's vpc-sg-open-only-to-authorized-ports.
       #
-      # The description must not start with "Test run at ":
-      # AuroraTestUtility.securityGroupRulesCleanUp() only ever considers inbound rules whose
-      # description starts with that prefix and parses as an instant older than 12 hours, so a rule
-      # described this way is never examined by that sweep and cannot be deleted under a running job.
+      # The description follows the harness's own "Test run at <instant>" convention on purpose,
+      # because that convention is what reclaims a leaked rule. AuroraTestUtility
+      # .securityGroupRulesCleanUp() runs at the start of every job and considers only inbound
+      # rules described that way: it skips any whose instant is less than 12 hours old, so it
+      # cannot delete this rule while the run is using it, and revokes the older ones. A test run
+      # is assumed to finish well within 12 hours, so anything older is stale by definition. If
+      # the revoke job below never runs - a hard-cancelled run, a lost runner - a later run's
+      # sweep cleans this rule up. Keep the description EXACTLY "Test run at " plus an ISO-8601
+      # instant: the sweep calls Instant.parse on the remainder, and appending anything (a run id,
+      # say) makes the parse throw, which silently opts the rule out of ever being reclaimed.
       - name: 'Authorize the fleet egress IP address'
         run: |
           ipv4='${{ steps.ip.outputs.ipv4 }}'
-          description="CodeBuild run ${{ github.run_id }} - integration tests"
+          description="Test run at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           for port in 3306 5432; do
             permissions=$(printf \
               '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32","Description":"%s"}]}]' \
