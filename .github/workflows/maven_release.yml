@@ -1,9 +1,10 @@
 name: 'Release to Maven'
 
 on:
-  release:
-    types:
-      - published
+  # The release trigger moved to the CodeBuild variant maven_release-codebuild.yml.
+  # release:
+  #   types:
+  #     - published
   # Manual trigger, for republishing a tag whose automatic publish failed. Re-running the
   # release-triggered run is not a way out: it replays the same commit with the same workflow
   # file, and the tag of a published release must not be moved.

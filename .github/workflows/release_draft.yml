@@ -1,9 +1,12 @@
 name: 'Release Draft'
 
 on:
-  push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+  # Manual dispatch only, so the file stays a valid workflow now that its tag-push trigger has moved.
+  workflow_dispatch:
+  # The tag-push trigger moved to the CodeBuild variant release_draft-codebuild.yml.
+  # push:
+  #   tags:
+  #     - '[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: read

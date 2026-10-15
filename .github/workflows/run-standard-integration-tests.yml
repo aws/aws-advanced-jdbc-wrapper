@@ -2,16 +2,17 @@ name: Run Standard Integration Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - main-2.x
-  pull_request:
-    branches:
-      - '*'
-    paths-ignore:
-      - '**/release_draft.yml'
-      - '**/maven*.yml'
+  # The push and pull_request triggers moved to the CodeBuild variant run-standard-integration-tests-codebuild.yml.
+  # push:
+  #   branches:
+  #     - main
+  #     - main-2.x
+  # pull_request:
+  #   branches:
+  #     - '*'
+  #   paths-ignore:
+  #     - '**/release_draft.yml'
+  #     - '**/maven*.yml'
 
 permissions:
   contents: read

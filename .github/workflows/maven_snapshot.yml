@@ -1,10 +1,11 @@
 name: 'Snapshot to Maven'
 
 on:
-  push:
-    branches:
-      - main
-      - main-2.x
+  # The push trigger moved to the CodeBuild variant maven_snapshot-codebuild.yml.
+  # push:
+  #   branches:
+  #     - main
+  #     - main-2.x
   workflow_dispatch:
 
 permissions:

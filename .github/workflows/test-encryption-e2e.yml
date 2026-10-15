@@ -2,10 +2,11 @@ name: End-to-End Encryption Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - kms_encryption_rebased
+  # The push trigger moved to the CodeBuild variant test-encryption-e2e-codebuild.yml.
+  # push:
+  #   branches:
+  #     - main
+  #     - kms_encryption_rebased
 
 concurrency:
   # These workflows create real RDS clusters and whitelist the runner's IP in the region's
