@@ -38,7 +38,6 @@ concurrency:
   # suite targets its own AWS region (independent quotas), do not dispatch it while a
   # GitHub-hosted RDS workflow is running.
   group: rds-integration-tests-codebuild
-  queue: max
 
 env:
   # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
