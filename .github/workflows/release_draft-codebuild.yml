@@ -1,0 +1,152 @@
+# CodeBuild variant of release_draft.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: the same as release_draft.yml (push of a tag X.Y.Z), plus manual dispatch.
+# The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
+# No second draft release: the tag-push trigger is commented out in release_draft.yml, so each
+# release tag drafts one release, from here. A tag runs the workflow files of its own commit, so
+# only tags on commits that contain this file run it. To re-run by hand, dispatch against the
+# release tag ("Use workflow from" > Tags): the version and the release's tag come from github.ref,
+# which must be refs/tags/X.Y.Z.
+# The provenance job calls the SLSA generator's reusable workflow, which always runs on
+# GitHub-hosted runners; a caller cannot move it. It attests the jars the build job made here.
+
+name: 'Release Draft (CodeBuild)'
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 'Build Release Artifacts'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: 'Clone Repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Build Driver'
+        run: |
+          ./gradlew --no-parallel --no-daemon -x test build
+          ./gradlew --no-parallel --no-daemon -x test shadowJar
+      - name: 'Set Version Env Variable'
+        id: version
+        run: |
+          echo "version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+      - name: 'Get Release Details'
+        run: |
+          export RELEASE_DETAILS="$(awk -vN=2 'n<N;/^## /{++n}' CHANGELOG.md)"
+          export RELEASE_DETAILS="$(sed '${/^# /d;}' <<< "$RELEASE_DETAILS")"
+          export RELEASE_DETAILS="$(sed '$d' <<< "$RELEASE_DETAILS")"
+          touch RELEASE_DETAILS.md
+          echo "$RELEASE_DETAILS" > RELEASE_DETAILS.md
+      - name: 'Validate GPG secrets'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+          if [ -z "$GPG_PASSPHRASE" ]; then
+            echo "GPG_PASSPHRASE secret is empty or missing"
+            exit 1
+          fi
+      - name: 'Install GPG Secret Key'
+        id: import_gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "test" > ~/.gradle/test.txt
+          gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} ~/.gradle/test.txt && echo "The correct passphrase was entered for this key"
+          gpg --verify --batch ~/.gradle/test.txt.asc ~/.gradle/test.txt && echo "Signature has verified"
+      - name: 'Sign Jars'
+        working-directory: ./wrapper
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          for jar in build/libs/*.jar; do gpg --detach-sign --batch --armor --pinentry-mode loopback --passphrase ${{secrets.GPG_PASSPHRASE}} $jar; done
+          for jar in build/libs/*.jar; do gpg --verify --batch $jar.asc $jar; done
+      - name: 'Generate subject digests'
+        id: hash
+        working-directory: ./wrapper/build/libs
+        run: |
+          echo "hashes=$(sha256sum * | base64 -w0)" >> $GITHUB_OUTPUT
+      - name: 'Upload build artifacts'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: release-artifacts
+          path: ./wrapper/build/libs/*
+          if-no-files-found: error
+          retention-days: 5
+      - name: 'Upload release details'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: release-details
+          path: RELEASE_DETAILS.md
+          retention-days: 5
+
+  provenance:
+    name: 'Generate SLSA Provenance'
+    needs: build
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: false
+
+  release:
+    name: 'Create Draft Release'
+    needs: [build, provenance]
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: write
+    steps:
+      - name: 'Download build artifacts'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: release-artifacts
+          path: ./artifacts
+      - name: 'Download release details'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: release-details
+      - name: 'Download SLSA provenance'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: ${{ needs.provenance.outputs.provenance-name }}
+          path: ./provenance
+      - name: 'Upload to Draft Release'
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1
+        with:
+          draft: true
+          name: "AWS Advanced JDBC Wrapper - v${{ needs.build.outputs.version }}"
+          bodyFile: RELEASE_DETAILS.md
+          artifacts: ./artifacts/*,./provenance/*
+          token: ${{ secrets.GITHUB_TOKEN }}

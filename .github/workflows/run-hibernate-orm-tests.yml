@@ -2,10 +2,11 @@ name: Run Hibernate ORM integration tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - main-2.x
+  # The push trigger moved to the CodeBuild variant run-hibernate-orm-tests-codebuild.yml.
+  # push:
+  #   branches:
+  #     - main
+  #     - main-2.x
 
 permissions:
   contents: read

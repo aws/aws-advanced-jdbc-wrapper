@@ -1,0 +1,47 @@
+# CodeBuild variant of maven_local.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: manual dispatch only, the same as maven_local.yml.
+# The runners are ephemeral (one per job per run id), so they may hold signing and publishing secrets.
+# publishToMavenLocal writes to the runner's own ~/.m2, which goes away with the runner, so a run
+# here only proves that the signed build and publication succeed.
+
+name: 'Release to Maven Local (CodeBuild)'
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-latest-jdbc-wrapper-release-to-maven-local:
+    name: 'Build And Release to Maven Local'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Clone Repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Build Driver'
+        run: |
+          ./gradlew --no-parallel --no-daemon -x test build
+          ./gradlew --no-parallel --no-daemon -x test shadowJar
+      - name: "Decode Key Ring"
+        run: |
+          echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
+          base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+      - name: 'Install GPG Secret Key'
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd  # v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: 'Publish to Maven'
+        run: |
+          ./gradlew --no-parallel --no-daemon publishToMavenLocal -Prelease=true -PjacocoEnabled=false -Psigning.keyId=${{secrets.GPG_KEY_ID}} -Psigning.password=${{secrets.GPG_PASSPHRASE}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)

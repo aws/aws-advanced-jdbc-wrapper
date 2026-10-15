@@ -1,0 +1,54 @@
+# CodeBuild variant of scorecard.yml.
+#
+# Runs the same job on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: the same as scorecard.yml (push to main, weekly schedule, manual dispatch). They are
+# commented out in scorecard.yml, so each event runs only this copy.
+# Publishing does not work from here. The Scorecard API accepts published results only from a job
+# on a GitHub-hosted Ubuntu runner (https://github.com/ossf/scorecard-action/blob/main/README.md,
+# "Workflow Restrictions"), so it rejects this job's publish. The pinned v2.4.4 reports the
+# rejection as a warning annotation and the step still succeeds (ossf/scorecard-action#1625; later
+# versions keep that as the fail_on_publish_error: false default). The OpenSSF badge in README.md
+# and the score on api.scorecard.dev therefore stop getting this workflow's results; the SARIF file
+# is still uploaded as a workflow artifact. To publish again, uncomment push and schedule in
+# scorecard.yml and comment them out here.
+# The runner-independent rules from that section still hold: no top-level env or defaults, no
+# workflow-level write permissions, and id-token: write only on the scorecard job.
+
+name: OpenSSF Scorecard (CodeBuild)
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  scorecard:
+    name: 'Run OpenSSF Scorecard'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      security-events: write
+      id-token: write
+      actions: read
+      contents: read
+    steps:
+      - name: 'Clone Repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Run Scorecard'
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+      - name: 'Upload Scorecard SARIF'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: SARIF file
+          path: scorecard-results.sarif
+          retention-days: 5

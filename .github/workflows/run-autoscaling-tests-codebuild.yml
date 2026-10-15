@@ -1,0 +1,145 @@
+# CodeBuild variant of run-autoscaling-tests.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: manual dispatch only, the same as run-autoscaling-tests.yml.
+# Shares the rds-integration-tests-codebuild concurrency group with the other CodeBuild RDS
+# workflows - see the caution on that group in run-integration-tests-latest-codebuild.yml.
+
+name: Run Autoscaling Tests (CodeBuild)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+concurrency:
+  # Shared by every CodeBuild RDS workflow, so only one of them at a time claims DB clusters and
+  # security-group rules. See run-integration-tests-latest-codebuild.yml for why this is separate
+  # from the GitHub-hosted rds-integration-tests group, and for the caution that goes with that.
+  # Runs in this group execute one at a time; with `queue: max`, later runs wait in FIFO order
+  # (up to 100 pending) instead of being cancelled.
+  group: rds-integration-tests-codebuild
+  queue: max
+
+env:
+  # The CodeBuild runners share outbound IPs and have no Docker Hub credentials, so take the
+  # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
+  TEST_CONTAINER_REGISTRY: ecr
+
+  # The runner and its Docker daemon share one container, so Testcontainers would otherwise use
+  # the bridge gateway 172.18.0.1, where a published port with no listener (the test container's
+  # debug port 5005) is unreachable. Probe run 38786644908 reached every published port at localhost.
+  TESTCONTAINERS_HOST_OVERRIDE: localhost
+
+  # The test host does not manage the security group rule here. On-demand CodeBuild without a VPC
+  # leaves through a pool of egress addresses, so several jobs share each address and a per-job
+  # revoke cuts off its siblings. Instead each matrix job authorizes its own address (stable within
+  # a job) and records it, no job revokes, and revoke-runner-ip removes every recorded address once
+  # all jobs have finished. The harness's 12-hour sweep reclaims anything that cleanup misses.
+  SKIP_IP_AUTHORIZATION: true
+
+jobs:
+  all-integration-tests:
+    name: 'Run Autoscaling tests'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Configure AWS credentials'
+        id: creds
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: run_autoscale_test_codebuild
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      # Authorizes this job's own egress address (TCP 3306 and 5432 only) and records it for the
+      # single revoke-runner-ip job below. See .github/actions/codebuild-authorize-runner-ip.
+      - name: 'Authorize this job''s egress IP address'
+        id: ip
+        uses: ./.github/actions/codebuild-authorize-runner-ip
+        with:
+          id: autoscaling
+      - name: 'Record this job''s egress IP address for revoke-runner-ip'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: runner-ip-autoscaling
+          path: ${{ steps.ip.outputs.ip-file }}
+          if-no-files-found: error
+          retention-days: 1
+      - name: Run integration tests
+        run: |
+          ./gradlew --no-parallel --no-daemon test-autoscaling-only
+        env:
+          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          MYSQL_VERSION: "default"
+          PG_VERSION: "default"
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: 'Archive junit results'
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: junit-report
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: 'Archive autoscaling report'
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: autoscaling-report
+          path: ./wrapper/build/report
+          retention-days: 5
+      # There is deliberately no security-group cleanup step here. Other jobs may share this job's
+      # address and rule, so revoke-runner-ip below removes it once every job has finished.
+
+  # The single revoke for the whole run, after every test job has finished, whatever its outcome.
+  # A per-job revoke would take a shared rule away from jobs still using it. See
+  # .github/actions/codebuild-revoke-runner-ips.
+  revoke-runner-ip:
+    name: 'Revoke runner IP'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    needs: all-integration-tests
+    if: always()
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: revoke_runner_ip_autoscale
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      # A pattern that matches no artifact downloads nothing and succeeds; the revoke step then
+      # finds no files and exits 0. Any other download failure fails this job visibly, and the
+      # 12-hour sweep reclaims the rules it would have revoked.
+      - name: 'Download the recorded egress IP addresses'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: runner-ip-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/runner-ips
+      - name: 'Revoke the recorded egress IP addresses'
+        uses: ./.github/actions/codebuild-revoke-runner-ips
+        with:
+          ip-dir: ${{ runner.temp }}/runner-ips

@@ -11,15 +11,21 @@ concurrency:
   # These workflows create real RDS clusters and whitelist the runner's IP in the region's
   # default security group. Running two of them at once risks exhausting the security group
   # rule quota (60 inbound rules per group) and the DB cluster/instance quotas, since a single
-  # sharded run already claims 20 clusters and 20 rules. Every quota-consuming workflow shares
-  # this group, so only one of them proceeds at a time. Note that GitHub keeps at most one
-  # pending run per group: a newer run in the group evicts an already-pending one rather than
-  # lining up behind it.
+  # sharded run already claims 20 clusters and 20 rules. Every GitHub-hosted quota-consuming
+  # workflow shares this group. The CodeBuild variants use rds-integration-tests-codebuild, which
+  # does not wait for this one (see the caution in run-integration-tests-latest-codebuild.yml).
+  # Runs in this group execute one at a time; with `queue: max`, later runs wait in
+  # FIFO order (up to 100 pending) instead of being cancelled.
   group: rds-integration-tests
+  queue: max
 
 jobs:
   aurora-mysql-performance-tests:
-    concurrency: PerformanceTests-Aurora
+    concurrency:
+      # Runs in this group execute one at a time; with `queue: max`, later runs wait in FIFO order
+      # (up to 100 pending) instead of being cancelled.
+      group: PerformanceTests-Aurora
+      queue: max
     name: 'Run Aurora MySQL container performance tests'
     runs-on: ubuntu-latest
     steps:

@@ -1,14 +1,22 @@
 # CodeBuild variant of run-integration-tests-latest.yml.
 #
 # Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Manual dispatch only: the original keeps the schedule trigger, so this copy never
-# provisions a second set of RDS clusters alongside it. It uses its own concurrency group, so a
-# run here waits only behind other CodeBuild RDS workflows - see the caution on that group below.
+# Manual dispatch, plus the schedule moved here from the original (where it is now commented
+# out), so the scheduled suite still provisions only one set of RDS clusters. It uses its own
+# concurrency group, so a run here waits only behind other CodeBuild RDS workflows - see the
+# caution on that group below.
 
 name: Run Aurora Integration Tests Latest (CodeBuild)
 
 on:
   workflow_dispatch:
+  schedule:
+    # Tue-Sat 07:09 UTC (Tue-Sat 12:09 AM PDT / Mon-Fri 11:09 PM PST). Slot 4 of 5 in the nightly
+    # sequence of the rds-integration-tests-codebuild group (UTC): java-lts 00:23, bg-latest 03:53,
+    # default 05:47, latest 07:09, metrics 08:33 daily; full-matrix-weekly Sundays 06:13. Each slot
+    # starts after the previous slot's longest measured run plus 20%, so the set ends by about
+    # 12:30 UTC. A late run makes the next one wait in the queue; nothing is cancelled.
+    - cron: '9 7 * * 2-6'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
@@ -32,12 +40,19 @@ concurrency:
   # They deliberately no longer serialize against the GitHub-hosted workflows in the
   # `rds-integration-tests` group: a CodeBuild dispatch provisions its own runner, so it should
   # not inherit the GitHub runner queue.
-  # CAUTION: a CodeBuild dispatch can therefore overlap a GitHub-hosted RDS run. Two sharded
+  # CAUTION: a run in this group can therefore overlap a GitHub-hosted RDS run. Two sharded
   # suites at once means ~40 DB clusters / ~100 DB instances and twice the inbound rules in the
-  # region's default security group, which can exceed the account's quotas. Until the CodeBuild
-  # suite targets its own AWS region (independent quotas), do not dispatch it while a
+  # region's default security group, which can exceed the account's quotas. Every automatic RDS
+  # run is a CodeBuild run in this group (the nightly schedules, about 00:23-12:30 UTC, and
+  # test-encryption-e2e-codebuild.yml on push to main); the GitHub-hosted RDS workflows run only
+  # when dispatched by hand. Until the CodeBuild suite targets its own AWS region (independent
+  # quotas), do not dispatch a GitHub-hosted RDS workflow while a run in this group is active or
+  # queued, in particular during the nightly window, and do not dispatch a CodeBuild one while a
   # GitHub-hosted RDS workflow is running.
+  # Runs in this group execute one at a time; with `queue: max`, later runs wait in FIFO order
+  # (up to 100 pending) instead of being cancelled.
   group: rds-integration-tests-codebuild
+  queue: max
 
 env:
   # The CodeBuild runners share outbound IPs and have no Docker Hub credentials, so take the

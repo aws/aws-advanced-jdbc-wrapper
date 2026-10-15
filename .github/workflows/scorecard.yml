@@ -1,11 +1,13 @@
 name: OpenSSF Scorecard
 
 on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: '0 6 * * 1'
+  # The push and schedule triggers moved to the CodeBuild variant scorecard-codebuild.yml, which
+  # cannot publish results (see its header). Uncomment them here to publish again.
+  # push:
+  #   branches:
+  #     - main
+  # schedule:
+  #   - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions: read-all

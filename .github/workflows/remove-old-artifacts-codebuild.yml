@@ -1,0 +1,30 @@
+# CodeBuild variant of remove-old-artifacts.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: the schedule of remove-old-artifacts.yml (re-timed; see the cron below), plus manual
+# dispatch. The schedule is commented out in remove-old-artifacts.yml, so only this copy runs on schedule.
+
+name: Remove Old Artifacts (CodeBuild)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every day at 01:17 UTC (6:17 PM PDT / 5:17 PM PST the previous day).
+    - cron: '17 1 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  remove-old-artifacts:
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      actions: write
+    timeout-minutes: 10
+
+    steps:
+      - name: Remove Old Artifacts
+        uses: c-hive/gha-remove-artifacts@62c2fbea931baa7dd4a6b73ea5a799984a818f61  # v1
+        with:
+          age: '1 week'
+          skip-tags: true

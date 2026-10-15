@@ -7,10 +7,14 @@ name: Dependabot Automerge
 # in the context of the base repository and turn this workflow into an arbitrary-code-push
 # primitive. See https://www.synacktiv.com/publications/github-actions-exploitation-dependabot
 on:
-  pull_request:
-    branches:
-      - 'main'
-      - 'main-2.x'
+  # Manual dispatch only, so the file stays a valid workflow now that its pull_request trigger has
+  # moved. A dispatched run skips the job: its `if:` needs a pull_request event from Dependabot.
+  workflow_dispatch:
+  # The pull_request trigger moved to the CodeBuild variant dependabot-auto-merge-codebuild.yml.
+  # pull_request:
+  #   branches:
+  #     - 'main'
+  #     - 'main-2.x'
 
 permissions:
   contents: read

@@ -1,0 +1,111 @@
+# CodeBuild variant of run-checker-framework.yml.
+#
+# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
+# Triggers: manual dispatch only, the same as run-checker-framework.yml.
+
+name: Run Checker Framework (Nullness) (CodeBuild)
+
+# Static nullness analysis of the wrapper's main source set.
+#
+# The main source set targets Java 8, but the Checker Framework needs JDK 11+ to run,
+# so the guarded build block in wrapper/build.gradle.kts (activated by
+# -PenableCheckerFramework) forces the compileJava task onto a JDK 17 toolchain. We make
+# both JDK 8 (the project's primary toolchain) and JDK 17 (for the checker) available and
+# let Gradle's toolchain detection pick them up.
+#
+# The incremental adoption is complete: the whole software.amazon.jdbc tree is clean and the
+# checker runs in ENFORCING mode, so any new nullness finding fails the build.
+#
+# PR enforcement lives in the 'checker-framework' job in main.yml, because only that workflow
+# feeds the ci-gate aggregation that branch protection requires. This workflow is the
+# on-demand variant: same check, plus a categorized findings summary and an archived report,
+# which is what you want when investigating or measuring rather than gating.
+#
+# If a finding is a false positive, annotate the code or add a narrowly-scoped
+# @SuppressWarnings with a justifying comment; do not re-add -Awarns.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checker-framework:
+    name: 'NullnessChecker (enforcing)'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 50
+
+      - name: 'Set up JDK 8 and 17'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: 'corretto'
+          java-version: |
+            8
+            17
+
+      - name: 'Cache Gradle packages'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 'Run NullnessChecker'
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain \
+            :aws-advanced-jdbc-wrapper:compileJava \
+            -PenableCheckerFramework \
+            2>&1 | tee checker-framework-report.txt
+
+      - name: 'Summarize findings'
+        if: ${{ !cancelled() }}
+        run: |
+          report=checker-framework-report.txt
+          # Enforcing mode reports findings as "error: [...]"; "warning: [...]" is still
+          # matched so the summary keeps working if the build is switched to warn-only.
+          finding_re='(error|warning): \['
+          total=$(grep -cE "$finding_re" "$report" || true)
+          style=$(grep -cE 'type\.anno\.before\.modifier' "$report" || true)
+          crashes=$(grep -cE 'The Checker Framework crashed' "$report" || true)
+          real=$((total - style))
+          {
+            echo "## Checker Framework — Nullness summary"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|---|---:|"
+            echo "| Total findings | ${total} |"
+            echo "| Style-only (type.anno.before.modifier) | ${style} |"
+            echo "| Real (non-style) findings | ${real} |"
+            echo "| Checker crashes | ${crashes} |"
+            echo ""
+            if [ "${total}" -gt 0 ]; then
+              echo "This job runs in **enforcing** mode, so these findings failed the build."
+              echo "Fix them, or add a narrowly-scoped \`@SuppressWarnings\` with a justifying comment."
+              echo ""
+            fi
+            echo "<details><summary>Real findings by category</summary>"
+            echo ""
+            echo '```'
+            grep -oE "(error|warning): \[[a-zA-Z.]+\]" "$report" \
+              | grep -v 'type.anno.before.modifier' \
+              | sort | uniq -c | sort -rn || true
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 'Archive checker report'
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: checker-framework-report
+          path: checker-framework-report.txt
+          retention-days: 5

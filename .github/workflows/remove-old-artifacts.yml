@@ -1,9 +1,12 @@
 name: Remove Old Artifacts
 
 on:
-  schedule:
-    # Every day at 1am
-    - cron: '0 1 * * *'
+  # Manual dispatch only, so the file stays a valid workflow now that its schedule has moved.
+  workflow_dispatch:
+  # The schedule moved to the CodeBuild variant remove-old-artifacts-codebuild.yml.
+  # schedule:
+  #   # Every day at 1am
+  #   - cron: '0 1 * * *'
 
 permissions:
   contents: read

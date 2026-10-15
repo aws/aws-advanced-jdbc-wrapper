@@ -1,0 +1,56 @@
+# Revokes, once per run and after every test job has finished, each egress address that the run's
+# jobs recorded with codebuild-authorize-runner-ip. Same script as the revoke-runner-ip job of
+# run-integration-tests-latest-codebuild.yml, which still inlines it.
+#
+# Needs actions/checkout earlier in the job, AWS credentials in the environment, and the
+# runner-ip-* artifacts downloaded with merge-multiple into ip-dir by the calling workflow. No
+# `uses:` steps, for the Dependabot reason given in codebuild-authorize-runner-ip.
+name: 'Revoke the CodeBuild runner egress IP addresses'
+description: 'Revokes TCP 3306 and 5432 for every address recorded in ip-dir. Missing rules and an empty directory are not errors.'
+inputs:
+  ip-dir:
+    description: 'Directory holding the downloaded runner-ip-*.txt files.'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Revoke the recorded egress IP addresses'
+      shell: bash
+      env:
+        RUNNER_IP_DIR: ${{ inputs.ip-dir }}
+      run: |
+        shopt -s nullglob
+        files=("$RUNNER_IP_DIR"/runner-ip-*.txt)
+        if [ ${#files[@]} -eq 0 ]; then
+          echo "No matrix job recorded an authorized address; nothing to revoke."
+          exit 0
+        fi
+        octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+        ipv4_re="^($octet\.){3}$octet\$"
+        while IFS= read -r ipv4; do
+          if ! [[ $ipv4 =~ $ipv4_re ]]; then
+            echo "::warning::Skipping a recorded egress address that is not a dotted IPv4 address."
+            continue
+          fi
+          for port in 3306 5432; do
+            permissions=$(printf \
+              '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32"}]}]' \
+              "$port" "$port" "$ipv4")
+            if output=$(aws ec2 revoke-security-group-ingress \
+                --group-name default --ip-permissions "$permissions" 2>&1); then
+              # In a default VPC an unmatched revoke is not an error: the rules that were not found
+              # come back under UnknownIpPermissions, so echo the response instead of claiming the
+              # rule was there. A non-default VPC raises InvalidPermission.NotFound, handled below.
+              echo "Revoke of TCP $port from $ipv4/32 accepted:"
+              echo "$output"
+            elif [ "${output#*InvalidPermission.NotFound}" != "$output" ]; then
+              # Already gone, e.g. revoked by hand or by the 12-hour sweep.
+              echo "TCP $port from $ipv4/32 was already revoked."
+            else
+              # Keep revoking the other addresses, then fail the job.
+              echo "$output"
+              status=1
+            fi
+          done
+        done < <(cat "${files[@]}" | tr -d '\r' | awk 'NF' | sort -u)
+        exit "${status:-0}"
