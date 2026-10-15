@@ -44,29 +44,82 @@ env:
   # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
   TEST_CONTAINER_REGISTRY: ecr
 
-  # OPERATIONAL PREREQUISITE - read before dispatching this workflow.
-  #
-  # Every job on this fleet leaves through the same NAT gateway address (3.141.130.200 as of run
-  # 38656992944), so the per-job rule the test host used to manage does not work here: the rule is
-  # shared, and the first job to finish revokes it while its siblings are still connected. With
-  # SKIP_IP_AUTHORIZATION the test host adds and revokes nothing, and asks checkip.amazonaws.com
-  # for nothing, so that address has to be allow-listed BY HAND, once, as an inbound rule on the
-  # region's default security group (all protocols, ports 0-65535, <nat-address>/32). If that rule
-  # is missing, every job fails during environment setup with a TCP connect timeout
-  # (java.net.ConnectException) while the test runner tries to reach its freshly created cluster.
-  #
-  # Give the manual rule a description that does NOT start with "Test run at ", for example
-  #   CodeBuild NAT egress - permanent, do not delete
-  # AuroraTestUtility.securityGroupRulesCleanUp() runs at the start of every job and deletes
-  # inbound rules whose description starts with "Test run at " and parses as an instant older than
-  # 12 hours. Any other description is never even considered, so the rule above provably survives
-  # the sweep.
+  # The test host does not manage the security group rule on this fleet. Every job here leaves
+  # through the same NAT gateway address, so a per-job rule has 20 independent owners and the first
+  # job to finish revokes the rule its siblings are still connected through. The authorize-runner-ip
+  # job below adds the rule once before the matrix starts and revoke-runner-ip removes it once after
+  # the matrix finishes, scoped to this run and to the database ports. Nothing has to be
+  # allow-listed by hand.
   SKIP_IP_AUTHORIZATION: true
 
 jobs:
+  # Opens the region's default security group for this run's egress address, once for all 20 matrix
+  # jobs. This has to run ON THE FLEET: a GitHub-hosted setup job would ask checkip.amazonaws.com
+  # for its OWN address and authorize the wrong /32. Every job on the fleet shares the same NAT
+  # egress address, so discovering it once here is valid for all of them.
+  authorize-runner-ip:
+    name: 'Authorize runner IP'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    outputs:
+      ipv4: ${{ steps.ip.outputs.ipv4 }}
+    steps:
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: authorize_runner_ip_latest
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      - name: 'Discover the fleet egress IP address'
+        id: ip
+        run: |
+          ipv4=$(curl -fsS --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]')
+          if [ -z "$ipv4" ]; then
+            echo "::error::checkip.amazonaws.com returned no address, so the runner's egress IP is unknown and the test databases would be unreachable."
+            exit 1
+          fi
+          echo "Runner egress IP address: $ipv4"
+          echo "ipv4=$ipv4" >> $GITHUB_OUTPUT
+
+      # Only TCP 3306 (MySQL / MariaDB) and TCP 5432 (PostgreSQL) are opened, the only ports the
+      # harness reaches over the network: TestEnvironment.getPort() returns 3306 for MYSQL/MARIADB
+      # and 5432 for PG, and the clusters are created without a custom port. Everything else the
+      # tests talk to (Toxiproxy 8666/8474, Valkey 6379/6380) runs in a container on the runner
+      # itself. Deliberately NOT the all-protocols, ports 0-65535 rule
+      # AuroraTestUtility.ec2AuthorizeIP creates: a standing all-ports rule trips port-restriction
+      # compliance checks such as AWS Config's vpc-sg-open-only-to-authorized-ports.
+      #
+      # The description must not start with "Test run at ":
+      # AuroraTestUtility.securityGroupRulesCleanUp() only ever considers inbound rules whose
+      # description starts with that prefix and parses as an instant older than 12 hours, so a rule
+      # described this way is never examined by that sweep and cannot be deleted under a running job.
+      - name: 'Authorize the fleet egress IP address'
+        run: |
+          ipv4='${{ steps.ip.outputs.ipv4 }}'
+          description="CodeBuild run ${{ github.run_id }} - integration tests"
+          for port in 3306 5432; do
+            permissions=$(printf \
+              '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32","Description":"%s"}]}]' \
+              "$port" "$port" "$ipv4" "$description")
+            if output=$(aws ec2 authorize-security-group-ingress \
+                --group-name default --ip-permissions "$permissions" 2>&1); then
+              echo "Authorized TCP $port from $ipv4/32."
+            elif [ "${output#*InvalidPermission.Duplicate}" != "$output" ]; then
+              # A rule leaked by an earlier run that never reached its cleanup job. It already
+              # grants what this run needs, so treat it as authorized rather than failing here.
+              echo "TCP $port from $ipv4/32 was already authorized."
+            else
+              echo "$output"
+              exit 1
+            fi
+          done
+
   all-integration-tests-latest:
     name: 'Latest / ${{ matrix.name }}'
     runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    needs: authorize-runner-ip
     strategy:
       fail-fast: false
       matrix:
@@ -155,6 +208,54 @@ jobs:
           name: html-summary-report-latest-${{ matrix.name }}
           path: ./wrapper/build/report
           retention-days: 5
-      # There is deliberately no security-group cleanup step here. SKIP_IP_AUTHORIZATION keeps the
-      # test host from authorizing anything, so it records no address to revoke, and the fleet's
-      # inbound rule is permanent and operator-owned - see the note on that variable above.
+      # There is deliberately no security-group cleanup step here. The rule belongs to the whole
+      # run, not to this shard, so revoke-runner-ip below removes it once every shard has finished.
+
+  # The single revoke for the whole run. A per-job revoke could not do this: all 20 jobs share one
+  # egress address and therefore one rule, so whichever job finished first used to take the rule
+  # away from the 19 still running (run 38657902325, where 17 jobs then failed with
+  # java.net.ConnectException). This job runs after every shard has reported, whatever its outcome.
+  revoke-runner-ip:
+    name: 'Revoke runner IP'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    needs: [authorize-runner-ip, all-integration-tests-latest]
+    if: always()
+    steps:
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: revoke_runner_ip_latest
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      - name: 'Revoke the fleet egress IP address'
+        run: |
+          ipv4='${{ needs.authorize-runner-ip.outputs.ipv4 }}'
+          if [ -z "$ipv4" ]; then
+            # authorize-runner-ip never got as far as publishing an address, so it authorized
+            # nothing either and there is nothing to take away.
+            echo "No authorized address was recorded for this run; nothing to revoke."
+            exit 0
+          fi
+          for port in 3306 5432; do
+            permissions=$(printf \
+              '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32"}]}]' \
+              "$port" "$port" "$ipv4")
+            if output=$(aws ec2 revoke-security-group-ingress \
+                --group-name default --ip-permissions "$permissions" 2>&1); then
+              # In a default VPC an unmatched revoke is not an error: the rules that were not found
+              # come back under UnknownIpPermissions, so echo the response instead of claiming the
+              # rule was there. A non-default VPC raises InvalidPermission.NotFound, handled below.
+              echo "Revoke of TCP $port from $ipv4/32 accepted:"
+              echo "$output"
+            elif [ "${output#*InvalidPermission.NotFound}" != "$output" ]; then
+              # Already gone - the rule was revoked by hand, or by a cleanup of an earlier attempt.
+              # Nothing is left open, so do not fail the run over it.
+              echo "TCP $port from $ipv4/32 was already revoked."
+            else
+              echo "$output"
+              exit 1
+            fi
+          done
