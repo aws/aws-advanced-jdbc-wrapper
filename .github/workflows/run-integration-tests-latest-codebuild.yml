@@ -17,7 +17,7 @@ permissions:
 # Each matrix entry below pins itself to exactly ONE test environment and runs ONE shard of the
 # integration test classes against its own database cluster, so the whole suite runs in parallel
 # instead of one engine at a time. 20 entries => at most 20 concurrent clusters / 50 DB instances,
-# and 20 inbound rules in the region's default security group (quota is 60 per security group).
+# and 2 inbound rules per distinct egress address in the region's default security group (quota 60).
 #
 # Shard counts are sized from the per-environment totals measured in run 30645460736, and the
 # per-class weight table in wrapper/src/test/build.gradle.kts keeps the shards within a group evenly
@@ -28,7 +28,7 @@ permissions:
 # one and is exercised by run-integration-tests-full-matrix-weekly.yml instead.
 concurrency:
   # All CodeBuild RDS workflows share this group, so CodeBuild runs still serialize against each
-  # other and only one sharded run at a time claims its 20 clusters / 20 security-group rules.
+  # other and only one sharded run at a time claims its 20 clusters and its security-group rules.
   # They deliberately no longer serialize against the GitHub-hosted workflows in the
   # `rds-integration-tests` group: a CodeBuild dispatch provisions its own runner, so it should
   # not inherit the GitHub runner queue.
@@ -40,9 +40,21 @@ concurrency:
   group: rds-integration-tests-codebuild
 
 env:
-  # The CodeBuild runners share an outbound IP and have no Docker Hub credentials, so take the
+  # The CodeBuild runners share outbound IPs and have no Docker Hub credentials, so take the
   # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
   TEST_CONTAINER_REGISTRY: ecr
+
+  # The runner and its Docker daemon share one container, so Testcontainers would otherwise use
+  # the bridge gateway 172.18.0.1, where a published port with no listener (the test container's
+  # debug port 5005) is unreachable. Probe run 38786644908 reached every published port at localhost.
+  TESTCONTAINERS_HOST_OVERRIDE: localhost
+
+  # The test host does not manage the security group rule here. On-demand CodeBuild without a VPC
+  # leaves through a pool of egress addresses, so several jobs share each address and a per-job
+  # revoke cuts off its siblings. Instead each matrix job authorizes its own address (stable within
+  # a job) and records it, no job revokes, and revoke-runner-ip removes every recorded address once
+  # all jobs have finished. The harness's 12-hour sweep reclaims anything that cleanup misses.
+  SKIP_IP_AUTHORIZATION: true
 
 jobs:
   all-integration-tests-latest:
@@ -103,6 +115,72 @@ jobs:
           role-duration-seconds: 21600
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           output-credentials: true
+      - name: 'Discover this job''s egress IP address'
+        id: ip
+        shell: bash
+        env:
+          RUNNER_IP_FILE: ${{ runner.temp }}/runner-ip-${{ matrix.name }}.txt
+        run: |
+          if ! response=$(curl -fsS --max-time 10 https://checkip.amazonaws.com); then
+            echo "::error::checkip.amazonaws.com did not answer, so this job's egress IP address is unknown and the test databases would be unreachable."
+            exit 1
+          fi
+          ipv4=$(printf '%s' "$response" | tr -d '[:space:]')
+          octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+          ipv4_re="^($octet\.){3}$octet\$"
+          if ! [[ $ipv4 =~ $ipv4_re ]]; then
+            echo "::error::checkip.amazonaws.com did not return a dotted IPv4 address, so this job's egress IP address is unknown."
+            exit 1
+          fi
+          echo "Runner egress IP address: $ipv4"
+          echo "ipv4=$ipv4" >> "$GITHUB_OUTPUT"
+          echo "$ipv4" > "$RUNNER_IP_FILE"
+
+      # Only TCP 3306 (MySQL / MariaDB) and TCP 5432 (PostgreSQL) are opened, the only ports the
+      # harness reaches over the network (TestEnvironment.getPort()). Toxiproxy, Valkey and the
+      # other test containers run on the runner itself. Deliberately NOT the all-ports rule
+      # AuroraTestUtility.ec2AuthorizeIP creates, which trips port-restriction compliance checks.
+      #
+      # Keep the description EXACTLY "Test run at " plus an ISO-8601 instant. That is what lets
+      # AuroraTestUtility.securityGroupRulesCleanUp(), run at the start of every job, leave the rule
+      # alone for 12 hours and revoke it after that if revoke-runner-ip never ran. The sweep calls
+      # Instant.parse on the remainder, so appending anything (a run id, say) opts the rule out.
+      # Jobs sharing an address share the rule. On InvalidPermission.Duplicate (a sibling's rule, or
+      # one leaked by an earlier run) the description is refreshed to now, so the sweep keeps the
+      # rule for this run. If 3306 succeeds and 5432 fails, nothing is recorded; the sweep reclaims it.
+      - name: 'Authorize this job''s egress IP address'
+        shell: bash
+        env:
+          RUNNER_IPV4: ${{ steps.ip.outputs.ipv4 }}
+        run: |
+          ipv4=$RUNNER_IPV4
+          description="Test run at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for port in 3306 5432; do
+            permissions=$(printf \
+              '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32","Description":"%s"}]}]' \
+              "$port" "$port" "$ipv4" "$description")
+            if output=$(aws ec2 authorize-security-group-ingress \
+                --group-name default --ip-permissions "$permissions" 2>&1); then
+              echo "Authorized TCP $port from $ipv4/32."
+            elif [ "${output#*InvalidPermission.Duplicate}" != "$output" ]; then
+              if ! output=$(aws ec2 update-security-group-rule-descriptions-ingress \
+                  --group-name default --ip-permissions "$permissions" 2>&1); then
+                echo "$output"
+                exit 1
+              fi
+              echo "TCP $port from $ipv4/32 was already authorized; refreshed its description."
+            else
+              echo "$output"
+              exit 1
+            fi
+          done
+      - name: 'Record this job''s egress IP address for revoke-runner-ip'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: runner-ip-${{ matrix.name }}
+          path: ${{ runner.temp }}/runner-ip-${{ matrix.name }}.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Run integration tests
         run: |
           ./gradlew --no-parallel --no-daemon ${{ matrix.task }} \
@@ -136,26 +214,75 @@ jobs:
           name: html-summary-report-latest-${{ matrix.name }}
           path: ./wrapper/build/report
           retention-days: 5
-      # The test host records the address it whitelisted in the region's default security group (see
-      # TestEnvironment.authorizeIP). Prefer that over asking checkip.amazonaws.com again: a
-      # GitHub-hosted runner's egress address can change during a job, in which case a fresh lookup
-      # revokes a rule that never existed and leaves the real one behind, consuming the group's
-      # 60-rule quota. No recorded address means the test host either never authorized one or has
-      # already revoked it, so there is nothing to clean up.
-      - name: Get Github Action IP
-        if: always()
-        id: ip
-        run: |
-          ipFile=./wrapper/build/authorized-runner-ip.txt
-          if [ -s "$ipFile" ]; then
-            ipv4=$(tr -d '[:space:]' < "$ipFile")
-            echo "Authorized runner IP recorded by the test host: $ipv4"
-            echo "ipv4=$ipv4" >> $GITHUB_OUTPUT
-          else
-            echo "No authorized runner IP was recorded; nothing to revoke."
-          fi
+      # There is deliberately no security-group cleanup step here. Other jobs may share this job's
+      # address and rule, so revoke-runner-ip below removes it once every job has finished.
 
-      - name: Remove Github Action IP
-        if: always() && steps.ip.outputs.ipv4 != ''
+  # The single revoke for the whole run, after every matrix job has finished, whatever its outcome.
+  # A per-job revoke takes a shared rule away from the jobs still using it (run 38623414788, where
+  # 14 of 20 jobs then failed with java.net.ConnectException). Revoking by port and /32 removes the
+  # rule whichever job's description it carries. This cannot touch another run's rules: the
+  # rds-integration-tests-codebuild group serializes CodeBuild runs, and the GitHub-hosted runs that
+  # may overlap leave through Azure addresses, never this run's CodeBuild addresses.
+  revoke-runner-ip:
+    name: 'Revoke runner IP'
+    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    needs: all-integration-tests-latest
+    if: always()
+    steps:
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: revoke_runner_ip_latest
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      # A pattern that matches no artifact is not an error for download-artifact (it downloads
+      # nothing and succeeds), so a run where no job got as far as authorizing needs no special
+      # handling here; the revoke step below finds no files and exits 0. Any other download failure
+      # fails this job visibly, and the 12-hour sweep reclaims the rules it would have revoked.
+      - name: 'Download the recorded egress IP addresses'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: runner-ip-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/runner-ips
+      - name: 'Revoke the recorded egress IP addresses'
+        shell: bash
         run: |
-          aws ec2 revoke-security-group-ingress --group-name default --protocol all --port 0-65535 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+          shopt -s nullglob
+          files=("$RUNNER_TEMP"/runner-ips/runner-ip-*.txt)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No matrix job recorded an authorized address; nothing to revoke."
+            exit 0
+          fi
+          octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+          ipv4_re="^($octet\.){3}$octet\$"
+          while IFS= read -r ipv4; do
+            if ! [[ $ipv4 =~ $ipv4_re ]]; then
+              echo "::warning::Skipping a recorded egress address that is not a dotted IPv4 address."
+              continue
+            fi
+            for port in 3306 5432; do
+              permissions=$(printf \
+                '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32"}]}]' \
+                "$port" "$port" "$ipv4")
+              if output=$(aws ec2 revoke-security-group-ingress \
+                  --group-name default --ip-permissions "$permissions" 2>&1); then
+                # In a default VPC an unmatched revoke is not an error: the rules that were not found
+                # come back under UnknownIpPermissions, so echo the response instead of claiming the
+                # rule was there. A non-default VPC raises InvalidPermission.NotFound, handled below.
+                echo "Revoke of TCP $port from $ipv4/32 accepted:"
+                echo "$output"
+              elif [ "${output#*InvalidPermission.NotFound}" != "$output" ]; then
+                # Already gone, e.g. revoked by hand or by the 12-hour sweep.
+                echo "TCP $port from $ipv4/32 was already revoked."
+              else
+                # Keep revoking the other addresses, then fail the job.
+                echo "$output"
+                status=1
+              fi
+            done
+          done < <(cat "${files[@]}" | tr -d '\r' | awk 'NF' | sort -u)
+          exit "${status:-0}"
