@@ -20,7 +20,10 @@ concurrency:
   # Shared by every CodeBuild RDS workflow, so only one of them at a time claims DB clusters and
   # security-group rules. See run-integration-tests-latest-codebuild.yml for why this is separate
   # from the GitHub-hosted rds-integration-tests group, and for the caution that goes with that.
+  # Runs in this group execute one at a time; with `queue: max`, later runs wait in FIFO order
+  # (up to 100 pending) instead of being cancelled.
   group: rds-integration-tests-codebuild
+  queue: max
 
 env:
   # The CodeBuild runners share outbound IPs and have no Docker Hub credentials, so take the
