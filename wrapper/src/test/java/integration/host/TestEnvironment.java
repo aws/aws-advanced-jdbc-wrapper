@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import org.testcontainers.containers.GenericContainer;
@@ -88,6 +89,10 @@ public class TestEnvironment implements AutoCloseable {
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
 
   private static final AtomicInteger ipAddressUsageRefCount = new AtomicInteger(0);
+
+  // Keeps the SKIP_IP_AUTHORIZATION notice to one line per test host JVM instead of one per
+  // environment created or closed.
+  private static final AtomicBoolean ipAuthorizationSkipReported = new AtomicBoolean(false);
 
   // Where the IP address that has been whitelisted in the default security group is recorded, so
   // that an external cleanup step (the "Remove Github Action IP" step in the CI workflows) can
@@ -228,7 +233,11 @@ public class TestEnvironment implements AutoCloseable {
       // should be whitelisted.
 
       if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
-        if (ipAddressUsageRefCount.incrementAndGet() == 1) {
+        if (config.skipIpAuthorization) {
+          // The reference count stays at 0 so that deAuthorizeIP, which returns on the same flag,
+          // is symmetric with this method and never drives the count negative.
+          reportIpAuthorizationSkipped();
+        } else if (ipAddressUsageRefCount.incrementAndGet() == 1) {
           authorizeIP(env);
         } else {
           LOGGER.finest("IP usage count: " + ipAddressUsageRefCount.get());
@@ -1044,6 +1053,13 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static void deAuthorizeIP(TestEnvironment env) {
+    if (config.skipIpAuthorization) {
+      // Nothing was authorized, nothing was recorded, and the ingress rule belongs to whoever
+      // allow-listed the runner's address by hand. Revoking it here would break every job still
+      // running, so leave the security group alone and leave the reference count at 0.
+      reportIpAuthorizationSkipped();
+      return;
+    }
     if (ipAddressUsageRefCount.decrementAndGet() == 0) {
       if (env.runnerIP == null) {
         // Only the environment that performed the authorization holds the address, so prefer the
@@ -1073,6 +1089,19 @@ public class TestEnvironment implements AutoCloseable {
       discardAuthorizedIpRecord();
     } else {
       LOGGER.finest("IP usage count: " + ipAddressUsageRefCount.get());
+    }
+  }
+
+  /**
+   * Reports, once per test host JVM, that {@code SKIP_IP_AUTHORIZATION} turned off the security
+   * group bookkeeping, and what has to be in place instead for the test databases to be reachable.
+   */
+  private static void reportIpAuthorizationSkipped() {
+    if (ipAuthorizationSkipReported.compareAndSet(false, true)) {
+      LOGGER.info("SKIP_IP_AUTHORIZATION is set: this test run neither authorizes nor "
+          + "de-authorizes the test runner IP address in the region's default security group. The "
+          + "runner's public IP address has to be allow-listed there already, otherwise connecting "
+          + "to the test database clusters fails with a connect timeout.");
     }
   }
 

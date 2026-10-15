@@ -110,6 +110,14 @@ public class TestEnvironmentConfiguration {
 
   public final boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
 
+  // Disables the whole per-job IP authorization lifecycle: the test host neither adds nor revokes
+  // the runner's address in the region's default security group, and does not ask
+  // checkip.amazonaws.com for it. Intended for runner fleets where every job shares one egress
+  // address (the self-hosted CodeBuild fleet behind a NAT gateway), where per-job rules collide:
+  // the first job to finish revokes the rule its siblings are still using. Such an address is
+  // stable, so it is allow-listed once, by hand, outside the test run.
+  public final boolean skipIpAuthorization = Boolean.parseBoolean(System.getenv("SKIP_IP_AUTHORIZATION"));
+
   // "cluster-mysql", "instance-name", "cluster-multi-az-name"
   public final String rdsDbName = System.getenv("RDS_DB_NAME");
 
