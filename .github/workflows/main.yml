@@ -14,8 +14,10 @@ on:
       - '**/maven*.yml'
 
 concurrency:
+  # Runs in this group execute one at a time; with `queue: max`, later runs wait in FIFO order
+  # (up to 100 pending) instead of being cancelled.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  queue: max
 
 permissions:
   contents: read
