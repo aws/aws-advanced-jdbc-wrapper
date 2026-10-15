@@ -44,6 +44,11 @@ env:
   # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
   TEST_CONTAINER_REGISTRY: ecr
 
+  # The runner and its Docker daemon share one container, so Testcontainers would otherwise use
+  # the bridge gateway 172.18.0.1, where a published port with no listener (the test container's
+  # debug port 5005) is unreachable. Probe run 38786644908 reached every published port at localhost.
+  TESTCONTAINERS_HOST_OVERRIDE: localhost
+
   # The test host does not manage the security group rule here. On-demand CodeBuild without a VPC
   # leaves through a pool of egress addresses, so several jobs share each address and a per-job
   # revoke cuts off its siblings. Instead each matrix job authorizes its own address (stable within
