@@ -20,10 +20,10 @@ concurrency:
   # default security group. Running two of them at once risks exhausting the security group
   # rule quota (60 inbound rules per group) and the DB cluster/instance quotas, since a single
   # sharded run already claims 20 clusters and 20 rules. Every quota-consuming workflow shares
-  # this group so only one runs at a time; `queue: max` makes the others wait their turn
-  # instead of being cancelled (the default `queue: single` would drop them).
+  # this group, so only one of them proceeds at a time. Note that GitHub keeps at most one
+  # pending run per group: a newer run in the group evicts an already-pending one rather than
+  # lining up behind it.
   group: rds-integration-tests
-  queue: max
 
 jobs:
   all-mysql-integration-tests-java-lts:
