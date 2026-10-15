@@ -1,0 +1,87 @@
+# Authorizes this self-hosted CodeBuild runner job's egress address in the region's default
+# security group, for the CodeBuild variants of the RDS integration test workflows.
+#
+# The steps are the ones run-integration-tests-latest-codebuild.yml still inlines; keep the two in
+# step until that workflow is switched to this action. Needs actions/checkout earlier in the job (a
+# local action is read from the workspace) and AWS credentials in the environment. The caller
+# uploads the file named by the ip-file output as artifact runner-ip-<id>, and the run's single
+# revoke-runner-ip job (.github/actions/codebuild-revoke-runner-ips) revokes it.
+#
+# Deliberately no `uses:` steps: Dependabot only bumps pinned actions under .github/workflows, so
+# every pinned action stays in the workflow files.
+name: 'Authorize the CodeBuild runner egress IP address'
+description: 'Discovers this job''s egress IPv4 address, opens TCP 3306 and 5432 from it in the default security group, and writes it to a file.'
+inputs:
+  id:
+    description: 'Identifier unique to this job within the run. Names the file runner-ip-<id>.txt; use it in the artifact name runner-ip-<id> as well.'
+    required: true
+outputs:
+  ipv4:
+    description: 'The egress IPv4 address that was authorized.'
+    value: ${{ steps.ip.outputs.ipv4 }}
+  ip-file:
+    description: 'Path of the file holding the address, to upload as artifact runner-ip-<id>.'
+    value: ${{ steps.ip.outputs.ip-file }}
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Discover this job''s egress IP address'
+      id: ip
+      shell: bash
+      env:
+        RUNNER_IP_FILE: ${{ runner.temp }}/runner-ip-${{ inputs.id }}.txt
+      run: |
+        if ! response=$(curl -fsS --max-time 10 https://checkip.amazonaws.com); then
+          echo "::error::checkip.amazonaws.com did not answer, so this job's egress IP address is unknown and the test databases would be unreachable."
+          exit 1
+        fi
+        ipv4=$(printf '%s' "$response" | tr -d '[:space:]')
+        octet='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+        ipv4_re="^($octet\.){3}$octet\$"
+        if ! [[ $ipv4 =~ $ipv4_re ]]; then
+          echo "::error::checkip.amazonaws.com did not return a dotted IPv4 address, so this job's egress IP address is unknown."
+          exit 1
+        fi
+        echo "Runner egress IP address: $ipv4"
+        echo "ipv4=$ipv4" >> "$GITHUB_OUTPUT"
+        echo "$ipv4" > "$RUNNER_IP_FILE"
+        echo "ip-file=$RUNNER_IP_FILE" >> "$GITHUB_OUTPUT"
+
+    # Only TCP 3306 (MySQL / MariaDB) and TCP 5432 (PostgreSQL) are opened, the only ports the
+    # harness reaches over the network (TestEnvironment.getPort()). Toxiproxy, Valkey and the
+    # other test containers run on the runner itself. Deliberately NOT the all-ports rule
+    # AuroraTestUtility.ec2AuthorizeIP creates, which trips port-restriction compliance checks.
+    #
+    # Keep the description EXACTLY "Test run at " plus an ISO-8601 instant. That is what lets
+    # AuroraTestUtility.securityGroupRulesCleanUp(), run at the start of every job, leave the rule
+    # alone for 12 hours and revoke it after that if revoke-runner-ip never ran. The sweep calls
+    # Instant.parse on the remainder, so appending anything (a run id, say) opts the rule out.
+    # Jobs sharing an address share the rule. On InvalidPermission.Duplicate (a sibling's rule, or
+    # one leaked by an earlier run) the description is refreshed to now, so the sweep keeps the
+    # rule for this run. If 3306 succeeds and 5432 fails, nothing is recorded; the sweep reclaims it.
+    - name: 'Authorize this job''s egress IP address'
+      shell: bash
+      env:
+        RUNNER_IPV4: ${{ steps.ip.outputs.ipv4 }}
+      run: |
+        ipv4=$RUNNER_IPV4
+        description="Test run at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        for port in 3306 5432; do
+          permissions=$(printf \
+            '[{"IpProtocol":"tcp","FromPort":%s,"ToPort":%s,"IpRanges":[{"CidrIp":"%s/32","Description":"%s"}]}]' \
+            "$port" "$port" "$ipv4" "$description")
+          if output=$(aws ec2 authorize-security-group-ingress \
+              --group-name default --ip-permissions "$permissions" 2>&1); then
+            echo "Authorized TCP $port from $ipv4/32."
+          elif [ "${output#*InvalidPermission.Duplicate}" != "$output" ]; then
+            if ! output=$(aws ec2 update-security-group-rule-descriptions-ingress \
+                --group-name default --ip-permissions "$permissions" 2>&1); then
+              echo "$output"
+              exit 1
+            fi
+            echo "TCP $port from $ipv4/32 was already authorized; refreshed its description."
+          else
+            echo "$output"
+            exit 1
+          fi
+        done
