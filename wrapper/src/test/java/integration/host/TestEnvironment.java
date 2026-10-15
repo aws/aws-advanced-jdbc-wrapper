@@ -1055,8 +1055,8 @@ public class TestEnvironment implements AutoCloseable {
   private static void deAuthorizeIP(TestEnvironment env) {
     if (config.skipIpAuthorization) {
       // Nothing was authorized, nothing was recorded, and the ingress rule is owned by whatever
-      // authorized the runner's address outside this process. Revoking it here would break every
-      // job still running, so leave the security group alone and the reference count at 0.
+      // authorized the runner's address outside this process. Revoking it here would break other
+      // jobs still using it, so leave the security group alone and the reference count at 0.
       reportIpAuthorizationSkipped();
       return;
     }

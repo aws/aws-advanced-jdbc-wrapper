@@ -112,11 +112,10 @@ public class TestEnvironmentConfiguration {
 
   // Disables the whole per-job IP authorization lifecycle: the test host neither adds nor revokes
   // the runner's address in the region's default security group, and does not ask
-  // checkip.amazonaws.com for it. Intended for runner fleets where every job shares one egress
-  // address (the self-hosted CodeBuild fleet behind a NAT gateway), where per-job rules collide:
-  // the first job to finish revokes the rule its siblings are still using. The address is then
-  // authorized once per run from outside the test host - see the CI job that does it in
-  // .github/workflows/run-integration-tests-latest-codebuild.yml.
+  // checkip.amazonaws.com for it. Intended for runners where several jobs share an egress address
+  // (the on-demand CodeBuild runners), where per-job rules collide: the first job to finish
+  // revokes the rule its siblings are still using. The address is then authorized and revoked
+  // from outside the test host - see .github/workflows/run-integration-tests-latest-codebuild.yml.
   public final boolean skipIpAuthorization = Boolean.parseBoolean(System.getenv("SKIP_IP_AUTHORIZATION"));
 
   // "cluster-mysql", "instance-name", "cluster-multi-az-name"
