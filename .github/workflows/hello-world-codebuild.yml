@@ -1,17 +1,18 @@
 # Smoke test for the self-hosted CodeBuild runners.
 #
-# Runs no tests and touches no AWS resources. It answers three questions that the integration
+# Runs no tests and touches no AWS resources. It answers four questions that the integration
 # test workflows depend on and that their logs cannot answer cheaply:
 #
 #   1. Does the fleet provision a runner that picks a job up and reports back?
 #   2. What egress address does a job have? The integration tests authorize this address in the
-#      region's default security group, and run 38623414788 showed all 20 jobs sharing only four
-#      of them. Dispatch this workflow a few times: if the addresses repeat, they are stable and
-#      can be allow-listed permanently instead of being authorized and revoked per job.
+#      region's default security group, and every job on this fleet shares it.
 #   3. Are the container images the tests pull actually available to this runner? With
 #      TEST_CONTAINER_REGISTRY=ecr the suite takes the Docker Official Images from the ECR Public
 #      mirror (see wrapper/src/test/java/integration/util/ContainerImages.java). Whether every
 #      pinned tag exists there is an assumption until a pull proves it.
+#   4. Where does the Docker daemon run, and do bind mounts work? The tests deliver the Gradle
+#      wrapper and collect their results through bind mounts, which only work when the daemon
+#      shares the runner's filesystem.
 #
 # It also sleeps for a minute so a run is long enough to observe in the Actions UI and in the
 # CodeBuild console. Manual dispatch only.
@@ -107,6 +108,59 @@ jobs:
               docker pull "$image" 2>&1 | tail -5 || true
             fi
           done
+
+      # The integration tests hand files to their container two ways: withCopyFileToContainer
+      # streams them through the Docker API, while withFileSystemBind sends the daemon only a path,
+      # which the daemon resolves on ITS OWN filesystem. In run 38657902325 every copied file
+      # arrived but the bind-mounted Gradle wrapper was empty ("Unable to access jarfile
+      # /app/gradle/wrapper/gradle-wrapper.jar"), which points at a daemon that does not share the
+      # runner's filesystem, e.g. CodeBuild's remote Docker server (port 9876). This step shows
+      # where the daemon is and tests a bind mount in both directions. Reported, not enforced.
+      - name: Check where the Docker daemon runs and whether bind mounts work
+        continue-on-error: true
+        run: |
+          echo "--- daemon location"
+          echo "DOCKER_HOST=${DOCKER_HOST:-<unset: local socket>}"
+          docker context ls 2>/dev/null || true
+          ls -l /var/run/docker.sock 2>/dev/null || echo "/var/run/docker.sock: not present"
+          docker info --format 'daemon name={{.Name}} os={{.OperatingSystem}} kernel={{.KernelVersion}} root={{.DockerRootDir}}' || true
+          echo "runner: hostname=$(hostname) kernel=$(uname -r)"
+          [ -f /.dockerenv ] && echo "runner is inside a container (/.dockerenv present)" || echo "runner: no /.dockerenv"
+
+          image=public.ecr.aws/docker/library/alpine:latest
+          probe="$GITHUB_WORKSPACE/bind-probe"
+          rm -rf "$probe"; mkdir -p "$probe"
+          echo "written-by-runner" > "$probe/from-runner"
+          echo "--- bind mount source: $probe"
+
+          echo "--- runner -> container (how the Gradle wrapper is delivered)"
+          if docker run --rm -v "$probe:/p" "$image" cat /p/from-runner 2>&1 | grep -q written-by-runner; then
+            inbound=WORKS
+          else
+            inbound=BROKEN
+            echo "container sees in the bind mount:"
+            docker run --rm -v "$probe:/p" "$image" ls -la /p 2>&1 || true
+          fi
+          echo "runner -> container: $inbound"
+
+          echo "--- container -> runner (how test results come back)"
+          docker run --rm -v "$probe:/p" "$image" sh -c 'echo written-by-container > /p/from-container' 2>&1 || true
+          if [ -f "$probe/from-container" ]; then outbound=WORKS; else outbound=BROKEN; fi
+          echo "container -> runner: $outbound"
+
+          echo "--- copy through the Docker API (how gradlew is delivered), for comparison"
+          cid=$(docker create "$image" true)
+          docker cp "$probe/from-runner" "$cid:/from-runner" 2>&1 || true
+          if docker cp "$cid:/from-runner" "$probe/copied-back" 2>/dev/null && grep -q written-by-runner "$probe/copied-back"; then
+            copy=WORKS
+          else
+            copy=BROKEN
+          fi
+          docker rm -f "$cid" >/dev/null 2>&1 || true
+          echo "docker cp round trip: $copy"
+
+          echo "=== VERDICT: bind runner->container=$inbound, bind container->runner=$outbound, docker cp=$copy"
+          rm -rf "$probe"
 
       - name: Simulate work
         run: |
