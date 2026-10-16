@@ -314,6 +314,50 @@ public class RemoteQueryCachePluginTest {
   }
 
   @Test
+  void test_execute_noCachingWhenQueryHintIsNotPrefix() throws Exception {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // A hint after the start of the query would otherwise drop the preceding SQL from the cache key.
+    for (final String query : new String[] {
+        "select * from A /*+CACHE_PARAM(ttl=50s)*/ where id = 1",
+        "select * from A where id = 1 /*+CACHE_PARAM(ttl=50s)*/"}) {
+      final ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+          methodName, mockCallable, new String[] {query});
+      assertSame(mockResult1, rs);
+    }
+
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
+    verify(mockCacheBypassCounter, times(2)).inc();
+  }
+
+  @Test
+  void test_execute_cachesWhenPreparedStatementTextQuotesPrefixHint() throws Exception {
+    plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
+    plugin.setCacheConnection(mockCacheConn);
+    // MariaDB reports prepared statement text as "'<sql>', parameters:[...]}".
+    final String expectedCacheKey = cacheKey("mysql", null, "", "select * from A', parameters:[]}");
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("mysql"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
+    when(mockTargetDriverDialect.getSQLQueryString(mockPreparedStatement))
+        .thenReturn("'/*+CACHE_PARAM(ttl=50s)*/ select * from A', parameters:[]}");
+    when(mockCacheConn.readFromCache(expectedCacheKey)).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(false);
+
+    plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
+        methodName, mockCallable, new String[] {});
+
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+  }
+
+  @Test
   void test_execute_noCachingLongQuery() throws Exception {
     plugin = new RemoteQueryCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
