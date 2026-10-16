@@ -31,7 +31,13 @@ jobs:
     # `github.event.pull_request.user.login` is the immutable author of the PR and cannot be
     # spoofed from a fork. The `dependabot/fetch-metadata` step below performs the same author
     # check internally; this condition makes the guarantee explicit rather than incidental.
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # Also require Dependabot to be the one who triggered this run. When a maintainer rebases or
+    # updates a Dependabot PR, the new head commit is no longer signed by Dependabot, and
+    # fetch-metadata refuses to proceed ("Dependabot's commit signature is not verified") and fails
+    # the job, as in run 38828313702 on PR #2172. Skipping those runs avoids a misleading failure;
+    # comment `@dependabot rebase` to get a signed commit that this job then handles. This only
+    # narrows the author gate above, so it cannot widen what an outside contributor can trigger.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
 
     steps:
       - name: Dependabot metadata
