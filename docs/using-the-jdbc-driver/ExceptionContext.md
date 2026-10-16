@@ -191,6 +191,14 @@ The last packet successfully received from the server was 2,010 milliseconds ago
 ```
 
 
+## Latest events
+
+The latest events list combines two bounded histories, each limited to entries that are not older than the configured time-to-live (`aws.jdbc.config.exception.context.connection.queue.ttl` for a connection, `aws.jdbc.config.exception.context.driver.queue.ttl` at the driver level; 60 seconds by default):
+- Important events, such as an initial connection being set, a detected network exception, or a failover. The driver keeps at most `aws.jdbc.config.exception.context.connection.queue.max.size` of them per connection (256 by default); once the limit is reached, the oldest event is dropped. Events collected at the driver level are limited by `aws.jdbc.config.exception.context.driver.queue.max.size` in the same way.
+- The last JDBC method calls made through the driver (the `Executing method: '...'` entries). Only the most recent `aws.jdbc.config.exception.context.method.history.size` calls are kept per connection (64 by default). Recording a call stores a small fixed-size record; its description is built only when an exception context is created.
+
+Because both histories are bounded, the memory used by exception context does not grow with the application's query rate.
+
 ## Configuration
 
 > [!WARNING]\
@@ -204,6 +212,11 @@ These Java system properties can be set using `-D` flags when starting the JVM t
 | `aws.jdbc.config.exception.context.injection.type`       | 3.3.0 | `ADD_SUPPRESSED_EXCEPTION` or `INJECT_TO_MESSAGE` | Specifies how context should be injected into the main exception. When `ADD_SUPPRESSED_EXCEPTION` is selected, a connection context is added as a suppressed exception of type software.amazon.jdbc.exceptions.SnapshotStateException to the main exception. The suppressed exception has a message that represents the connection state snapshot and a list of recent important events. When `INJECT_TO_MESSAGE` is selected, a connection context is added at the end of the main exception message. No suppressed exception is added to the main exception in this case. Verify with your application's exception reporting systems and tools which option is most suitable. | `ADD_SUPPRESSED_EXCEPTION` |
 | `aws.jdbc.config.exception.context.driver.queue.ttl`     | 3.3.0 | long                                              | Time-to-live in milliseconds for collected important events at the driver level.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `60000` (60 seconds)       |
 | `aws.jdbc.config.exception.context.connection.queue.ttl` | 3.3.0 | long                                              | Time-to-live in milliseconds for collected important events at the connection level.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `60000` (60 seconds)       |
+| `aws.jdbc.config.exception.context.connection.queue.max.size` | 4.6.0 | int | Maximum number of important events retained for each connection. When the limit is reached, the oldest event is dropped. Values below `1` are treated as `1`. | `256` |
+| `aws.jdbc.config.exception.context.driver.queue.max.size` | 4.6.0 | int | Maximum number of important events retained at the driver level. When the limit is reached, the oldest event is dropped. Values below `1` are treated as `1`. | `256` |
+| `aws.jdbc.config.exception.context.method.history.size` | 4.6.0 | int | Number of most recent JDBC method calls retained for each connection (and at the driver level) and reported as `Executing method` events. Older calls are overwritten. Set to `0` to omit method calls from the exception context. | `64` |
+
+If a numeric property in this table has a value that is not a number, or a number too large for its type, the driver logs a warning and uses the default value.
 
 
 
