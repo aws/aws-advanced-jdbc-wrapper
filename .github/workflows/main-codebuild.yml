@@ -80,11 +80,34 @@ jobs:
     runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: tcort/github-action-markdown-link-check@e047c5b37f24ab722bbef1a27b6fab7f96bc4068  # v1
+      # main.yml uses tcort/github-action-markdown-link-check here. That is a Dockerfile action, so
+      # the runner has to `docker build` it, and on CodeBuild the build goes to the project's remote
+      # Docker server, which this project cannot reach. These steps run what that action
+      # (@e047c5b37f24ab722bbef1a27b6fab7f96bc4068, inputs use-quiet-mode: yes, folder-path: docs,
+      # config-file: .github/workflows/mlc_config.json) runs, on the Node major of its image:
+      # markdown-link-check 3.15.0 on every docs/**/*.md file, failing if the output reports an error.
+      - name: 'Set up Node.js'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
-          use-quiet-mode: 'yes'
-          folder-path: 'docs'
-          config-file: '.github/workflows/mlc_config.json'
+          node-version: 24
+      - name: 'Check Markdown links'
+        run: |
+          set -o pipefail
+          npm i -g markdown-link-check@3.15.0
+          CONFIG_FILE='.github/workflows/mlc_config.json'
+          MLC_ARGS=()
+          if [ -f "$CONFIG_FILE" ]; then
+            MLC_ARGS+=('--config' "$CONFIG_FILE")
+          else
+            echo "Cannot find $CONFIG_FILE, checking without a configuration file."
+          fi
+          MLC_ARGS+=('-q')
+          MLC_LOG="$RUNNER_TEMP/markdown-link-check.txt"
+          find docs -name '*.md' -exec markdown-link-check '{}' "${MLC_ARGS[@]}" ';' 2>&1 | tee "$MLC_LOG"
+          if grep -q 'ERROR:' "$MLC_LOG"; then
+            exit 1
+          fi
+          echo 'All links are good!'
 
   lint:
     name: 'Static analysis'
