@@ -19,7 +19,6 @@ package software.amazon.jdbc.util;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -58,9 +57,6 @@ public class ImportantEventService {
   static final int DEFAULT_QUEUE_MAX_SIZE = 256;
   static final int DEFAULT_METHOD_HISTORY_SIZE = 64;
 
-  private static final Comparator<ImportantEvent> BY_TIMESTAMP =
-      Comparator.comparingLong(e -> e.timestamp.toEpochMilli());
-
   private final Queue<ImportantEvent> events = new ConcurrentLinkedQueue<>();
   // ConcurrentLinkedQueue.size() traverses the whole queue, so the number of queued events is tracked here.
   private final AtomicInteger eventCount = new AtomicInteger();
@@ -74,10 +70,8 @@ public class ImportantEventService {
   public ImportantEventService() {
     this(
         isEnabledByDefault(),
-        Long.parseLong(
-            System.getProperty(CONNECTION_QUEUE_TTL_PROPERTY, String.valueOf(DEFAULT_QUEUE_TTL_MS))),
-        Integer.parseInt(
-            System.getProperty(CONNECTION_QUEUE_MAX_SIZE_PROPERTY, String.valueOf(DEFAULT_QUEUE_MAX_SIZE))),
+        getLongProperty(CONNECTION_QUEUE_TTL_PROPERTY, DEFAULT_QUEUE_TTL_MS),
+        getIntProperty(CONNECTION_QUEUE_MAX_SIZE_PROPERTY, DEFAULT_QUEUE_MAX_SIZE),
         defaultMethodHistorySize());
   }
 
@@ -93,14 +87,14 @@ public class ImportantEventService {
    * @param maxEvents the maximum number of events registered with {@code registerEvent} that are retained;
    *     values below 1 are treated as 1
    * @param methodHistorySize the number of most recent method calls that are retained; 0 or a negative value
-   *     disables the method call history
+   *     disables the method call history, and so does {@code isEnabled} being false
    */
   public ImportantEventService(
       final boolean isEnabled, final long eventQueueMs, final int maxEvents, final int methodHistorySize) {
     this.isEnabled = isEnabled;
     this.eventQueueMs = eventQueueMs;
     this.maxEvents = Math.max(1, maxEvents);
-    this.methodCalls = new AtomicReferenceArray<>(Math.max(0, methodHistorySize));
+    this.methodCalls = new AtomicReferenceArray<>(isEnabled ? Math.max(0, methodHistorySize) : 0);
   }
 
   static boolean isEnabledByDefault() {
@@ -108,8 +102,48 @@ public class ImportantEventService {
   }
 
   static int defaultMethodHistorySize() {
-    return Integer.parseInt(
-        System.getProperty(METHOD_HISTORY_SIZE_PROPERTY, String.valueOf(DEFAULT_METHOD_HISTORY_SIZE)));
+    return getIntProperty(METHOD_HISTORY_SIZE_PROPERTY, DEFAULT_METHOD_HISTORY_SIZE);
+  }
+
+  /**
+   * Reads a numeric system property. A value that is not a number must not
+   * fail the connection, or the class initialization of
+   * {@link DriverImportantEventService}, over a diagnostic setting, so it is
+   * logged and replaced with the default.
+   */
+  static long getLongProperty(final String name, final long defaultValue) {
+    final String value = System.getProperty(name);
+    if (value == null) {
+      return defaultValue;
+    }
+    try {
+      return Long.parseLong(value.trim());
+    } catch (final NumberFormatException e) {
+      logInvalidProperty(name, value, defaultValue);
+      return defaultValue;
+    }
+  }
+
+  /**
+   * Reads a numeric system property the same way as {@link #getLongProperty},
+   * so a value outside the {@code int} range is also replaced with the default.
+   */
+  static int getIntProperty(final String name, final int defaultValue) {
+    final String value = System.getProperty(name);
+    if (value == null) {
+      return defaultValue;
+    }
+    try {
+      return Integer.parseInt(value.trim());
+    } catch (final NumberFormatException e) {
+      logInvalidProperty(name, value, defaultValue);
+      return defaultValue;
+    }
+  }
+
+  private static void logInvalidProperty(final String name, final String value, final long defaultValue) {
+    LOGGER.warning(() -> Messages.get(
+        "ImportantEventService.invalidPropertyValue", new Object[] {name, value, defaultValue}));
   }
 
   public void clear() {
@@ -157,8 +191,8 @@ public class ImportantEventService {
   }
 
   /**
-   * Returns the retained events and method calls that are not older than {@code eventQueueMs}, ordered by
-   * timestamp.
+   * Returns the retained events and method calls that are not older than {@code eventQueueMs}. The events are
+   * not sorted: registered events come first, then method calls in call order.
    *
    * @return a new list of events
    */
@@ -186,7 +220,6 @@ public class ImportantEventService {
       }
     }
 
-    result.sort(BY_TIMESTAMP);
     return result;
   }
 

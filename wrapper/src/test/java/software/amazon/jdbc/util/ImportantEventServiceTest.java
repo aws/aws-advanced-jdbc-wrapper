@@ -17,10 +17,8 @@
 package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -139,22 +137,17 @@ class ImportantEventServiceTest {
   }
 
   @Test
-  void testGetEvents_mergesEventsAndMethodCallsByTimestamp() throws InterruptedException {
+  void testGetEvents_listsEventsBeforeMethodCalls() {
     final ImportantEventService service = new ImportantEventService(true, TTL_MS, 10, 4);
     service.registerMethodCall("Connection.setAutoCommit");
-    Thread.sleep(5);
     service.registerEvent("failover started");
-    Thread.sleep(5);
     service.registerMethodCall("Statement.executeQuery");
 
-    final List<ImportantEvent> events = service.getEvents();
+    // The exception context sorts the combined connection and driver events,
+    // so getEvents does not sort.
     assertEquals(
-        Arrays.asList(executing("Connection.setAutoCommit"), "failover started", executing("Statement.executeQuery")),
-        descriptions(events));
-    for (int i = 1; i < events.size(); i++) {
-      final Instant previous = events.get(i - 1).timestamp;
-      assertFalse(events.get(i).timestamp.isBefore(previous));
-    }
+        Arrays.asList("failover started", executing("Connection.setAutoCommit"), executing("Statement.executeQuery")),
+        descriptions(service.getEvents()));
   }
 
   @Test
@@ -216,5 +209,34 @@ class ImportantEventServiceTest {
     service.registerMethodCall("Statement.executeQuery");
 
     assertEquals(Arrays.asList("event-2"), descriptions(service.getEvents()));
+  }
+
+  @Test
+  void testGetLongProperty_usesDefaultForInvalidValue() {
+    final String name = "aws.jdbc.test.important.event.long";
+    try {
+      System.setProperty(name, "60s");
+      assertEquals(60000, ImportantEventService.getLongProperty(name, 60000));
+      System.setProperty(name, " 1500 ");
+      assertEquals(1500, ImportantEventService.getLongProperty(name, 60000));
+    } finally {
+      System.clearProperty(name);
+    }
+    assertEquals(60000, ImportantEventService.getLongProperty(name, 60000));
+  }
+
+  @Test
+  void testGetIntProperty_usesDefaultForInvalidOrOutOfRangeValue() {
+    final String name = "aws.jdbc.test.important.event.int";
+    try {
+      System.setProperty(name, "many");
+      assertEquals(64, ImportantEventService.getIntProperty(name, 64));
+      System.setProperty(name, "4294967296");
+      assertEquals(64, ImportantEventService.getIntProperty(name, 64));
+      System.setProperty(name, "8");
+      assertEquals(8, ImportantEventService.getIntProperty(name, 64));
+    } finally {
+      System.clearProperty(name);
+    }
   }
 }

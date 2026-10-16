@@ -20,14 +20,10 @@ public class DriverImportantEventService {
 
   private static final ImportantEventService INSTANCE = new ImportantEventService(
       ImportantEventService.isEnabledByDefault(),
-      Long.parseLong(
-          System.getProperty(
-              ImportantEventService.DRIVER_QUEUE_TTL_PROPERTY,
-              String.valueOf(ImportantEventService.DEFAULT_QUEUE_TTL_MS))),
-      Integer.parseInt(
-          System.getProperty(
-              ImportantEventService.DRIVER_QUEUE_MAX_SIZE_PROPERTY,
-              String.valueOf(ImportantEventService.DEFAULT_QUEUE_MAX_SIZE))),
+      ImportantEventService.getLongProperty(
+          ImportantEventService.DRIVER_QUEUE_TTL_PROPERTY, ImportantEventService.DEFAULT_QUEUE_TTL_MS),
+      ImportantEventService.getIntProperty(
+          ImportantEventService.DRIVER_QUEUE_MAX_SIZE_PROPERTY, ImportantEventService.DEFAULT_QUEUE_MAX_SIZE),
       ImportantEventService.defaultMethodHistorySize());
 
   private DriverImportantEventService() {}
