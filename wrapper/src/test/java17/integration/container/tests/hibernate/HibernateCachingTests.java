@@ -58,7 +58,7 @@ import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Null
 import software.amazon.jdbc.plugin.cache.CacheConnection;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@EnableOnTestFeature({TestEnvironmentFeatures.VALKEY_CACHE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
 @MakeSureFirstInstanceWriter
 @Tag("caching")
 
