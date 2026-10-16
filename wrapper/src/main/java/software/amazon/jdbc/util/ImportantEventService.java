@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Collects a short history of important events so that it can be attached to an exception as context.
@@ -64,7 +65,7 @@ public class ImportantEventService {
   private final boolean isEnabled;
   private final int maxEvents;
 
-  private final AtomicReferenceArray<MethodCall> methodCalls;
+  private final AtomicReferenceArray<@Nullable MethodCall> methodCalls;
   private final AtomicLong methodCallCount = new AtomicLong();
 
   public ImportantEventService() {
