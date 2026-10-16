@@ -33,6 +33,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -57,6 +58,8 @@ import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
+import software.amazon.jdbc.plugin.efm.v1.HostMonitoringConnectionPluginV1;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
@@ -100,6 +103,42 @@ public class ConnectionPluginManagerTests {
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
     when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
+  }
+
+  @Test
+  public void testEfmMonitoringHostChangesWithoutBroadeningJdbcSubscriptions() throws SQLException {
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(
+        Collections.singleton(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName));
+
+    final HostSpec hostA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("writer-a.abc123.us-east-1.rds.amazonaws.com").build();
+    final HostSpec hostB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("writer-b.abc123.us-east-1.rds.amazonaws.com").build();
+    final Properties properties = new Properties();
+    final List<HostMonitoringConnectionBasePlugin> efmPlugins = Arrays.asList(
+        new HostMonitoringConnectionPluginV1(mockServicesContainer, properties),
+        new HostMonitoringConnectionPluginV2(mockServicesContainer, properties));
+
+    for (HostMonitoringConnectionBasePlugin plugin : efmPlugins) {
+      when(mockPluginService.getCurrentHostSpec()).thenReturn(hostA);
+      final ConnectionPluginManager manager = new ConnectionPluginManager(
+          mockConnectionProvider, null, properties,
+          Arrays.asList(plugin, new DefaultConnectionPlugin(
+              mockServicesContainer, mockConnectionProvider, null, mockPluginManagerService)), mockTelemetryFactory);
+
+      assertEquals(new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECT.methodName,
+          JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName)), plugin.getSubscribedMethods());
+      assertEquals(hostA, plugin.getMonitoringHostSpec());
+
+      when(mockPluginService.getCurrentHostSpec()).thenReturn(hostB);
+      manager.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.HOSTNAME), null);
+
+      assertEquals(hostB, plugin.getMonitoringHostSpec());
+      assertEquals(Boolean.TRUE, manager.execute(Boolean.class, SQLException.class, Connection.class,
+          JdbcMethod.CONNECTION_GETAUTOCOMMIT, () -> Boolean.TRUE, null));
+    }
   }
 
   @Test
