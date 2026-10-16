@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
@@ -70,6 +71,9 @@ public class DeveloperConnectionPluginTest {
   @SuppressWarnings("rawtypes")
   @Mock JdbcCallable mockCallable;
 
+  @Mock Statement mockStatement;
+  @Mock ResultSet mockResultSet;
+
   protected Properties props = new Properties();
   protected DeveloperConnectionPlugin plugin = new DeveloperConnectionPlugin();
   protected FullServicesContainer servicesContainer;
@@ -94,6 +98,10 @@ public class DeveloperConnectionPluginTest {
         mockPluginService,
         mockPluginService,
         mockImportantEventService);
+
+    when(mockConnection.createStatement()).thenReturn(mockStatement);
+    when(mockStatement.executeQuery(any())).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(false);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any()))
         .thenReturn(new ConnectionInfo(mockConnection, false));
