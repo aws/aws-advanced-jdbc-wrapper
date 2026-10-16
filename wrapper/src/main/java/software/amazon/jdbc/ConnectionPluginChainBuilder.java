@@ -131,12 +131,18 @@ public class ConnectionPluginChainBuilder {
           put("software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin", "gf");
           put("software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin", "i");
           put("software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin", "sm");
+          put("software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin2", "sm2");
           put("software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin", "fa");
           put("software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin", "o");
           put("software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin", "asd");
           put("software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin", "rw");
-          put("software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin", "srw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.AutoReadWriteSplittingPlugin", "arw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.SimpleReadWriteSplittingPlugin", "srw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.AutoSimpleReadWriteSplittingPlugin", "asrw");
           put("software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPlugin", "grw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.GdbAutoReadWriteSplittingPlugin", "garw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.GdbSimpleReadWriteSplittingPlugin", "gsrw");
+          put("software.amazon.jdbc.plugin.readwritesplitting.GdbAutoSimpleReadWriteSplittingPlugin", "gasrw");
           put("software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin", "act");
           put("software.amazon.jdbc.plugin.DriverMetaDataConnectionPlugin", "dm");
           put("software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin", "ct");
@@ -146,6 +152,7 @@ public class ConnectionPluginChainBuilder {
           put("software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin", "l");
           put("software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin", "bg");
           put("software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin", "kms");
+          put("software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPlugin", "sp");
         }
       };
 
