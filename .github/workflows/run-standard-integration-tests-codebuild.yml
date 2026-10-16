@@ -12,8 +12,9 @@
 # id-token: write. Residual risks: approved fork code can use the CodeBuild project's service role,
 # and if the project uses a CodeBuild Docker server (one daemon shared by its builds), it can leave
 # images there that later trusted jobs reuse; the Docker test jobs here pull and run images.
-# The integration-gate job keeps the original's name, 'Standard Integration Tests Gate', a required
-# status check on main.
+# The integration-gate job is named 'Standard Integration Tests Gate (CodeBuild)', a required status
+# check on main. A required check matches the job name exactly, so renaming the job means updating
+# branch protection too.
 
 name: Run Standard Integration Tests (CodeBuild)
 
@@ -194,7 +195,7 @@ jobs:
           retention-days: 5
 
   integration-gate:
-    name: 'Standard Integration Tests Gate'
+    name: 'Standard Integration Tests Gate (CodeBuild)'
     needs: [check-changes, docker-tests, caching-tests]
     if: ${{ always() }}
     runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
