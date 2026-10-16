@@ -270,10 +270,14 @@ cache reads but may write their database results to the cache.
 > disclosure is unacceptable, do not cache the query, or separate tenants by database user,
 > `cacheKeyPrefix`, or cache cluster.
 >
-> Internal connection pools (`connectionPoolType`) can reuse a database session for a new wrapper
-> connection, so do not combine them with operations that disable caching. Anyone with access to
-> the cache cluster can read or modify all cached results; `cacheKeyPrefix` separates keys but does
-> not restrict access.
+> Internal connection pools (`connectionPoolType`) return the database session to the pool
+> without resetting it, and the next wrapper connection starts with caching enabled again. Do not
+> use them with statements that disable caching, such as PostgreSQL `set_config(...)` or
+> MySQL/MariaDB `SET @variable`.
+>
+> Anyone who can connect to the cache cluster can read and overwrite every cached result.
+> `cacheKeyPrefix` only separates keys; it does not restrict access. Protect the cache cluster as
+> you would the database.
 
 > [!WARNING]
 > Cache hits do not query the database to revalidate authorization. External changes such as
