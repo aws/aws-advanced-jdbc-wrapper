@@ -95,7 +95,7 @@ isolation.
 
 The plugin uses SQL query hints to determine cacheability of the query and TTL. A query hint has the format: `/* CACHE_PARAM(ttl=300s) */`, with:
 - Case‑insensitive `CACHE_PARAM` with `TTL` parameter in seconds. TTL values <= 0 are treated as malformed and the query will not get cached. Large TTL values are allowed, but the plugin enforces a maximum TTL of 180 days to prevent indefinite caching.
-- Flexible placement within the SQL statement
+- Placement at the start of the SQL statement, as a prefix. A hint anywhere else is ignored, and the query is not cached.
 - Absence of such caching query hint makes the query un-cacheable.
 
 ### Invalidation of cached entries
