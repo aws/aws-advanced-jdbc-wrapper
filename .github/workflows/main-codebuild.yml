@@ -11,7 +11,8 @@
 # id-token: write. Residual risks: approved fork code can use the CodeBuild project's service role,
 # and if the project uses a CodeBuild Docker server (one daemon shared by its builds), it can leave
 # images there that later trusted jobs reuse.
-# The ci-gate job keeps the original's name, 'CI Gate', the required status check on main.
+# The ci-gate job is named 'CI Gate (CodeBuild)', the required status check on main. A required
+# check matches the job name exactly, so renaming the job means updating branch protection too.
 
 name: Main CI (CodeBuild)
 
@@ -219,7 +220,7 @@ jobs:
           retention-days: 3
 
   ci-gate:
-    name: 'CI Gate'
+    name: 'CI Gate (CodeBuild)'
     needs: [check-changes, markdown-link-check, lint, checker-framework, test]
     if: ${{ always() }}
     runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
