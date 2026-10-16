@@ -128,6 +128,13 @@ tasks.withType<Test> {
 
     testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test") + hibernateTest.output.classesDirs
     classpath += fileTree("./libs") { include("*.jar") } + project.files("./test") + project.files("./test/resources") + hibernateTest.output
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        // Hibernate test classes compiled on the host are copied to ./hibernateTest for Java 17+ test JVMs.
+        // Hibernate 7 needs newer ANTLR, byte-buddy, and jboss-logging versions than the other test dependencies
+        // bring, so its runtime dependencies go first.
+        testClassesDirs += project.files("./hibernateTest")
+        classpath = project.files("./hibernateTest") + configurations[hibernateTest.runtimeClasspathConfigurationName] + classpath
+    }
     outputs.upToDateWhen { false }
 
     useJUnitPlatform {
