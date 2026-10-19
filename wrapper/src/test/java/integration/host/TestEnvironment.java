@@ -24,6 +24,7 @@ import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
+import integration.TargetJvm;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
@@ -1461,6 +1462,12 @@ public class TestEnvironment implements AutoCloseable {
       env.testContainer = containerHelper.createTestContainer(
           "aws/rds-test-container",
           ContainerImages.jvmBase(env.info.getRequest().getTargetJvm()));
+      // Hibernate tests are compiled for Java 17, so they can only run on Java 17+ test JVMs.
+      final TargetJvm targetJvm = env.info.getRequest().getTargetJvm();
+      if (targetJvm == TargetJvm.OPENJDK17 || targetJvm == TargetJvm.OPENJDK21 || targetJvm == TargetJvm.OPENJDK24) {
+        env.testContainer.withCopyFileToContainer(
+            MountableFile.forHostPath("./build/classes/java/hibernateTest"), "app/hibernateTest");
+      }
     }
 
     env.testContainer
