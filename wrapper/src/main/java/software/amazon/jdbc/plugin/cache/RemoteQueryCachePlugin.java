@@ -515,9 +515,14 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     // Queries longer than 16KB is not cacheable
     if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize)
         && sql.contains(QUERY_HINT_START_PATTERN)) {
+      // The hint must prefix the query.
+      // MariaDB prepared statement text starts with a quote: "'/* CACHE_PARAM(...) */ select ...'".
+      final int startOfQueryHint = sql.indexOf(QUERY_HINT_START_PATTERN);
+      final String textBeforeHint = sql.substring(0, startOfQueryHint).trim();
       endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
-      if (endOfQueryHint > 0) {
-        configuredQueryTtl = getTtlForQuery(sql.substring(QUERY_HINT_START_PATTERN.length(), endOfQueryHint).trim());
+      if (endOfQueryHint > 0 && (textBeforeHint.isEmpty() || "'".equals(textBeforeHint))) {
+        configuredQueryTtl = getTtlForQuery(
+            sql.substring(startOfQueryHint + QUERY_HINT_START_PATTERN.length(), endOfQueryHint).trim());
         mainQuery = sql.substring(endOfQueryHint + QUERY_HINT_END_PATTERN.length()).trim();
       }
     }
