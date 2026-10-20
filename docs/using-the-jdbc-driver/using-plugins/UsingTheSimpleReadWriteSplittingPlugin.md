@@ -34,6 +34,7 @@ properties.setProperty("srwReadEndpoint", "test-db.cluster-ro-XYZ.us-east-2.rds.
 | `srwConnectRetryTimeoutMs`       | 3.0.0 | Integer |    No    | If `verifyNewSrwConnections` is set to `true`, this parameter sets the maximum allowed time in milliseconds for retrying connection attempts. More details below.                                                                                                                                                                   | `60000`       | `60000`                                                      |
 | `srwConnectRetryIntervalMs`      | 3.0.0 | Integer |    No    | If `verifyNewSrwConnections` is set to `true`, this parameter sets the time delay in milliseconds between each retry of opening a connection. More details below.                                                                                                                                                                   | `1000`        | `1000`                                                       |
 | `cachedReaderKeepAliveTimeoutMs` | 3.0.0 | Integer |    No    | Timeout value for the cached reader connection. Once the reader has expired, the next call to `setReadOnly(true)` will create a new reader connection using the `srwReadEndpoint`. The default value of 0 means the wrapper will keep reusing the same cached reader connection for the entire lifetime of the `Connection` object. | `0`           | `600000`                                                     |
+| `srwTransferSessionStateOnSwitch` | 4.6.0 | Boolean |    No    | When `false`, a switch to an already-open cached reader or writer connection does not apply the session state to it; a connection opened by the switch still receives the full session state. Applies to all read/write splitting plugins. See [Read/write splitting switches](../SessionState.md#readwrite-splitting-switches) for the trade-off. | `true`        | `true`, `false`                                              |
 
 ## How the Simple Read/Write Splitting Plugin Verifies Connections
 
@@ -75,6 +76,8 @@ these endpoints any time setReadOnly is called.
 
 To take full advantage of the benefits of RDS Proxy, it is recommended to only connect through RDS Proxy endpoints. See [Using the AWS Advanced JDBC Wrapper with RDS Proxy](./../../../README.md#rds-proxy) for limitations.
 
+Each switch between the reader and writer connections applies the session state to the connection switched to, which costs round trips through the proxy. With MySQL Connector/J, set `useLocalSessionState=true` so the driver skips statements for values that did not change. If the application sets session settings before the connections are opened (for example, during connection pool initialization) and does not change them between switches, also set `srwTransferSessionStateOnSwitch=false`. See [Read/write splitting switches](../SessionState.md#readwrite-splitting-switches).
+
 ## Limitations
 
 ### General plugin limitations
@@ -93,7 +96,7 @@ Following failover, endpoints that point to specific instances will be impacted 
 
 ### Session state
 
-The plugin supports session state transfer when switching connections. All attributes mentioned in [Session State](../SessionState.md) are automatically transferred to a new connection.
+The plugin supports session state transfer when switching connections. All attributes mentioned in [Session State](../SessionState.md) are automatically transferred to a new connection. To skip the transfer on switches between the already-open reader and writer connections, set `srwTransferSessionStateOnSwitch=false`; with MySQL Connector/J, `useLocalSessionState=true` also removes most of the round trips a transfer causes. See [Read/write splitting switches](../SessionState.md#readwrite-splitting-switches).
 
 ## Examples
 [SimpleReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/SimpleReadWriteSplittingPostgresExample.java) and [SimpleReadWriteSplittingMySQLExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/SimpleReadWriteSplittingMySQLExample.java) demonstrate how to enable and configure Simple Read/Write Splitting with the AWS Advanced JDBC Wrapper.

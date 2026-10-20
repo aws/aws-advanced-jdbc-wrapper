@@ -22,10 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,9 +49,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.stubbing.Answer;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -75,6 +82,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   private static final int TEST_PORT = 5432;
   private static final String SET_READ_ONLY = JdbcMethod.CONNECTION_SETREADONLY.methodName;
   private static final String CLEAR_WARNINGS = JdbcMethod.CONNECTION_CLEARWARNINGS.methodName;
+  private static final String SRW_TRANSFER_SESSION_STATE_ON_SWITCH =
+      UnifiedReadWriteSplittingPlugin.SRW_TRANSFER_SESSION_STATE_ON_SWITCH.name;
 
   private final Properties defaultProps = new Properties();
 
@@ -454,6 +463,8 @@ public class UnifiedReadWriteSplittingPluginTest {
    * Backs the mocked plugin service with a real {@link SessionStateServiceImpl} and makes
    * {@code setCurrentConnection} behave like {@code PluginServiceImpl}: it updates the current
    * connection and host, then transfers the session state to the new connection.
+   * {@code setCurrentConnectionWithoutSessionStateTransfer} does the same, but calls
+   * {@code onSwitchWithoutSessionStateTransfer} instead of transferring the session state.
    */
   private SessionStateService useRealSessionStateTransfer(
       final Connection initialConnection, final HostSpec initialHost) throws SQLException {
@@ -464,19 +475,35 @@ public class UnifiedReadWriteSplittingPluginTest {
     when(this.mockPluginService.getSessionStateService()).thenReturn(sessionStateService);
     when(this.mockPluginService.getCurrentConnection()).thenAnswer(invocation -> currentConnection.get());
     when(this.mockPluginService.getCurrentHostSpec()).thenAnswer(invocation -> currentHost.get());
-    doAnswer(invocation -> {
+    doAnswer(switchAnswer(sessionStateService, currentConnection, currentHost, true))
+        .when(this.mockPluginService).setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    doAnswer(switchAnswer(sessionStateService, currentConnection, currentHost, false))
+        .when(this.mockPluginService)
+        .setCurrentConnectionWithoutSessionStateTransfer(any(Connection.class), any(HostSpec.class));
+    return sessionStateService;
+  }
+
+  private static Answer<Void> switchAnswer(
+      final SessionStateService sessionStateService,
+      final AtomicReference<Connection> currentConnection,
+      final AtomicReference<HostSpec> currentHost,
+      final boolean transferSessionState) {
+    return invocation -> {
       final Connection newConnection = invocation.getArgument(0);
       sessionStateService.begin();
       try {
         currentConnection.set(newConnection);
         currentHost.set(invocation.getArgument(1));
-        sessionStateService.applyCurrentSessionState(newConnection);
+        if (transferSessionState) {
+          sessionStateService.applyCurrentSessionState(newConnection);
+        } else {
+          sessionStateService.onSwitchWithoutSessionStateTransfer(newConnection);
+        }
       } finally {
         sessionStateService.complete();
       }
       return null;
-    }).when(this.mockPluginService).setCurrentConnection(any(Connection.class), any(HostSpec.class));
-    return sessionStateService;
+    };
   }
 
   /**
@@ -619,6 +646,277 @@ public class UnifiedReadWriteSplittingPluginTest {
     assertThrows(SQLException.class, () -> invokeSetReadOnly(plugin, mockReaderConn1, false));
     assertEquals(Optional.of(true), sessionStateService.getReadOnly());
     verify(this.mockVoidFunc, never()).call();
+  }
+
+  // ---- srwTransferSessionStateOnSwitch ----
+
+  /** Creates the topology plugin and binds the current (writer) connection as the cached writer. */
+  private ReadWriteSplittingPlugin newTopologyPluginWithCachedWriter() {
+    final ReadWriteSplittingPlugin plugin = newTopologyPlugin();
+    plugin.notifyConnectionChanged(noChanges());
+    return plugin;
+  }
+
+  @Test
+  public void testSrwTransferFalse_cachedSwitches_skipSessionStateTransfer() throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);  // opens the reader
+    invokeSetReadOnlyTracked(plugin, sessionStateService, false); // cached writer
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);  // cached reader
+
+    assertEquals(mockReaderConn1, this.mockPluginService.getCurrentConnection());
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnection(eq(mockReaderConn1), any(HostSpec.class));
+    verify(this.mockPluginService, never())
+        .setCurrentConnection(eq(mockWriterConn), any(HostSpec.class));
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnectionWithoutSessionStateTransfer(mockWriterConn, writerHostSpec);
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnectionWithoutSessionStateTransfer(eq(mockReaderConn1), any(HostSpec.class));
+  }
+
+  @Test
+  public void testSrwTransferFalse_autoSimplePlugin_cachedSwitches_skipSessionStateTransfer()
+      throws SQLException {
+    final HostSpec writeEndpointHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("writer.endpoint").port(TEST_PORT).role(HostRole.WRITER).build();
+
+    final Properties props = new Properties();
+    props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, "writer.endpoint");
+    props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, "reader.endpoint");
+    props.setProperty(SimpleReadWriteSplittingPlugin.VERIFY_NEW_SRW_CONNECTIONS.name, "false");
+    props.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writeEndpointHost);
+    when(this.mockHostListProviderService.getCurrentHostSpec()).thenReturn(writeEndpointHost);
+    when(this.mockHostListProviderService.getHostSpecBuilder())
+        .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    when(this.mockPluginService.connect(
+        argHostWith("reader.endpoint"), any(Properties.class), any())).thenReturn(mockReaderConn1);
+    when(this.mockPluginService.connect(
+        argHostWith("writer.endpoint"), any(Properties.class), any())).thenReturn(mockWriterConn);
+
+    final AutoSimpleReadWriteSplittingPlugin plugin =
+        new AutoSimpleReadWriteSplittingPlugin(this.mockPluginService, props);
+    plugin.initHostProvider(
+        TEST_PROTOCOL, "url", props, this.mockHostListProviderService, () -> null);
+    plugin.notifyConnectionChanged(noChanges());
+
+    for (int i = 0; i < 2; i++) {
+      invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+      assertEquals(mockReaderConn1, this.mockPluginService.getCurrentConnection());
+      invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+      assertEquals(mockWriterConn, this.mockPluginService.getCurrentConnection());
+    }
+
+    // Only the first switch to the reader opens a connection and transfers the session state.
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnection(eq(mockReaderConn1), any(HostSpec.class));
+    verify(this.mockPluginService, never())
+        .setCurrentConnection(eq(mockWriterConn), any(HostSpec.class));
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnectionWithoutSessionStateTransfer(eq(mockReaderConn1), any(HostSpec.class));
+    verify(this.mockPluginService, times(2))
+        .setCurrentConnectionWithoutSessionStateTransfer(eq(mockWriterConn), any(HostSpec.class));
+  }
+
+  @Test
+  public void testSrwTransferFalse_realSessionState_cachedConnectionsNotTouched() throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    when(mockWriterConn.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
+    when(mockReaderConn1.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
+    when(mockWriterConn.getAutoCommit()).thenReturn(true);
+    when(mockReaderConn1.getAutoCommit()).thenReturn(true);
+    // What ConnectionWrapper records when the application sets these on the writer.
+    sessionStateService.setupPristineTransactionIsolation();
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    sessionStateService.setupPristineAutoCommit();
+    sessionStateService.setAutoCommit(true);
+    sessionStateService.setupPristineReadOnly(false);
+    sessionStateService.setReadOnly(false);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    for (int i = 0; i < 3; i++) {
+      invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+      assertEquals(mockReaderConn1, this.mockPluginService.getCurrentConnection());
+      invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+      assertEquals(mockWriterConn, this.mockPluginService.getCurrentConnection());
+    }
+
+    // The reader received the session state once, when the first switch opened it.
+    verify(mockReaderConn1, times(1)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    verify(mockReaderConn1, times(1)).setAutoCommit(true);
+    verify(mockReaderConn1, times(1)).setReadOnly(true);
+    verify(mockReaderConn1, times(1)).getTransactionIsolation();
+    verify(mockReaderConn1, times(1)).getAutoCommit();
+    verify(mockReaderConn1, times(1)).isReadOnly();
+    // The writer is never changed or queried by a switch: the only reads are the ones made above,
+    // before any switch.
+    verify(mockWriterConn, never()).setTransactionIsolation(anyInt());
+    verify(mockWriterConn, never()).setAutoCommit(anyBoolean());
+    verify(mockWriterConn, never()).setReadOnly(anyBoolean());
+    verify(mockWriterConn, times(1)).getTransactionIsolation();
+    verify(mockWriterConn, times(1)).getAutoCommit();
+    verify(mockWriterConn, never()).isReadOnly();
+    // The readOnly value tracked is the one the application set last (fix B still holds).
+    assertEquals(Optional.of(false), sessionStateService.getReadOnly());
+  }
+
+  @Test
+  public void testSrwTransferFalse_firstOpenOfReader_transfersFullState() throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setCatalog("app_db");
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+
+    assertEquals(mockReaderConn1, this.mockPluginService.getCurrentConnection());
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnection(eq(mockReaderConn1), any(HostSpec.class));
+    verify(this.mockPluginService, never())
+        .setCurrentConnectionWithoutSessionStateTransfer(any(Connection.class), any(HostSpec.class));
+    verify(mockReaderConn1, times(1)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    verify(mockReaderConn1, times(1)).setAutoCommit(false);
+    verify(mockReaderConn1, times(1)).setCatalog("app_db");
+  }
+
+  @Test
+  public void testSrwTransferFalse_closedCachedReader_replacementGetsFullState() throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
+        .thenReturn(mockReaderConn1, mockReaderConn2);
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+    invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+    when(mockReaderConn1.isClosed()).thenReturn(true);
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+
+    assertEquals(mockReaderConn2, this.mockPluginService.getCurrentConnection());
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnection(eq(mockReaderConn2), any(HostSpec.class));
+    verify(this.mockPluginService, never())
+        .setCurrentConnectionWithoutSessionStateTransfer(eq(mockReaderConn2), any(HostSpec.class));
+    verify(mockReaderConn2, times(1)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+  }
+
+  @Test
+  public void testSrwTransferFalse_closedCachedWriter_replacementGetsFullState() throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    final Connection newWriterConn = mock(Connection.class);
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+    when(mockWriterConn.isClosed()).thenReturn(true);
+    when(this.mockPluginService.connect(eq(writerHostSpec), any(Properties.class), any()))
+        .thenReturn(newWriterConn);
+    invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+
+    assertEquals(newWriterConn, this.mockPluginService.getCurrentConnection());
+    verify(this.mockPluginService, times(1)).setCurrentConnection(newWriterConn, writerHostSpec);
+    verify(this.mockPluginService, never())
+        .setCurrentConnectionWithoutSessionStateTransfer(eq(newWriterConn), any(HostSpec.class));
+    verify(newWriterConn, times(1)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "true"})
+  public void testSrwTransferDefaultAndTrue_cachedSwitches_transferSessionState(final String value)
+      throws SQLException {
+    if (!value.isEmpty()) {
+      this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, value);
+    }
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    for (int i = 0; i < 2; i++) {
+      invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+      invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+    }
+
+    verify(this.mockPluginService, times(2))
+        .setCurrentConnection(eq(mockReaderConn1), any(HostSpec.class));
+    verify(this.mockPluginService, times(2)).setCurrentConnection(mockWriterConn, writerHostSpec);
+    verify(this.mockPluginService, never())
+        .setCurrentConnectionWithoutSessionStateTransfer(any(Connection.class), any(HostSpec.class));
+    verify(mockReaderConn1, times(2)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    verify(mockWriterConn, times(2)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+  }
+
+  @Test
+  public void testSrwTransferFalse_failedCachedReaderSwitch_fallbackOpensReaderWithFullTransfer()
+      throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
+        .thenReturn(mockReaderConn1, mockReaderConn2);
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    doThrow(new SQLException("cached reader switch failed")).when(this.mockPluginService)
+        .setCurrentConnectionWithoutSessionStateTransfer(eq(mockReaderConn1), any(HostSpec.class));
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+    invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+
+    // The failed switch to the cached reader closes it; the new reader gets the full session state.
+    assertEquals(mockReaderConn2, this.mockPluginService.getCurrentConnection());
+    verify(mockReaderConn1, times(1)).close();
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnection(eq(mockReaderConn2), any(HostSpec.class));
+    verify(mockReaderConn2, times(1)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+  }
+
+  @Test
+  public void testSrwTransferFalse_afterSkippedSwitch_nonSplittingSwitchTransfersTrackedState()
+      throws SQLException {
+    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    final Connection failoverConn = mock(Connection.class);
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
+    invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+    invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+    verify(this.mockPluginService, times(1))
+        .setCurrentConnectionWithoutSessionStateTransfer(mockWriterConn, writerHostSpec);
+
+    // Tracking continues while switches skip the transfer.
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+    sessionStateService.setCatalog("c2");
+    sessionStateService.setAutoCommit(false);
+    assertEquals(Optional.of(Connection.TRANSACTION_SERIALIZABLE), sessionStateService.getTransactionIsolation());
+    assertEquals(Optional.of("c2"), sessionStateService.getCatalog());
+    assertEquals(Optional.of(false), sessionStateService.getAutoCommit());
+
+    // A switch outside read/write splitting (as failover makes) still transfers the tracked state.
+    this.mockPluginService.setCurrentConnection(failoverConn, readerHostSpec2);
+
+    verify(failoverConn, times(1)).setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+    verify(failoverConn, times(1)).setCatalog("c2");
+    verify(failoverConn, times(1)).setAutoCommit(false);
+    verify(failoverConn, times(1)).setReadOnly(false);
   }
 
   private static HostSpec argHostWith(final String host) {

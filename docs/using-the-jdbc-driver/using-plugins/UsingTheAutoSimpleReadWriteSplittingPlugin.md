@@ -47,6 +47,7 @@ This plugin accepts the same endpoint parameters as the [Simple Read/Write Split
 | `srwConnectRetryTimeoutMs` | 3.0.0 | Integer | No | Maximum allowed time in milliseconds for retrying connection attempts. | `60000` |
 | `srwConnectRetryIntervalMs` | 3.0.0 | Integer | No | Time delay in milliseconds between connection retries. | `1000` |
 | `cachedReaderKeepAliveTimeoutMs` | 3.0.0 | Integer | No | Timeout for the cached reader connection. `0` reuses the same cached reader for the lifetime of the `Connection`. | `0` |
+| `srwTransferSessionStateOnSwitch` | 4.6.0 | Boolean | No | When `false`, a switch to an already-open cached reader or writer connection does not apply the session state to it; a connection opened by the switch still receives the full session state. See [Read/write splitting switches](../SessionState.md#readwrite-splitting-switches). | `true` |
 
 It also accepts the family-wide `queryLevelLoadBalancing` and `allowStatementRecreationOnConnectionSwitch` parameters — see [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing). Because each read statement is a routing point, query-level load balancing rotates reads per query.
 

@@ -127,6 +127,15 @@ public interface SessionStateService {
   // Apply current session state (of the current connection) to a new connection.
   void applyCurrentSessionState(final Connection newConnection) throws SQLException;
 
+  // Called instead of applyCurrentSessionState(newConnection) when a connection switch does not transfer the
+  // session state to newConnection (see PluginService#setCurrentConnectionWithoutSessionStateTransfer).
+  // Implementations update their own bookkeeping for the new connection without changing the connection.
+  // The default implementation transfers the session state, so implementations that don't override it keep
+  // their current behavior.
+  default void onSwitchWithoutSessionStateTransfer(final Connection newConnection) throws SQLException {
+    this.applyCurrentSessionState(newConnection);
+  }
+
   // Apply pristine values to the provided connection (practically resetting the connection to its original state).
   void applyPristineSessionState(final Connection connection) throws SQLException;
 }

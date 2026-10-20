@@ -31,7 +31,17 @@ Session state reset could be disabled by using `resetSessionStateOnClose` config
 
 When the driver needs to switch to a new connection, it opens a new connection and transfers a session state to it. All current session state values are applied to the new connection. Pristine values for a new connection are also fetched and stored if needed. Pristine values are remembered for each physical connection, so a connection the driver switches back to (for example, a cached writer or reader connection used by read/write splitting) is not queried for them again. When a new connection is configured, it replaces the current internal connection.
 
-Session transfer cab be disabled by using the `transferSessionStateOnSwitch` configuration parameter.
+Session transfer can be disabled by using the `transferSessionStateOnSwitch` configuration parameter. Setting it to `false` also stops tracking session state changes. To skip the transfer only on read/write splitting switches, see [Read/write splitting switches](#readwrite-splitting-switches).
+
+### Read/write splitting switches
+
+The read/write splitting plugins switch back and forth between a writer connection and a reader connection, and keep both open. By default, each switch applies the current session state to the connection switched to, as described above. The `srwTransferSessionStateOnSwitch` parameter (default `true`) controls this for all read/write splitting plugins: `readWriteSplitting`, `autoReadWriteSplitting`, `srw`, `autoSimpleReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting`, `gdbSimpleReadWriteSplitting` and `gdbAutoSimpleReadWriteSplitting`. The `srw` prefix does not limit it to the Simple Read/Write Splitting Plugin.
+
+With `srwTransferSessionStateOnSwitch=false`, a read/write splitting switch to an already-open reader or writer connection does not apply the session state to it. A connection that the switch opens (first use, or a replacement for a closed or expired cached connection) still receives the full session state, so settings made before it was opened (for example, a transaction isolation level set once by a connection pool) reach it. A skipped switch does not call the custom transfer handler set with `setTransferSessionStateOnSwitchFunc`.
+
+The trade-off: catalog, schema, transaction isolation, autoCommit, network timeout, holdability and type map changed through JDBC after both connections are open are not propagated to the other connection on a switch. A `setReadOnly` call still reaches its target, because the wrapper applies it after the switch. A SQL-routed switch (`auto*` plugins) leaves the target's readOnly setting as it was. The session state is still tracked, and other switches, such as failover, still transfer it. With the internal connection pool, the idle connection is returned to the pool on each switch, so most switches obtain a connection and transfer the session state as usual. Use `false` only when the application sets session settings before the connections are opened and does not change them between switches.
+
+With MySQL Connector/J, consider setting `useLocalSessionState=true` (a driver property the wrapper passes through to the driver). The driver then skips `SET autocommit` and `SET SESSION TRANSACTION ...` statements when the value is unchanged, and answers `isReadOnly()` and `getTransactionIsolation()` locally. This removes most session state round trips on a switch without changing what is transferred. It is only safe when the session is changed through JDBC calls, not through raw `SET` statements.
 
 ## Session State Custom handlers
 

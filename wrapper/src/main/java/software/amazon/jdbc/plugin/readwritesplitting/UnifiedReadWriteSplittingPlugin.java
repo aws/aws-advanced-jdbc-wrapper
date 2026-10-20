@@ -121,6 +121,18 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
           false,
           new String[] {"true", "false"});
 
+  public static final AwsWrapperProperty SRW_TRANSFER_SESSION_STATE_ON_SWITCH =
+      new AwsWrapperProperty(
+          "srwTransferSessionStateOnSwitch",
+          "true",
+          "Transfer the session state when a read/write splitting plugin switches between its reader and "
+              + "writer connections. When false, a switch to an already-open cached reader or writer connection "
+              + "does not apply the session state to it; a connection opened by the switch still receives the "
+              + "full session state. Session state is still tracked, and other connection switches, such as "
+              + "failover, still transfer it. Applies to all read/write splitting plugins. Enabled by default.",
+          false,
+          new String[] {"true", "false"});
+
   static {
     PropertyDefinition.registerPluginProperties(UnifiedReadWriteSplittingPlugin.class);
   }
@@ -182,6 +194,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   private final Set<String> subscribedMethods;
   private final boolean allowStatementRecreationOnConnectionSwitch;
   private final boolean queryLevelLoadBalancing;
+  private final boolean transferSessionStateOnSwitch;
 
   // Tracks plain Statement objects seen for execute-with-SQL, to warn once per statement when a
   // bound statement is reused and rerouting cannot be applied.
@@ -213,6 +226,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     this.allowStatementRecreationOnConnectionSwitch =
         ALLOW_STATEMENT_RECREATION_ON_CONNECTION_SWITCH.getBoolean(properties);
     this.queryLevelLoadBalancing = QUERY_LEVEL_LOAD_BALANCING.getBoolean(properties);
+    this.transferSessionStateOnSwitch = SRW_TRANSFER_SESSION_STATE_ON_SWITCH.getBoolean(properties);
   }
 
   /**
@@ -693,7 +707,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       }
       // WriterResolution.STAY (e.g. Global Write Forwarding): remain on the current connection.
     } else {
-      this.switchCurrentConnectionTo(cachedWriter, cachedWriterHost);
+      this.switchToCachedConnection(cachedWriter, cachedWriterHost);
     }
 
     if (this.isReaderConnFromInternalPool) {
@@ -726,7 +740,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       this.helpers.readerResolver.switchToReader(this);
     } else {
       try {
-        this.switchCurrentConnectionTo(cachedReader, cachedReaderHost);
+        this.switchToCachedConnection(cachedReader, cachedReaderHost);
         LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
             new Object[] {cachedReaderHost.getHostAndPort()}));
       } catch (final SQLException e) {
@@ -873,13 +887,34 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   @Override
   public void switchCurrentConnectionTo(final Connection newConnection, final HostSpec newConnectionHost)
       throws SQLException {
+    this.switchCurrentConnectionTo(newConnection, newConnectionHost, true);
+  }
+
+  private void switchCurrentConnectionTo(
+      final Connection newConnection, final HostSpec newConnectionHost, final boolean transferSessionState)
+      throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection == newConnection) {
       return;
     }
-    this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
+    if (transferSessionState) {
+      this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
+    } else {
+      this.pluginService.setCurrentConnectionWithoutSessionStateTransfer(newConnection, newConnectionHost);
+    }
     LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.settingCurrentConnection",
         new Object[] {newConnectionHost.getHostAndPort()}));
+  }
+
+  /**
+   * Switches to a cached reader or writer connection that is already open. With
+   * {@code srwTransferSessionStateOnSwitch=false} the session state is not applied to it. A
+   * connection opened by a switch goes through {@link #switchCurrentConnectionTo(Connection, HostSpec)}
+   * instead and always receives the full session state, so settings made before it was opened reach it.
+   */
+  private void switchToCachedConnection(final Connection cachedConnection, final HostSpec cachedConnectionHost)
+      throws SQLException {
+    this.switchCurrentConnectionTo(cachedConnection, cachedConnectionHost, this.transferSessionStateOnSwitch);
   }
 
   @Override
@@ -991,6 +1026,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     state.add(Pair.create("readerHostSpec", this.readerHostSpec != null ? this.readerHostSpec.toString() : null));
     state.add(Pair.create("isReaderConnFromInternalPool", this.isReaderConnFromInternalPool));
     state.add(Pair.create("isWriterConnFromInternalPool", this.isWriterConnFromInternalPool));
+    state.add(Pair.create("transferSessionStateOnSwitch", this.transferSessionStateOnSwitch));
     for (final SnapshotContributor contributor : this.helpers.snapshotContributors()) {
       final List<Pair<String, Object>> fragment = contributor.snapshotState();
       if (fragment != null) {

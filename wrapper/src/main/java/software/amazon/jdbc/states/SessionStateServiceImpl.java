@@ -499,6 +499,77 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
   }
 
+  /**
+   * Updates the bookkeeping for a switch to {@code newConnection} that does not transfer the session
+   * state to it. Nothing is read from or applied to {@code newConnection}, and the custom transfer
+   * handler is not called. For each tracked field, the pristine value is replaced by the one recorded
+   * for {@code newConnection}, if any, so that close-time restore uses that connection's own original
+   * values. The authorization state is reset because it belongs to the previous physical connection.
+   *
+   * @param newConnection the connection being switched to
+   * @throws SQLException declared by {@link SessionStateService}; this implementation does not throw it
+   */
+  @Override
+  public void onSwitchWithoutSessionStateTransfer(final Connection newConnection) throws SQLException {
+    try {
+      if (!this.transferStateEnabledSetting()) {
+        return;
+      }
+
+      if (this.sessionState.autoCommit.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.autoCommit);
+      }
+      if (this.sessionState.readOnly.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.readOnly);
+      }
+      if (this.sessionState.catalog.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.catalog);
+      }
+      if (this.sessionState.schema.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.schema);
+      }
+      if (this.sessionState.holdability.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.holdability);
+      }
+      if (this.sessionState.transactionIsolation.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.transactionIsolation);
+      }
+      if (this.sessionState.networkTimeout.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.networkTimeout);
+      }
+      if (this.sessionState.typeMap.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.typeMap);
+      }
+      this.logCurrentState();
+    } finally {
+      this.sessionState.authorizationState.resetValue();
+    }
+  }
+
+  /**
+   * Replaces the pristine value of a session field with the one recorded for {@code connection}, or
+   * clears it when none is recorded. Unlike {@link #setupPristineValueForNewConnection}, it never reads
+   * from the connection and never records anything.
+   *
+   * @param connection the physical connection being switched to
+   * @param fieldSelector selects the field from a {@link SessionState}
+   * @param <T> the field type
+   */
+  private <T> void restoreRecordedPristineValue(
+      final @NonNull Connection connection,
+      final @NonNull Function<SessionState, SessionStateField<T>> fieldSelector) {
+
+    final SessionStateField<T> field = fieldSelector.apply(this.sessionState);
+    field.resetPristineValue();
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    final SessionState recorded = this.pristineStateByConnection.get(connection);
+    if (recorded != null) {
+      fieldSelector.apply(recorded).getPristineValue().ifPresent(field::setPristineValue);
+    }
+  }
+
   private void applyCurrentSessionStateInternal(Connection newConnection) throws SQLException {
     if (!this.transferStateEnabledSetting()) {
       return;

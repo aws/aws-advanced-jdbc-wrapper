@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -267,6 +268,111 @@ public class PluginServiceImplTests {
     assertEquals(newConnection, target.currentConnection);
     assertEquals("new-host", target.currentHostSpec.getHost());
     verify(oldConnection, times(0)).close();
+  }
+
+  private PluginServiceImpl newTargetOnOldConnection() throws SQLException {
+    final PluginServiceImpl target =
+        spy(new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.currentConnection = oldConnection;
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
+        .build();
+    return target;
+  }
+
+  @Test
+  public void testSetCurrentConnectionWithoutSessionStateTransfer_skipsApply() throws SQLException {
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.PRESERVE));
+    final PluginServiceImpl target = newTargetOnOldConnection();
+
+    target.setCurrentConnectionWithoutSessionStateTransfer(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
+
+    assertEquals(newConnection, target.currentConnection);
+    assertEquals("new-host", target.currentHostSpec.getHost());
+    verify(sessionStateService, times(1)).begin();
+    verify(sessionStateService, times(1)).onSwitchWithoutSessionStateTransfer(newConnection);
+    verify(sessionStateService, never()).applyCurrentSessionState(any());
+    verify(sessionStateService, times(1)).complete();
+    verify(pluginManager, times(1)).notifyConnectionChanged(any(), any());
+    verify(oldConnection, never()).close();
+  }
+
+  @Test
+  public void testSetCurrentConnection_afterSwitchWithoutTransfer_transfers() throws SQLException {
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.PRESERVE));
+    final PluginServiceImpl target = newTargetOnOldConnection();
+    final Connection thirdConnection = Mockito.mock(Connection.class);
+
+    target.setCurrentConnectionWithoutSessionStateTransfer(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
+    target.setCurrentConnection(thirdConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("third-host").build());
+
+    assertEquals(thirdConnection, target.currentConnection);
+    verify(sessionStateService, times(1)).onSwitchWithoutSessionStateTransfer(newConnection);
+    verify(sessionStateService, times(1)).applyCurrentSessionState(thirdConnection);
+    verify(sessionStateService, never()).onSwitchWithoutSessionStateTransfer(thirdConnection);
+  }
+
+  @Test
+  public void testSetCurrentConnection_afterFailedSwitchWithoutTransfer_transfers() throws SQLException {
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.PRESERVE));
+    doThrow(new SQLException("test")).when(sessionStateService).onSwitchWithoutSessionStateTransfer(any());
+    final PluginServiceImpl target = newTargetOnOldConnection();
+    final Connection thirdConnection = Mockito.mock(Connection.class);
+
+    assertThrows(SQLException.class, () -> target.setCurrentConnectionWithoutSessionStateTransfer(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build()));
+    verify(sessionStateService, times(1)).complete();
+
+    target.setCurrentConnection(thirdConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("third-host").build());
+
+    assertEquals(thirdConnection, target.currentConnection);
+    verify(sessionStateService, times(1)).applyCurrentSessionState(thirdConnection);
+    verify(sessionStateService, never()).onSwitchWithoutSessionStateTransfer(thirdConnection);
+    verify(sessionStateService, times(2)).complete();
+  }
+
+  @Test
+  public void testSetCurrentConnection_stillTransfers() throws SQLException {
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.PRESERVE));
+    final PluginServiceImpl target = newTargetOnOldConnection();
+    final Connection thirdConnection = Mockito.mock(Connection.class);
+
+    target.setCurrentConnection(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
+    target.setCurrentConnection(thirdConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("third-host").build(), null);
+
+    verify(sessionStateService, times(1)).applyCurrentSessionState(newConnection);
+    verify(sessionStateService, times(1)).applyCurrentSessionState(thirdConnection);
+    verify(sessionStateService, never()).onSwitchWithoutSessionStateTransfer(any());
+  }
+
+  @Test
+  public void testPluginServiceDefault_setCurrentConnectionWithoutSessionStateTransfer_delegates()
+      throws SQLException {
+    final PluginService pluginService = Mockito.mock(PluginService.class, Mockito.CALLS_REAL_METHODS);
+    doNothing().when(pluginService).setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build();
+
+    pluginService.setCurrentConnectionWithoutSessionStateTransfer(newConnection, hostSpec);
+
+    verify(pluginService, times(1)).setCurrentConnection(newConnection, hostSpec);
   }
 
   @Test
