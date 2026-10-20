@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +45,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class SessionStateServiceImplTests {
@@ -377,6 +380,148 @@ public class SessionStateServiceImplTests {
 
     verify(mockNewConnection, times(1)).setTypeMap(captorTypeMap.capture());
     assertEquals(value, captorTypeMap.getValue());
+  }
+
+  /**
+   * Makes the mocked plugin service report a mutable current connection, as PluginServiceImpl does.
+   */
+  private AtomicReference<Connection> trackCurrentConnection(final Connection initialConnection) {
+    final AtomicReference<Connection> currentConnection = new AtomicReference<>(initialConnection);
+    when(mockPluginService.getCurrentConnection()).thenAnswer(invocation -> currentConnection.get());
+    return currentConnection;
+  }
+
+  /**
+   * Switches to the given connection the way PluginServiceImpl.setCurrentConnection does.
+   */
+  private void switchTo(final AtomicReference<Connection> currentConnection, final Connection connection)
+      throws SQLException {
+    sessionStateService.begin();
+    try {
+      currentConnection.set(connection);
+      sessionStateService.applyCurrentSessionState(connection);
+    } finally {
+      sessionStateService.complete();
+    }
+  }
+
+  @Test
+  void test_TransferToNewConnection_PristineValuesReadOncePerConnection() throws SQLException {
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    when(mockConnection.isReadOnly()).thenReturn(false);
+    when(mockNewConnection.isReadOnly()).thenReturn(false);
+    when(mockConnection.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
+    when(mockNewConnection.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
+
+    sessionStateService.setupPristineReadOnly();
+    sessionStateService.setReadOnly(true);
+    sessionStateService.setupPristineTransactionIsolation();
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockConnection);
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockConnection);
+
+    verify(mockConnection, times(1)).isReadOnly();
+    verify(mockNewConnection, times(1)).isReadOnly();
+    verify(mockConnection, times(1)).getTransactionIsolation();
+    verify(mockNewConnection, times(1)).getTransactionIsolation();
+    // The values are still transferred on every switch.
+    verify(mockConnection, times(2)).setReadOnly(true);
+    verify(mockNewConnection, times(2)).setReadOnly(true);
+    verify(mockConnection, times(2)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    verify(mockNewConnection, times(2)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+  }
+
+  @Test
+  void test_TransferToNewConnection_PristineValueOfNewConnectionIsRead() throws SQLException {
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    when(mockNewConnection.isReadOnly()).thenReturn(true);
+    sessionStateService.setReadOnly(false);
+
+    switchTo(currentConnection, mockNewConnection);
+
+    // The pristine value comes from the connection switched to, not from the previous one.
+    verify(mockConnection, never()).isReadOnly();
+    verify(mockNewConnection, times(1)).isReadOnly();
+    sessionStateService.begin();
+    sessionStateService.applyPristineSessionState(mockNewConnection);
+    sessionStateService.complete();
+    verify(mockNewConnection, times(1)).setReadOnly(true);
+  }
+
+  @Test
+  void test_ResetConnection_RestoresOriginalValueOfThatConnection() throws SQLException {
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    // After the wrapper sets readOnly=true on the connection, the driver reports true: a second read
+    // would return the applied value, not the original one.
+    when(mockConnection.isReadOnly()).thenReturn(false, true);
+    when(mockNewConnection.isReadOnly()).thenReturn(false);
+
+    sessionStateService.setupPristineReadOnly();
+    sessionStateService.setReadOnly(true);
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockConnection);
+
+    sessionStateService.begin();
+    sessionStateService.applyPristineSessionState(mockConnection);
+    sessionStateService.complete();
+
+    verify(mockConnection, times(1)).isReadOnly();
+    verify(mockConnection, times(1)).setReadOnly(false);
+  }
+
+  @Test
+  void test_ResetConnection_UsesOriginalValueRecordedForThatConnection() throws SQLException {
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    when(mockConnection.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
+    when(mockNewConnection.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_READ_COMMITTED);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockConnection);
+    // Restoring the connection switched away from uses that connection's own original value.
+    sessionStateService.begin();
+    sessionStateService.applyPristineSessionState(mockNewConnection);
+    sessionStateService.complete();
+
+    verify(mockNewConnection, times(1)).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+  }
+
+  @Test
+  void test_Reset_ClearsRecordedPristineValues() throws SQLException {
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    when(mockConnection.isReadOnly()).thenReturn(false);
+    when(mockNewConnection.isReadOnly()).thenReturn(false);
+    sessionStateService.setReadOnly(true);
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockConnection);
+    verify(mockConnection, times(1)).isReadOnly();
+
+    sessionStateService.reset();
+    sessionStateService.setReadOnly(true);
+    switchTo(currentConnection, mockNewConnection);
+
+    verify(mockNewConnection, times(2)).isReadOnly();
+  }
+
+  @Test
+  void test_TransferToNewConnection_ResetOnCloseDisabled_NoPristineReads() throws SQLException {
+    props.setProperty(PropertyDefinition.RESET_SESSION_STATE_ON_CLOSE.name, "false");
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    sessionStateService.setReadOnly(true);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockConnection);
+    switchTo(currentConnection, mockNewConnection);
+
+    verify(mockConnection, never()).isReadOnly();
+    verify(mockNewConnection, never()).isReadOnly();
+    verify(mockConnection, never()).getTransactionIsolation();
+    verify(mockNewConnection, never()).getTransactionIsolation();
+    verify(mockNewConnection, times(2)).setReadOnly(true);
   }
 
   @Test

@@ -24,6 +24,8 @@ import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,10 +39,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostRole;
@@ -53,6 +58,8 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.util.SqlState;
 
 /**
@@ -99,6 +106,7 @@ public class UnifiedReadWriteSplittingPluginTest {
   @Mock private Connection mockClosedWriterConn;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockResultSet;
+  @Mock private SessionStateService mockSessionStateService;
 
   @BeforeEach
   public void init() throws SQLException {
@@ -115,6 +123,7 @@ public class UnifiedReadWriteSplittingPluginTest {
   void mockDefaultBehavior() throws SQLException {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
+    when(this.mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
     when(this.mockPluginService.getAllHosts()).thenReturn(defaultHosts);
     when(this.mockPluginService.getHosts()).thenReturn(defaultHosts);
     when(this.mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), eq("random")))
@@ -439,6 +448,177 @@ public class UnifiedReadWriteSplittingPluginTest {
     verify(this.mockPluginService, times(1))
         .setCurrentConnection(eq(mockReaderConn1), argHostWith("reader.endpoint"));
     assertEquals(mockReaderConn1, plugin.getReaderConnection());
+  }
+
+  /**
+   * Backs the mocked plugin service with a real {@link SessionStateServiceImpl} and makes
+   * {@code setCurrentConnection} behave like {@code PluginServiceImpl}: it updates the current
+   * connection and host, then transfers the session state to the new connection.
+   */
+  private SessionStateService useRealSessionStateTransfer(
+      final Connection initialConnection, final HostSpec initialHost) throws SQLException {
+    final AtomicReference<Connection> currentConnection = new AtomicReference<>(initialConnection);
+    final AtomicReference<HostSpec> currentHost = new AtomicReference<>(initialHost);
+    final SessionStateService sessionStateService =
+        new SessionStateServiceImpl(this.mockPluginService, this.defaultProps);
+    when(this.mockPluginService.getSessionStateService()).thenReturn(sessionStateService);
+    when(this.mockPluginService.getCurrentConnection()).thenAnswer(invocation -> currentConnection.get());
+    when(this.mockPluginService.getCurrentHostSpec()).thenAnswer(invocation -> currentHost.get());
+    doAnswer(invocation -> {
+      final Connection newConnection = invocation.getArgument(0);
+      sessionStateService.begin();
+      try {
+        currentConnection.set(newConnection);
+        currentHost.set(invocation.getArgument(1));
+        sessionStateService.applyCurrentSessionState(newConnection);
+      } finally {
+        sessionStateService.complete();
+      }
+      return null;
+    }).when(this.mockPluginService).setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    return sessionStateService;
+  }
+
+  /**
+   * Calls {@code setReadOnly} through the plugin. The method body only records the value in the
+   * session state, as {@code ConnectionWrapper.setReadOnly} does after its physical call, so the
+   * physical {@code setReadOnly} calls verified on the connections are the ones the switch itself
+   * sent while transferring the session state.
+   */
+  private void invokeSetReadOnlyTracked(
+      final UnifiedReadWriteSplittingPlugin plugin,
+      final SessionStateService sessionStateService,
+      final boolean readOnly) throws SQLException {
+    plugin.execute(
+        Void.class, SQLException.class, this.mockPluginService.getCurrentConnection(), SET_READ_ONLY,
+        () -> {
+          sessionStateService.setReadOnly(readOnly);
+          return null;
+        },
+        new Object[] {readOnly});
+  }
+
+  @Test
+  public void testSetReadOnlyTriggeredSwitch_transfersRequestedReadOnlyOnly() throws SQLException {
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    when(mockWriterConn.isReadOnly()).thenReturn(false);
+    when(mockReaderConn1.isReadOnly()).thenReturn(false);
+    sessionStateService.setupPristineReadOnly();
+    sessionStateService.setReadOnly(false);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPlugin();
+    for (int i = 0; i < 3; i++) {
+      invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+      assertEquals(mockReaderConn1, this.mockPluginService.getCurrentConnection());
+      invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+      assertEquals(mockWriterConn, this.mockPluginService.getCurrentConnection());
+    }
+
+    // Each switch transfers only the value being set: the reader is never set back to read-write
+    // and the writer is never set to read-only before the requested value arrives.
+    final InOrder inOrder = inOrder(mockReaderConn1, mockWriterConn);
+    for (int i = 0; i < 3; i++) {
+      inOrder.verify(mockReaderConn1, times(1)).setReadOnly(true);
+      inOrder.verify(mockWriterConn, times(1)).setReadOnly(false);
+    }
+    verify(mockReaderConn1, never()).setReadOnly(false);
+    verify(mockWriterConn, never()).setReadOnly(true);
+
+    // The pristine value is read once per physical connection, not on every visit.
+    verify(mockReaderConn1, times(1)).isReadOnly();
+    verify(mockWriterConn, times(1)).isReadOnly();
+    assertEquals(Optional.of(false), sessionStateService.getReadOnly());
+  }
+
+  @Test
+  public void testAutoSimplePlugin_setReadOnlyTriggeredSwitch_transfersRequestedReadOnlyOnly()
+      throws SQLException {
+    final HostSpec writeEndpointHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("writer.endpoint").port(TEST_PORT).role(HostRole.WRITER).build();
+
+    final Properties props = new Properties();
+    props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, "writer.endpoint");
+    props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, "reader.endpoint");
+    props.setProperty(SimpleReadWriteSplittingPlugin.VERIFY_NEW_SRW_CONNECTIONS.name, "false");
+
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writeEndpointHost);
+    when(this.mockHostListProviderService.getCurrentHostSpec()).thenReturn(writeEndpointHost);
+    when(this.mockHostListProviderService.getHostSpecBuilder())
+        .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    when(this.mockPluginService.connect(
+        argHostWith("reader.endpoint"), any(Properties.class), any())).thenReturn(mockReaderConn1);
+    when(this.mockPluginService.connect(
+        argHostWith("writer.endpoint"), any(Properties.class), any())).thenReturn(mockWriterConn);
+    sessionStateService.setReadOnly(false);
+
+    final AutoSimpleReadWriteSplittingPlugin plugin =
+        new AutoSimpleReadWriteSplittingPlugin(this.mockPluginService, props);
+    plugin.initHostProvider(
+        TEST_PROTOCOL, "url", props, this.mockHostListProviderService, () -> null);
+
+    for (int i = 0; i < 2; i++) {
+      invokeSetReadOnlyTracked(plugin, sessionStateService, true);
+      assertEquals(mockReaderConn1, this.mockPluginService.getCurrentConnection());
+      invokeSetReadOnlyTracked(plugin, sessionStateService, false);
+      assertEquals(mockWriterConn, this.mockPluginService.getCurrentConnection());
+    }
+
+    final InOrder inOrder = inOrder(mockReaderConn1, mockWriterConn);
+    for (int i = 0; i < 2; i++) {
+      inOrder.verify(mockReaderConn1, times(1)).setReadOnly(true);
+      inOrder.verify(mockWriterConn, times(1)).setReadOnly(false);
+    }
+    verify(mockReaderConn1, never()).setReadOnly(false);
+    verify(mockWriterConn, never()).setReadOnly(true);
+  }
+
+  @Test
+  public void testSetReadOnlyTriggeredSwitch_noSwitch_keepsTrackedValue() throws SQLException {
+    when(this.mockPluginService.getHosts()).thenReturn(Collections.singletonList(writerHostSpec));
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
+    sessionStateService.setReadOnly(false);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPlugin();
+    // The method body is a no-op mock, so the only change to the tracked value could come from
+    // the plugin. With no reader to switch to, it must leave the tracked value as it was.
+    invokeSetReadOnly(plugin, mockWriterConn, true);
+
+    verify(this.mockPluginService, never())
+        .setCurrentConnection(any(Connection.class), any(HostSpec.class));
+    assertEquals(Optional.of(false), sessionStateService.getReadOnly());
+  }
+
+  @Test
+  public void testSetReadOnlyFalse_inTransaction_keepsTrackedValue() throws SQLException {
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockReaderConn1, readerHostSpec1);
+    when(this.mockPluginService.isInTransaction()).thenReturn(true);
+    sessionStateService.setReadOnly(true);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPlugin();
+
+    final SQLException e = assertThrows(SQLException.class,
+        () -> invokeSetReadOnly(plugin, mockReaderConn1, false));
+    assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), e.getSQLState());
+    assertEquals(Optional.of(true), sessionStateService.getReadOnly());
+  }
+
+  @Test
+  public void testSetReadOnlyFalse_writerSwitchFails_keepsTrackedValue() throws SQLException {
+    final SessionStateService sessionStateService =
+        useRealSessionStateTransfer(mockReaderConn1, readerHostSpec1);
+    when(this.mockPluginService.connect(eq(writerHostSpec), any(Properties.class), any()))
+        .thenThrow(SQLException.class);
+    sessionStateService.setReadOnly(true);
+
+    final ReadWriteSplittingPlugin plugin = newTopologyPlugin();
+
+    assertThrows(SQLException.class, () -> invokeSetReadOnly(plugin, mockReaderConn1, false));
+    assertEquals(Optional.of(true), sessionStateService.getReadOnly());
+    verify(this.mockVoidFunc, never()).call();
   }
 
   private static HostSpec argHostWith(final String host) {

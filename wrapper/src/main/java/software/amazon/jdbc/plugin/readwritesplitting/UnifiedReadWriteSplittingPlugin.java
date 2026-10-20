@@ -24,6 +24,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -51,6 +52,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.balancer.PerQueryBalancedR
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.StickyReaderPolicy;
 import software.amazon.jdbc.plugin.readwritesplitting.resolver.WriterResolution;
 import software.amazon.jdbc.plugin.readwritesplitting.signal.TargetRole;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.CacheItem;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -329,7 +331,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     try {
       final TargetRole desired = this.helpers.routingSignal.resolve(this, methodName, args);
       if (desired != TargetRole.NO_DECISION && desired != TargetRole.KEEP) {
-        this.performSwitch(methodName, desired);
+        this.performSwitchWithRequestedReadOnly(methodName, desired, args);
       }
       this.maybeHandleBoundStatement(methodName, methodInvokeOn);
       this.maybeHandlePreparedStatement(methodName, methodInvokeOn);
@@ -350,6 +352,63 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       }
       throw e;
     }
+  }
+
+  /**
+   * Performs the switch decided for a call, transferring the requested readOnly value when the call
+   * is {@code Connection.setReadOnly}.
+   *
+   * <p>The switch runs before the {@code setReadOnly} call itself, so the session state still holds
+   * the value being replaced. Transferring it would apply that old value to the connection switched
+   * to, and the {@code setReadOnly} call that follows would immediately reverse it: a wasted round
+   * trip on drivers that send readOnly changes to the server. When a readOnly value is tracked, the
+   * requested value is therefore tracked for the duration of the switch. If no switch happens, or
+   * the switch fails, the previous value is tracked again, so the state is the same as before the
+   * call.
+   *
+   * @param methodName the JDBC method being executed
+   * @param desired the role the routing signal decided on
+   * @param args the arguments of the JDBC method
+   * @throws SQLException if the switch fails
+   */
+  private void performSwitchWithRequestedReadOnly(
+      final String methodName, final TargetRole desired, final @Nullable Object[] args) throws SQLException {
+
+    final Boolean requestedReadOnly = requestedReadOnly(methodName, args);
+    if (requestedReadOnly == null) {
+      this.performSwitch(methodName, desired);
+      return;
+    }
+
+    final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    final Optional<Boolean> previousReadOnly = sessionStateService.getReadOnly();
+    if (!previousReadOnly.isPresent()) {
+      // readOnly is not tracked, so it is not transferred on a switch: nothing can be stale.
+      this.performSwitch(methodName, desired);
+      return;
+    }
+
+    final Connection connectionBeforeSwitch = this.pluginService.getCurrentConnection();
+    sessionStateService.setReadOnly(requestedReadOnly);
+    boolean switched = false;
+    try {
+      this.performSwitch(methodName, desired);
+      switched = this.pluginService.getCurrentConnection() != connectionBeforeSwitch;
+    } finally {
+      if (!switched) {
+        sessionStateService.setReadOnly(previousReadOnly.get());
+      }
+    }
+  }
+
+  private static @Nullable Boolean requestedReadOnly(final String methodName, final @Nullable Object[] args) {
+    if (JdbcMethod.CONNECTION_SETREADONLY.methodName.equals(methodName)
+        && args != null
+        && args.length > 0
+        && args[0] instanceof Boolean) {
+      return (Boolean) args[0];
+    }
+    return null;
   }
 
   private void performSwitch(final String methodName, final TargetRole desired) throws SQLException {

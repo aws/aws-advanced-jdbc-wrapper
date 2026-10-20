@@ -29,7 +29,7 @@ Session state reset could be disabled by using `resetSessionStateOnClose` config
 
 ## Transfer Session State to a new Connection
 
-When the driver needs to switch to a new connection, it opens a new connection and transfers a session state to it. All current session state values are applied to the new connection. Pristine values for a new connection are also fetched and stored if needed. When a new connection is configured, it replaces the current internal connection.
+When the driver needs to switch to a new connection, it opens a new connection and transfers a session state to it. All current session state values are applied to the new connection. Pristine values for a new connection are also fetched and stored if needed. Pristine values are remembered for each physical connection, so a connection the driver switches back to (for example, a cached writer or reader connection used by read/write splitting) is not queried for them again. When a new connection is configured, it replaces the current internal connection.
 
 Session transfer cab be disabled by using the `transferSessionStateOnSwitch` configuration parameter.
 
