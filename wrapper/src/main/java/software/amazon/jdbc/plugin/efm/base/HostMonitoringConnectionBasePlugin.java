@@ -120,6 +120,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
     final HashSet<String> methods = new HashSet<>();
     if (this.isEnabled) {
       methods.add(JdbcMethod.CONNECT.methodName);
+      methods.add(JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName);
       methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
