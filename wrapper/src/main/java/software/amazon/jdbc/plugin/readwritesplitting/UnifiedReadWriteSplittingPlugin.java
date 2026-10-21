@@ -121,9 +121,9 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
           false,
           new String[] {"true", "false"});
 
-  public static final AwsWrapperProperty SRW_TRANSFER_SESSION_STATE_ON_SWITCH =
+  public static final AwsWrapperProperty RW_TRANSFER_SESSION_STATE_ON_SWITCH =
       new AwsWrapperProperty(
-          "srwTransferSessionStateOnSwitch",
+          "rwTransferSessionStateOnSwitch",
           "true",
           "Transfer the session state when a read/write splitting plugin switches between its reader and "
               + "writer connections. When false, a switch to an already-open cached reader or writer connection "
@@ -226,7 +226,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     this.allowStatementRecreationOnConnectionSwitch =
         ALLOW_STATEMENT_RECREATION_ON_CONNECTION_SWITCH.getBoolean(properties);
     this.queryLevelLoadBalancing = QUERY_LEVEL_LOAD_BALANCING.getBoolean(properties);
-    this.transferSessionStateOnSwitch = SRW_TRANSFER_SESSION_STATE_ON_SWITCH.getBoolean(properties);
+    this.transferSessionStateOnSwitch = RW_TRANSFER_SESSION_STATE_ON_SWITCH.getBoolean(properties);
   }
 
   /**
@@ -908,7 +908,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
 
   /**
    * Switches to a cached reader or writer connection that is already open. With
-   * {@code srwTransferSessionStateOnSwitch=false} the session state is not applied to it. A
+   * {@code rwTransferSessionStateOnSwitch=false} the session state is not applied to it. A
    * connection opened by a switch goes through {@link #switchCurrentConnectionTo(Connection, HostSpec)}
    * instead and always receives the full session state, so settings made before it was opened reach it.
    */

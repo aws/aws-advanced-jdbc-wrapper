@@ -31,7 +31,7 @@ The driver performs plugin sorting by default (see the [`autoSortWrapperPluginOr
 
 ## Configuration Parameters
 
-This plugin accepts the same parameters as the [GDB Simple Read/Write Splitting Plugin](./UsingTheGdbSimpleReadWriteSplittingPlugin.md#configuration-parameters): the endpoint parameters (`srwWriteEndpoint`, `srwReadEndpoint`, `verifyNewSrwConnections`, `verifyInitialConnectionType`, `srwConnectRetryTimeoutMs`, `srwConnectRetryIntervalMs`, `cachedReaderKeepAliveTimeoutMs`, `srwTransferSessionStateOnSwitch`) and the Global Database region parameters (`gdbRwHomeRegion`, `gdbRwRestrictWriterToHomeRegion`, `gdbRwRestrictReaderToHomeRegion`, `gdbEnableGlobalWriteForwarding`, `gdbAccessibleRegions`).
+This plugin accepts the same parameters as the [GDB Simple Read/Write Splitting Plugin](./UsingTheGdbSimpleReadWriteSplittingPlugin.md#configuration-parameters): the endpoint parameters (`srwWriteEndpoint`, `srwReadEndpoint`, `verifyNewSrwConnections`, `verifyInitialConnectionType`, `srwConnectRetryTimeoutMs`, `srwConnectRetryIntervalMs`, `cachedReaderKeepAliveTimeoutMs`, `rwTransferSessionStateOnSwitch`) and the Global Database region parameters (`gdbRwHomeRegion`, `gdbRwRestrictWriterToHomeRegion`, `gdbRwRestrictReaderToHomeRegion`, `gdbEnableGlobalWriteForwarding`, `gdbAccessibleRegions`).
 
 It also accepts the family-wide `queryLevelLoadBalancing`, `loadBalancingIncludeWriter`, and `allowStatementRecreationOnConnectionSwitch` parameters — see [Query-level load balancing](./UsingTheReadWriteSplittingPlugin.md#query-level-load-balancing). Because each read statement is a routing point, query-level load balancing rotates reads per query.
 

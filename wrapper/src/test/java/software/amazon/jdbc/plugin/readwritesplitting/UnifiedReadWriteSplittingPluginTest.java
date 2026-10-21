@@ -82,8 +82,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   private static final int TEST_PORT = 5432;
   private static final String SET_READ_ONLY = JdbcMethod.CONNECTION_SETREADONLY.methodName;
   private static final String CLEAR_WARNINGS = JdbcMethod.CONNECTION_CLEARWARNINGS.methodName;
-  private static final String SRW_TRANSFER_SESSION_STATE_ON_SWITCH =
-      UnifiedReadWriteSplittingPlugin.SRW_TRANSFER_SESSION_STATE_ON_SWITCH.name;
+  private static final String RW_TRANSFER_SESSION_STATE_ON_SWITCH =
+      UnifiedReadWriteSplittingPlugin.RW_TRANSFER_SESSION_STATE_ON_SWITCH.name;
 
   private final Properties defaultProps = new Properties();
 
@@ -648,7 +648,7 @@ public class UnifiedReadWriteSplittingPluginTest {
     verify(this.mockVoidFunc, never()).call();
   }
 
-  // ---- srwTransferSessionStateOnSwitch ----
+  // ---- rwTransferSessionStateOnSwitch ----
 
   /** Creates the topology plugin and binds the current (writer) connection as the cached writer. */
   private ReadWriteSplittingPlugin newTopologyPluginWithCachedWriter() {
@@ -658,8 +658,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_cachedSwitches_skipSessionStateTransfer() throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+  public void testRwTransferFalse_cachedSwitches_skipSessionStateTransfer() throws SQLException {
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
     final ReadWriteSplittingPlugin plugin = newTopologyPluginWithCachedWriter();
@@ -680,7 +680,7 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_autoSimplePlugin_cachedSwitches_skipSessionStateTransfer()
+  public void testRwTransferFalse_autoSimplePlugin_cachedSwitches_skipSessionStateTransfer()
       throws SQLException {
     final HostSpec writeEndpointHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("writer.endpoint").port(TEST_PORT).role(HostRole.WRITER).build();
@@ -689,7 +689,7 @@ public class UnifiedReadWriteSplittingPluginTest {
     props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, "writer.endpoint");
     props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, "reader.endpoint");
     props.setProperty(SimpleReadWriteSplittingPlugin.VERIFY_NEW_SRW_CONNECTIONS.name, "false");
-    props.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    props.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
 
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writeEndpointHost);
@@ -726,8 +726,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_realSessionState_cachedConnectionsNotTouched() throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+  public void testRwTransferFalse_realSessionState_cachedConnectionsNotTouched() throws SQLException {
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
     when(mockWriterConn.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
@@ -770,8 +770,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_firstOpenOfReader_transfersFullState() throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+  public void testRwTransferFalse_firstOpenOfReader_transfersFullState() throws SQLException {
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
     sessionStateService.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
@@ -792,8 +792,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_closedCachedReader_replacementGetsFullState() throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+  public void testRwTransferFalse_closedCachedReader_replacementGetsFullState() throws SQLException {
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
         .thenReturn(mockReaderConn1, mockReaderConn2);
     final SessionStateService sessionStateService =
@@ -815,8 +815,8 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_closedCachedWriter_replacementGetsFullState() throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+  public void testRwTransferFalse_closedCachedWriter_replacementGetsFullState() throws SQLException {
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     final Connection newWriterConn = mock(Connection.class);
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
@@ -838,10 +838,10 @@ public class UnifiedReadWriteSplittingPluginTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"", "true"})
-  public void testSrwTransferDefaultAndTrue_cachedSwitches_transferSessionState(final String value)
+  public void testRwTransferDefaultAndTrue_cachedSwitches_transferSessionState(final String value)
       throws SQLException {
     if (!value.isEmpty()) {
-      this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, value);
+      this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, value);
     }
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writerHostSpec);
@@ -863,9 +863,9 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_failedCachedReaderSwitch_fallbackOpensReaderWithFullTransfer()
+  public void testRwTransferFalse_failedCachedReaderSwitch_fallbackOpensReaderWithFullTransfer()
       throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
         .thenReturn(mockReaderConn1, mockReaderConn2);
     final SessionStateService sessionStateService =
@@ -888,9 +888,9 @@ public class UnifiedReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSrwTransferFalse_afterSkippedSwitch_nonSplittingSwitchTransfersTrackedState()
+  public void testRwTransferFalse_afterSkippedSwitch_nonSplittingSwitchTransfersTrackedState()
       throws SQLException {
-    this.defaultProps.setProperty(SRW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
+    this.defaultProps.setProperty(RW_TRANSFER_SESSION_STATE_ON_SWITCH, "false");
     final Connection failoverConn = mock(Connection.class);
     final SessionStateService sessionStateService =
         useRealSessionStateTransfer(mockWriterConn, writerHostSpec);

@@ -635,7 +635,7 @@ public class SessionStateServiceImplTests {
 
   @Test
   void test_SwitchWithoutTransfer_TrackingContinues() throws SQLException {
-    props.setProperty("srwTransferSessionStateOnSwitch", "false");
+    props.setProperty("rwTransferSessionStateOnSwitch", "false");
     final Connection thirdConnection = mock(Connection.class);
     final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
     switchWithoutTransferTo(currentConnection, mockNewConnection);

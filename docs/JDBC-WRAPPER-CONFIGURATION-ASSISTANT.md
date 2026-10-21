@@ -957,7 +957,7 @@ Two-endpoint splitter: connects to one endpoint for reads, another for writes. U
 - **Not compatible with:** RDS Single-AZ.
 - **Mutually exclusive with:** every other read/write splitting plugin (see §4.4), plus `initialConnection` and `auroraStaleDns`.
 - **Strongly recommended:** enable the internal connection pool (`connectionPoolType=hikari`). Same reason as `readWriteSplitting` — `setReadOnly()` flips otherwise risk opening fresh physical connections to the read or write endpoint.
-- **Behind RDS Proxy with MySQL:** add `useLocalSessionState=true`; consider `srwTransferSessionStateOnSwitch=false` (see §6.3).
+- **Behind RDS Proxy with MySQL:** add `useLocalSessionState=true`; consider `rwTransferSessionStateOnSwitch=false` (see §6.3).
 
 **Parameters:**
 
@@ -969,7 +969,7 @@ Two-endpoint splitter: connects to one endpoint for reads, another for writes. U
 | `srwConnectRetryTimeoutMs` | `60000` | Retry budget when opening a connection. |
 | `srwConnectRetryIntervalMs` | `1000` | Retry interval. |
 | `verifyInitialConnectionType` | (none) | Force initial connection to be `writer` or `reader`. |
-| `srwTransferSessionStateOnSwitch` | `true` | When `false`, a switch to the already-open cached reader or writer skips the session state transfer; a connection opened by the switch still gets the full state. Session settings changed after both connections are open are then not propagated (see §6.3). Applies to every read/write splitting code. |
+| `rwTransferSessionStateOnSwitch` | `true` | When `false`, a switch to the already-open cached reader or writer skips the session state transfer; a connection opened by the switch still gets the full state. Session settings changed after both connections are open are then not propagated (see §6.3). Applies to every read/write splitting code. |
 
 ### 5.12 `gdbReadWriteSplitting` — GDB read/write splitting
 
@@ -1019,7 +1019,7 @@ Rules that hold for the whole family:
 - The **`*Simple*`/`srw`** codes require the two endpoint properties (`srwReadEndpoint`, `srwWriteEndpoint`); the topology codes discover hosts instead.
 - The **`gdb*`** codes accept the GDB home-region parameters from §5.12 and should only be used with Aurora Global Database.
 - The internal connection pool (`connectionPoolType=hikari` or `c3p0`) is strongly recommended for all of them.
-- `srwTransferSessionStateOnSwitch` (§6.3) applies to all eight codes, despite its `srw` prefix.
+- `rwTransferSessionStateOnSwitch` (§6.3) applies to all eight codes.
 
 Per-query reader load balancing (`queryLevelLoadBalancing` / `loadBalancingIncludeWriter`) applies to the **topology** codes (`readWriteSplitting`, `autoReadWriteSplitting`, `gdbReadWriteSplitting`, `gdbAutoReadWriteSplitting`) — see §5.12b. The `*Simple*`/`srw` codes connect to a single fixed read endpoint, so there is no reader pool for the wrapper to balance. `allowStatementRecreationOnConnectionSwitch` (on by default, see §5.12b) applies family-wide. `readerHostSelectorStrategy` (§7) applies to whichever code selects a reader.
 
@@ -1325,8 +1325,8 @@ These properties live on the wrapper itself (not a specific plugin). Source: `so
 
 | Name | Default | Description |
 |---|---|---|
-| `transferSessionStateOnSwitch` | `true` | Transfer autoCommit / transaction isolation / read-only / catalog / schema / typeMap / network timeout / holdability / etc. when switching to a new connection (e.g., after failover). Setting it to `false` also stops tracking; to skip only read/write splitting switches use `srwTransferSessionStateOnSwitch`. |
-| `srwTransferSessionStateOnSwitch` | `true` | Read/write splitting only (all eight codes). When `false`, a switch to the already-open cached reader or writer does not apply the session state; a connection the switch opens still gets the full state. Trade-off: catalog / schema / isolation / autoCommit / network timeout / holdability changed through JDBC after both connections are open is not propagated to the other connection; `setReadOnly` still lands on its target. Use only when session settings are made before the connections open. See [Session State](./using-the-jdbc-driver/SessionState.md#readwrite-splitting-switches). |
+| `transferSessionStateOnSwitch` | `true` | Transfer autoCommit / transaction isolation / read-only / catalog / schema / typeMap / network timeout / holdability / etc. when switching to a new connection (e.g., after failover). Setting it to `false` also stops tracking; to skip only read/write splitting switches use `rwTransferSessionStateOnSwitch`. |
+| `rwTransferSessionStateOnSwitch` | `true` | Read/write splitting only (all eight codes). When `false`, a switch to the already-open cached reader or writer does not apply the session state; a connection the switch opens still gets the full state. Trade-off: catalog / schema / isolation / autoCommit / network timeout / holdability changed through JDBC after both connections are open is not propagated to the other connection; `setReadOnly` still lands on its target. Use only when session settings are made before the connections open. See [Session State](./using-the-jdbc-driver/SessionState.md#readwrite-splitting-switches). |
 | `resetSessionStateOnClose` | `true` | Reset session state before closing a connection (relevant for pooled connections). |
 | `rollbackOnSwitch` | `true` | Rollback any in-progress transaction before switching. |
 
@@ -2269,7 +2269,7 @@ Flag these whenever they appear in user configs:
 | Combining mutually-exclusive plugins (see §10.1) | Plugins fight each other or duplicate work | Pick one |
 | Disabling `verifyInitialConnectionRole` with custom/instance endpoints + read-write splitting | RW splitter can route based on assumed (wrong) role | Keep `verifyInitialConnectionRole=true` |
 | Read/write splitting plugin (`readWriteSplitting` / `srw` / `gdbReadWriteSplitting`) without an internal connection pool | Each `setReadOnly()` flip can open a fresh physical connection to the target host; transactional apps that toggle read-only per request churn connections and may hit per-instance limits | Enable `connectionPoolType=hikari` (or `c3p0`); also required for the `leastConnections` reader strategy |
-| MySQL + read/write splitting (especially behind RDS Proxy) | Each reader/writer switch sends `SET autocommit` / `SET SESSION TRANSACTION ...` round trips, even when the values did not change | Set `useLocalSessionState=true` (MySQL Connector/J). If session settings are made only before the connections open, also set `srwTransferSessionStateOnSwitch=false` (§6.3) |
+| MySQL + read/write splitting (especially behind RDS Proxy) | Each reader/writer switch sends `SET autocommit` / `SET SESSION TRANSACTION ...` round trips, even when the values did not change | Set `useLocalSessionState=true` (MySQL Connector/J). If session settings are made only before the connections open, also set `rwTransferSessionStateOnSwitch=false` (§6.3) |
 | `readWriteSplitting` (or `srw` / `gdbReadWriteSplitting`) on a reader-only datasource | The plugin's job is to flip a connection between writer and reader on `setReadOnly()`. A datasource bound to the reader endpoint with `failoverMode=strict-reader` has nothing to flip — the plugin is dead weight | Drop the plugin. Just use the reader endpoint + `failoverMode=strict-reader` |
 | `auroraConnectionTracker` together with the wrapper internal pool (`connectionPoolType=hikari`) | The internal pool already tracks per-instance connections by `clusterId` and invalidates on role change. The plugin is redundant. | Drop `auroraConnectionTracker` when using the internal pool; keep it only with external pools (HikariCP-as-app-pool, Tomcat JDBC, c3p0, DBCP2) |
 | `socketTimeout` shorter than the EFM detection window with `efm2` enabled | The socket times out (~your `socketTimeout`) before EFM can detect (~45 s with defaults). EFM never gets to do its job. | Pick one strategy per datasource: `socketTimeout` for short OLTP, OR `efm2` (with `socketTimeout=0`) for long-running queries, OR `tcpKeepAlive` (preferred when OS keep-alive can be tuned) |
