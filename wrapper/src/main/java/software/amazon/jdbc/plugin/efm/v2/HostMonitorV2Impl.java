@@ -71,8 +71,8 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
   protected final Executor abortExecutor =
       ExecutorFactory.newSingleThreadExecutor("abort");
 
-  private final Queue<WeakReference<HostMonitorConnectionContextV2>> activeContexts = new ConcurrentLinkedQueue<>();
-  private final Map<Long, Queue<WeakReference<HostMonitorConnectionContextV2>>> newContexts =
+  private final Queue<ContextRef> activeContexts = new ConcurrentLinkedQueue<>();
+  private final Map<Long, Queue<ContextRef>> newContexts =
       new ConcurrentHashMap<>();
 
   protected final FullServicesContainer servicesContainer;
@@ -196,11 +196,11 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
     long startMonitoringTimeNano = this.truncateNanoToSeconds(
         currentTimeNano + this.failureDetectionTimeNano);
 
-    Queue<WeakReference<HostMonitorConnectionContextV2>> queue =
+    Queue<ContextRef> queue =
         this.newContexts.computeIfAbsent(
             startMonitoringTimeNano,
             (key) -> new ConcurrentLinkedQueue<>());
-    queue.add(new WeakReference<>(contextV2));
+    queue.add(new ContextRef(contextV2));
   }
 
   protected long truncateNanoToSeconds(final long timeNano) {
@@ -229,16 +229,16 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
               // Get entries with key (that is a time in nanos) less or equal than current time.
               .filter(entry -> entry.getKey() < currentTimeNano)
               .forEach(entry -> {
-                final Queue<WeakReference<HostMonitorConnectionContextV2>> queue = entry.getValue();
+                final Queue<ContextRef> queue = entry.getValue();
                 processedKeys.add(entry.getKey());
                 // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
                 // Add all contexts to an active monitoring contexts queue.
                 // Ignore disposed contexts.
-                WeakReference<HostMonitorConnectionContextV2> contextWeakRef;
-                while ((contextWeakRef = queue.poll()) != null) {
-                  HostMonitorConnectionContextV2 context = contextWeakRef.get();
-                  if (context != null && context.isActive()) {
-                    this.activeContexts.add(contextWeakRef);
+                ContextRef contextRef;
+                while ((contextRef = queue.poll()) != null) {
+                  HostMonitorConnectionContextV2 context = contextRef.get();
+                  if (context != null && context.isActive(contextRef.generation)) {
+                    this.activeContexts.add(contextRef);
                   }
                 }
               });
@@ -351,32 +351,30 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
 
     this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
 
-    final List<WeakReference<HostMonitorConnectionContextV2>> tmpActiveContexts = new ArrayList<>();
-    WeakReference<HostMonitorConnectionContextV2> monitorContextWeakRef;
+    final List<ContextRef> tmpActiveContexts = new ArrayList<>();
+    ContextRef monitorContextRef;
 
-    while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
+    while ((monitorContextRef = this.activeContexts.poll()) != null) {
       if (this.stop.get()) {
         break;
       }
 
-      HostMonitorConnectionContextV2 monitorContext = monitorContextWeakRef.get();
+      HostMonitorConnectionContextV2 monitorContext = monitorContextRef.get();
       if (monitorContext == null) {
         continue;
       }
 
       if (this.nodeUnhealthy.get()) {
         // Kill connection.
-        monitorContext.setNodeUnhealthy(true);
-        final Connection connectionToAbort = monitorContext.getConnection();
-        this.servicesContainer.getConnectionContextService().release(monitorContext);
+        final Connection connectionToAbort = monitorContext.claimConnectionToAbort(monitorContextRef.generation);
         if (connectionToAbort != null) {
           this.abortConnection(connectionToAbort);
           if (this.abortedConnectionsCounter != null) {
             this.abortedConnectionsCounter.inc();
           }
         }
-      } else if (monitorContext.isActive()) {
-        tmpActiveContexts.add(monitorContextWeakRef);
+      } else if (monitorContext.isActive(monitorContextRef.generation)) {
+        tmpActiveContexts.add(monitorContextRef);
       }
     }
 
@@ -527,5 +525,14 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
     state.add(Pair.create("activeContexts (size)", this.activeContexts.size()));
     state.add(Pair.create("newContexts (size)", this.newContexts.values().stream().mapToInt(Queue::size).sum()));
     return state;
+  }
+
+  static final class ContextRef extends WeakReference<HostMonitorConnectionContextV2> {
+    final long generation;
+
+    ContextRef(final HostMonitorConnectionContextV2 context) {
+      super(context);
+      this.generation = context.getGeneration();
+    }
   }
 }

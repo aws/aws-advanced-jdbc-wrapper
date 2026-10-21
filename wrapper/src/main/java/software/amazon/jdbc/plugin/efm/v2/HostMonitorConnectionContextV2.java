@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.efm.v2;
 
 import java.lang.ref.WeakReference;
 import java.sql.Connection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 
 /**
@@ -26,8 +27,35 @@ import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
  */
 public class HostMonitorConnectionContextV2 extends HostMonitorConnectionContext {
 
-  public void init(Connection connectionToAbort) {
+  private long generation;
+
+  public synchronized void init(Connection connectionToAbort) {
+    this.generation++;
     this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
     this.nodeUnhealthy.set(false);
+  }
+
+  @Override
+  public synchronized void setInactive() {
+    this.generation++;
+    super.setInactive();
+  }
+
+  synchronized long getGeneration() {
+    return this.generation;
+  }
+
+  synchronized boolean isActive(final long expectedGeneration) {
+    return this.generation == expectedGeneration && this.isActive();
+  }
+
+  synchronized @Nullable Connection claimConnectionToAbort(final long expectedGeneration) {
+    if (this.generation != expectedGeneration) {
+      return null;
+    }
+    final Connection connectionToAbort = this.getConnection();
+    this.connectionToAbortRef.set(null);
+    this.nodeUnhealthy.set(true);
+    return connectionToAbort;
   }
 }

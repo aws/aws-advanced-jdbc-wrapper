@@ -18,14 +18,19 @@ package software.amazon.jdbc.plugin.efm.v2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -59,6 +64,8 @@ class HostMonitorV2ImplTest {
   @Mock TelemetryContext telemetryContext;
   @Mock TelemetryCounter telemetryCounter;
   @Mock EventPublisher eventPublisher;
+  @Mock Connection connectionToAbort;
+  @Mock Connection reusedConnection;
 
   private static final int FAILURE_DETECTION_TIME_MILLIS = 30000;
   private static final int FAILURE_DETECTION_INTERVAL_MILLIS = 5000;
@@ -66,6 +73,7 @@ class HostMonitorV2ImplTest {
 
   private AutoCloseable closeable;
   private HostMonitorV2Impl monitor;
+  private HostMonitorV2Impl extraMonitor;
 
   @BeforeEach
   void init() throws SQLException {
@@ -97,6 +105,9 @@ class HostMonitorV2ImplTest {
     if (monitor != null) {
       monitor.stop();
     }
+    if (extraMonitor != null) {
+      extraMonitor.stop();
+    }
     closeable.close();
   }
 
@@ -104,7 +115,7 @@ class HostMonitorV2ImplTest {
   @Timeout(30)
   void newContextRun_survivesTransientException_andKeepsDraining() throws Exception {
     // Queue one healthy context into newContexts (uses the real clock).
-    when(context.isActive()).thenReturn(true);
+    when(context.isActive(anyLong())).thenReturn(true);
     monitor.startMonitoring(context);
     assertEquals(1, newContextsSize());
 
@@ -164,6 +175,86 @@ class HostMonitorV2ImplTest {
         "a stopped monitor never drains newContexts, so it must not queue new contexts");
   }
 
+  @Test
+  void monitorIteration_abortsConnectionOfCurrentContext() throws Exception {
+    final HostMonitorV2Impl unhealthyMonitor = createUnhealthyMonitor();
+    final HostMonitorConnectionContextV2 monitorContext = new HostMonitorConnectionContextV2();
+    monitorContext.init(connectionToAbort);
+    addActiveContext(unhealthyMonitor, monitorContext);
+
+    unhealthyMonitor.monitorIteration();
+
+    verify(unhealthyMonitor).abortConnection(connectionToAbort);
+    assertTrue(monitorContext.isNodeUnhealthy());
+    assertEquals(0, activeContextsSize(unhealthyMonitor));
+  }
+
+  @Test
+  void monitorIteration_doesNotAbortConnectionOfReusedContext() throws Exception {
+    final HostMonitorV2Impl unhealthyMonitor = createUnhealthyMonitor();
+    final HostMonitorConnectionContextV2 monitorContext = new HostMonitorConnectionContextV2();
+    monitorContext.init(connectionToAbort);
+    addActiveContext(unhealthyMonitor, monitorContext);
+
+    monitorContext.setInactive();
+    monitorContext.init(reusedConnection);
+
+    unhealthyMonitor.monitorIteration();
+
+    verify(unhealthyMonitor, never()).abortConnection(any(Connection.class));
+    assertFalse(monitorContext.isNodeUnhealthy());
+    assertSame(reusedConnection, monitorContext.getConnection());
+    assertEquals(0, activeContextsSize(unhealthyMonitor));
+  }
+
+  @Test
+  void monitorIteration_dropsReusedContextWhileNodeIsHealthy() throws Exception {
+    final HostMonitorV2Impl healthyMonitor = createMonitorWithShortInterval();
+    doNothing().when(healthyMonitor).updateNodeHealthStatus(anyBoolean(), anyLong(), anyLong());
+    final HostMonitorConnectionContextV2 monitorContext = new HostMonitorConnectionContextV2();
+    monitorContext.init(connectionToAbort);
+    addActiveContext(healthyMonitor, monitorContext);
+
+    monitorContext.setInactive();
+    monitorContext.init(reusedConnection);
+
+    healthyMonitor.monitorIteration();
+
+    assertEquals(0, activeContextsSize(healthyMonitor));
+    assertSame(reusedConnection, monitorContext.getConnection());
+  }
+
+  private HostMonitorV2Impl createMonitorWithShortInterval() {
+    final HostMonitorV2Impl shortIntervalMonitor = spy(new HostMonitorV2Impl(
+        servicesContainer,
+        hostSpec,
+        new Properties(),
+        FAILURE_DETECTION_TIME_MILLIS,
+        100,
+        FAILURE_DETECTION_COUNT,
+        telemetryCounter));
+    this.extraMonitor = shortIntervalMonitor;
+    return shortIntervalMonitor;
+  }
+
+  private HostMonitorV2Impl createUnhealthyMonitor() throws Exception {
+    final HostMonitorV2Impl unhealthyMonitor = createMonitorWithShortInterval();
+    doNothing().when(unhealthyMonitor).updateNodeHealthStatus(anyBoolean(), anyLong(), anyLong());
+    doNothing().when(unhealthyMonitor).abortConnection(any(Connection.class));
+    final Field field = HostMonitorV2Impl.class.getDeclaredField("nodeUnhealthy");
+    field.setAccessible(true);
+    ((AtomicBoolean) field.get(unhealthyMonitor)).set(true);
+    return unhealthyMonitor;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void addActiveContext(
+      final HostMonitorV2Impl target, final HostMonitorConnectionContextV2 monitorContext) throws Exception {
+    final Field field = HostMonitorV2Impl.class.getDeclaredField("activeContexts");
+    field.setAccessible(true);
+    ((Queue<HostMonitorV2Impl.ContextRef>) field.get(target)).add(new HostMonitorV2Impl.ContextRef(monitorContext));
+  }
+
   private boolean isStopped() throws Exception {
     final Field field = getInheritedField("stop");
     return ((AtomicBoolean) field.get(monitor)).get();
@@ -173,17 +264,22 @@ class HostMonitorV2ImplTest {
   private int newContextsSize() throws Exception {
     final Field field = HostMonitorV2Impl.class.getDeclaredField("newContexts");
     field.setAccessible(true);
-    final Map<Long, Queue<WeakReference<HostMonitorConnectionContextV2>>> newContexts =
-        (Map<Long, Queue<WeakReference<HostMonitorConnectionContextV2>>>) field.get(monitor);
+    final Map<Long, Queue<HostMonitorV2Impl.ContextRef>> newContexts =
+        (Map<Long, Queue<HostMonitorV2Impl.ContextRef>>) field.get(monitor);
     return newContexts.values().stream().mapToInt(Queue::size).sum();
   }
 
   @SuppressWarnings("unchecked")
   private int activeContextsSize() throws Exception {
+    return activeContextsSize(monitor);
+  }
+
+  @SuppressWarnings("unchecked")
+  private int activeContextsSize(final HostMonitorV2Impl target) throws Exception {
     final Field field = HostMonitorV2Impl.class.getDeclaredField("activeContexts");
     field.setAccessible(true);
-    final Queue<WeakReference<HostMonitorConnectionContextV2>> activeContexts =
-        (Queue<WeakReference<HostMonitorConnectionContextV2>>) field.get(monitor);
+    final Queue<HostMonitorV2Impl.ContextRef> activeContexts =
+        (Queue<HostMonitorV2Impl.ContextRef>) field.get(target);
     return activeContexts.size();
   }
 
