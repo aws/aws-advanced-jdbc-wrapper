@@ -527,17 +527,12 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
     return state;
   }
 
-  static final class ContextRef {
-    private final WeakReference<HostMonitorConnectionContextV2> contextRef;
+  static final class ContextRef extends WeakReference<HostMonitorConnectionContextV2> {
     final long generation;
 
     ContextRef(final HostMonitorConnectionContextV2 context) {
-      this.contextRef = new WeakReference<>(context);
+      super(context);
       this.generation = context.getGeneration();
-    }
-
-    @Nullable HostMonitorConnectionContextV2 get() {
-      return this.contextRef.get();
     }
   }
 }

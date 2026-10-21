@@ -41,21 +41,21 @@ public class HostMonitorConnectionContextV2 extends HostMonitorConnectionContext
     super.setInactive();
   }
 
-  public synchronized long getGeneration() {
+  synchronized long getGeneration() {
     return this.generation;
   }
 
-  public synchronized boolean isActive(final long expectedGeneration) {
+  synchronized boolean isActive(final long expectedGeneration) {
     return this.generation == expectedGeneration && this.isActive();
   }
 
-  public synchronized @Nullable Connection claimConnectionToAbort(final long expectedGeneration) {
+  synchronized @Nullable Connection claimConnectionToAbort(final long expectedGeneration) {
     if (this.generation != expectedGeneration) {
       return null;
     }
-    this.nodeUnhealthy.set(true);
     final Connection connectionToAbort = this.getConnection();
     this.connectionToAbortRef.set(null);
+    this.nodeUnhealthy.set(true);
     return connectionToAbort;
   }
 }
