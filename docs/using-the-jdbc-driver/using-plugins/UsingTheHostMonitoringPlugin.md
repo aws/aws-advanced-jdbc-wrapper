@@ -61,12 +61,12 @@ The Host Monitoring Connection Plugin may create new monitoring connections to c
 
 ```java
 final Properties properties = new Properties();
-// Configure the timeout values for all, non-monitoring connections.
-properties.setProperty("connectTimeout", "30");
-properties.setProperty("socketTimeout", "30");
+// Configure the timeout values (in milliseconds) for all, non-monitoring connections.
+properties.setProperty("connectTimeout", "30000");
+properties.setProperty("socketTimeout", "30000");
 // Configure different timeout values for the monitoring connections.
-properties.setProperty("monitoring-connectTimeout", "10");
-properties.setProperty("monitoring-socketTimeout", "10");
+properties.setProperty("monitoring-connectTimeout", "10000");
+properties.setProperty("monitoring-socketTimeout", "10000");
 ```
 
 > [!WARNING]\

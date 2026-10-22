@@ -35,7 +35,7 @@ public class DBCPSimpleExample {
       ds.setDriverClassName("software.amazon.jdbc.Driver");
       ds.setUrl(
           "jdbc:aws-wrapper:postgresql://database.cluster-xyz.us-east-1.rds.amazonaws.com:5432/postgres");
-      ds.setConnectionProperties("socketTimeout=10");
+      ds.setConnectionProperties("socketTimeout=10000");
 
       try (final Connection conn = ds.getConnection();
           final Statement statement = conn.createStatement();

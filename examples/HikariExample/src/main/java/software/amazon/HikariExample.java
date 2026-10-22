@@ -57,7 +57,7 @@ public class HikariExample {
 
       // Configuring PGSimpleDataSource (optional):
       // Properties targetDataSourceProps = new Properties();
-      // targetDataSourceProps.setProperty("socketTimeout", "10");
+      // targetDataSourceProps.setProperty("socketTimeout", "10000"); // milliseconds
       // ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
       // Attempt a connection:

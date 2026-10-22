@@ -29,7 +29,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -225,16 +224,19 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     }
 
     if (loginTimeout != null) {
-      props.setProperty("loginTimeout",
-          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(loginTimeout)));
+      props.setProperty("loginTimeout", String.valueOf(
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.LOGIN_TIMEOUT.name, loginTimeout)));
     }
     if (connectTimeout != null) {
-      props.setProperty("connectTimeout",
-          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(connectTimeout)));
+      props.setProperty("connectTimeout", String.valueOf(
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout)));
     }
     if (socketTimeout != null) {
-      props.setProperty("socketTimeout",
-          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(socketTimeout)));
+      props.setProperty("socketTimeout", String.valueOf(
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout)));
     }
 
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName;

@@ -34,7 +34,7 @@ public class PgConnectionSample {
   //     "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/connectionSample"
   //         + "?user=username"
   //         + "&password=password"
-  //         + "&loginTimeout=100"
+  //         + "&loginTimeout=10000"
   //         + "&wrapperPlugins=failover,efm2"
   //         + "&wrapperLogUnclosedConnections=true";
   private static final String USERNAME = "username";
@@ -46,7 +46,7 @@ public class PgConnectionSample {
     // Configuring connection properties for the underlying JDBC driver.
     properties.setProperty("user", USERNAME);
     properties.setProperty("password", PASSWORD);
-    properties.setProperty("loginTimeout", "100");
+    properties.setProperty("loginTimeout", "10000"); // milliseconds
 
     // Configuring connection properties for the JDBC Wrapper.
     properties.setProperty("wrapperPlugins", "failover,efm2");

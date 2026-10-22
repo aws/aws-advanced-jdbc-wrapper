@@ -180,6 +180,17 @@ public class MariadbTargetDriverDialectTests {
   }
 
   @Test
+  void prepareTargetDataSource_doesNotForwardLoginTimeout() throws SQLException {
+    final Properties props = new Properties();
+    props.setProperty(PropertyDefinition.LOGIN_TIMEOUT.name, "5000");
+
+    final String url = dialect.prepareTargetDataSource(
+        new MariaDbDataSource(), "jdbc:mariadb://host:3306/db", props);
+
+    assertEquals("jdbc:mariadb://host:3306/db", url);
+  }
+
+  @Test
   void prepareTargetDataSource_doesNotOverrideTimeoutsAlreadyInUrl() throws SQLException {
     final Properties props = new Properties();
     props.setProperty("socketTimeout", "2000");

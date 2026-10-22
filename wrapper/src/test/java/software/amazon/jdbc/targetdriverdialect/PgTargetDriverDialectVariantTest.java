@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -88,6 +90,27 @@ public class PgTargetDriverDialectVariantTest {
             + missing
             + ". Port them into wrapper/src/main/java24/" + RELATIVE_PATH
             + " (behaviour may differ, but the method must be declared).");
+  }
+
+  @Test
+  void test_java24VariantUsesSameTimeoutConversion() throws IOException {
+    final Path sourceRoot = locateSourceRoot();
+    for (final String variant : new String[] {"main/java", "main/java24"}) {
+      final Path source = sourceRoot.resolve(variant).resolve(RELATIVE_PATH);
+      assertTrue(Files.exists(source), "Expected to find source file " + source);
+      final String text = new String(Files.readAllBytes(source), StandardCharsets.UTF_8);
+
+      final Matcher matcher =
+          Pattern.compile("TimeoutConverter\\.millisToSeconds\\(\\s*TimeoutConverter\\.PGJDBC,").matcher(text);
+      int count = 0;
+      while (matcher.find()) {
+        count++;
+      }
+      assertEquals(3, count,
+          variant + " variant should convert loginTimeout, connectTimeout and socketTimeout with TimeoutConverter");
+      assertFalse(text.contains("TimeUnit.MILLISECONDS.toSeconds"),
+          variant + " variant should not convert timeouts directly");
+    }
   }
 
   private static Set<String> declaredMethodNames(final Path source) throws IOException {
