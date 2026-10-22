@@ -114,22 +114,24 @@ public class MariadbDriverHelper {
    * {@code setLoginTimeout(seconds)} as {@code connectTimeout = seconds * 1000}, and that value
    * overrides the {@code connectTimeout} URL parameter. {@code AwsWrapperDataSource} has already
    * called {@code setLoginTimeout} with its JDBC login timeout, so {@code setLoginTimeout} is the
-   * only way to make the wrapper value take effect. The value is rounded up to the next whole
-   * second, so a positive value never becomes 0 (no timeout) and the timeout is never shorter than
-   * requested.
+   * only way to make the wrapper value take effect. The milliseconds are converted to whole
+   * seconds by truncating, through {@link TimeoutConverter}; a value from 1 to 999 becomes 0, which
+   * MariaDB Connector/J treats as no connect timeout, and that case is logged once as a warning.
    *
    * @param props the connection properties.
    * @return the connect timeout in seconds, or null if no timeout property is set.
    */
   private static @Nullable Integer getConnectTimeoutSeconds(final Properties props) {
     Integer millis = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    String propertyName = PropertyDefinition.CONNECT_TIMEOUT.name;
     if (millis == null) {
       millis = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+      propertyName = PropertyDefinition.LOGIN_TIMEOUT.name;
     }
     if (millis == null) {
       return null;
     }
-    return (int) ((millis + 999L) / 1000L);
+    return TimeoutConverter.millisToSeconds(TimeoutConverter.MARIADB_CONNECTOR_J, propertyName, millis);
   }
 
   public boolean isDriverRegistered() throws SQLException {

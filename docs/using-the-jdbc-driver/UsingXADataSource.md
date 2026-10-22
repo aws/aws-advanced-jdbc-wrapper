@@ -165,11 +165,13 @@ The read path keeps the headline switching features; the write path gets what XA
   supports XA by default.
 - `AwsWrapperXADataSource` requires a target `XADataSource`; a plain `DataSource` class name is
   rejected at `getXAConnection()` time.
-- **Timeouts:** the wrapper `connectTimeout` / `socketTimeout` / `tcpKeepAlive` properties are
-  forwarded to the target `XADataSource` in the unit each driver expects (whole seconds for PostgreSQL, truncated, so 1-999 ms disables the
-  timeout; milliseconds for MySQL Connector/J; URL parameters for MariaDB). Setting a socket timeout is
-  recommended: without one, a network blackhole leaves the pinned XA session waiting indefinitely
-  instead of surfacing a connection failure.
+- **Timeouts:** like every other wrapper component, `AwsWrapperXADataSource` takes the
+  `connectTimeout` / `socketTimeout` properties in milliseconds, whatever the target driver is. The
+  wrapper forwards them, together with `tcpKeepAlive`, to the target `XADataSource`. The PostgreSQL
+  JDBC driver (pgjdbc) accepts only whole seconds, so for that target the wrapper converts the
+  milliseconds by truncating: a value from 1 to 999 disables the timeout and a warning is logged.
+  Setting a socket timeout is recommended: without one, a network blackhole leaves the pinned XA
+  session waiting indefinitely instead of surfacing a connection failure.
 - **MariaDB Connector/J:** its data source accepts only `url`, `user`, `password` and `loginTimeout`
   as bean properties, so the wrapper moves the other target-driver settings (for example
   `allowPublicKeyRetrieval` or `sslMode`) into the target URL. MariaDB also rejects a `jdbc:mysql://`

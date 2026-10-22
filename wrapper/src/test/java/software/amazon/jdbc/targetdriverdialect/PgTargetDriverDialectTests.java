@@ -61,7 +61,7 @@ public class PgTargetDriverDialectTests {
   @Mock private ResultSet mockResultSet;
   private final PgTargetDriverDialect dialect = new PgTargetDriverDialect();
   // Held in a field so the logger (and the handler attached to it) cannot be garbage-collected.
-  private final Logger converterLogger = Logger.getLogger(PgTimeoutConverter.class.getName());
+  private final Logger converterLogger = Logger.getLogger(TimeoutConverter.class.getName());
   private final List<LogRecord> warnings = Collections.synchronizedList(new ArrayList<>());
   private final Handler warningCollector = new Handler() {
     @Override
@@ -88,14 +88,14 @@ public class PgTargetDriverDialectTests {
     previousConverterLevel = converterLogger.getLevel();
     converterLogger.setLevel(Level.ALL);
     converterLogger.addHandler(warningCollector);
-    PgTimeoutConverter.clearReportedTruncatedValues();
+    TimeoutConverter.clearReportedTruncatedValues();
   }
 
   @AfterEach
   void cleanUp() throws Exception {
     converterLogger.removeHandler(warningCollector);
     converterLogger.setLevel(previousConverterLevel);
-    PgTimeoutConverter.clearReportedTruncatedValues();
+    TimeoutConverter.clearReportedTruncatedValues();
     closeable.close();
   }
 
@@ -187,6 +187,7 @@ public class PgTargetDriverDialectTests {
     final String message = warnings.get(0).getMessage();
     assertTrue(message.contains("'socketTimeout'"), message);
     assertTrue(message.contains("999"), message);
+    assertTrue(message.contains("pgjdbc"), message);
     assertFalse(message.contains("{"), message);
   }
 

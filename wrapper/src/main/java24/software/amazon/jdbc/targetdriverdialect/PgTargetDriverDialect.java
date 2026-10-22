@@ -225,15 +225,18 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
     if (loginTimeout != null) {
       props.setProperty("loginTimeout", String.valueOf(
-          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.LOGIN_TIMEOUT.name, loginTimeout)));
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.LOGIN_TIMEOUT.name, loginTimeout)));
     }
     if (connectTimeout != null) {
       props.setProperty("connectTimeout", String.valueOf(
-          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout)));
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout)));
     }
     if (socketTimeout != null) {
       props.setProperty("socketTimeout", String.valueOf(
-          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout)));
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout)));
     }
 
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName;

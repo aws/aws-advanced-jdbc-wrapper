@@ -100,13 +100,14 @@ public class PgTargetDriverDialectVariantTest {
       assertTrue(Files.exists(source), "Expected to find source file " + source);
       final String text = new String(Files.readAllBytes(source), StandardCharsets.UTF_8);
 
-      final Matcher matcher = Pattern.compile(Pattern.quote("PgTimeoutConverter.millisToPgSeconds(")).matcher(text);
+      final Matcher matcher =
+          Pattern.compile("TimeoutConverter\\.millisToSeconds\\(\\s*TimeoutConverter\\.PGJDBC,").matcher(text);
       int count = 0;
       while (matcher.find()) {
         count++;
       }
       assertEquals(3, count,
-          variant + " variant should convert loginTimeout, connectTimeout and socketTimeout with PgTimeoutConverter");
+          variant + " variant should convert loginTimeout, connectTimeout and socketTimeout with TimeoutConverter");
       assertFalse(text.contains("TimeUnit.MILLISECONDS.toSeconds"),
           variant + " variant should not convert timeouts directly");
     }

@@ -95,20 +95,23 @@ public class PgDriverHelper {
     final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
     if (loginTimeout != null) {
       baseDataSource.setLoginTimeout(
-          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.LOGIN_TIMEOUT.name, loginTimeout));
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.LOGIN_TIMEOUT.name, loginTimeout));
     }
 
-    // PostgreSQL expresses these timeouts in seconds, the wrapper properties are in milliseconds.
+    // The wrapper properties are in milliseconds; the PostgreSQL JDBC driver (pgjdbc) accepts whole seconds.
     final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
     if (connectTimeout != null) {
       baseDataSource.setConnectTimeout(
-          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout));
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout));
     }
 
     final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
     if (socketTimeout != null) {
       baseDataSource.setSocketTimeout(
-          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout));
+          TimeoutConverter.millisToSeconds(
+              TimeoutConverter.PGJDBC, PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout));
     }
   }
 
