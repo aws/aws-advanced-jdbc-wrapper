@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +32,8 @@ import static org.mockito.Mockito.when;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -43,13 +46,17 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
@@ -257,6 +264,47 @@ class HikariPooledConnectionProviderTest {
     verify(mockConfig).setJdbcUrl(expectedJdbcUrl);
     verify(mockConfig).setUsername(user1);
     verify(mockConfig).setPassword(password);
+  }
+
+  @Test
+  public void testConnectEncodesAuroraPgOptionsInJdbcUrl() throws SQLException, UnsupportedEncodingException {
+    final String pgProtocol = "jdbc:postgresql://";
+    final String expectedOptions =
+        "-c aurora.connection_str=_d:aws_jdbc_wrapper,_v:" + DriverInfo.DRIVER_VERSION + ",_p:a+b";
+
+    provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
+    final ArgumentCaptor<Properties> propsCaptor = ArgumentCaptor.forClass(Properties.class);
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), propsCaptor.capture(), any());
+    when(mockTargetDriverDialect.prepareConnectInfo(anyString(), any(), any()))
+        .thenAnswer(invocation -> new ConnectInfo(
+            pgProtocol + readerHost1Connection.getUrl() + db, invocation.getArgument(2)));
+
+    final Properties props = PropertyUtils.copyProperties(defaultProps);
+    props.setProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY, "a+b");
+
+    provider.connect(pgProtocol, new AuroraPgDialect(), mockTargetDriverDialect, readerHost1Connection, props);
+    provider.configurePool(
+        mockConfig, pgProtocol, readerHost1Connection, propsCaptor.getValue(), mockTargetDriverDialect);
+
+    final ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
+    verify(mockConfig).setJdbcUrl(urlCaptor.capture());
+    final String jdbcUrl = urlCaptor.getValue();
+
+    String optionsParam = null;
+    for (final String param : jdbcUrl.substring(jdbcUrl.indexOf('?') + 1).split("&")) {
+      if (param.startsWith("options=")) {
+        optionsParam = param.substring("options=".length());
+      }
+    }
+
+    assertNotNull(optionsParam);
+    assertTrue(optionsParam.contains("%2B"));
+    assertFalse(optionsParam.contains(" "));
+    assertEquals(expectedOptions, URLDecoder.decode(optionsParam, "UTF-8"));
+
+    final Properties parsed = org.postgresql.Driver.parseURL(jdbcUrl, null);
+    assertNotNull(parsed);
+    assertEquals(expectedOptions, parsed.getProperty("options"));
   }
 
   @Test

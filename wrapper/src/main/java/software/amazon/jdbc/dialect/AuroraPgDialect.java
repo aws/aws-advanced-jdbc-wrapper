@@ -34,6 +34,7 @@ import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StringUtils;
 
 public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
 
@@ -67,6 +68,8 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   protected static final String BG_STATUS_QUERY =
       "SELECT * FROM "
           + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+
+  private static final String OPTIONS_PROPERTY = "options";
 
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
@@ -160,5 +163,22 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
             ? driverInfoOption
             : connectProperties.getProperty("options") + " " + driverInfoOption);
     connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
+  }
+
+  @Override
+  public void prepareConnectProperties(
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec,
+      final boolean propertiesInUrl) {
+
+    this.prepareConnectProperties(connectProperties, protocol, hostSpec);
+    if (propertiesInUrl) {
+      final String options = connectProperties.getProperty(OPTIONS_PROPERTY);
+      if (options != null) {
+        // pgjdbc URL-decodes query values, so encode the value to make the server receive it unchanged.
+        connectProperties.setProperty(OPTIONS_PROPERTY, StringUtils.encode(options));
+      }
+    }
   }
 }

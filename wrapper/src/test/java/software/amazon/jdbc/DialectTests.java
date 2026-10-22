@@ -16,18 +16,23 @@
 
 package software.amazon.jdbc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +47,8 @@ import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.DriverInfo;
 
 public class DialectTests {
   @Mock private Connection mockConnection;
@@ -334,5 +341,64 @@ public class DialectTests {
     when(successResultSet.next()).thenReturn(true, false);
     when(successResultSet.getString(1)).thenReturn("Invalid");
     assertFalse(mariaDbDialect.isDialect(mockConnection));
+  }
+
+  // PREPARE CONNECT PROPERTIES
+  private static final String PG_USER_OPTIONS = "-c search_path=my schema,public";
+  private static final String PG_DRIVER_INFO_OPTION =
+      "-c aurora.connection_str=_d:aws_jdbc_wrapper,_v:" + DriverInfo.DRIVER_VERSION + ",_p:a+b";
+
+  private final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build();
+
+  private Properties getPluginCodesProps(final String options) {
+    final Properties props = new Properties();
+    if (options != null) {
+      props.setProperty("options", options);
+    }
+    props.setProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY, "a+b");
+    return props;
+  }
+
+  @Test
+  void testAuroraPgPrepareConnectPropertiesRawWhenNotInUrl() {
+    final String expected = PG_USER_OPTIONS + " " + PG_DRIVER_INFO_OPTION;
+
+    final Properties props = getPluginCodesProps(PG_USER_OPTIONS);
+    auroraPgDialect.prepareConnectProperties(props, "jdbc:postgresql://", hostSpec);
+    assertEquals(expected, props.getProperty("options"));
+    assertFalse(props.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties propsNotInUrl = getPluginCodesProps(PG_USER_OPTIONS);
+    auroraPgDialect.prepareConnectProperties(propsNotInUrl, "jdbc:postgresql://", hostSpec, false);
+    assertEquals(expected, propsNotInUrl.getProperty("options"));
+    assertFalse(propsNotInUrl.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+  }
+
+  @Test
+  void testAuroraPgPrepareConnectPropertiesEncodedWhenInUrl() throws UnsupportedEncodingException {
+    final String expected = PG_USER_OPTIONS + " " + PG_DRIVER_INFO_OPTION;
+
+    final Properties props = getPluginCodesProps(PG_USER_OPTIONS);
+    auroraPgDialect.prepareConnectProperties(props, "jdbc:postgresql://", hostSpec, true);
+    final String options = props.getProperty("options");
+    assertNotEquals(expected, options);
+    assertFalse(options.contains(" "));
+    assertTrue(options.contains("%2B"));
+    assertEquals(expected, URLDecoder.decode(options, "UTF-8"));
+    assertFalse(props.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties propsNoOptions = getPluginCodesProps(null);
+    auroraPgDialect.prepareConnectProperties(propsNoOptions, "jdbc:postgresql://", hostSpec, true);
+    assertEquals(PG_DRIVER_INFO_OPTION, URLDecoder.decode(propsNoOptions.getProperty("options"), "UTF-8"));
+    assertFalse(propsNoOptions.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+  }
+
+  @Test
+  void testMysqlPrepareConnectPropertiesUnchangedWhenInUrl() {
+    final Properties props = getPluginCodesProps(null);
+    mysqlDialect.prepareConnectProperties(props, "jdbc:mysql://", hostSpec, true);
+    assertEquals("_d:aws_jdbc_wrapper,_v:" + DriverInfo.DRIVER_VERSION + ",_p:a+b",
+        props.getProperty("connectionAttributes"));
+    assertFalse(props.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
   }
 }

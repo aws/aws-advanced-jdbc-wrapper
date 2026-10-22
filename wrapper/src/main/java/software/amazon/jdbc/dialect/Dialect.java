@@ -44,10 +44,36 @@ public interface Dialect {
 
   @Nullable String getHostAliasQuery();
 
+  /**
+   * Prepares the properties that are used to open a connection to the target database.
+   * The prepared properties are passed to the target driver as {@link Properties}.
+   *
+   * @param connectProperties the connection properties to update
+   * @param protocol          the connection protocol
+   * @param hostSpec          the host to connect to
+   */
   void prepareConnectProperties(
       final @NonNull Properties connectProperties,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec);
+
+  /**
+   * Prepares the properties that are used to open a connection to the target database.
+   *
+   * @param connectProperties the connection properties to update
+   * @param protocol          the connection protocol
+   * @param hostSpec          the host to connect to
+   * @param propertiesInUrl   true if the caller appends the prepared properties to a JDBC URL
+   *                          query string (for example, pooled connection providers). In that case
+   *                          values added by the dialect must be URL-safe for the target driver.
+   */
+  default void prepareConnectProperties(
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec,
+      final boolean propertiesInUrl) {
+    this.prepareConnectProperties(connectProperties, protocol, hostSpec);
+  }
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
 
