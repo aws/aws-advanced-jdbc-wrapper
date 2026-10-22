@@ -18,7 +18,6 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
@@ -95,18 +94,21 @@ public class PgDriverHelper {
 
     final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
     if (loginTimeout != null) {
-      baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+      baseDataSource.setLoginTimeout(
+          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.LOGIN_TIMEOUT.name, loginTimeout));
     }
 
     // PostgreSQL expresses these timeouts in seconds, the wrapper properties are in milliseconds.
     final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
     if (connectTimeout != null) {
-      baseDataSource.setConnectTimeout((int) TimeUnit.MILLISECONDS.toSeconds(connectTimeout));
+      baseDataSource.setConnectTimeout(
+          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.CONNECT_TIMEOUT.name, connectTimeout));
     }
 
     final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
     if (socketTimeout != null) {
-      baseDataSource.setSocketTimeout((int) TimeUnit.MILLISECONDS.toSeconds(socketTimeout));
+      baseDataSource.setSocketTimeout(
+          PgTimeoutConverter.millisToPgSeconds(PropertyDefinition.SOCKET_TIMEOUT.name, socketTimeout));
     }
   }
 

@@ -19,6 +19,7 @@ package software.amazon.jdbc.targetdriverdialect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -28,14 +29,28 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.postgresql.ds.PGSimpleDataSource;
+import org.postgresql.xa.PGXADataSource;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 
@@ -45,16 +60,151 @@ public class PgTargetDriverDialectTests {
   @Mock private Statement mockJdbcStatement;
   @Mock private ResultSet mockResultSet;
   private final PgTargetDriverDialect dialect = new PgTargetDriverDialect();
+  // Held in a field so the logger (and the handler attached to it) cannot be garbage-collected.
+  private final Logger converterLogger = Logger.getLogger(PgTimeoutConverter.class.getName());
+  private final List<LogRecord> warnings = Collections.synchronizedList(new ArrayList<>());
+  private final Handler warningCollector = new Handler() {
+    @Override
+    public void publish(final LogRecord record) {
+      if (record.getLevel() == Level.WARNING) {
+        warnings.add(record);
+      }
+    }
+
+    @Override
+    public void flush() {
+    }
+
+    @Override
+    public void close() {
+    }
+  };
+  private Level previousConverterLevel;
   private AutoCloseable closeable;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
+    previousConverterLevel = converterLogger.getLevel();
+    converterLogger.setLevel(Level.ALL);
+    converterLogger.addHandler(warningCollector);
+    PgTimeoutConverter.clearReportedTruncatedValues();
   }
 
   @AfterEach
   void cleanUp() throws Exception {
+    converterLogger.removeHandler(warningCollector);
+    converterLogger.setLevel(previousConverterLevel);
+    PgTimeoutConverter.clearReportedTruncatedValues();
     closeable.close();
+  }
+
+  private static HostSpec host() {
+    return new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("h").port(5432).build();
+  }
+
+  private static Properties timeouts(final String value) {
+    final Properties props = new Properties();
+    props.setProperty("loginTimeout", value);
+    props.setProperty("connectTimeout", value);
+    props.setProperty("socketTimeout", value);
+    return props;
+  }
+
+  private static Properties socketTimeout(final String value) {
+    final Properties props = new Properties();
+    props.setProperty("socketTimeout", value);
+    return props;
+  }
+
+  private void runAllPaths(final Properties props) throws SQLException {
+    final Properties connectInfoProps = new Properties();
+    connectInfoProps.putAll(props);
+    dialect.prepareConnectInfo("jdbc:postgresql://", host(), connectInfoProps);
+
+    final Properties dataSourceProps = new Properties();
+    dataSourceProps.putAll(props);
+    dialect.prepareDataSource(new PGSimpleDataSource(), "jdbc:postgresql://", host(), dataSourceProps);
+
+    final Properties xaProps = new Properties();
+    xaProps.putAll(props);
+    dialect.prepareTargetDataSource(new PGXADataSource(), "jdbc:postgresql://h/db", xaProps);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"0,0", "1,0", "999,0", "1000,1", "1500,1", "60000,60"})
+  void prepareConnectInfo_convertsTimeoutsToSecondsUnchanged(final String millis, final String seconds) {
+    final ConnectInfo connectInfo = dialect.prepareConnectInfo("jdbc:postgresql://", host(), timeouts(millis));
+
+    assertEquals(seconds, connectInfo.props.getProperty("loginTimeout"));
+    assertEquals(seconds, connectInfo.props.getProperty("connectTimeout"));
+    assertEquals(seconds, connectInfo.props.getProperty("socketTimeout"));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"0,0", "1,0", "999,0", "1000,1", "1500,1", "60000,60"})
+  void prepareDataSource_convertsTimeoutsToSecondsUnchanged(final String millis, final int seconds)
+      throws SQLException {
+    final PGSimpleDataSource dataSource = new PGSimpleDataSource();
+
+    dialect.prepareDataSource(dataSource, "jdbc:postgresql://", host(), timeouts(millis));
+
+    assertEquals(seconds, dataSource.getLoginTimeout());
+    assertEquals(seconds, dataSource.getConnectTimeout());
+    assertEquals(seconds, dataSource.getSocketTimeout());
+  }
+
+  @ParameterizedTest
+  @CsvSource({"0,0", "1,0", "999,0", "1000,1", "1500,1", "60000,60"})
+  void prepareTargetDataSource_xa_convertsTimeoutsToSecondsUnchanged(final String millis, final int seconds) {
+    final PGXADataSource dataSource = new PGXADataSource();
+    final String url = "jdbc:postgresql://h/db";
+
+    assertSame(url, dialect.prepareTargetDataSource(dataSource, url, timeouts(millis)));
+    assertEquals(seconds, dataSource.getLoginTimeout());
+    assertEquals(seconds, dataSource.getConnectTimeout());
+    assertEquals(seconds, dataSource.getSocketTimeout());
+  }
+
+  @Test
+  void prepareConnectInfo_leavesUnsetTimeoutsUnset() {
+    final ConnectInfo connectInfo = dialect.prepareConnectInfo("jdbc:postgresql://", host(), new Properties());
+
+    assertNull(connectInfo.props.getProperty("loginTimeout"));
+    assertNull(connectInfo.props.getProperty("connectTimeout"));
+    assertNull(connectInfo.props.getProperty("socketTimeout"));
+    assertTrue(warnings.isEmpty());
+  }
+
+  @Test
+  void warnsOnceForSubSecondValue() throws SQLException {
+    dialect.prepareConnectInfo("jdbc:postgresql://", host(), socketTimeout("999"));
+    dialect.prepareConnectInfo("jdbc:postgresql://", host(), socketTimeout("999"));
+    dialect.prepareDataSource(new PGSimpleDataSource(), "jdbc:postgresql://", host(), socketTimeout("999"));
+    dialect.prepareTargetDataSource(new PGXADataSource(), "jdbc:postgresql://h/db", socketTimeout("999"));
+
+    assertEquals(1, warnings.size());
+    final String message = warnings.get(0).getMessage();
+    assertTrue(message.contains("'socketTimeout'"), message);
+    assertTrue(message.contains("999"), message);
+    assertFalse(message.contains("{"), message);
+  }
+
+  @Test
+  void warnsPerPropertyAndValue() {
+    dialect.prepareConnectInfo("jdbc:postgresql://", host(), timeouts("999"));
+    assertEquals(3, warnings.size());
+
+    dialect.prepareConnectInfo("jdbc:postgresql://", host(), socketTimeout("500"));
+    assertEquals(4, warnings.size());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0", "1000", "60000"})
+  void doesNotWarnForZeroOrWholeSeconds(final String millis) throws SQLException {
+    runAllPaths(timeouts(millis));
+
+    assertTrue(warnings.isEmpty());
   }
 
   @Test

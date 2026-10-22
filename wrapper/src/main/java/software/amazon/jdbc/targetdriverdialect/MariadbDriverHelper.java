@@ -22,10 +22,10 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mariadb.jdbc.MariaDbDataSource;
 import org.mariadb.jdbc.MariaDbPoolDataSource;
 import software.amazon.jdbc.HostSpec;
@@ -38,7 +38,6 @@ public class MariadbDriverHelper {
   private static final Logger LOGGER =
       Logger.getLogger(MariadbDriverHelper.class.getName());
 
-  private static final String LOGIN_TIMEOUT = "loginTimeout";
   private static final String DS_CLASS_NAME = MariaDbDataSource.class.getName();
   private static final String DS_CP_CLASS_NAME = MariaDbPoolDataSource.class.getName();
 
@@ -58,15 +57,9 @@ public class MariadbDriverHelper {
       mariaDbDataSource.setUser(PropertyDefinition.USER.getString(props));
       mariaDbDataSource.setPassword(PropertyDefinition.PASSWORD.getString(props));
 
-      final String loginTimeoutValue = props.getProperty(LOGIN_TIMEOUT, null);
-      if (loginTimeoutValue != null) {
-        mariaDbDataSource.setLoginTimeout(Integer.parseInt(loginTimeoutValue));
-        props.remove(LOGIN_TIMEOUT);
-      }
-
-      Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
-      if (loginTimeout != null) {
-        mariaDbDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+      final Integer connectTimeoutSeconds = getConnectTimeoutSeconds(props);
+      if (connectTimeoutSeconds != null) {
+        mariaDbDataSource.setLoginTimeout(connectTimeoutSeconds);
       }
 
       // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
@@ -88,15 +81,9 @@ public class MariadbDriverHelper {
       mariaDbPoolDataSource.setUser(PropertyDefinition.USER.getString(props));
       mariaDbPoolDataSource.setPassword(PropertyDefinition.PASSWORD.getString(props));
 
-      final String loginTimeoutValue = props.getProperty(LOGIN_TIMEOUT, null);
-      if (loginTimeoutValue != null) {
-        mariaDbPoolDataSource.setLoginTimeout(Integer.parseInt(loginTimeoutValue));
-        props.remove(LOGIN_TIMEOUT);
-      }
-
-      Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
-      if (loginTimeout != null) {
-        mariaDbPoolDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+      final Integer connectTimeoutSeconds = getConnectTimeoutSeconds(props);
+      if (connectTimeoutSeconds != null) {
+        mariaDbPoolDataSource.setLoginTimeout(connectTimeoutSeconds);
       }
 
       // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
@@ -116,6 +103,33 @@ public class MariadbDriverHelper {
           "TargetDriverDialectManager.unexpectedClass",
           new Object[] { DS_CLASS_NAME + ", " + DS_CP_CLASS_NAME, dataSource.getClass().getName() }));
     }
+  }
+
+  /**
+   * Returns the connect timeout to apply to a MariaDB data source, in whole seconds, or null when
+   * neither {@code connectTimeout} nor {@code loginTimeout} is set.
+   *
+   * <p>Both wrapper properties are in milliseconds. An explicitly set {@code connectTimeout} takes
+   * precedence over {@code loginTimeout}. MariaDB Connector/J applies
+   * {@code setLoginTimeout(seconds)} as {@code connectTimeout = seconds * 1000}, and that value
+   * overrides the {@code connectTimeout} URL parameter. {@code AwsWrapperDataSource} has already
+   * called {@code setLoginTimeout} with its JDBC login timeout, so {@code setLoginTimeout} is the
+   * only way to make the wrapper value take effect. The value is rounded up to the next whole
+   * second, so a positive value never becomes 0 (no timeout) and the timeout is never shorter than
+   * requested.
+   *
+   * @param props the connection properties.
+   * @return the connect timeout in seconds, or null if no timeout property is set.
+   */
+  private static @Nullable Integer getConnectTimeoutSeconds(final Properties props) {
+    Integer millis = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    if (millis == null) {
+      millis = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    }
+    if (millis == null) {
+      return null;
+    }
+    return (int) ((millis + 999L) / 1000L);
   }
 
   public boolean isDriverRegistered() throws SQLException {

@@ -33,7 +33,7 @@ public class DBCPIamExample {
       ds.setDriverClassName("software.amazon.jdbc.Driver");
       ds.setUrl(
           "jdbc:aws-wrapper:postgresql://database.cluster-xyz.us-east-2.rds.amazonaws.com:5432/dbName");
-      ds.setConnectionProperties("wrapperPlugins=iam;socketTimeout=10;iamRegion=us-east-2");
+      ds.setConnectionProperties("wrapperPlugins=iam;socketTimeout=10000;iamRegion=us-east-2");
 
       // Attempt a connection:
       try (final Connection conn = ds.getConnection();
