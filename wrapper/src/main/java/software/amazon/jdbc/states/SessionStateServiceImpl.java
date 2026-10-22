@@ -18,17 +18,22 @@ package software.amazon.jdbc.states;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.Driver;
+import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 public class SessionStateServiceImpl implements SessionStateService {
@@ -37,6 +42,17 @@ public class SessionStateServiceImpl implements SessionStateService {
 
   protected SessionState sessionState;
   protected @Nullable SessionState copySessionState;
+
+  /**
+   * The original (pristine) session values of each physical connection this logical connection has
+   * used, keyed by the physical connection. Only the pristine part of each {@link SessionStateField}
+   * is used. A value is recorded the first time it is read from a connection and is never
+   * overwritten, so a connection that is switched away from and back to (as read/write splitting
+   * does with its cached writer and reader) keeps its true original values and is not queried again.
+   * Weak keys let a closed and discarded connection be garbage collected.
+   */
+  protected final Map<Connection, SessionState> pristineStateByConnection =
+      Collections.synchronizedMap(new WeakHashMap<>());
 
   protected final PluginService pluginService;
   protected final Properties props;
@@ -84,7 +100,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.autoCommit.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.autoCommit.setPristineValue(this.pluginService.getCurrentConnection().getAutoCommit());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.autoCommit.setPristineValue(currentConnection.getAutoCommit());
+    this.cachePristineValue(currentConnection, s -> s.autoCommit);
     this.logCurrentState();
   }
 
@@ -98,6 +116,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.autoCommit.setPristineValue(autoCommit);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.autoCommit);
     this.logCurrentState();
   }
 
@@ -123,7 +142,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.readOnly.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.readOnly.setPristineValue(this.pluginService.getCurrentConnection().isReadOnly());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.readOnly.setPristineValue(currentConnection.isReadOnly());
+    this.cachePristineValue(currentConnection, s -> s.readOnly);
     this.logCurrentState();
   }
 
@@ -136,6 +157,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.readOnly.setPristineValue(readOnly);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.readOnly);
     this.logCurrentState();
   }
 
@@ -161,7 +183,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.catalog.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.catalog.setPristineValue(this.pluginService.getCurrentConnection().getCatalog());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.catalog.setPristineValue(currentConnection.getCatalog());
+    this.cachePristineValue(currentConnection, s -> s.catalog);
     this.logCurrentState();
   }
 
@@ -174,6 +198,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.catalog.setPristineValue(catalog);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.catalog);
     this.logCurrentState();
   }
 
@@ -199,7 +224,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.holdability.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.holdability.setPristineValue(this.pluginService.getCurrentConnection().getHoldability());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.holdability.setPristineValue(currentConnection.getHoldability());
+    this.cachePristineValue(currentConnection, s -> s.holdability);
     this.logCurrentState();
   }
 
@@ -212,6 +239,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.holdability.setPristineValue(holdability);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.holdability);
     this.logCurrentState();
   }
 
@@ -237,7 +265,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.networkTimeout.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.networkTimeout.setPristineValue(this.pluginService.getCurrentConnection().getNetworkTimeout());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.networkTimeout.setPristineValue(currentConnection.getNetworkTimeout());
+    this.cachePristineValue(currentConnection, s -> s.networkTimeout);
     this.logCurrentState();
   }
 
@@ -250,6 +280,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.networkTimeout.setPristineValue(milliseconds);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.networkTimeout);
     this.logCurrentState();
   }
 
@@ -275,7 +306,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.schema.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.schema.setPristineValue(this.pluginService.getCurrentConnection().getSchema());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.schema.setPristineValue(currentConnection.getSchema());
+    this.cachePristineValue(currentConnection, s -> s.schema);
     this.logCurrentState();
   }
 
@@ -288,6 +321,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.schema.setPristineValue(schema);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.schema);
     this.logCurrentState();
   }
 
@@ -313,8 +347,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.transactionIsolation.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.transactionIsolation.setPristineValue(
-        this.pluginService.getCurrentConnection().getTransactionIsolation());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.transactionIsolation.setPristineValue(currentConnection.getTransactionIsolation());
+    this.cachePristineValue(currentConnection, s -> s.transactionIsolation);
     this.logCurrentState();
   }
 
@@ -327,6 +362,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.transactionIsolation.setPristineValue(level);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.transactionIsolation);
     this.logCurrentState();
   }
 
@@ -352,7 +388,9 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.typeMap.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.typeMap.setPristineValue(this.pluginService.getCurrentConnection().getTypeMap());
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.sessionState.typeMap.setPristineValue(currentConnection.getTypeMap());
+    this.cachePristineValue(currentConnection, s -> s.typeMap);
     this.logCurrentState();
   }
 
@@ -365,6 +403,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.typeMap.setPristineValue(map);
+    this.cachePristineValue(this.pluginService.getCurrentConnection(), s -> s.typeMap);
     this.logCurrentState();
   }
 
@@ -424,6 +463,7 @@ public class SessionStateServiceImpl implements SessionStateService {
     this.sessionState.typeMap.reset();
     this.sessionState.authorizationState.reset();
     this.sessionState.hasUntrackedAuthorizationState = false;
+    this.pristineStateByConnection.clear();
   }
 
   @Override
@@ -435,7 +475,7 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
 
     if (this.copySessionState != null) {
-      throw new SQLException("Previous session state transfer is not completed.");
+      throw new SQLException(Messages.get("SessionStateServiceImpl.previousTransferNotCompleted"));
     }
 
     this.copySessionState = this.sessionState.copy();
@@ -459,6 +499,77 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
   }
 
+  /**
+   * Updates the bookkeeping for a switch to {@code newConnection} that does not transfer the session
+   * state to it. Nothing is read from or applied to {@code newConnection}, and the custom transfer
+   * handler is not called. For each tracked field, the pristine value is replaced by the one recorded
+   * for {@code newConnection}, if any, so that close-time restore uses that connection's own original
+   * values. The authorization state is reset because it belongs to the previous physical connection.
+   *
+   * @param newConnection the connection being switched to
+   * @throws SQLException declared by {@link SessionStateService}; this implementation does not throw it
+   */
+  @Override
+  public void onSwitchWithoutSessionStateTransfer(final Connection newConnection) throws SQLException {
+    try {
+      if (!this.transferStateEnabledSetting()) {
+        return;
+      }
+
+      if (this.sessionState.autoCommit.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.autoCommit);
+      }
+      if (this.sessionState.readOnly.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.readOnly);
+      }
+      if (this.sessionState.catalog.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.catalog);
+      }
+      if (this.sessionState.schema.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.schema);
+      }
+      if (this.sessionState.holdability.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.holdability);
+      }
+      if (this.sessionState.transactionIsolation.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.transactionIsolation);
+      }
+      if (this.sessionState.networkTimeout.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.networkTimeout);
+      }
+      if (this.sessionState.typeMap.getValue().isPresent()) {
+        this.restoreRecordedPristineValue(newConnection, s -> s.typeMap);
+      }
+      this.logCurrentState();
+    } finally {
+      this.sessionState.authorizationState.resetValue();
+    }
+  }
+
+  /**
+   * Replaces the pristine value of a session field with the one recorded for {@code connection}, or
+   * clears it when none is recorded. Unlike {@link #setupPristineValueForNewConnection}, it never reads
+   * from the connection and never records anything.
+   *
+   * @param connection the physical connection being switched to
+   * @param fieldSelector selects the field from a {@link SessionState}
+   * @param <T> the field type
+   */
+  private <T> void restoreRecordedPristineValue(
+      final @NonNull Connection connection,
+      final @NonNull Function<SessionState, SessionStateField<T>> fieldSelector) {
+
+    final SessionStateField<T> field = fieldSelector.apply(this.sessionState);
+    field.resetPristineValue();
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    final SessionState recorded = this.pristineStateByConnection.get(connection);
+    if (recorded != null) {
+      fieldSelector.apply(recorded).getPristineValue().ifPresent(field::setPristineValue);
+    }
+  }
+
   private void applyCurrentSessionStateInternal(Connection newConnection) throws SQLException {
     if (!this.transferStateEnabledSetting()) {
       return;
@@ -474,20 +585,17 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
 
     if (this.sessionState.autoCommit.getValue().isPresent()) {
-      this.sessionState.autoCommit.resetPristineValue();
-      this.setupPristineAutoCommit();
+      this.setupPristineValueForNewConnection(newConnection, s -> s.autoCommit, newConnection::getAutoCommit);
       newConnection.setAutoCommit(this.sessionState.autoCommit.getValue().get());
     }
 
     if (this.sessionState.readOnly.getValue().isPresent()) {
-      this.sessionState.readOnly.resetPristineValue();
-      this.setupPristineReadOnly();
+      this.setupPristineValueForNewConnection(newConnection, s -> s.readOnly, newConnection::isReadOnly);
       newConnection.setReadOnly(this.sessionState.readOnly.getValue().get());
     }
 
     if (this.sessionState.catalog.getValue().isPresent()) {
-      this.sessionState.catalog.resetPristineValue();
-      this.setupPristineCatalog();
+      this.setupPristineValueForNewConnection(newConnection, s -> s.catalog, newConnection::getCatalog);
       final String currentCatalog = this.sessionState.catalog.getValue().get();
       if (!StringUtils.isNullOrEmpty(currentCatalog)) {
         newConnection.setCatalog(currentCatalog);
@@ -495,27 +603,25 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
 
     if (this.sessionState.schema.getValue().isPresent()) {
-      this.sessionState.schema.resetPristineValue();
-      this.setupPristineSchema();
+      this.setupPristineValueForNewConnection(newConnection, s -> s.schema, newConnection::getSchema);
       newConnection.setSchema(this.sessionState.schema.getValue().get());
     }
 
     if (this.sessionState.holdability.getValue().isPresent()) {
-      this.sessionState.holdability.resetPristineValue();
-      this.setupPristineHoldability();
+      this.setupPristineValueForNewConnection(newConnection, s -> s.holdability, newConnection::getHoldability);
       newConnection.setHoldability(this.sessionState.holdability.getValue().get());
     }
 
     if (this.sessionState.transactionIsolation.getValue().isPresent()) {
-      this.sessionState.transactionIsolation.resetPristineValue();
-      this.setupPristineTransactionIsolation();
+      this.setupPristineValueForNewConnection(
+          newConnection, s -> s.transactionIsolation, newConnection::getTransactionIsolation);
       //noinspection MagicConstant
       newConnection.setTransactionIsolation(this.sessionState.transactionIsolation.getValue().get());
     }
 
     if (this.sessionState.networkTimeout.getValue().isPresent()) {
-      this.sessionState.networkTimeout.resetPristineValue();
-      this.setupPristineNetworkTimeout();
+      this.setupPristineValueForNewConnection(
+          newConnection, s -> s.networkTimeout, newConnection::getNetworkTimeout);
       final ExecutorService executorService =
           ExecutorFactory.newSingleThreadExecutor("session");
       newConnection.setNetworkTimeout(executorService, this.sessionState.networkTimeout.getValue().get());
@@ -523,10 +629,104 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
 
     if (this.sessionState.typeMap.getValue().isPresent()) {
-      this.sessionState.typeMap.resetPristineValue();
-      this.setupPristineTypeMap();
+      this.setupPristineValueForNewConnection(newConnection, s -> s.typeMap, newConnection::getTypeMap);
       newConnection.setTypeMap(this.sessionState.typeMap.getValue().get());
     }
+  }
+
+  /**
+   * Sets up the pristine value of a session field for a connection the session state is being
+   * transferred to. The value already recorded for that physical connection is reused when there is
+   * one; otherwise it is read from the connection and recorded. Reusing it avoids querying a
+   * connection that was already visited (for example, a cached reader or writer during read/write
+   * splitting), and keeps its true original value rather than a value the driver applied to it
+   * since.
+   *
+   * @param newConnection the connection the session state is being transferred to
+   * @param fieldSelector selects the field from a {@link SessionState}
+   * @param pristineValueReader reads the field's current value from {@code newConnection}
+   * @param <T> the field type
+   * @throws SQLException if the value cannot be read from {@code newConnection}
+   */
+  private <T> void setupPristineValueForNewConnection(
+      final @NonNull Connection newConnection,
+      final @NonNull Function<SessionState, SessionStateField<T>> fieldSelector,
+      final @NonNull JdbcCallable<T, SQLException> pristineValueReader) throws SQLException {
+
+    final SessionStateField<T> field = fieldSelector.apply(this.sessionState);
+    field.resetPristineValue();
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+
+    final SessionStateField<T> cachedField = fieldSelector.apply(
+        this.pristineStateByConnection.computeIfAbsent(newConnection, c -> new SessionState()));
+    final Optional<T> cachedPristineValue = cachedField.getPristineValue();
+    if (cachedPristineValue.isPresent()) {
+      field.setPristineValue(cachedPristineValue.get());
+    } else {
+      field.setPristineValue(pristineValueReader.call());
+      field.getPristineValue().ifPresent(cachedField::setPristineValue);
+    }
+    this.logCurrentState();
+  }
+
+  /**
+   * Records the pristine value just captured for a session field as the original value of the
+   * given physical connection, unless one is already recorded for it.
+   *
+   * @param connection the physical connection the pristine value was read from
+   * @param fieldSelector selects the field from a {@link SessionState}
+   * @param <T> the field type
+   */
+  private <T> void cachePristineValue(
+      final @Nullable Connection connection,
+      final @NonNull Function<SessionState, SessionStateField<T>> fieldSelector) {
+
+    if (connection == null) {
+      return;
+    }
+    final Optional<T> pristineValue = fieldSelector.apply(this.sessionState).getPristineValue();
+    if (!pristineValue.isPresent()) {
+      return;
+    }
+    final SessionStateField<T> cachedField = fieldSelector.apply(
+        this.pristineStateByConnection.computeIfAbsent(connection, c -> new SessionState()));
+    if (!cachedField.getPristineValue().isPresent()) {
+      cachedField.setPristineValue(pristineValue.get());
+    }
+  }
+
+  /**
+   * Returns the session state to restore on the given connection: the given state, with each
+   * pristine value replaced by the original value recorded for that physical connection, if any.
+   *
+   * @param state the session state captured by {@link #begin()}
+   * @param connection the connection to restore
+   * @return {@code state} itself if nothing is recorded for {@code connection}, otherwise a copy of it
+   */
+  private SessionState withRecordedPristineValues(
+      final @NonNull SessionState state, final @NonNull Connection connection) {
+
+    final SessionState recorded = this.pristineStateByConnection.get(connection);
+    if (recorded == null) {
+      return state;
+    }
+    final SessionState result = state.copy();
+    overridePristineValue(result.autoCommit, recorded.autoCommit);
+    overridePristineValue(result.readOnly, recorded.readOnly);
+    overridePristineValue(result.catalog, recorded.catalog);
+    overridePristineValue(result.schema, recorded.schema);
+    overridePristineValue(result.holdability, recorded.holdability);
+    overridePristineValue(result.networkTimeout, recorded.networkTimeout);
+    overridePristineValue(result.transactionIsolation, recorded.transactionIsolation);
+    overridePristineValue(result.typeMap, recorded.typeMap);
+    return result;
+  }
+
+  private static <T> void overridePristineValue(
+      final @NonNull SessionStateField<T> target, final @NonNull SessionStateField<T> recorded) {
+    recorded.getPristineValue().ifPresent(target::setPristineValue);
   }
 
   @Override
@@ -544,10 +744,11 @@ public class SessionStateServiceImpl implements SessionStateService {
       }
     }
 
-    final SessionState copySessionState = this.copySessionState;
-    if (copySessionState == null) {
+    final SessionState capturedSessionState = this.copySessionState;
+    if (capturedSessionState == null) {
       return;
     }
+    final SessionState copySessionState = this.withRecordedPristineValues(capturedSessionState, connection);
 
     if (copySessionState.autoCommit.canRestorePristine()) {
       try {
@@ -631,6 +832,7 @@ public class SessionStateServiceImpl implements SessionStateService {
   }
 
   public void logCurrentState() {
-    LOGGER.finest(() -> "Current session state:\n" + this.sessionState);
+    LOGGER.finest(() -> Messages.get(
+        "SessionStateServiceImpl.currentSessionState", new Object[] {this.sessionState}));
   }
 }

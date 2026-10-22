@@ -24,6 +24,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -51,6 +52,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.balancer.PerQueryBalancedR
 import software.amazon.jdbc.plugin.readwritesplitting.balancer.StickyReaderPolicy;
 import software.amazon.jdbc.plugin.readwritesplitting.resolver.WriterResolution;
 import software.amazon.jdbc.plugin.readwritesplitting.signal.TargetRole;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.CacheItem;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -119,6 +121,18 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
           false,
           new String[] {"true", "false"});
 
+  public static final AwsWrapperProperty RW_TRANSFER_SESSION_STATE_ON_SWITCH =
+      new AwsWrapperProperty(
+          "rwTransferSessionStateOnSwitch",
+          "true",
+          "Transfer the session state when a read/write splitting plugin switches between its reader and "
+              + "writer connections. When false, a switch to an already-open cached reader or writer connection "
+              + "does not apply the session state to it; a connection opened by the switch still receives the "
+              + "full session state. Session state is still tracked, and other connection switches, such as "
+              + "failover, still transfer it. Applies to all read/write splitting plugins. Enabled by default.",
+          false,
+          new String[] {"true", "false"});
+
   static {
     PropertyDefinition.registerPluginProperties(UnifiedReadWriteSplittingPlugin.class);
   }
@@ -180,6 +194,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   private final Set<String> subscribedMethods;
   private final boolean allowStatementRecreationOnConnectionSwitch;
   private final boolean queryLevelLoadBalancing;
+  private final boolean transferSessionStateOnSwitch;
 
   // Tracks plain Statement objects seen for execute-with-SQL, to warn once per statement when a
   // bound statement is reused and rerouting cannot be applied.
@@ -211,6 +226,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     this.allowStatementRecreationOnConnectionSwitch =
         ALLOW_STATEMENT_RECREATION_ON_CONNECTION_SWITCH.getBoolean(properties);
     this.queryLevelLoadBalancing = QUERY_LEVEL_LOAD_BALANCING.getBoolean(properties);
+    this.transferSessionStateOnSwitch = RW_TRANSFER_SESSION_STATE_ON_SWITCH.getBoolean(properties);
   }
 
   /**
@@ -329,7 +345,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     try {
       final TargetRole desired = this.helpers.routingSignal.resolve(this, methodName, args);
       if (desired != TargetRole.NO_DECISION && desired != TargetRole.KEEP) {
-        this.performSwitch(methodName, desired);
+        this.performSwitchWithRequestedReadOnly(methodName, desired, args);
       }
       this.maybeHandleBoundStatement(methodName, methodInvokeOn);
       this.maybeHandlePreparedStatement(methodName, methodInvokeOn);
@@ -350,6 +366,63 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       }
       throw e;
     }
+  }
+
+  /**
+   * Performs the switch decided for a call, transferring the requested readOnly value when the call
+   * is {@code Connection.setReadOnly}.
+   *
+   * <p>The switch runs before the {@code setReadOnly} call itself, so the session state still holds
+   * the value being replaced. Transferring it would apply that old value to the connection switched
+   * to, and the {@code setReadOnly} call that follows would immediately reverse it: a wasted round
+   * trip on drivers that send readOnly changes to the server. When a readOnly value is tracked, the
+   * requested value is therefore tracked for the duration of the switch. If no switch happens, or
+   * the switch fails, the previous value is tracked again, so the state is the same as before the
+   * call.
+   *
+   * @param methodName the JDBC method being executed
+   * @param desired the role the routing signal decided on
+   * @param args the arguments of the JDBC method
+   * @throws SQLException if the switch fails
+   */
+  private void performSwitchWithRequestedReadOnly(
+      final String methodName, final TargetRole desired, final @Nullable Object[] args) throws SQLException {
+
+    final Boolean requestedReadOnly = requestedReadOnly(methodName, args);
+    if (requestedReadOnly == null) {
+      this.performSwitch(methodName, desired);
+      return;
+    }
+
+    final SessionStateService sessionStateService = this.pluginService.getSessionStateService();
+    final Optional<Boolean> previousReadOnly = sessionStateService.getReadOnly();
+    if (!previousReadOnly.isPresent()) {
+      // readOnly is not tracked, so it is not transferred on a switch: nothing can be stale.
+      this.performSwitch(methodName, desired);
+      return;
+    }
+
+    final Connection connectionBeforeSwitch = this.pluginService.getCurrentConnection();
+    sessionStateService.setReadOnly(requestedReadOnly);
+    boolean switched = false;
+    try {
+      this.performSwitch(methodName, desired);
+      switched = this.pluginService.getCurrentConnection() != connectionBeforeSwitch;
+    } finally {
+      if (!switched) {
+        sessionStateService.setReadOnly(previousReadOnly.get());
+      }
+    }
+  }
+
+  private static @Nullable Boolean requestedReadOnly(final String methodName, final @Nullable Object[] args) {
+    if (JdbcMethod.CONNECTION_SETREADONLY.methodName.equals(methodName)
+        && args != null
+        && args.length > 0
+        && args[0] instanceof Boolean) {
+      return (Boolean) args[0];
+    }
+    return null;
   }
 
   private void performSwitch(final String methodName, final TargetRole desired) throws SQLException {
@@ -634,7 +707,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       }
       // WriterResolution.STAY (e.g. Global Write Forwarding): remain on the current connection.
     } else {
-      this.switchCurrentConnectionTo(cachedWriter, cachedWriterHost);
+      this.switchToCachedConnection(cachedWriter, cachedWriterHost);
     }
 
     if (this.isReaderConnFromInternalPool) {
@@ -667,7 +740,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
       this.helpers.readerResolver.switchToReader(this);
     } else {
       try {
-        this.switchCurrentConnectionTo(cachedReader, cachedReaderHost);
+        this.switchToCachedConnection(cachedReader, cachedReaderHost);
         LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
             new Object[] {cachedReaderHost.getHostAndPort()}));
       } catch (final SQLException e) {
@@ -814,13 +887,34 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
   @Override
   public void switchCurrentConnectionTo(final Connection newConnection, final HostSpec newConnectionHost)
       throws SQLException {
+    this.switchCurrentConnectionTo(newConnection, newConnectionHost, true);
+  }
+
+  private void switchCurrentConnectionTo(
+      final Connection newConnection, final HostSpec newConnectionHost, final boolean transferSessionState)
+      throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection == newConnection) {
       return;
     }
-    this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
+    if (transferSessionState) {
+      this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
+    } else {
+      this.pluginService.setCurrentConnectionWithoutSessionStateTransfer(newConnection, newConnectionHost);
+    }
     LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.settingCurrentConnection",
         new Object[] {newConnectionHost.getHostAndPort()}));
+  }
+
+  /**
+   * Switches to a cached reader or writer connection that is already open. With
+   * {@code rwTransferSessionStateOnSwitch=false} the session state is not applied to it. A
+   * connection opened by a switch goes through {@link #switchCurrentConnectionTo(Connection, HostSpec)}
+   * instead and always receives the full session state, so settings made before it was opened reach it.
+   */
+  private void switchToCachedConnection(final Connection cachedConnection, final HostSpec cachedConnectionHost)
+      throws SQLException {
+    this.switchCurrentConnectionTo(cachedConnection, cachedConnectionHost, this.transferSessionStateOnSwitch);
   }
 
   @Override
@@ -932,6 +1026,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     state.add(Pair.create("readerHostSpec", this.readerHostSpec != null ? this.readerHostSpec.toString() : null));
     state.add(Pair.create("isReaderConnFromInternalPool", this.isReaderConnFromInternalPool));
     state.add(Pair.create("isWriterConnFromInternalPool", this.isWriterConnFromInternalPool));
+    state.add(Pair.create("transferSessionStateOnSwitch", this.transferSessionStateOnSwitch));
     for (final SnapshotContributor contributor : this.helpers.snapshotContributors()) {
       final List<Pair<String, Object>> fragment = contributor.snapshotState();
       if (fragment != null) {

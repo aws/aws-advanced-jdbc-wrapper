@@ -295,6 +295,23 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
+    return this.setCurrentConnectionInternal(connection, hostSpec, skipNotificationForThisPlugin, true);
+  }
+
+  @Override
+  public void setCurrentConnectionWithoutSessionStateTransfer(
+      final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
+
+    this.setCurrentConnectionInternal(connection, hostSpec, null, false);
+  }
+
+  private EnumSet<NodeChangeOptions> setCurrentConnectionInternal(
+      final @NonNull Connection connection,
+      final @NonNull HostSpec hostSpec,
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin,
+      final boolean transferSessionState)
+      throws SQLException {
+
     try (ResourceLock ignored = connectionSwitchLock.obtain()) {
 
       // Last line of defense for XA correctness: a physical connection enlisted in an active XA
@@ -351,7 +368,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
             this.servicesContainer.getImportantEventService().registerEvent(
                 () -> "Current connection set to " + connection + ", " + hostSpec);
 
-            this.sessionStateService.applyCurrentSessionState(connection);
+            if (transferSessionState) {
+              this.sessionStateService.applyCurrentSessionState(connection);
+            } else {
+              this.sessionStateService.onSwitchWithoutSessionStateTransfer(connection);
+            }
             this.setInTransaction(false);
 
             if (isInTransaction && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.props)) {

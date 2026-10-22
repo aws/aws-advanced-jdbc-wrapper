@@ -68,6 +68,24 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
 
+  /**
+   * Sets a new internal connection like {@link #setCurrentConnection(Connection, HostSpec)}, but does not
+   * transfer the current session state to it. Read/write splitting uses it when it switches to one of its
+   * already-open cached connections and {@code rwTransferSessionStateOnSwitch} is {@code false}. The session
+   * state is still tracked, and only this switch skips the transfer.
+   *
+   * <p>The default implementation transfers the session state as usual, by calling
+   * {@link #setCurrentConnection(Connection, HostSpec)}.
+   *
+   * @param connection the new internal connection.
+   * @param hostSpec  the host details for a new internal connection.
+   * @throws SQLException if there's an error setting a current connection.
+   */
+  default void setCurrentConnectionWithoutSessionStateTransfer(
+      final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
+    this.setCurrentConnection(connection, hostSpec);
+  }
+
   @Nullable HostSpec getRoutedHostSpec();
 
   void setRoutedHostSpec(final @Nullable HostSpec routedHostSpec);

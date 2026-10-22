@@ -38,6 +38,7 @@ This plugin accepts the endpoint parameters of the [Simple Read/Write Splitting 
 | `srwConnectRetryTimeoutMs` | 3.0.0 | Integer | No | Maximum allowed time in milliseconds for retrying connection attempts. | `60000` |
 | `srwConnectRetryIntervalMs` | 3.0.0 | Integer | No | Time delay in milliseconds between connection retries. | `1000` |
 | `cachedReaderKeepAliveTimeoutMs` | 3.0.0 | Integer | No | Timeout for the cached reader connection. `0` reuses the same cached reader for the lifetime of the `Connection`. | `0` |
+| `rwTransferSessionStateOnSwitch` | 4.6.0 | Boolean | No | When `false`, a switch to an already-open cached reader or writer connection does not apply the session state to it; a connection opened by the switch still receives the full session state. See [Read/write splitting switches](../SessionState.md#readwrite-splitting-switches). | `true` |
 
 In addition, the Global Database region parameters of the [GDB Read/Write Splitting Plugin](./UsingTheGdbReadWriteSplittingPlugin.md#configuration-parameters) apply to the configured write endpoint: `gdbRwHomeRegion`, `gdbRwRestrictWriterToHomeRegion`, `gdbRwRestrictReaderToHomeRegion`, `gdbEnableGlobalWriteForwarding`, and `gdbAccessibleRegions`. See that page for full descriptions and defaults.
 

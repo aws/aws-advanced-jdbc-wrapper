@@ -34,7 +34,7 @@ The driver performs plugin sorting by default (see the [`autoSortWrapperPluginOr
 
 ## Configuration Parameters
 
-This plugin accepts the same parameters as the [GDB Read/Write Splitting Plugin](./UsingTheGdbReadWriteSplittingPlugin.md#configuration-parameters), including `readerHostSelectorStrategy`, `cachedReaderKeepAliveTimeoutMs`, `gdbRwHomeRegion`, `gdbRwRestrictWriterToHomeRegion`, `gdbRwRestrictReaderToHomeRegion`, `gdbEnableGlobalWriteForwarding`, and `gdbAccessibleRegions`. See that page for the full descriptions and defaults.
+This plugin accepts the same parameters as the [GDB Read/Write Splitting Plugin](./UsingTheGdbReadWriteSplittingPlugin.md#configuration-parameters), including `readerHostSelectorStrategy`, `cachedReaderKeepAliveTimeoutMs`, `rwTransferSessionStateOnSwitch`, `gdbRwHomeRegion`, `gdbRwRestrictWriterToHomeRegion`, `gdbRwRestrictReaderToHomeRegion`, `gdbEnableGlobalWriteForwarding`, and `gdbAccessibleRegions`. See that page for the full descriptions and defaults.
 
 > [!NOTE]
 > For an in-depth explanation of `gdbAccessibleRegions`, see [Restricting Aurora Global Database Access by Region](./UsingGlobalAuroraAccessibleRegions.md). The topology monitor also honors [`gdbMonitoringConnectionPriority`](./UsingMonitoringConnectionPriority.md).
