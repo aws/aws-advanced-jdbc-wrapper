@@ -119,6 +119,22 @@ public class AutoReadWriteSplittingTests extends ReadWriteSplittingTests {
   }
 
   @TestTemplate
+  @Disabled("With autocommit disabled the connection is pinned to preserve the transaction, so "
+      + "setReadOnly does not switch between the writer and a reader here; this setReadOnly-oriented "
+      + "expectation does not apply to autoReadWriteSplitting.")
+  @Override
+  public void test_hikariAutoCommitFalse_currentSchema_setReadOnlyToggles() {
+  }
+
+  @TestTemplate
+  @Disabled("With autocommit disabled the connection is pinned to preserve the transaction, so "
+      + "setReadOnly does not switch between the writer and a reader here; this setReadOnly-oriented "
+      + "expectation does not apply to autoReadWriteSplitting.")
+  @Override
+  public void test_autoCommitFalse_transactionIsolation_currentSchema_setReadOnlyToggles() {
+  }
+
+  @TestTemplate
   public void test_selectRoutesToReader() throws SQLException {
     final String url = ConnectionStringHelper.getWrapperUrl();
 

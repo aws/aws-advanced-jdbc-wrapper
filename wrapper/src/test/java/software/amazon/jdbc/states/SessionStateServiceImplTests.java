@@ -16,12 +16,19 @@
 
 package software.amazon.jdbc.states;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -46,6 +53,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.Driver;
@@ -261,6 +269,7 @@ public class SessionStateServiceImplTests {
   public void test_TransferToNewConnection_ReadOnly(boolean pristineValue, boolean value) throws SQLException {
     when(mockConnection.isReadOnly()).thenReturn(pristineValue);
     when(mockNewConnection.isReadOnly()).thenReturn(pristineValue);
+    when(mockNewConnection.getAutoCommit()).thenReturn(true);
     sessionStateService.setReadOnly(value);
     assertEquals(Optional.ofNullable(value), sessionStateService.getReadOnly());
 
@@ -270,6 +279,7 @@ public class SessionStateServiceImplTests {
 
     verify(mockNewConnection, times(1)).setReadOnly(captorReadOnly.capture());
     assertEquals(value, captorReadOnly.getValue());
+    verify(mockNewConnection, never()).rollback();
   }
 
   @ParameterizedTest
@@ -293,6 +303,7 @@ public class SessionStateServiceImplTests {
   public void test_TransferToNewConnection_Catalog(String pristineValue, String value) throws SQLException {
     when(mockConnection.getCatalog()).thenReturn(pristineValue);
     when(mockNewConnection.getCatalog()).thenReturn(pristineValue);
+    when(mockNewConnection.getAutoCommit()).thenReturn(true);
     sessionStateService.setCatalog(value);
     assertEquals(Optional.ofNullable(value), sessionStateService.getCatalog());
 
@@ -302,6 +313,7 @@ public class SessionStateServiceImplTests {
 
     verify(mockNewConnection, times(1)).setCatalog(captorCatalog.capture());
     assertEquals(value, captorCatalog.getValue());
+    verify(mockNewConnection, never()).rollback();
   }
 
   @ParameterizedTest
@@ -309,6 +321,7 @@ public class SessionStateServiceImplTests {
   public void test_TransferToNewConnection_Schema(String pristineValue, String value) throws SQLException {
     when(mockConnection.getSchema()).thenReturn(pristineValue);
     when(mockNewConnection.getSchema()).thenReturn(pristineValue);
+    when(mockNewConnection.getAutoCommit()).thenReturn(true);
     sessionStateService.setSchema(value);
     assertEquals(Optional.ofNullable(value), sessionStateService.getSchema());
 
@@ -318,6 +331,7 @@ public class SessionStateServiceImplTests {
 
     verify(mockNewConnection, times(1)).setSchema(captorSchema.capture());
     assertEquals(value, captorSchema.getValue());
+    verify(mockNewConnection, never()).rollback();
   }
 
   @ParameterizedTest
@@ -357,6 +371,7 @@ public class SessionStateServiceImplTests {
   public void test_TransferToNewConnection_TransactionIsolation(int pristineValue, int value) throws SQLException {
     when(mockConnection.getTransactionIsolation()).thenReturn(pristineValue);
     when(mockNewConnection.getTransactionIsolation()).thenReturn(pristineValue);
+    when(mockNewConnection.getAutoCommit()).thenReturn(true);
     sessionStateService.setTransactionIsolation(value);
     assertEquals(Optional.ofNullable(value), sessionStateService.getTransactionIsolation());
 
@@ -367,6 +382,7 @@ public class SessionStateServiceImplTests {
     verify(mockNewConnection, times(1))
         .setTransactionIsolation(captorTransactionIsolation.capture());
     assertEquals(value, captorTransactionIsolation.getValue());
+    verify(mockNewConnection, never()).rollback();
   }
 
   @ParameterizedTest
@@ -417,6 +433,8 @@ public class SessionStateServiceImplTests {
     when(mockNewConnection.isReadOnly()).thenReturn(false);
     when(mockConnection.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
     when(mockNewConnection.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_REPEATABLE_READ);
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockNewConnection.getAutoCommit()).thenReturn(true);
 
     sessionStateService.setupPristineReadOnly();
     sessionStateService.setReadOnly(true);
@@ -650,7 +668,10 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.of(Connection.TRANSACTION_SERIALIZABLE), sessionStateService.getTransactionIsolation());
 
     // A later switch that transfers the session state applies the tracked values.
+    when(thirdConnection.getAutoCommit()).thenReturn(true);
     switchTo(currentConnection, thirdConnection);
+    verify(thirdConnection, never()).rollback();
+    verify(thirdConnection, never()).setAutoCommit(true);
     verify(thirdConnection, times(1)).setAutoCommit(false);
     verify(thirdConnection, times(1)).setCatalog("c2");
     verify(thirdConnection, times(1)).setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -721,6 +742,248 @@ public class SessionStateServiceImplTests {
     sessionStateService.reset();
 
     assertFalse(sessionStateService.hasUntrackedAuthorizationState());
+  }
+
+  private void transferTo(final Connection connection) throws SQLException {
+    sessionStateService.begin();
+    try {
+      sessionStateService.applyCurrentSessionState(connection);
+    } finally {
+      sessionStateService.complete();
+    }
+  }
+
+  private void resetConnection(final Connection connection) throws SQLException {
+    sessionStateService.begin();
+    try {
+      sessionStateService.applyPristineSessionState(connection);
+    } finally {
+      sessionStateService.complete();
+    }
+  }
+
+  @Test
+  void test_TransferToNewConnection_AutoCommitOn_AppliesAutoCommitLast() throws SQLException {
+    when(mockNewConnection.getAutoCommit()).thenReturn(true);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setReadOnly(true);
+    sessionStateService.setSchema("s");
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
+    transferTo(mockNewConnection);
+
+    final InOrder inOrder = inOrder(mockNewConnection);
+    inOrder.verify(mockNewConnection).getAutoCommit();
+    inOrder.verify(mockNewConnection).setReadOnly(true);
+    inOrder.verify(mockNewConnection).setSchema("s");
+    inOrder.verify(mockNewConnection).setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+    inOrder.verify(mockNewConnection).setAutoCommit(false);
+    verify(mockNewConnection, never()).rollback();
+    verify(mockNewConnection, never()).setAutoCommit(true);
+    verify(mockNewConnection, times(1)).getAutoCommit();
+  }
+
+  @Test
+  void test_TransferToNewConnection_TargetAutoCommitOff_RollsBackFirstAndAppliesAutoCommitLast()
+      throws SQLException {
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setReadOnly(true);
+    sessionStateService.setSchema("s");
+
+    transferTo(mockNewConnection);
+
+    final InOrder inOrder = inOrder(mockNewConnection);
+    inOrder.verify(mockNewConnection).rollback();
+    inOrder.verify(mockNewConnection).setAutoCommit(true);
+    inOrder.verify(mockNewConnection).setReadOnly(true);
+    // The pristine schema is read with autocommit on, so it does not open a transaction.
+    inOrder.verify(mockNewConnection).getSchema();
+    inOrder.verify(mockNewConnection).setSchema("s");
+    inOrder.verify(mockNewConnection).setAutoCommit(false);
+    assertEquals(Optional.of(false), sessionStateOf(sessionStateService).autoCommit.getPristineValue());
+  }
+
+  @Test
+  void test_TransferToNewConnection_OnlyAutoCommitTracked_NoToggle() throws SQLException {
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setAutoCommit(false);
+
+    transferTo(mockNewConnection);
+
+    verify(mockNewConnection, times(1)).setAutoCommit(false);
+    verify(mockNewConnection, never()).rollback();
+    verify(mockNewConnection, never()).setAutoCommit(true);
+  }
+
+  @Test
+  void test_TransferToNewConnection_TargetAutoCommitOff_AutoCommitNotTracked_RestoresTargetValue()
+      throws SQLException {
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setSchema("s");
+
+    transferTo(mockNewConnection);
+
+    final InOrder inOrder = inOrder(mockNewConnection);
+    inOrder.verify(mockNewConnection).rollback();
+    inOrder.verify(mockNewConnection).setAutoCommit(true);
+    inOrder.verify(mockNewConnection).setSchema("s");
+    inOrder.verify(mockNewConnection).setAutoCommit(false);
+  }
+
+  @Test
+  void test_TransferToNewConnection_TargetAutoCommitOff_DesiredAutoCommitTrue_SetOnce() throws SQLException {
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setAutoCommit(true);
+    sessionStateService.setReadOnly(true);
+
+    transferTo(mockNewConnection);
+
+    final InOrder inOrder = inOrder(mockNewConnection);
+    inOrder.verify(mockNewConnection).rollback();
+    inOrder.verify(mockNewConnection).setAutoCommit(true);
+    inOrder.verify(mockNewConnection).setReadOnly(true);
+    verify(mockNewConnection, times(1)).setAutoCommit(true);
+    verify(mockNewConnection, never()).setAutoCommit(false);
+  }
+
+  @Test
+  void test_TransferToNewConnection_SetterThrows_AutoCommitStillAppliedLast() throws SQLException {
+    final SQLException ex = new SQLException("isolation");
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    doThrow(ex).when(mockNewConnection).setTransactionIsolation(anyInt());
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
+    assertSame(ex, assertThrows(SQLException.class, () -> transferTo(mockNewConnection)));
+
+    final InOrder inOrder = inOrder(mockNewConnection);
+    inOrder.verify(mockNewConnection).rollback();
+    inOrder.verify(mockNewConnection).setAutoCommit(true);
+    inOrder.verify(mockNewConnection).setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+    inOrder.verify(mockNewConnection).setAutoCommit(false);
+  }
+
+  @Test
+  void test_TransferToNewConnection_SetterAndAutoCommitThrow_SetterExceptionPropagatesWithSuppressed()
+      throws SQLException {
+    final SQLException ex = new SQLException("isolation");
+    final SQLException autoCommitEx = new SQLException("autoCommit");
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    doThrow(ex).when(mockNewConnection).setTransactionIsolation(anyInt());
+    doThrow(autoCommitEx).when(mockNewConnection).setAutoCommit(false);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
+    final SQLException thrown = assertThrows(SQLException.class, () -> transferTo(mockNewConnection));
+
+    assertSame(ex, thrown);
+    assertEquals(1, thrown.getSuppressed().length);
+    assertSame(autoCommitEx, thrown.getSuppressed()[0]);
+  }
+
+  @Test
+  void test_TransferToNewConnection_PristineAutoCommitReadBeforeToggle() throws SQLException {
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setAutoCommit(true);
+    sessionStateService.setReadOnly(true);
+
+    transferTo(mockNewConnection);
+
+    final InOrder inOrder = inOrder(mockNewConnection);
+    inOrder.verify(mockNewConnection).getAutoCommit();
+    inOrder.verify(mockNewConnection).setAutoCommit(true);
+    verify(mockNewConnection, times(1)).getAutoCommit();
+    assertEquals(Optional.of(false), sessionStateOf(sessionStateService).autoCommit.getPristineValue());
+
+    resetConnection(mockNewConnection);
+
+    verify(mockNewConnection, times(1)).setAutoCommit(false);
+  }
+
+  @Test
+  void test_TransferToNewConnection_CachedPristineAutoCommit_ReadsCurrentValueOnce() throws SQLException {
+    final AtomicReference<Connection> currentConnection = trackCurrentConnection(mockConnection);
+    when(mockNewConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setSchema("s");
+
+    switchTo(currentConnection, mockNewConnection);
+    switchTo(currentConnection, mockNewConnection);
+
+    // One read per switch: the second switch reuses the recorded pristine value.
+    verify(mockNewConnection, times(2)).getAutoCommit();
+    verify(mockNewConnection, times(2)).rollback();
+  }
+
+  @Test
+  void test_TransferToNewConnection_NothingTracked_DoesNotTouchConnection() throws SQLException {
+    transferTo(mockNewConnection);
+
+    verifyNoInteractions(mockNewConnection);
+  }
+
+  @Test
+  void test_ResetConnection_AutoCommitOff_RollsBackInsteadOfCommitting() throws SQLException {
+    when(mockConnection.getAutoCommit()).thenReturn(true, false);
+    sessionStateService.setupPristineAutoCommit();
+    sessionStateService.setAutoCommit(false);
+
+    resetConnection(mockConnection);
+
+    final InOrder inOrder = inOrder(mockConnection);
+    inOrder.verify(mockConnection).rollback();
+    inOrder.verify(mockConnection).setAutoCommit(true);
+    verify(mockConnection, times(1)).setAutoCommit(true);
+    verify(mockConnection, never()).commit();
+  }
+
+  @Test
+  void test_ResetConnection_PristineAutoCommitFalse_RestoresFieldsWithAutoCommitOn() throws SQLException {
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+    sessionStateService.setupPristineAutoCommit(false);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setupPristineReadOnly(false);
+    sessionStateService.setReadOnly(true);
+    sessionStateService.setupPristineTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    sessionStateService.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
+    resetConnection(mockConnection);
+
+    final InOrder inOrder = inOrder(mockConnection);
+    inOrder.verify(mockConnection).rollback();
+    inOrder.verify(mockConnection).setAutoCommit(true);
+    inOrder.verify(mockConnection).setReadOnly(false);
+    inOrder.verify(mockConnection).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+    inOrder.verify(mockConnection).setAutoCommit(false);
+  }
+
+  @Test
+  void test_ResetConnection_RollbackFails_DoesNotEnableAutoCommit() throws SQLException {
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+    doThrow(new SQLException("rollback")).when(mockConnection).rollback();
+    sessionStateService.setupPristineAutoCommit(true);
+    sessionStateService.setAutoCommit(false);
+    sessionStateService.setupPristineReadOnly(false);
+    sessionStateService.setReadOnly(true);
+
+    assertDoesNotThrow(() -> resetConnection(mockConnection));
+
+    verify(mockConnection, never()).setAutoCommit(anyBoolean());
+    verify(mockConnection, times(1)).setReadOnly(false);
+  }
+
+  @Test
+  void test_ResetConnection_AutoCommitOn_NoRollback() throws SQLException {
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    sessionStateService.setupPristineReadOnly(false);
+    sessionStateService.setReadOnly(true);
+
+    resetConnection(mockConnection);
+
+    verify(mockConnection, never()).rollback();
+    verify(mockConnection, never()).setAutoCommit(anyBoolean());
+    verify(mockConnection, times(1)).setReadOnly(false);
   }
 
   static Stream<Arguments> getBoolArguments() {

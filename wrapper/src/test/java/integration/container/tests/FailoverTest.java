@@ -16,6 +16,7 @@
 
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -36,6 +37,7 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestDriver;
@@ -254,6 +256,96 @@ public class FailoverTest {
       assertEquals(0, rs.getInt(1));
 
       testStmt3.executeUpdate("DROP TABLE IF EXISTS test3_2");
+    }
+  }
+
+  /**
+   * Writer fails within a transaction opened with setAutoCommit(false) after the application changed the
+   * schema and the transaction isolation level with setSchema() and setTransactionIsolation(). Neither
+   * value comes from the connection properties, so a fresh connection does not get them at startup and
+   * they reach the new connection only through the session state transfer. The transfer must succeed
+   * (the application gets 08007), the transferred state must survive the application's rollback, and
+   * transaction-sensitive settings must still be accepted afterwards (issue 2178).
+   *
+   * <p>On code that applies autoCommit=false first, the transfer opens an implicit transaction and
+   * pgjdbc rejects the isolation change inside it, so failover does not end with 08007. Even without the
+   * isolation change, the application's rollback would revert the transferred search_path.
+   */
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
+  @EnableOnDatabaseEngine({DatabaseEngine.PG})
+  public void test_writerFailWithinTransaction_autoCommitFalse_schema_keptAfterRollback()
+      throws SQLException {
+    final String schema = "failover_2178_schema";
+    final String initialWriterId = this.currentWriter;
+    TestInstanceInfo initialWriterInstanceInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
+
+    final Properties props = initDefaultProxiedProps();
+    try (final Connection conn =
+        DriverManager.getConnection(
+            ConnectionStringHelper.getWrapperUrl(
+                initialWriterInstanceInfo.getHost(),
+                initialWriterInstanceInfo.getPort(),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
+            props)) {
+
+      final Statement setupStmt = conn.createStatement();
+      setupStmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + schema);
+      setupStmt.executeUpdate("DROP TABLE IF EXISTS " + schema + ".test_2178");
+      setupStmt.executeUpdate("CREATE TABLE " + schema + ".test_2178 (id int not null primary key)");
+
+      // Session state that differs from what a fresh connection gets at startup.
+      conn.setSchema(schema);
+      conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+
+      conn.setAutoCommit(false); // Open a new transaction
+      final Statement stmt = conn.createStatement();
+      stmt.executeUpdate("INSERT INTO test_2178 VALUES (1)");
+
+      auroraUtil.crashInstance(executor, initialWriterId);
+
+      // If there is an active transaction, roll it back and return an error with SQLState 08007.
+      final SQLException exception =
+          assertThrows(
+              TransactionStateUnknownSQLException.class,
+              () -> stmt.executeUpdate("INSERT INTO test_2178 VALUES (2)"));
+      assertEquals(
+          SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
+
+      // The application's normal reaction to 08007. It must not revert the transferred schema.
+      conn.rollback();
+
+      // stmt can NOT be used anymore since it's invalid
+      final Statement checkStmt = conn.createStatement();
+      try (final ResultSet rs = checkStmt.executeQuery("SHOW search_path")) {
+        assertTrue(rs.next());
+        final String searchPath = rs.getString(1);
+        assertTrue(searchPath.contains(schema), "Unexpected search_path: " + searchPath);
+      }
+      try (final ResultSet rs = checkStmt.executeQuery("SHOW transaction_isolation")) {
+        assertTrue(rs.next());
+        assertEquals("repeatable read", rs.getString(1));
+      }
+      conn.commit();
+
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertTrue(RetryHelper.verifyWriter(auroraUtil, currentConnectionId), "Writer (API) mismatch");
+      conn.commit();
+
+      try (final ResultSet rs = checkStmt.executeQuery("SELECT count(*) FROM test_2178")) {
+        assertTrue(rs.next());
+        // Assert that NO row has been inserted to the table.
+        assertEquals(0, rs.getInt(1));
+      }
+      conn.commit();
+
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      assertDoesNotThrow(() -> conn.setReadOnly(false));
+      assertDoesNotThrow(() -> conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED));
+
+      conn.setAutoCommit(true);
+      checkStmt.executeUpdate("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
     }
   }
 

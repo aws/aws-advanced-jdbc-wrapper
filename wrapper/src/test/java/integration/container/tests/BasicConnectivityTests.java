@@ -34,6 +34,7 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -142,6 +143,56 @@ public class BasicConnectivityTests {
       ResultSet rs = stmt.getResultSet();
       rs.next();
       assertEquals(1, rs.getInt(1));
+    }
+  }
+
+  /**
+   * Closing a wrapper connection with autocommit disabled must not commit uncommitted work, even with no
+   * plugins. The target drivers roll it back on close.
+   */
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  @MakeSureFirstInstanceWriter
+  public void test_WrapperConnection_closeWithAutoCommitFalse_doesNotCommit(TestDriver testDriver)
+      throws SQLException {
+    LOGGER.info(testDriver.toString());
+
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
+    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
+
+    final TestInstanceInfo instance = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0);
+    final String url =
+        ConnectionStringHelper.getWrapperUrl(
+            testDriver,
+            instance.getHost(),
+            instance.getPort(),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    LOGGER.finest("Connecting to " + url);
+
+    try (final Connection setupConn = DriverManager.getConnection(url, props);
+        final Statement setupStmt = setupConn.createStatement()) {
+      setupStmt.executeUpdate("DROP TABLE IF EXISTS basic_close_2178");
+      setupStmt.executeUpdate("CREATE TABLE basic_close_2178 (id int not null primary key)");
+      try {
+        final Connection conn = DriverManager.getConnection(url, props);
+        try {
+          conn.setAutoCommit(false);
+          try (final Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO basic_close_2178 VALUES (1)");
+          }
+        } finally {
+          // Close without commit: the insert must be discarded.
+          conn.close();
+        }
+
+        try (final ResultSet rs = setupStmt.executeQuery("SELECT count(*) FROM basic_close_2178")) {
+          assertTrue(rs.next());
+          assertEquals(0, rs.getInt(1));
+        }
+      } finally {
+        setupStmt.executeUpdate("DROP TABLE IF EXISTS basic_close_2178");
+      }
     }
   }
 

@@ -364,6 +364,49 @@ public class PluginServiceImplTests {
   }
 
   @Test
+  public void testSetCurrentConnection_sameConnectionHostSpecChange_doesNotApplySessionState()
+      throws SQLException {
+    when(pluginManager.notifyConnectionChanged(argumentChanges.capture(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
+    final PluginServiceImpl target = newTargetOnOldConnection();
+
+    // Same connection object, only the HostSpec is updated (e.g. host-monitoring).
+    target.setCurrentConnection(oldConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host").role(HostRole.READER).build());
+
+    assertEquals(oldConnection, target.currentConnection);
+    assertEquals(HostRole.READER, target.currentHostSpec.getRole());
+    verify(sessionStateService, never()).applyCurrentSessionState(any());
+    verify(sessionStateService, never()).onSwitchWithoutSessionStateTransfer(any());
+    verify(sessionStateService, times(1)).begin();
+    verify(sessionStateService, times(1)).complete();
+    verify(pluginManager, times(1)).notifyConnectionChanged(any(), any());
+    assertTrue(argumentChanges.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER));
+    assertTrue(argumentChanges.getValue().contains(NodeChangeOptions.NODE_CHANGED));
+    assertFalse(argumentChanges.getValue().contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED));
+    verify(oldConnection, never()).close();
+  }
+
+  @Test
+  public void testSetCurrentConnectionWithoutSessionStateTransfer_sameConnection_doesNotTouchSessionState()
+      throws SQLException {
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
+    final PluginServiceImpl target = newTargetOnOldConnection();
+
+    target.setCurrentConnectionWithoutSessionStateTransfer(oldConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host").role(HostRole.READER).build());
+
+    assertEquals(oldConnection, target.currentConnection);
+    assertEquals(HostRole.READER, target.currentHostSpec.getRole());
+    verify(sessionStateService, never()).applyCurrentSessionState(any());
+    verify(sessionStateService, never()).onSwitchWithoutSessionStateTransfer(any());
+    verify(sessionStateService, times(1)).begin();
+    verify(sessionStateService, times(1)).complete();
+    verify(oldConnection, never()).close();
+  }
+
+  @Test
   public void testPluginServiceDefault_setCurrentConnectionWithoutSessionStateTransfer_delegates()
       throws SQLException {
     final PluginService pluginService = Mockito.mock(PluginService.class, Mockito.CALLS_REAL_METHODS);

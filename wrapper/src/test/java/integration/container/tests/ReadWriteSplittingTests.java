@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariPool;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
@@ -112,6 +113,8 @@ public class ReadWriteSplittingTests {
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
+  // PostgreSQL accepts a search_path naming a schema that does not exist, so no DDL is needed.
+  private static final String TEST_SCHEMA_2178 = "rws_2178_schema";
 
   protected ExecutorService executor;
 
@@ -1319,6 +1322,130 @@ public class ReadWriteSplittingTests {
       conn.setReadOnly(false);
       assertEquals(newWriterId, auroraUtil.queryInstanceId(conn),
           "Should connect to writer when readOnly=false");
+    }
+  }
+
+  private static String queryString(final Connection conn, final String sql) throws SQLException {
+    try (Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(sql)) {
+      assertTrue(rs.next());
+      return rs.getString(1);
+    }
+  }
+
+  private static void assertSearchPathContainsTestSchema(final Connection conn) throws SQLException {
+    final String searchPath = queryString(conn, "SHOW search_path");
+    assertTrue(searchPath.contains(TEST_SCHEMA_2178), "Unexpected search_path: " + searchPath);
+  }
+
+  /**
+   * A pooled connection with autocommit disabled and currentSchema set switches between the writer and a
+   * reader on setReadOnly. The session state transfer must not open a transaction on the connection
+   * switched to, otherwise the user's setReadOnly fails with "Cannot change transaction read-only
+   * property in the middle of a transaction" (issue 2178).
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.PG})
+  @EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
+  public void test_hikariAutoCommitFalse_currentSchema_setReadOnlyToggles() throws SQLException {
+    final Properties props = getProps();
+    props.setProperty("currentSchema", TEST_SCHEMA_2178);
+
+    try (final HikariDataSource ds = new HikariDataSource()) {
+      ds.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
+      ds.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      ds.setDataSourceProperties(props);
+      ds.setAutoCommit(false);
+      ds.setMaximumPoolSize(1);
+
+      try (final Connection conn = ds.getConnection()) {
+        final String writerId = auroraUtil.queryInstanceId(conn);
+        conn.rollback();
+
+        for (int i = 0; i < 2; i++) {
+          assertDoesNotThrow(() -> conn.setReadOnly(true));
+          assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
+          assertSearchPathContainsTestSchema(conn);
+          conn.commit();
+
+          assertDoesNotThrow(() -> conn.setReadOnly(false));
+          assertEquals(writerId, auroraUtil.queryInstanceId(conn));
+          assertSearchPathContainsTestSchema(conn);
+          conn.commit();
+        }
+      }
+    }
+  }
+
+  /**
+   * Same as {@link #test_hikariAutoCommitFalse_currentSchema_setReadOnlyToggles()} for a plain connection
+   * that also tracks a transaction isolation level, which the target driver rejects inside a transaction.
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.PG})
+  public void test_autoCommitFalse_transactionIsolation_currentSchema_setReadOnlyToggles() throws SQLException {
+    final Properties props = getProps();
+    props.setProperty("currentSchema", TEST_SCHEMA_2178);
+
+    try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
+      conn.setAutoCommit(false);
+      conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+      final String writerId = auroraUtil.queryInstanceId(conn);
+      conn.commit();
+
+      for (int i = 0; i < 2; i++) {
+        assertDoesNotThrow(() -> conn.setReadOnly(true));
+        assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
+        assertSearchPathContainsTestSchema(conn);
+        assertEquals("read committed", queryString(conn, "SHOW transaction_isolation"));
+        conn.commit();
+
+        assertDoesNotThrow(() -> conn.setReadOnly(false));
+        assertEquals(writerId, auroraUtil.queryInstanceId(conn));
+        assertSearchPathContainsTestSchema(conn);
+        assertEquals("read committed", queryString(conn, "SHOW transaction_isolation"));
+        conn.commit();
+      }
+
+      assertFalse(conn.getAutoCommit());
+    }
+  }
+
+  /**
+   * Closing a connection with autocommit disabled must not commit uncommitted work, also after a
+   * read/write splitting switch.
+   */
+  @TestTemplate
+  public void test_autoCommitFalse_closeAfterSwitch_doesNotCommit() throws SQLException {
+    final String url = ConnectionStringHelper.getWrapperUrl();
+    try (final Connection setupConn = DriverManager.getConnection(url, getProps());
+        final Statement setupStmt = setupConn.createStatement()) {
+      setupStmt.executeUpdate("DROP TABLE IF EXISTS rws_close_2178");
+      setupStmt.executeUpdate("CREATE TABLE rws_close_2178 (id int not null primary key)");
+      try {
+        final Connection conn = DriverManager.getConnection(url, getProps());
+        try {
+          conn.setAutoCommit(false);
+          conn.setReadOnly(true);
+          auroraUtil.queryInstanceId(conn);
+          conn.commit();
+          conn.setReadOnly(false);
+          try (final Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("INSERT INTO rws_close_2178 VALUES (1)");
+          }
+        } finally {
+          // Close without commit: the insert must be discarded.
+          conn.close();
+        }
+
+        try (final ResultSet rs = setupStmt.executeQuery("SELECT count(*) FROM rws_close_2178")) {
+          assertTrue(rs.next());
+          assertEquals(0, rs.getInt(1));
+        }
+      } finally {
+        setupStmt.executeUpdate("DROP TABLE IF EXISTS rws_close_2178");
+      }
     }
   }
 }
