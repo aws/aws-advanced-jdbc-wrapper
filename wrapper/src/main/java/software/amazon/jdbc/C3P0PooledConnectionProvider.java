@@ -107,7 +107,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       @NonNull TargetDriverDialect targetDriverDialect, @NonNull HostSpec hostSpec,
       @NonNull Properties props) throws SQLException {
     final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+    dialect.prepareConnectProperties(copy, protocol, hostSpec, true);
 
     final ComboPooledDataSource ds = databasePools.computeIfAbsent(
         hostSpec.getUrl(),

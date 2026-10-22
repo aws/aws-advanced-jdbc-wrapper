@@ -318,7 +318,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     }
 
     final HostSpec finalHostSpec = connectionHostSpec;
-    dialect.prepareConnectProperties(copy, protocol, finalHostSpec);
+    dialect.prepareConnectProperties(copy, protocol, finalHostSpec, true);
 
     final HikariDataSource ds;
     try {
