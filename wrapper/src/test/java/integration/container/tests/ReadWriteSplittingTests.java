@@ -78,6 +78,7 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
@@ -128,6 +129,27 @@ public class ReadWriteSplittingTests {
     this.executor.shutdownNow();
   }
 
+  /**
+   * Waits until the connection's topology reports at least one reader. Right after a writer failover,
+   * the new writer may report a topology with only itself until the remaining instances re-attach as
+   * replicas, so setReadOnly(true) would correctly stay on the writer.
+   */
+  protected void waitForReaderInTopology(final Connection conn) throws SQLException {
+    final PluginService pluginService = conn.unwrap(PluginService.class);
+    final boolean readerFound = RetryHelper.retryUntil(
+        TimeUnit.MINUTES.toMillis(2),
+        TimeUnit.SECONDS.toMillis(1),
+        () -> {
+          try {
+            pluginService.forceRefreshHostList();
+          } catch (SQLException e) {
+            LOGGER.finest(() -> "Topology refresh failed while waiting for a reader: " + e.getMessage());
+            return false;
+          }
+          return pluginService.getHosts().stream().anyMatch(h -> h.getRole() == HostRole.READER);
+        });
+    assertTrue(readerFound, "Topology did not report a reader after failover");
+  }
 
   protected Properties getProxiedPropsWithFailover() {
     final Properties props = getPropsWithFailover();
@@ -652,6 +674,7 @@ public class ReadWriteSplittingTests {
       // Assert that we are connected to the writer after failover happens.
       String newWriterId = auroraUtil.queryInstanceId(conn);
       assertTrue(RetryHelper.verifyWriter(auroraUtil, newWriterId), "Writer (API) mismatch");
+      waitForReaderInTopology(conn);
 
       conn.setReadOnly(true);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -1270,6 +1293,8 @@ public class ReadWriteSplittingTests {
       // It should have been cleaned up after failover
       assertNull(plugin.getReaderConnection(),
           "Cached reader connection should be cleaned up after failover");
+
+      waitForReaderInTopology(conn);
 
       // Now switch to reader - it should connect to a DIFFERENT reader
       // (not the original reader which is now the writer)
