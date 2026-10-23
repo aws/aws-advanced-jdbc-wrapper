@@ -25,11 +25,15 @@ Before closing an existing connection, the AWS Advanced JDBC Wrapper may try to 
 
 Before closing a connection, the AWS Advanced JDBC Wrapper sets its session state settings with the pristine values that have been previously stored in the driver. If a pristine value isn't available, it means that there have been no changes to that particular setting made by the user application, and that it's safe to assume that this setting is in its original/unchanged state. 
 
+If the connection still has uncommitted work when it is closed (autocommit is off), the wrapper rolls that work back before it restores the settings, and it restores the original autoCommit value last. Closing a connection therefore never commits uncommitted work, which matches the `close()` behavior of the target drivers.
+
 Session state reset could be disabled by using `resetSessionStateOnClose` configuration parameter.
 
 ## Transfer Session State to a new Connection
 
 When the driver needs to switch to a new connection, it opens a new connection and transfers a session state to it. All current session state values are applied to the new connection. Pristine values for a new connection are also fetched and stored if needed. Pristine values are remembered for each physical connection, so a connection the driver switches back to (for example, a cached writer or reader connection used by read/write splitting) is not queried for them again. When a new connection is configured, it replaces the current internal connection.
+
+The settings are applied while the new connection is in autocommit mode, and the autoCommit value is applied last, so that settings such as readOnly, schema or transaction isolation are never applied in the middle of a transaction. If a reused connection (for example, a cached reader or writer connection) has autocommit off, any open transaction on it is rolled back, never committed, before the settings are applied. The session state is applied only when the physical connection changes.
 
 Session transfer can be disabled by using the `transferSessionStateOnSwitch` configuration parameter. Setting it to `false` also stops tracking session state changes. To skip the transfer only on read/write splitting switches, see [Read/write splitting switches](#readwrite-splitting-switches).
 

@@ -368,10 +368,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
             this.servicesContainer.getImportantEventService().registerEvent(
                 () -> "Current connection set to " + connection + ", " + hostSpec);
 
-            if (transferSessionState) {
-              this.sessionStateService.applyCurrentSessionState(connection);
-            } else {
-              this.sessionStateService.onSwitchWithoutSessionStateTransfer(connection);
+            // A HostSpec-only update on the same connection must not re-apply session state: the state
+            // is already on that connection, and the transfer may toggle autocommit on it.
+            if (changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
+              if (transferSessionState) {
+                this.sessionStateService.applyCurrentSessionState(connection);
+              } else {
+                this.sessionStateService.onSwitchWithoutSessionStateTransfer(connection);
+              }
             }
             this.setInTransaction(false);
 

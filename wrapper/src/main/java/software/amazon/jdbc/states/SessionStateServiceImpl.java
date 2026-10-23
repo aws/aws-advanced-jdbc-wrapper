@@ -570,6 +570,17 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
   }
 
+  /**
+   * Transfers the tracked session state to a new connection. All fields except autoCommit are applied
+   * while the connection is in autocommit mode, so that none of them runs inside a transaction. If the
+   * connection has autocommit off and a transaction-sensitive field (readOnly, catalog, schema or
+   * transaction isolation) is tracked, any open transaction on it is rolled back, and autocommit is
+   * turned on, before those fields are applied. The desired autoCommit is applied last, even when
+   * applying another field fails.
+   *
+   * @param newConnection the connection the session state is being transferred to
+   * @throws SQLException if a session field cannot be read from or applied to {@code newConnection}
+   */
   private void applyCurrentSessionStateInternal(Connection newConnection) throws SQLException {
     if (!this.transferStateEnabledSetting()) {
       return;
@@ -584,54 +595,136 @@ public class SessionStateServiceImpl implements SessionStateService {
       }
     }
 
-    if (this.sessionState.autoCommit.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(newConnection, s -> s.autoCommit, newConnection::getAutoCommit);
-      newConnection.setAutoCommit(this.sessionState.autoCommit.getValue().get());
+    final Optional<Boolean> desiredAutoCommit = this.sessionState.autoCommit.getValue();
+    final boolean hasTransactionSensitiveState =
+        this.sessionState.readOnly.getValue().isPresent()
+            || this.sessionState.catalog.getValue().isPresent()
+            || this.sessionState.schema.getValue().isPresent()
+            || this.sessionState.transactionIsolation.getValue().isPresent();
+    final boolean mustReadPristineAutoCommit = desiredAutoCommit.isPresent()
+        && this.resetStateEnabledSetting()
+        && !this.isPristineValueRecorded(newConnection, s -> s.autoCommit);
+    // Read the target's current autoCommit at most once, before any toggling.
+    final Boolean targetAutoCommit = (hasTransactionSensitiveState || mustReadPristineAutoCommit)
+        ? newConnection.getAutoCommit()
+        : null;
+
+    if (desiredAutoCommit.isPresent()) {
+      // The pristine autoCommit is captured before the toggle below changes it.
+      this.setupPristineValueForNewConnection(newConnection, s -> s.autoCommit,
+          () -> targetAutoCommit != null ? targetAutoCommit : newConnection.getAutoCommit());
     }
 
-    if (this.sessionState.readOnly.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(newConnection, s -> s.readOnly, newConnection::isReadOnly);
-      newConnection.setReadOnly(this.sessionState.readOnly.getValue().get());
+    final boolean autoCommitTurnedOn = hasTransactionSensitiveState && Boolean.FALSE.equals(targetAutoCommit);
+    if (autoCommitTurnedOn) {
+      // The target is never the current connection (see PluginServiceImpl). Discard any leftover
+      // implicit transaction instead of committing it, so the setters below run outside a transaction.
+      newConnection.rollback();
+      newConnection.setAutoCommit(true);
     }
 
-    if (this.sessionState.catalog.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(newConnection, s -> s.catalog, newConnection::getCatalog);
-      final String currentCatalog = this.sessionState.catalog.getValue().get();
-      if (!StringUtils.isNullOrEmpty(currentCatalog)) {
-        newConnection.setCatalog(currentCatalog);
+    Throwable primaryException = null;
+    try {
+      if (this.sessionState.readOnly.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(newConnection, s -> s.readOnly, newConnection::isReadOnly);
+        newConnection.setReadOnly(this.sessionState.readOnly.getValue().get());
       }
-    }
 
-    if (this.sessionState.schema.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(newConnection, s -> s.schema, newConnection::getSchema);
-      newConnection.setSchema(this.sessionState.schema.getValue().get());
-    }
+      if (this.sessionState.catalog.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(newConnection, s -> s.catalog, newConnection::getCatalog);
+        final String currentCatalog = this.sessionState.catalog.getValue().get();
+        if (!StringUtils.isNullOrEmpty(currentCatalog)) {
+          newConnection.setCatalog(currentCatalog);
+        }
+      }
 
-    if (this.sessionState.holdability.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(newConnection, s -> s.holdability, newConnection::getHoldability);
-      newConnection.setHoldability(this.sessionState.holdability.getValue().get());
-    }
+      if (this.sessionState.schema.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(newConnection, s -> s.schema, newConnection::getSchema);
+        newConnection.setSchema(this.sessionState.schema.getValue().get());
+      }
 
-    if (this.sessionState.transactionIsolation.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(
-          newConnection, s -> s.transactionIsolation, newConnection::getTransactionIsolation);
-      //noinspection MagicConstant
-      newConnection.setTransactionIsolation(this.sessionState.transactionIsolation.getValue().get());
-    }
+      if (this.sessionState.holdability.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(newConnection, s -> s.holdability, newConnection::getHoldability);
+        newConnection.setHoldability(this.sessionState.holdability.getValue().get());
+      }
 
-    if (this.sessionState.networkTimeout.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(
-          newConnection, s -> s.networkTimeout, newConnection::getNetworkTimeout);
-      final ExecutorService executorService =
-          ExecutorFactory.newSingleThreadExecutor("session");
-      newConnection.setNetworkTimeout(executorService, this.sessionState.networkTimeout.getValue().get());
-      executorService.shutdown();
-    }
+      if (this.sessionState.transactionIsolation.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(
+            newConnection, s -> s.transactionIsolation, newConnection::getTransactionIsolation);
+        //noinspection MagicConstant
+        newConnection.setTransactionIsolation(this.sessionState.transactionIsolation.getValue().get());
+      }
 
-    if (this.sessionState.typeMap.getValue().isPresent()) {
-      this.setupPristineValueForNewConnection(newConnection, s -> s.typeMap, newConnection::getTypeMap);
-      newConnection.setTypeMap(this.sessionState.typeMap.getValue().get());
+      if (this.sessionState.networkTimeout.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(
+            newConnection, s -> s.networkTimeout, newConnection::getNetworkTimeout);
+        final ExecutorService executorService =
+            ExecutorFactory.newSingleThreadExecutor("session");
+        newConnection.setNetworkTimeout(executorService, this.sessionState.networkTimeout.getValue().get());
+        executorService.shutdown();
+      }
+
+      if (this.sessionState.typeMap.getValue().isPresent()) {
+        this.setupPristineValueForNewConnection(newConnection, s -> s.typeMap, newConnection::getTypeMap);
+        newConnection.setTypeMap(this.sessionState.typeMap.getValue().get());
+      }
+    } catch (final Throwable t) {
+      primaryException = t;
+      throw t;
+    } finally {
+      this.applyAutoCommitLast(newConnection, desiredAutoCommit, autoCommitTurnedOn, primaryException);
     }
+  }
+
+  /**
+   * Applies the desired autoCommit to a connection the session state is being transferred to, after
+   * every other session field has been applied. When autoCommit is not tracked but was turned on
+   * before applying the other fields, the connection's original value ({@code false}) is put back.
+   *
+   * @param newConnection the connection the session state is being transferred to
+   * @param desiredAutoCommit the tracked autoCommit value, if any
+   * @param autoCommitTurnedOn whether autoCommit was turned on before applying the other fields
+   * @param primaryException the exception thrown while applying the other fields, if any; a failure
+   *     here is added to it as a suppressed exception instead of being thrown
+   * @throws SQLException if autoCommit cannot be set and there is no {@code primaryException}
+   */
+  private void applyAutoCommitLast(
+      final @NonNull Connection newConnection,
+      final @NonNull Optional<Boolean> desiredAutoCommit,
+      final boolean autoCommitTurnedOn,
+      final @Nullable Throwable primaryException) throws SQLException {
+
+    try {
+      if (desiredAutoCommit.isPresent()) {
+        // When autoCommit was turned on above and the desired value is true, it is already set.
+        if (!(autoCommitTurnedOn && desiredAutoCommit.get())) {
+          newConnection.setAutoCommit(desiredAutoCommit.get());
+        }
+      } else if (autoCommitTurnedOn) {
+        newConnection.setAutoCommit(false);
+      }
+    } catch (final SQLException e) {
+      if (primaryException == null) {
+        throw e;
+      }
+      primaryException.addSuppressed(e);
+    }
+  }
+
+  /**
+   * Checks whether a pristine value of a session field is recorded for a physical connection.
+   *
+   * @param connection the physical connection
+   * @param fieldSelector selects the field from a {@link SessionState}
+   * @param <T> the field type
+   * @return true if a pristine value of the selected field is recorded for {@code connection}
+   */
+  private <T> boolean isPristineValueRecorded(
+      final @NonNull Connection connection,
+      final @NonNull Function<SessionState, SessionStateField<T>> fieldSelector) {
+
+    final SessionState recorded = this.pristineStateByConnection.get(connection);
+    return recorded != null && fieldSelector.apply(recorded).getPristineValue().isPresent();
   }
 
   /**
@@ -750,14 +843,70 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
     final SessionState copySessionState = this.withRecordedPristineValues(capturedSessionState, connection);
 
-    if (copySessionState.autoCommit.canRestorePristine()) {
+    final boolean restoreAutoCommit = copySessionState.autoCommit.canRestorePristine();
+    //noinspection OptionalGetWithoutIsPresent
+    final boolean pristineAutoCommit = restoreAutoCommit && copySessionState.autoCommit.getPristineValue().get();
+    final boolean restoreTransactionSensitiveState =
+        copySessionState.readOnly.canRestorePristine()
+            || copySessionState.catalog.canRestorePristine()
+            || copySessionState.schema.canRestorePristine()
+            || copySessionState.transactionIsolation.canRestorePristine();
+
+    boolean autoCommitTurnedOn = false;
+    boolean rollbackFailed = false;
+    if (restoreTransactionSensitiveState || pristineAutoCommit) {
+      boolean currentAutoCommit = true;
       try {
-        //noinspection OptionalGetWithoutIsPresent
-        connection.setAutoCommit(copySessionState.autoCommit.getPristineValue().get());
+        currentAutoCommit = connection.getAutoCommit();
       } catch (final SQLException e) {
-        // Ignore any exception
+        // Ignore any exception and restore without turning autocommit on first.
+      }
+      if (!currentAutoCommit) {
+        try {
+          // Discard uncommitted work instead of letting setAutoCommit(true) commit it.
+          connection.rollback();
+          try {
+            connection.setAutoCommit(true);
+            autoCommitTurnedOn = true;
+          } catch (final SQLException e) {
+            // Ignore any exception
+          }
+        } catch (final SQLException e) {
+          // Never turn autocommit on here: it would commit the open transaction.
+          rollbackFailed = true;
+        }
       }
     }
+
+    try {
+      this.restorePristineFieldsExceptAutoCommit(connection, copySessionState);
+    } finally {
+      if (restoreAutoCommit && !(rollbackFailed && pristineAutoCommit)
+          && !(autoCommitTurnedOn && pristineAutoCommit)) {
+        try {
+          connection.setAutoCommit(pristineAutoCommit);
+        } catch (final SQLException e) {
+          // Ignore any exception
+        }
+      } else if (!restoreAutoCommit && autoCommitTurnedOn) {
+        try {
+          connection.setAutoCommit(false);
+        } catch (final SQLException e) {
+          // Ignore any exception
+        }
+      }
+    }
+  }
+
+  /**
+   * Restores the pristine value of every restorable session field except autoCommit, ignoring any
+   * exception.
+   *
+   * @param connection the connection to restore
+   * @param copySessionState the session state holding the pristine values to restore
+   */
+  private void restorePristineFieldsExceptAutoCommit(
+      final @NonNull Connection connection, final @NonNull SessionState copySessionState) {
 
     if (copySessionState.readOnly.canRestorePristine()) {
       try {

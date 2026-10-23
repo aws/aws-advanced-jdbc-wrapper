@@ -93,4 +93,20 @@ public class AutoSimpleReadWriteSplittingTests extends SimpleReadWriteSplittingT
   @Override
   public void test_autoCommitStatePreserved_acrossConnectionSwitches() {
   }
+
+  @TestTemplate
+  @Disabled("With autocommit disabled the connection is pinned, so setReadOnly does not switch "
+      + "between the writer and the read endpoint; this expectation does not apply to "
+      + "autoSimpleReadWriteSplitting.")
+  @Override
+  public void test_hikariAutoCommitFalse_currentSchema_setReadOnlyToggles() {
+  }
+
+  @TestTemplate
+  @Disabled("With autocommit disabled the connection is pinned, so setReadOnly does not switch "
+      + "between the writer and the read endpoint; this expectation does not apply to "
+      + "autoSimpleReadWriteSplitting.")
+  @Override
+  public void test_autoCommitFalse_transactionIsolation_currentSchema_setReadOnlyToggles() {
+  }
 }
