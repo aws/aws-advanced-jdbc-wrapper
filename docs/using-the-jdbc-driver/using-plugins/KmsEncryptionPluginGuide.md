@@ -28,7 +28,7 @@ The KMS Encryption Plugin provides transparent column-level encryption using AWS
 - Manual annotation support for explicit column specification
 - HMAC-based integrity verification (see [Two-Key Encryption Architecture](../../DatabaseEncryptionSetup.md#encrypted-data-format))
 - Support for PostgreSQL and MySQL
-- Key rotation capabilities
+- KMS key rotation, and data key rotation with re-encryption (see [Key Rotation](#key-rotation))
 
 ## Prerequisites
 
@@ -205,6 +205,8 @@ aws kms create-alias \
 # Enable automatic key rotation
 aws kms enable-key-rotation --key-id <KEY_ID>
 ```
+
+Automatic KMS key rotation is the recommended way to rotate keys. It is transparent to the plugin and needs no database changes. See [Key Rotation](#key-rotation).
 
 ### Step 2: Generate Data Key
 
@@ -416,19 +418,29 @@ try (PreparedStatement stmt = plainConn.prepareStatement(sql)) {
 
 ## Key Rotation
 
-### Using KeyManagementUtility
+The plugin uses two levels of keys. A KMS key (master key) wraps each data key. Each encrypted column has one data key and one HMAC key, stored in `encrypt.key_storage`. Encrypted values do not record which data key encrypted them, so the plugin can only read a column whose values are all encrypted under the column's current data key.
 
-The `KeyManagementUtility` class provides methods for key rotation.
+### Rotating the KMS key (recommended)
+
+Enable automatic rotation on the KMS key:
+
+```bash
+aws kms enable-key-rotation --key-id <KEY_ID>
+```
+
+KMS keeps the previous key material and uses it to decrypt data keys wrapped before the rotation. The rotation is transparent to the plugin and needs no database changes. It does not change the data keys themselves.
+
+### Rotating a column's data key
+
+Rotate a column's data key only when you need a new data key, for example after a suspected data key exposure or to move a column to a different KMS key. Use `KeyManagementUtility.rotateDataKeyAndReencrypt()`. It must run on a connection that does not use the `kmsEncryption` plugin: either a plain target driver connection, or an AWS Advanced JDBC Wrapper connection whose `wrapperPlugins` do not include `kmsEncryption`. The utility checks this and throws an error if the plugin is present.
 
 ```java
 import software.amazon.jdbc.plugin.encryption.key.*;
 import software.amazon.jdbc.plugin.encryption.metadata.*;
 import software.amazon.jdbc.plugin.encryption.model.*;
 
-// Create utility components
 EncryptionConfig config = EncryptionConfig.builder()
     .kmsRegion("us-east-1")
-    .defaultMasterKeyArn("arn:aws:kms:...")
     .encryptionMetadataSchema("encrypt")
     .build();
 
@@ -436,77 +448,156 @@ KmsClient kmsClient = KmsClient.builder()
     .region(Region.US_EAST_1)
     .build();
 
-KeyManager keyManager = new KeyManager(kmsClient, connection, true, config);
-MetadataManager metadataManager = new MetadataManager(connection, config);
+// Connection without the kmsEncryption plugin (see the procedure below for a wrapper connection)
+Connection connection = DriverManager.getConnection(
+    "jdbc:postgresql://localhost:5432/mydb", "user", "password");
 
+KeyManager keyManager = new KeyManager(kmsClient, connection, true, config); // true = PostgreSQL
+MetadataManager metadataManager = new MetadataManager(connection, config);
 KeyManagementUtility utility = new KeyManagementUtility(
     keyManager, metadataManager, connection, kmsClient, config);
 
-// Rotate key (uses same master key)
-utility.rotateDataKey("users", "ssn", null);
-
-// Rotate key with new master key
-utility.rotateDataKey("users", "ssn", "arn:aws:kms:us-east-1:123456789012:key/new-key");
+// "id" is the primary key column of users; null keeps the current KMS key
+DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(
+    "users", "ssn", "id", null, KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+System.out.println(result); // new key id, old key id, re-encrypted and unmatched row counts
 ```
 
-### Manual Key Rotation Steps
+Pass a KMS key ARN instead of `null` to wrap the new data key under a different KMS key.
 
-1. **Generate new data key:**
-```java
-GenerateDataKeyRequest request = GenerateDataKeyRequest.builder()
-    .keyId(masterKeyArn)
-    .keySpec(DataKeySpec.AES_256)
-    .build();
-GenerateDataKeyResponse response = kmsClient.generateDataKey(request);
-```
+`rotateDataKeyAndReencrypt()` does the following:
+1. Checks that every value of the column verifies against the current HMAC key. If any value does not, it stops with an error and changes nothing.
+2. Creates a new data key and HMAC key and stores them in `encrypt.key_storage`.
+3. Switches `encrypt.encryption_metadata.key_id` to the new key and commits.
+4. Re-encrypts the rows in primary key order, `batchSize` rows per transaction. Values are decrypted with the old key and encrypted with the new key; the stored type of each value is kept.
 
-2. **Generate new HMAC key:**
-```java
-byte[] newHmacKey = new byte[32];
-new SecureRandom().nextBytes(newHmacKey);
-```
+It never deletes the old `key_storage` row and never changes the old KMS key.
 
-3. **Store new key:**
+Requirements:
+- The primary key column must be a single, unique, `NOT NULL` column. Rows with a `NULL` value in it are not processed.
+- Table and column names may contain only letters, digits and underscores, and must match the stored names exactly. A table name may have one schema prefix (`app.users`).
+- With the PostgreSQL HMAC trigger, the utility sets the trigger's cached HMAC key for its own connection before each batch.
+
+> [!WARNING]
+> `KeyManagementUtility.rotateDataKey()` does **not** re-encrypt existing rows. It only stores a new data key and points the column's metadata at it. After the call:
+> - Every row encrypted under the previous data key fails to decrypt through the plugin with `HMAC verification failed`.
+> - Running applications keep writing new rows under the previous key until their metadata cache refreshes (`metadataCacheRefreshIntervalMs`, 5 minutes by default).
+> - The data is recoverable only while the previous `key_storage` row and its KMS key exist. Do not delete them.
+>
+> Use `rotateDataKey()` only for a column that holds no data. If you already called it on a column with data, see [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption).
+
+### Finishing or repairing a re-encryption
+
+`KeyManagementUtility.reencryptRemainingRows(table, column, primaryKeyColumn, oldKeyIds, batchSize)` re-encrypts values that are still under one of the given old key ids into the column's current key. It uses the same batching and HMAC check as the rotation and is safe to run again: values already under the current key are skipped. Use it:
+- To resume a failed rotation. Committed batches are kept; the exception message names the old key id to pass.
+- After the rotation, once `metadataCacheRefreshIntervalMs` has passed, to convert rows that running applications wrote under the old key.
+- To recover a column after `rotateDataKey()` was called on it. Find the previous key id:
+
 ```sql
-INSERT INTO encrypt.key_storage 
-    (name, master_key_arn, encrypted_data_key, hmac_key, key_spec)
-VALUES 
-    ('users-ssn-key-v2', 
-     'arn:aws:kms:...',
-     '<new-encrypted-key>',
-     '<new-hmac-key>',
-     'AES_256')
-RETURNING id;
-```
+-- Data keys created for the column, oldest first
+SELECT id, name, created_at FROM encrypt.key_storage
+WHERE name LIKE 'key-users-ssn-%' ORDER BY created_at;
 
-4. **Update metadata:**
-```sql
-UPDATE encrypt.encryption_metadata 
-SET key_id = <new_key_id>, 
-    updated_at = CURRENT_TIMESTAMP
+-- The key the column uses now
+SELECT key_id FROM encrypt.encryption_metadata
 WHERE table_name = 'users' AND column_name = 'ssn';
 ```
 
-5. **Re-encrypt existing data:**
 ```java
-// Read with old key, write with new key
-String selectSql = "SELECT id, ssn FROM users";
-String updateSql = "UPDATE users SET ssn = ? WHERE id = ?";
-
-try (PreparedStatement selectStmt = conn.prepareStatement(selectSql);
-     PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-    
-    ResultSet rs = selectStmt.executeQuery();
-    while (rs.next()) {
-        int id = rs.getInt("id");
-        String ssn = rs.getString("ssn");  // Decrypted with old key
-        
-        updateStmt.setString(1, ssn);  // Re-encrypted with new key
-        updateStmt.setInt(2, id);
-        updateStmt.executeUpdate();
-    }
+DataKeyReencryptionResult repair = utility.reencryptRemainingRows(
+    "users", "ssn", "id", Collections.singletonList(previousKeyId),
+    KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+if (!repair.isComplete()) {
+    // Rows that match neither the current key nor the given old keys are left unchanged
+    System.out.println(repair.getUnmatchedCount() + " unmatched rows, for example "
+        + repair.getUnmatchedPrimaryKeys());
 }
 ```
+
+### Data key rotation procedure
+
+1. **Plan a maintenance window.** Stop or pause the applications that write to the column if you can. While the batches run, reads through the plugin fail with `HMAC verification failed` for rows that are not converted yet.
+2. **Back up** the table and the `encrypt` schema.
+3. **Run `rotateDataKeyAndReencrypt()`** on a connection without the `kmsEncryption` plugin. Record the old and new key ids from the log or from `result.getSourceKeyIds()` and `result.getCurrentKeyId()`.
+4. **If it fails**, fix the cause and run `reencryptRemainingRows()` with the old key id. Committed batches are kept.
+5. **Wait at least `metadataCacheRefreshIntervalMs`** (default 300000 ms) or restart the applications, then run `reencryptRemainingRows()` again with the old key id. This converts rows that applications wrote under the old key before their metadata cache refreshed.
+6. **With the PostgreSQL HMAC trigger**, recycle pooled connections (for example, restart the applications). Each database session caches the column's HMAC key and rejects values under the new key until the session ends. If you use the MySQL example procedure, run the utility on a fresh connection.
+7. **Keep the old `key_storage` row and its KMS key** until every backup and snapshot that holds data encrypted under the old key has expired.
+
+The following example runs steps 3 to 5 for the `ssn` column of the `users` table. It uses an AWS Advanced JDBC Wrapper connection with the `failover2` and `efm2` plugins and without `kmsEncryption`. If a failover happens during a batch, that batch is rolled back and the call fails; run `reencryptRemainingRows()` to resume.
+
+```java
+import java.sql.*;
+import java.util.Collections;
+import java.util.Properties;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.jdbc.plugin.encryption.key.*;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+
+EncryptionConfig config = EncryptionConfig.builder()
+    .kmsRegion("us-east-1")
+    .encryptionMetadataSchema("encrypt")
+    .build();
+KmsClient kmsClient = KmsClient.builder().region(Region.US_EAST_1).build();
+
+Properties props = new Properties();
+props.setProperty("user", "user");
+props.setProperty("password", "password");
+props.setProperty("wrapperPlugins", "failover2,efm2"); // any plugins except kmsEncryption
+
+try (Connection connection = DriverManager.getConnection(
+    "jdbc:aws-wrapper:postgresql://my-cluster.cluster-xyz.us-east-1.rds.amazonaws.com:5432/mydb",
+    props)) {
+
+  KeyManager keyManager = new KeyManager(kmsClient, connection, true, config); // true = PostgreSQL
+  MetadataManager metadataManager = new MetadataManager(connection, config);
+  KeyManagementUtility utility = new KeyManagementUtility(
+      keyManager, metadataManager, connection, kmsClient, config);
+  int batchSize = KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE;
+
+  // Record the key the column uses before the rotation. Steps 4 and 5 need it.
+  int oldKeyId;
+  try (PreparedStatement stmt = connection.prepareStatement(
+      "SELECT key_id FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?")) {
+    stmt.setString(1, "users");
+    stmt.setString(2, "ssn");
+    try (ResultSet rs = stmt.executeQuery()) {
+      rs.next();
+      oldKeyId = rs.getInt(1);
+    }
+  }
+
+  // Step 3: switch to a new data key and re-encrypt the rows in batches
+  try {
+    DataKeyReencryptionResult result =
+        utility.rotateDataKeyAndReencrypt("users", "ssn", "id", null, batchSize);
+    System.out.println("Rotated from key " + oldKeyId + " to key " + result.getCurrentKeyId()
+        + ": " + result);
+  } catch (KeyManagementException e) {
+    // Step 4: committed batches are kept. Fix the cause, then resume with
+    // reencryptRemainingRows(..., Collections.singletonList(oldKeyId), ...), as in step 5.
+    // If the column still uses oldKeyId (the error says the rotation was aborted before any
+    // change, or the new key was not activated), run rotateDataKeyAndReencrypt() again instead.
+    System.err.println(e.getMessage());
+    throw e;
+  }
+
+  // Step 5: run after metadataCacheRefreshIntervalMs has passed, or after restarting the
+  // applications, to convert rows they wrote under the old key in the meantime
+  DataKeyReencryptionResult repair = utility.reencryptRemainingRows(
+      "users", "ssn", "id", Collections.singletonList(oldKeyId), batchSize);
+  System.out.println("Converted " + repair.getReencryptedCount() + " late rows");
+  if (!repair.isComplete()) {
+    // These rows match neither the current key nor the old key. They are left unchanged.
+    System.err.println(repair.getUnmatchedCount() + " unmatched rows, for example "
+        + repair.getUnmatchedPrimaryKeys());
+  }
+}
+```
+
+In a real run, steps 3 and 5 are usually separate invocations, minutes apart. The `oldKeyId` value is also written to the log by `rotateDataKeyAndReencrypt()`.
 
 ## Advanced Features
 
@@ -601,6 +692,8 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 - Data may have been tampered with
 - HMAC key may have changed
 - Check `encrypt.key_storage.hmac_key` matches key used for encryption
+- The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()`), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)
+- With the HMAC trigger, a pooled session may still cache the previous HMAC key after a rotation. Recycle the connection
 
 **4. "Cannot insert plain text into encrypted column"**
 - This is expected behavior with PostgreSQL triggers
@@ -647,9 +740,9 @@ JOIN encrypt.key_storage ks ON em.key_id = ks.id;
 ## Best Practices
 
 1. **Key Management**
-   - Rotate keys regularly (e.g., annually)
+   - Enable automatic rotation on the KMS key (yearly by default). It is transparent to the plugin and needs no data changes
+   - Rotate a column's data key only when required, with `rotateDataKeyAndReencrypt()` (see [Key Rotation](#key-rotation))
    - Use separate keys for different sensitivity levels
-   - Enable automatic KMS key rotation
    - Monitor key usage via CloudTrail
 
 2. **Security**
@@ -665,7 +758,7 @@ JOIN encrypt.key_storage ks ON em.key_id = ks.id;
    - Consider read replicas for read-heavy workloads
 
 4. **Operations**
-   - Test key rotation in non-production first
+   - Rehearse data key rotation, including the repair pass and a restore from backup, in non-production first
    - Backup encryption metadata regularly
    - Document which columns are encrypted
    - Monitor KMS API usage and costs
@@ -683,7 +776,6 @@ This test demonstrates:
 - Update operations
 - HMAC verification
 - Annotation usage
-- Key rotation
 
 ## Additional Resources
 

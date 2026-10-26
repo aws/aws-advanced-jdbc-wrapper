@@ -18,11 +18,13 @@ package software.amazon;
 
 import java.sql.Connection;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.jdbc.plugin.encryption.key.DataKeyReencryptionResult;
 import software.amazon.jdbc.plugin.encryption.key.KeyManagementException;
 import software.amazon.jdbc.plugin.encryption.key.KeyManagementUtility;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
@@ -111,27 +113,39 @@ public class KeyManagementExample {
   }
 
   /**
-   * Example: Rotating keys for security compliance.
+   * Example: Rotating a column data key with re-encryption.
+   *
+   * <p>For routine rotation, prefer enabling automatic rotation on the KMS key; it needs no data
+   * changes. Rotate a column's data key only when required. Run this during a maintenance window
+   * on a plain JDBC connection or DataSource (without the kmsEncryption plugin): reads through the
+   * plugin fail for rows that are not converted yet while the batches run.
    *
    * @throws KeyManagementException if key management operations fail
    */
   public void performKeyRotation() throws KeyManagementException {
-    LOGGER.info("Performing key rotation for security compliance");
+    LOGGER.info("Rotating column data keys with re-encryption");
 
-    // Rotate key for a specific column
-    keyManagementUtility.rotateDataKey("users", "ssn", null);
-    LOGGER.info(() -> String.format("Rotated key for users.ssn"));
+    // Rotate the data key of users.ssn under the same master key. "id" is the primary key column.
+    DataKeyReencryptionResult ssnResult = keyManagementUtility.rotateDataKeyAndReencrypt(
+        "users", "ssn", "id", null, KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+    LOGGER.info(() -> String.format("Rotated key for users.ssn: %s", ssnResult));
 
     // Rotate with a new master key
     String newMasterKeyArn =
         keyManagementUtility.createMasterKeyWithPermissions("New Master Key for Enhanced Security");
 
-    keyManagementUtility.rotateDataKey("orders", "credit_card_number", newMasterKeyArn);
+    DataKeyReencryptionResult cardResult = keyManagementUtility.rotateDataKeyAndReencrypt(
+        "orders", "credit_card_number", "id", newMasterKeyArn,
+        KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+    LOGGER.info(() -> String.format("Rotated key for orders.credit_card_number: %s", cardResult));
 
-    LOGGER.info(
-        () ->
-            String.format(
-                "Rotated key for orders.credit_card_number with new master key"));
+    // Application instances that still cache the old key can write rows under it until their
+    // metadata cache refreshes (metadataCacheRefreshIntervalMs). After that interval, convert those
+    // rows too. Keep the old key_storage rows and KMS keys while backups hold data under them.
+    DataKeyReencryptionResult repairResult = keyManagementUtility.reencryptRemainingRows(
+        "users", "ssn", "id", Collections.singletonList(ssnResult.getSourceKeyIds().get(0)),
+        KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+    LOGGER.info(() -> String.format("Repair pass for users.ssn: %s", repairResult));
   }
 
   /**

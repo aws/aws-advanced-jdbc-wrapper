@@ -336,7 +336,7 @@ Annotations take precedence over metadata-based encryption when present. Both ap
 
 ## Security Considerations
 
-1. **Key Rotation**: Periodically rotate KMS keys and re-encrypt data
+1. **Key Rotation**: Enable automatic rotation on the KMS key; it is transparent to the plugin. Rotating a column's data key requires re-encrypting all its rows; see [Key Rotation](./using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#key-rotation). Never delete an old data key or KMS key while data or backups encrypted under it exist.
 2. **Access Control**: Restrict access to `encrypt` schema tables
 3. **Audit Logging**: Enable CloudTrail for KMS operations
 4. **HMAC Keys**: Store HMAC keys securely, consider encrypting them at rest
