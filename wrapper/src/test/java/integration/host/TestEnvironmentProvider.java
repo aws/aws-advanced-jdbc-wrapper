@@ -191,6 +191,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                               deployment == DatabaseEngineDeployment.DOCKER
                                   && config.noTracesTelemetry
                                   && config.noMetricsTelemetry
+                                  && !config.testEncryptionOnly
                                   ? null
                                   : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
                               deployment == DatabaseEngineDeployment.DOCKER || config.noFailover

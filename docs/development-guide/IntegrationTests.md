@@ -71,6 +71,23 @@ cmd /c ./gradlew --no-parallel --no-daemon test-all-environments
 
 Test results can be found at `wrapper/build/report/index.html`.
 
+#### KMS Encryption Plugin Tests
+
+The `test-kms-encryption-docker` task runs the KMS encryption plugin integration tests, including the data key
+rotation tests in `KmsKeyRotationIntegrationTest`, against standard PostgreSQL and MySQL databases in Docker. These
+tests call AWS KMS, so the following environment variables are required:
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and, for temporary credentials, `AWS_SESSION_TOKEN`.
+- `KMS_KEY_ID`: the ARN of a symmetric KMS key. The tests take the region from the ARN.
+- `KMS_KEY_ID_2` (optional): a second KMS key in the same region. Without it, the test that rotates a column to a new
+  master key is skipped.
+
+The credentials need `kms:GenerateDataKey` and `kms:Decrypt` on the key or keys. The tests never create or delete KMS
+keys.
+
+```bash
+./gradlew --no-parallel --no-daemon :aws-advanced-jdbc-wrapper:test-kms-encryption-docker
+```
+
 ### Splitting a Test Run Across Several Machines (Sharding)
 
 A full Aurora run takes hours because every test executes serially against a single cluster. The
