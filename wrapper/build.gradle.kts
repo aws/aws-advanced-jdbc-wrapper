@@ -116,7 +116,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     testImplementation("org.testcontainers:toxiproxy:$testcontainersVersion")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.11")
-    testImplementation("org.apache.poi:poi-ooxml:5.5.1")
+    testImplementation("org.apache.poi:poi-ooxml:6.0.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.20")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     testImplementation("tools.jackson.core:jackson-databind:3.2.3") // Required for java17 multi-release classes under Java 17+
