@@ -117,7 +117,10 @@ public class KmsKeyRotationIntegrationTest {
   private static String secondKmsKeyId;
   private static String region;
   private static boolean isPg;
-  private static KmsClient kmsClient;
+  // Typed as Object on purpose: the KMS SDK is optional and absent from the classpath of non-encryption
+  // test runs. A field of type KmsClient makes JUnit fail while discovering this class
+  // (NoClassDefFoundError), before the class-level conditions can skip it.
+  private static Object kmsClient;
   private static EncryptionConfig encryptionConfig;
 
   private final List<String> tables = new ArrayList<>();
@@ -205,7 +208,7 @@ public class KmsKeyRotationIntegrationTest {
   @AfterAll
   static void tearDown() {
     if (kmsClient != null) {
-      kmsClient.close();
+      ((KmsClient) kmsClient).close();
       kmsClient = null;
     }
   }
@@ -595,10 +598,11 @@ public class KmsKeyRotationIntegrationTest {
 
   /** Builds the utility the way the plugin guide's code sample does. */
   private KeyManagementUtility newUtility(Connection conn) {
-    final KeyManager keyManager = new KeyManager(kmsClient, conn, isPg, encryptionConfig);
+    final KmsClient client = (KmsClient) kmsClient;
+    final KeyManager keyManager = new KeyManager(client, conn, isPg, encryptionConfig);
     final MetadataManager metadataManager = new MetadataManager(conn, encryptionConfig);
     metadataManagers.add(metadataManager);
-    return new KeyManagementUtility(keyManager, metadataManager, conn, kmsClient, encryptionConfig);
+    return new KeyManagementUtility(keyManager, metadataManager, conn, client, encryptionConfig);
   }
 
   /** Creates a table with a unique name and one data key per encrypted column. */
