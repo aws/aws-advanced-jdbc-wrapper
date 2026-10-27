@@ -27,14 +27,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 
 /**
  * In-memory fake of the JDBC calls made by {@link KeyManagementUtility} and {@link KeyManager}
  * during data key rotation. It answers by SQL shape: the key_storage and encryption_metadata
- * queries, the keyset page of one data table, the conditional row update, and set_config. Writes
- * made with auto-commit off are staged and applied on commit, discarded on rollback.
+ * queries, the existence probe and keyset page of one data table, the conditional row update,
+ * PostgreSQL set_config and MySQL user variables. Writes made with auto-commit off are staged and
+ * applied on commit, discarded on rollback.
  */
 final class FakeReencryptionDatabase {
 
@@ -55,31 +58,60 @@ final class FakeReencryptionDatabase {
   }
 
   private final boolean postgres;
-  private final String tableName;
-  private final String columnName;
+  private final String metadataTableName;
+  private final String metadataColumnName;
   private final Map<Integer, KeyRow> keys = new TreeMap<>();
   private final TreeMap<Long, byte[]> rows = new TreeMap<>();
   private final List<Runnable> staged = new ArrayList<>();
   private final List<String> executedSql = new ArrayList<>();
   private final List<String[]> setConfigCalls = new ArrayList<>();
+  private final List<String[]> metadataLookups = new ArrayList<>();
+  private final Map<String, String> sessionSettings = new HashMap<>();
+  private final Map<String, String> settingUndo = new HashMap<>();
+  private final Map<String, byte[]> userVariables = new HashMap<>();
+  private final List<String> userVariableCalls = new ArrayList<>();
   private final List<Long> rowUpdatePks = new ArrayList<>();
   private final Connection connection;
+
+  private String storedTableName;
+  private String storedColumnName;
+  private boolean caseInsensitiveMetadataMatch;
+  private String physicalSchema;
+  private String physicalTable;
+  private String physicalPrimaryKey = "id";
+  private String physicalColumn;
 
   private int metadataKeyId = -1;
   private String algorithm = "AES-256-GCM";
   private int nextKeyId = 1;
+  private int lastInsertedKeyId = -1;
   private boolean autoCommit = true;
   private int commitCount;
   private int rollbackCount;
   private int executeBatchCount;
   private int failOnExecuteBatchNumber = -1;
+  private int failOnCommitNumber = -1;
+  private boolean applyBeforeCommitFailure;
   private boolean forceSwitchConflict;
+  private boolean failOnSwitchUpdate;
+  private boolean failOnKeyDelete;
+  private boolean failOnSetConfig;
   private boolean pluginConnection;
 
+  /**
+   * Creates the fake. A schema prefix in {@code tableName} ({@code app.users}) is the physical
+   * schema of the data table; the metadata stores the bare table name.
+   */
   FakeReencryptionDatabase(boolean postgres, String tableName, String columnName) {
     this.postgres = postgres;
-    this.tableName = tableName;
-    this.columnName = columnName;
+    final int dot = tableName.lastIndexOf('.');
+    this.physicalSchema = dot < 0 ? null : tableName.substring(0, dot);
+    this.metadataTableName = tableName.substring(dot + 1);
+    this.metadataColumnName = columnName;
+    this.storedTableName = metadataTableName;
+    this.storedColumnName = columnName;
+    this.physicalTable = metadataTableName;
+    this.physicalColumn = columnName;
     this.connection = (Connection) Proxy.newProxyInstance(
         getClass().getClassLoader(), new Class<?>[] {Connection.class}, this::handleConnection);
   }
@@ -104,12 +136,39 @@ final class FakeReencryptionDatabase {
     return metadataKeyId;
   }
 
+  /** Names returned in the table_name and column_name columns of the metadata lookup. */
+  void setStoredNames(String table, String column) {
+    this.storedTableName = table;
+    this.storedColumnName = column;
+  }
+
+  /** Simulates a case-insensitive collation of encryption_metadata (MySQL default). */
+  void setCaseInsensitiveMetadataMatch(boolean caseInsensitive) {
+    this.caseInsensitiveMetadataMatch = caseInsensitive;
+  }
+
+  /** Names that exist in the data table; the existence probe fails for any other spelling. */
+  void setPhysicalNames(String schema, String table, String primaryKey, String column) {
+    this.physicalSchema = schema;
+    this.physicalTable = table;
+    this.physicalPrimaryKey = primaryKey;
+    this.physicalColumn = column;
+  }
+
+  List<String[]> getMetadataLookups() {
+    return Collections.unmodifiableList(metadataLookups);
+  }
+
   KeyRow getKey(int id) {
     return keys.get(id);
   }
 
   int getKeyCount() {
     return keys.size();
+  }
+
+  int getLastInsertedKeyId() {
+    return lastInsertedKeyId;
   }
 
   void putRow(long pk, byte[] value) {
@@ -133,8 +192,28 @@ final class FakeReencryptionDatabase {
     return Collections.unmodifiableList(executedSql);
   }
 
+  /** Number of prepared statements whose SQL matches. */
+  long countPrepared(Predicate<String> sqlMatcher) {
+    return executedSql.stream().filter(sqlMatcher).count();
+  }
+
   List<String[]> getSetConfigCalls() {
     return Collections.unmodifiableList(setConfigCalls);
+  }
+
+  /** The PostgreSQL session setting as the session sees it now (committed or not). */
+  String getSessionSetting(String name) {
+    return sessionSettings.get(name);
+  }
+
+  /** The MySQL user variable, name with or without the leading {@code @}, case-insensitive. */
+  byte[] getUserVariable(String name) {
+    final byte[] value = userVariables.get(normalizeVariable(name));
+    return value == null ? null : value.clone();
+  }
+
+  List<String> getUserVariableCalls() {
+    return Collections.unmodifiableList(userVariableCalls);
   }
 
   List<Long> getRowUpdatePks() {
@@ -157,8 +236,26 @@ final class FakeReencryptionDatabase {
     this.failOnExecuteBatchNumber = n;
   }
 
+  /** Commit number {@code n} fails; with {@code applyBeforeFailing} its changes are applied first. */
+  void failOnCommitNumber(int n, boolean applyBeforeFailing) {
+    this.failOnCommitNumber = n;
+    this.applyBeforeCommitFailure = applyBeforeFailing;
+  }
+
   void forceSwitchConflict() {
     this.forceSwitchConflict = true;
+  }
+
+  void failOnSwitchUpdate() {
+    this.failOnSwitchUpdate = true;
+  }
+
+  void failOnKeyDelete() {
+    this.failOnKeyDelete = true;
+  }
+
+  void failOnSetConfig() {
+    this.failOnSetConfig = true;
   }
 
   void setPluginConnection(boolean pluginConnection) {
@@ -191,11 +288,19 @@ final class FakeReencryptionDatabase {
         return null;
       case "commit":
         commitCount++;
+        if (commitCount == failOnCommitNumber) {
+          if (applyBeforeCommitFailure) {
+            applyStaged();
+          } else {
+            discardStaged();
+          }
+          throw new SQLException("Injected failure on commit " + commitCount);
+        }
         applyStaged();
         return null;
       case "rollback":
         rollbackCount++;
-        staged.clear();
+        discardStaged();
         return null;
       case "isWrapperFor":
         return pluginConnection;
@@ -219,6 +324,19 @@ final class FakeReencryptionDatabase {
       change.run();
     }
     staged.clear();
+    settingUndo.clear();
+  }
+
+  private void discardStaged() {
+    staged.clear();
+    for (Map.Entry<String, String> e : settingUndo.entrySet()) {
+      if (e.getValue() == null) {
+        sessionSettings.remove(e.getKey());
+      } else {
+        sessionSettings.put(e.getKey(), e.getValue());
+      }
+    }
+    settingUndo.clear();
   }
 
   private PreparedStatement newStatement(String sql) {
@@ -244,6 +362,9 @@ final class FakeReencryptionDatabase {
         case "addBatch":
           batch.add(new HashMap<>(params));
           return null;
+        case "clearBatch":
+          batch.clear();
+          return null;
         case "executeBatch":
           return executeBatch(sql, batch);
         case "clearParameters":
@@ -265,20 +386,56 @@ final class FakeReencryptionDatabase {
         getClass().getClassLoader(), new Class<?>[] {PreparedStatement.class}, handler);
   }
 
+  private boolean metadataMatches(Object table, Object column) {
+    if (caseInsensitiveMetadataMatch) {
+      return metadataTableName.equalsIgnoreCase((String) table)
+          && metadataColumnName.equalsIgnoreCase((String) column);
+    }
+    return metadataTableName.equals(table) && metadataColumnName.equals(column);
+  }
+
+  private String quote(String identifier) {
+    return postgres ? "\"" + identifier + "\"" : "`" + identifier + "`";
+  }
+
+  private String probeSql() {
+    final String table = physicalSchema == null
+        ? quote(physicalTable) : quote(physicalSchema) + "." + quote(physicalTable);
+    return "SELECT " + quote(physicalPrimaryKey) + ", " + quote(physicalColumn) + " FROM " + table + " WHERE 1=0";
+  }
+
   private ResultSet executeQuery(String sql, Map<Integer, Object> params) throws SQLException {
     if (sql.contains("set_config")) {
-      setConfigCalls.add(new String[] {(String) params.get(1), (String) params.get(2)});
-      return resultSet(new String[] {"set_config"}, Collections.singletonList(new Object[] {params.get(2)}));
+      final String name = (String) params.get(1);
+      final String value = (String) params.get(2);
+      setConfigCalls.add(new String[] {name, value});
+      if (failOnSetConfig) {
+        throw new SQLException("Injected failure on set_config");
+      }
+      if (!autoCommit && !settingUndo.containsKey(name)) {
+        settingUndo.put(name, sessionSettings.get(name));
+      }
+      sessionSettings.put(name, value);
+      return resultSet(new String[] {"set_config"}, Collections.singletonList(new Object[] {value}));
     }
     if (sql.startsWith("SELECT em.key_id")) {
-      if (!tableName.equals(params.get(1)) || !columnName.equals(params.get(2)) || metadataKeyId < 0) {
+      metadataLookups.add(new String[] {(String) params.get(1), (String) params.get(2)});
+      if (!metadataMatches(params.get(1), params.get(2)) || metadataKeyId < 0) {
         return resultSet(new String[0], Collections.emptyList());
       }
       final KeyRow key = keys.get(metadataKeyId);
       return resultSet(
-          new String[] {"key_id", "encryption_algorithm", "master_key_arn", "encrypted_data_key", "hmac_key"},
+          new String[] {"key_id", "encryption_algorithm", "table_name", "column_name", "master_key_arn",
+              "encrypted_data_key", "hmac_key"},
           Collections.singletonList(new Object[] {
-              key.id, algorithm, key.masterKeyArn, key.encryptedDataKey, key.hmacKey.clone()}));
+              key.id, algorithm, storedTableName, storedColumnName, key.masterKeyArn, key.encryptedDataKey,
+              key.hmacKey.clone()}));
+    }
+    if (sql.startsWith("SELECT key_id FROM") && sql.contains("encryption_metadata")) {
+      if (!metadataMatches(params.get(1), params.get(2)) || metadataKeyId < 0) {
+        return resultSet(new String[0], Collections.emptyList());
+      }
+      return resultSet(new String[] {"key_id"}, Collections.singletonList(new Object[] {metadataKeyId}));
     }
     if (sql.startsWith("SELECT id, master_key_arn")) {
       final KeyRow key = keys.get((Integer) params.get(1));
@@ -293,6 +450,12 @@ final class FakeReencryptionDatabase {
     if (sql.startsWith("INSERT INTO") && sql.contains("key_storage") && postgres) {
       final int id = insertKey(params);
       return resultSet(new String[] {"id"}, Collections.singletonList(new Object[] {id}));
+    }
+    if (sql.endsWith(" WHERE 1=0")) {
+      if (!sql.equals(probeSql())) {
+        throw new SQLException("relation or column does not exist: " + sql);
+      }
+      return resultSet(new String[] {"pk", "value"}, Collections.emptyList());
     }
     if (sql.startsWith("SELECT ") && sql.contains(" LIMIT ?")) {
       final boolean hasLastPk = sql.contains(" > ?");
@@ -320,8 +483,11 @@ final class FakeReencryptionDatabase {
     }
     if (sql.startsWith("UPDATE") && sql.contains("encryption_metadata")) {
       final int newKeyId = (Integer) params.get(1);
-      final boolean matches = tableName.equals(params.get(3)) && columnName.equals(params.get(4));
+      final boolean matches = metadataMatches(params.get(3), params.get(4));
       final boolean compareAndSet = sql.contains("AND key_id = ?");
+      if (compareAndSet && failOnSwitchUpdate) {
+        throw new SQLException("Injected failure on the switch update");
+      }
       final boolean casOk = !compareAndSet
           || (!forceSwitchConflict && metadataKeyId == (Integer) params.get(5));
       if (matches && casOk) {
@@ -332,13 +498,35 @@ final class FakeReencryptionDatabase {
       }
       return null;
     }
+    if (sql.startsWith("DELETE FROM") && sql.contains("key_storage") && sql.endsWith("WHERE id = ?")) {
+      if (failOnKeyDelete) {
+        throw new SQLException("Injected failure on the key delete");
+      }
+      final int id = (Integer) params.get(1);
+      result[0] = keys.containsKey(id) ? 1 : 0;
+      write(() -> keys.remove(id));
+      return null;
+    }
+    if (sql.startsWith("SET @") && sql.endsWith(" = ?")) {
+      final String name = sql.substring("SET ".length(), sql.length() - " = ?".length());
+      userVariableCalls.add(name);
+      userVariables.put(normalizeVariable(name), ((byte[]) params.get(1)).clone());
+      result[0] = 0;
+      return null;
+    }
     throw new SQLException("Unexpected update: " + sql);
+  }
+
+  private static String normalizeVariable(String name) {
+    final String bare = name.startsWith("@") ? name.substring(1) : name;
+    return bare.toLowerCase(Locale.ROOT);
   }
 
   private int insertKey(Map<Integer, Object> params) {
     final int id = nextKeyId++;
     keys.put(id, new KeyRow(id, (String) params.get(1), (String) params.get(2), (String) params.get(3),
         ((byte[]) params.get(4)).clone()));
+    lastInsertedKeyId = id;
     return id;
   }
 

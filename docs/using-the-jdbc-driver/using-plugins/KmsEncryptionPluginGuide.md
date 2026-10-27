@@ -467,7 +467,7 @@ Pass a KMS key ARN instead of `null` to wrap the new data key under a different 
 
 `rotateDataKeyAndReencrypt()` does the following:
 1. Checks that every value of the column verifies against the current HMAC key. If any value does not, it stops with an error and changes nothing.
-2. Creates a new data key and HMAC key and stores them in `encrypt.key_storage`.
+2. Creates a new data key and HMAC key and stores them in `encrypt.key_storage`. If the rotation fails before the switch in step 3 is committed, it deletes this new key row again; if that is not possible, the error message names the new key id.
 3. Switches `encrypt.encryption_metadata.key_id` to the new key and commits.
 4. Re-encrypts the rows in primary key order, `batchSize` rows per transaction. Values are decrypted with the old key and encrypted with the new key; the stored type of each value is kept.
 
@@ -475,8 +475,10 @@ It never deletes the old `key_storage` row and never changes the old KMS key.
 
 Requirements:
 - The primary key column must be a single, unique, `NOT NULL` column. Rows with a `NULL` value in it are not processed.
-- Table and column names may contain only letters, digits and underscores, and must match the stored names exactly. A table name may have one schema prefix (`app.users`).
-- With the PostgreSQL HMAC trigger, the utility sets the trigger's cached HMAC key for its own connection before each batch.
+- Table and column names may contain only letters, digits and underscores, at most 64 characters. They are matched against `encrypt.encryption_metadata` as stored there, with the bare table name, the way the plugin stores it. On PostgreSQL the match is case-sensitive, and unquoted names are stored in lower case (`users`, not `Users`). The SQL against the data table uses the table and column spelling stored in the metadata.
+- A table name may have one schema prefix (`app.users`). The prefix is used only in the SQL against the data table; the metadata lookup and the HMAC trigger cache use the bare table name (`users`).
+- Before it creates a key, the utility checks that the table, the encrypted column and the primary key column exist. A wrong name fails with nothing changed.
+- With the HMAC trigger, the utility sets the trigger's cached HMAC key for its own connection once, before the first batch: `hmac_key.<table>.<column>` with `set_config` on PostgreSQL, the user variable `@hmac_key_<table>_<column>` on MySQL.
 
 > [!WARNING]
 > `KeyManagementUtility.rotateDataKey()` does **not** re-encrypt existing rows. It only stores a new data key and points the column's metadata at it. After the call:
@@ -521,10 +523,10 @@ if (!repair.isComplete()) {
 3. **Run `rotateDataKeyAndReencrypt()`** on a connection without the `kmsEncryption` plugin. Record the old and new key ids from the log or from `result.getSourceKeyIds()` and `result.getCurrentKeyId()`.
 4. **If it fails**, fix the cause and run `reencryptRemainingRows()` with the old key id. Committed batches are kept.
 5. **Wait at least `metadataCacheRefreshIntervalMs`** (default 300000 ms) or restart the applications, then run `reencryptRemainingRows()` again with the old key id. This converts rows that applications wrote under the old key before their metadata cache refreshed.
-6. **With the PostgreSQL HMAC trigger**, recycle pooled connections (for example, restart the applications). Each database session caches the column's HMAC key and rejects values under the new key until the session ends. If you use the MySQL example procedure, run the utility on a fresh connection.
+6. **With the PostgreSQL HMAC trigger**, each database session caches the column's HMAC key. The trigger function `validate_encrypted_data_hmac()` from this version reloads the key from the metadata when a value fails the check against the cached key, so pooled sessions pick up the new key on their own. If your `validate_encrypted_data_hmac()` was created by an earlier version, re-create it: run only its `CREATE OR REPLACE FUNCTION` statement from [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql), with `SCHEMA_NAME` replaced by your metadata schema. Until then, recycle pooled connections (for example, restart the applications), because an old function rejects values under the new key until the session ends. Do not re-run `EncryptedDataTypeInstaller.installEncryptedDataType()` on a database with data: its script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of that type.
 7. **Keep the old `key_storage` row and its KMS key** until every backup and snapshot that holds data encrypted under the old key has expired.
 
-The following example runs steps 3 to 5 for the `ssn` column of the `users` table. It uses an AWS Advanced JDBC Wrapper connection with the `failover2` and `efm2` plugins and without `kmsEncryption`. If a failover happens during a batch, that batch is rolled back and the call fails; run `reencryptRemainingRows()` to resume.
+The following example runs steps 3 and 4 for the `ssn` column of the `users` table, and step 5 as a separate, later job. It uses an AWS Advanced JDBC Wrapper connection with the `failover2` and `efm2` plugins and without `kmsEncryption`. If a failover happens during a batch, that batch is rolled back and the call fails; run `reencryptRemainingRows()` to resume.
 
 ```java
 import java.sql.*;
@@ -583,21 +585,26 @@ try (Connection connection = DriverManager.getConnection(
     System.err.println(e.getMessage());
     throw e;
   }
-
-  // Step 5: run after metadataCacheRefreshIntervalMs has passed, or after restarting the
-  // applications, to convert rows they wrote under the old key in the meantime
-  DataKeyReencryptionResult repair = utility.reencryptRemainingRows(
-      "users", "ssn", "id", Collections.singletonList(oldKeyId), batchSize);
-  System.out.println("Converted " + repair.getReencryptedCount() + " late rows");
-  if (!repair.isComplete()) {
-    // These rows match neither the current key nor the old key. They are left unchanged.
-    System.err.println(repair.getUnmatchedCount() + " unmatched rows, for example "
-        + repair.getUnmatchedPrimaryKeys());
-  }
+  // Keep oldKeyId for step 5. It is also written to the log by rotateDataKeyAndReencrypt().
+  System.out.println("Old key id for step 5: " + oldKeyId);
 }
 ```
 
-In a real run, steps 3 and 5 are usually separate invocations, minutes apart. The `oldKeyId` value is also written to the log by `rotateDataKeyAndReencrypt()`.
+Step 5 is a separate job. Run it after `metadataCacheRefreshIntervalMs` has passed (5 minutes by default), or after restarting the applications, so that it converts the rows they wrote under the old key in the meantime. Running it right after step 3 misses those rows. Set up the connection, `config`, `kmsClient` and `utility` as in the first block, and pass the old key id recorded there:
+
+```java
+// Step 5, a separate job run after metadataCacheRefreshIntervalMs: convert late rows
+int oldKeyId = 42; // the value recorded in step 3
+DataKeyReencryptionResult repair = utility.reencryptRemainingRows(
+    "users", "ssn", "id", Collections.singletonList(oldKeyId),
+    KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+System.out.println("Converted " + repair.getReencryptedCount() + " late rows");
+if (!repair.isComplete()) {
+  // These rows match neither the current key nor the old key. They are left unchanged.
+  System.err.println(repair.getUnmatchedCount() + " unmatched rows, for example "
+      + repair.getUnmatchedPrimaryKeys());
+}
+```
 
 ## Advanced Features
 
@@ -693,7 +700,7 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 - HMAC key may have changed
 - Check `encrypt.key_storage.hmac_key` matches key used for encryption
 - The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()`), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)
-- With the HMAC trigger, a pooled session may still cache the previous HMAC key after a rotation. Recycle the connection
+- With the PostgreSQL HMAC trigger, a pooled session may still cache the previous HMAC key after a rotation. The current trigger function reloads the key on a mismatch. With a function created by an earlier version, re-create the function (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
 
 **4. "Cannot insert plain text into encrypted column"**
 - This is expected behavior with PostgreSQL triggers

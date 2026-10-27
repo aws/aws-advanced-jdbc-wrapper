@@ -218,6 +218,8 @@ DELIMITER ;
 | Trigger Syntax | Single trigger for INSERT/UPDATE | Separate triggers needed |
 | Session Caching | `current_setting()` | User variables (`@var`) |
 
+After a data key rotation, the PostgreSQL trigger function reloads its cached HMAC key from the metadata when a value fails verification against it. A function created by an earlier version does not; see the [Data key rotation procedure](./using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#data-key-rotation-procedure).
+
 **Recommendation:** For most deployments, skip database triggers and rely on the application-level HMAC validation built into the JDBC driver.
 
 ### 9. Configure JDBC Connection

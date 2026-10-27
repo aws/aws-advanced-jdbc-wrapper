@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -70,7 +69,8 @@ public class KeyManagementUtility {
   /** Maximum number of rows per transaction for data key re-encryption. */
   public static final int MAX_REENCRYPTION_BATCH_SIZE = 100_000;
 
-  private static final Pattern IDENTIFIER_PATTERN = Pattern.compile("[A-Za-z_][A-Za-z0-9_]{0,63}");
+  /** Longest identifier accepted for re-encryption, and the MySQL limit for user variable names. */
+  private static final int MAX_IDENTIFIER_LENGTH = 64;
 
   private final EncryptionService encryptionService = new EncryptionService();
   private final KeyManager keyManager;
@@ -165,7 +165,8 @@ public class KeyManagementUtility {
 
   private String getSelectCurrentKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT em.key_id, em.encryption_algorithm, ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key "
+    return "SELECT em.key_id, em.encryption_algorithm, em.table_name, em.column_name, "
+        + "ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key "
         + "FROM " + schema + ".encryption_metadata em "
         + "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id "
         + "WHERE em.table_name = ? AND em.column_name = ?";
@@ -182,27 +183,47 @@ public class KeyManagementUtility {
         + "WHERE table_name = ? AND column_name = ? AND key_id = ?";
   }
 
-  /** Keyset page of (pk, value) rows. Identifiers must be validated before calling this. */
-  private String getSelectPageSql(
-      String tableName, String columnName, String primaryKeyColumn, boolean firstPage, boolean forUpdate) {
-    final String pk = quoteIdentifier(primaryKeyColumn);
-    final String column = quoteIdentifier(columnName);
-    return "SELECT " + pk + ", " + column + " FROM " + quoteTableName(tableName)
+  private String getSelectColumnKeyIdSql() {
+    SchemaName schema = config.getEncryptionMetadataSchema();
+    return "SELECT key_id FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+  }
+
+  private String getDeleteKeyByIdSql() {
+    SchemaName schema = config.getEncryptionMetadataSchema();
+    return "DELETE FROM " + schema + ".key_storage WHERE id = ?";
+  }
+
+  /** Keyset page of (pk, value) rows. The target's identifiers are validated. */
+  private String getSelectPageSql(ColumnTarget target, boolean firstPage, boolean forUpdate) {
+    final String pk = quoteIdentifier(target.primaryKeyColumn);
+    final String column = quoteIdentifier(target.column);
+    return "SELECT " + pk + ", " + column + " FROM " + quoteTableName(target)
         + " WHERE " + column + " IS NOT NULL AND " + pk + " IS NOT NULL"
         + (firstPage ? "" : " AND " + pk + " > ?")
         + " ORDER BY " + pk + " LIMIT ?"
         + (forUpdate ? " FOR UPDATE" : "");
   }
 
-  /** Identifiers must be validated before calling this. */
-  private String getUpdateEncryptedValueSql(String tableName, String columnName, String primaryKeyColumn) {
-    final String column = quoteIdentifier(columnName);
-    return "UPDATE " + quoteTableName(tableName) + " SET " + column + " = ?"
-        + " WHERE " + quoteIdentifier(primaryKeyColumn) + " = ? AND " + column + " = ?";
+  /** The target's identifiers are validated. */
+  private String getUpdateEncryptedValueSql(ColumnTarget target) {
+    final String column = quoteIdentifier(target.column);
+    return "UPDATE " + quoteTableName(target) + " SET " + column + " = ?"
+        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " = ? AND " + column + " = ?";
   }
 
-  private String getSetTriggerHmacCacheSql() {
+  /** Reads no rows; fails if the table, the column or the primary key column does not exist. */
+  private String getProbeSql(ColumnTarget target) {
+    return "SELECT " + quoteIdentifier(target.primaryKeyColumn) + ", " + quoteIdentifier(target.column)
+        + " FROM " + quoteTableName(target) + " WHERE 1=0";
+  }
+
+  private String getSetPostgresTriggerCacheSql() {
     return "SELECT set_config(?, ?, false)";
+  }
+
+  /** The variable name is built from validated identifiers. */
+  private String getSetMysqlTriggerCacheSql(String variableName) {
+    return "SET @" + variableName + " = ?";
   }
 
   /**
@@ -450,8 +471,20 @@ public class KeyManagementUtility {
    * keep writing with the previous key until their metadata cache refreshes, so run
    * {@code reencryptRemainingRows} again after {@code metadataCacheRefreshIntervalMs}.
    *
+   * <p>Before any change, the method checks that the table, the column and the primary key column
+   * exist. If it fails before the switch to the new key is committed, it deletes the
+   * {@code key_storage} row it created; if that is not possible, the exception names the new key
+   * id. After the switch, every exception names the previous key id.
+   *
+   * <p>If the database has the HMAC trigger, the method sets the trigger's cached HMAC key for its
+   * own connection once, before the first batch: {@code hmac_key.<table>.<column>} with
+   * {@code set_config} on PostgreSQL, the user variable {@code @hmac_key_<table>_<column>} on
+   * MySQL.
+   *
    * @param tableName Name of the table, optionally schema-qualified ({@code schema.table}). Letters,
-   *     digits and underscores only.
+   *     digits and underscores only. The schema prefix is used only in the SQL against the data
+   *     table. {@code encryption_metadata} is looked up with the bare table name, as the plugin
+   *     stores it, and the SQL uses the table and column spelling stored there.
    * @param columnName Name of the encrypted column
    * @param primaryKeyColumn Name of a single, unique, NOT NULL column used to page through the
    *     table. Rows with a NULL value in this column are not processed.
@@ -469,6 +502,10 @@ public class KeyManagementUtility {
     Connection conn = null;
     boolean originalAutoCommit = true;
     boolean autoCommitChanged = false;
+    @Nullable ColumnTarget target = null;
+    int oldKeyId = 0;
+    @Nullable Integer newKeyId = null;
+    boolean switchCommitted = false;
     final List<StoredKey> keysToClear = new ArrayList<>();
     try {
       conn = getConnection();
@@ -478,16 +515,21 @@ public class KeyManagementUtility {
       final CurrentColumnKey current = loadCurrentKey(conn, tableName, columnName);
       final StoredKey oldKey = current.key;
       keysToClear.add(oldKey);
+      oldKeyId = oldKey.id;
+      final ColumnTarget column = new ColumnTarget(
+          schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
+      target = column;
+      checkColumnsExist(conn, column);
       LOGGER.info(() -> Messages.get("KeyManagementUtility.rotationStarting",
           new Object[]{tableName, columnName, String.valueOf(oldKey.id), String.valueOf(batchSize)}));
 
-      precheckRowsUnderKey(conn, tableName, columnName, primaryKeyColumn, oldKey, batchSize);
+      precheckRowsUnderKey(conn, column, tableName, columnName, oldKey, batchSize);
 
       final String masterKeyArn = newMasterKeyArn != null ? newMasterKeyArn : oldKey.masterKeyArn;
       final KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
       final byte[] hmacKey = new byte[32];
       new SecureRandom().nextBytes(hmacKey);
-      final String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
+      final String keyName = "key-" + column.table + "-" + column.column + "-" + System.currentTimeMillis();
       final KeyMetadata newKeyMetadata =
           KeyMetadata.builder()
               .keyName(keyName)
@@ -498,29 +540,30 @@ public class KeyManagementUtility {
               .createdAt(Instant.now())
               .lastUsedAt(Instant.now())
               .build();
-      final int newKeyId = keyManager.storeKeyMetadata(tableName, columnName, newKeyMetadata);
-      final StoredKey newKey = new StoredKey(newKeyId, masterKeyArn, dataKeyResult.getEncryptedKey(), hmacKey);
+      final int storedKeyId = keyManager.storeKeyMetadata(column.table, column.column, newKeyMetadata);
+      newKeyId = storedKeyId;
+      final StoredKey newKey = new StoredKey(storedKeyId, masterKeyArn, dataKeyResult.getEncryptedKey(), hmacKey);
       keysToClear.add(newKey);
 
       conn.setAutoCommit(false);
       autoCommitChanged = true;
       final int switched;
       try (PreparedStatement stmt = conn.prepareStatement(getSwitchEncryptionMetadataKeySql())) {
-        stmt.setInt(1, newKeyId);
+        stmt.setInt(1, storedKeyId);
         stmt.setTimestamp(2, Timestamp.from(Instant.now()));
-        stmt.setString(3, tableName);
-        stmt.setString(4, columnName);
+        stmt.setString(3, column.table);
+        stmt.setString(4, column.column);
         stmt.setInt(5, oldKey.id);
         switched = stmt.executeUpdate();
       }
       if (switched == 0) {
-        rollbackQuietly(conn);
         throw new KeyManagementException(Messages.get("KeyManagementUtility.rotationSwitchConflict",
-            new Object[]{tableName, columnName, String.valueOf(oldKey.id), String.valueOf(newKeyId)}));
+            new Object[]{tableName, columnName, String.valueOf(oldKey.id), String.valueOf(storedKeyId)}));
       }
       conn.commit();
+      switchCommitted = true;
       LOGGER.info(() -> Messages.get("KeyManagementUtility.rotationKeySwitched",
-          new Object[]{tableName, columnName, String.valueOf(newKeyId), String.valueOf(oldKey.id)}));
+          new Object[]{tableName, columnName, String.valueOf(storedKeyId), String.valueOf(oldKey.id)}));
 
       try {
         metadataManager.refreshMetadata();
@@ -529,14 +572,25 @@ public class KeyManagementUtility {
             new Object[]{tableName, columnName, e.getMessage()}));
       }
 
-      return reencryptRows(conn, tableName, columnName, primaryKeyColumn, newKey, current.algorithm,
+      return reencryptRows(conn, column, tableName, columnName, newKey, current.algorithm,
           Collections.singletonList(oldKey), batchSize);
 
     } catch (KeyManagementException e) {
+      if (newKeyId != null && !switchCommitted && conn != null && target != null) {
+        throw cleanUpUnusedKey(conn, target, tableName, columnName, oldKeyId, newKeyId, autoCommitChanged, e);
+      }
       throw e;
     } catch (SQLException | RuntimeException e) {
+      if (newKeyId != null && !switchCommitted && conn != null && target != null) {
+        throw cleanUpUnusedKey(conn, target, tableName, columnName, oldKeyId, newKeyId, autoCommitChanged, e);
+      }
       if (autoCommitChanged) {
         rollbackQuietly(conn);
+      }
+      if (switchCommitted) {
+        throw new KeyManagementException(Messages.get("KeyManagementUtility.rotateAndReencryptFailedAfterSwitch",
+            new Object[]{tableName, columnName, String.valueOf(newKeyId), e.getMessage(),
+                String.valueOf(oldKeyId)}), e);
       }
       throw new KeyManagementException(Messages.get("KeyManagementUtility.rotateAndReencryptFailed",
           new Object[]{tableName, columnName, e.getMessage()}), e);
@@ -546,6 +600,46 @@ public class KeyManagementUtility {
       for (StoredKey key : keysToClear) {
         key.clear();
       }
+    }
+  }
+
+  /**
+   * Handles a rotation failure after the new key row was stored and before the switch was known to
+   * be committed. Rolls back, then deletes the new {@code key_storage} row unless the column already
+   * uses it. Returns the exception to throw; the original failure is its cause.
+   */
+  private KeyManagementException cleanUpUnusedKey(
+      Connection conn, ColumnTarget target, String tableName, String columnName,
+      int oldKeyId, int newKeyId, boolean autoCommitChanged, Exception cause) {
+    if (autoCommitChanged) {
+      rollbackQuietly(conn);
+    }
+    try {
+      final @Nullable Integer currentKeyId = loadColumnKeyId(conn, target);
+      if (currentKeyId != null && currentKeyId == newKeyId) {
+        return new KeyManagementException(Messages.get("KeyManagementUtility.rotateAndReencryptFailedAfterSwitch",
+            new Object[]{tableName, columnName, String.valueOf(newKeyId), cause.getMessage(),
+                String.valueOf(oldKeyId)}), cause);
+      }
+      try (PreparedStatement stmt = conn.prepareStatement(getDeleteKeyByIdSql())) {
+        stmt.setInt(1, newKeyId);
+        stmt.executeUpdate();
+      }
+      if (!conn.getAutoCommit()) {
+        conn.commit();
+      }
+      return new KeyManagementException(Messages.get("KeyManagementUtility.rotateAndReencryptFailedKeyRemoved",
+          new Object[]{tableName, columnName, cause.getMessage(), String.valueOf(newKeyId),
+              String.valueOf(oldKeyId)}), cause);
+    } catch (SQLException | RuntimeException cleanupError) {
+      if (autoCommitChanged) {
+        rollbackQuietly(conn);
+      }
+      LOGGER.warning(() -> Messages.get("KeyManagementUtility.newKeyCleanupFailed",
+          new Object[]{String.valueOf(newKeyId), tableName, columnName, cleanupError.getMessage()}));
+      return new KeyManagementException(Messages.get("KeyManagementUtility.rotateAndReencryptFailedKeyOrphaned",
+          new Object[]{tableName, columnName, cause.getMessage(), String.valueOf(newKeyId),
+              cleanupError.getMessage(), String.valueOf(oldKeyId)}), cause);
     }
   }
 
@@ -561,8 +655,14 @@ public class KeyManagementUtility {
    * stale plugin instances after a rotation, and to recover a column after
    * {@link #rotateDataKey(String, String, String)} was called on it. Run it on a plain JDBC
    * connection without the KMS encryption plugin. Old key rows and KMS keys are never deleted.
+   * Before any write, the method checks that the table, the column and the primary key column
+   * exist, and it sets the HMAC trigger's cached key for its own connection once, as
+   * {@link #rotateDataKeyAndReencrypt} does.
    *
-   * @param tableName Name of the table, optionally schema-qualified ({@code schema.table})
+   * @param tableName Name of the table, optionally schema-qualified ({@code schema.table}). The
+   *     schema prefix is used only in the SQL against the data table. {@code encryption_metadata}
+   *     is looked up with the bare table name, and the SQL uses the table and column spelling
+   *     stored there.
    * @param columnName Name of the encrypted column
    * @param primaryKeyColumn Name of a single, unique, NOT NULL column used to page through the table
    * @param oldKeyIds Ids of the previous {@code key_storage} rows the remaining values are encrypted
@@ -613,10 +713,13 @@ public class KeyManagementUtility {
         oldKeys.add(oldKey);
         keysToClear.add(oldKey);
       }
+      final ColumnTarget target = new ColumnTarget(
+          schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
+      checkColumnsExist(conn, target);
 
       conn.setAutoCommit(false);
       autoCommitChanged = true;
-      return reencryptRows(conn, tableName, columnName, primaryKeyColumn, current.key, current.algorithm,
+      return reencryptRows(conn, target, tableName, columnName, current.key, current.algorithm,
           oldKeys, batchSize);
 
     } catch (KeyManagementException e) {
@@ -638,10 +741,11 @@ public class KeyManagementUtility {
 
   /**
    * Batch loop shared by {@link #rotateDataKeyAndReencrypt} and {@link #reencryptRemainingRows}.
-   * The connection must be in manual-commit mode. Each batch is one transaction.
+   * The connection must be in manual-commit mode. Each batch is one transaction. The SELECT and
+   * UPDATE statements are prepared once per run and reused by every batch.
    */
   private DataKeyReencryptionResult reencryptRows(
-      Connection conn, String tableName, String columnName, String primaryKeyColumn,
+      Connection conn, ColumnTarget target, String tableName, String columnName,
       StoredKey targetKey, String algorithm, List<StoredKey> sourceKeys, int batchSize)
       throws KeyManagementException {
     final List<Integer> sourceKeyIds = new ArrayList<>();
@@ -652,6 +756,15 @@ public class KeyManagementUtility {
         new Object[]{tableName, columnName, String.valueOf(targetKey.id), sourceKeyIds.toString(),
             String.valueOf(batchSize)}));
 
+    try {
+      primeTriggerHmacCache(conn, target, tableName, columnName, targetKey.hmacKey);
+    } catch (SQLException | RuntimeException e) {
+      rollbackQuietly(conn);
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.reencryptFailed",
+          new Object[]{tableName, columnName, "1", "0", e.getMessage(), String.valueOf(targetKey.id),
+              sourceKeyIds.toString()}), e);
+    }
+
     long reencryptedCount = 0;
     long alreadyCurrentCount = 0;
     long unmatchedCount = 0;
@@ -660,30 +773,19 @@ public class KeyManagementUtility {
     final List<Object> unmatchedPrimaryKeys = new ArrayList<>();
     @Nullable Object lastPk = null;
 
-    while (true) {
-      batchNumber++;
-      long batchReencrypted = 0;
-      long batchAlreadyCurrent = 0;
-      final List<Object> batchUnmatched = new ArrayList<>();
-      int rowsRead = 0;
-      try {
-        final byte[] targetDataKey = targetKey.getDataKey(keyManager);
-        if (keyManager.isPostgreSQL()) {
-          setPostgresTriggerHmacCache(conn, tableName, columnName, targetKey.hmacKey);
-        }
-        try (PreparedStatement select =
-                 conn.prepareStatement(getSelectPageSql(tableName, columnName, primaryKeyColumn,
-                     lastPk == null, true));
-             PreparedStatement update =
-                 conn.prepareStatement(getUpdateEncryptedValueSql(tableName, columnName, primaryKeyColumn))) {
-          int paramIndex = 1;
-          if (lastPk != null) {
-            select.setObject(paramIndex++, lastPk);
-          }
-          select.setInt(paramIndex, batchSize);
-
+    final PageQuery pages = new PageQuery(conn, target, true);
+    @Nullable PreparedStatement update = null;
+    try {
+      while (true) {
+        batchNumber++;
+        long batchReencrypted = 0;
+        long batchAlreadyCurrent = 0;
+        final List<Object> batchUnmatched = new ArrayList<>();
+        int rowsRead = 0;
+        try {
+          final byte[] targetDataKey = targetKey.getDataKey(keyManager);
           final List<Object> pendingPks = new ArrayList<>();
-          try (ResultSet rs = select.executeQuery()) {
+          try (ResultSet rs = pages.execute(lastPk, batchSize)) {
             while (rs.next()) {
               rowsRead++;
               final @Nullable Object pk = rs.getObject(1);
@@ -706,6 +808,9 @@ public class KeyManagementUtility {
               }
               final byte[] newValue = encryptionService.reencrypt(value, sourceKey.getDataKey(keyManager),
                   sourceKey.hmacKey, targetDataKey, targetKey.hmacKey, algorithm);
+              if (update == null) {
+                update = conn.prepareStatement(getUpdateEncryptedValueSql(target));
+              }
               update.setBytes(1, newValue);
               update.setObject(2, pk);
               update.setBytes(3, value);
@@ -714,7 +819,7 @@ public class KeyManagementUtility {
             }
           }
 
-          if (!pendingPks.isEmpty()) {
+          if (update != null && !pendingPks.isEmpty()) {
             final int[] updateCounts = update.executeBatch();
             for (int i = 0; i < pendingPks.size(); i++) {
               final int count = i < updateCounts.length ? updateCounts[i] : 0;
@@ -725,38 +830,41 @@ public class KeyManagementUtility {
             }
             batchReencrypted = pendingPks.size();
           }
+          conn.commit();
+        } catch (SQLException | RuntimeException e) {
+          rollbackQuietly(conn);
+          throw new KeyManagementException(Messages.get("KeyManagementUtility.reencryptFailed",
+              new Object[]{tableName, columnName, String.valueOf(batchNumber), String.valueOf(reencryptedCount),
+                  e.getMessage(), String.valueOf(targetKey.id), sourceKeyIds.toString()}), e);
         }
-        conn.commit();
-      } catch (SQLException | RuntimeException e) {
-        rollbackQuietly(conn);
-        throw new KeyManagementException(Messages.get("KeyManagementUtility.reencryptFailed",
-            new Object[]{tableName, columnName, String.valueOf(batchNumber), String.valueOf(reencryptedCount),
-                e.getMessage(), String.valueOf(targetKey.id), sourceKeyIds.toString()}), e);
-      }
 
-      if (rowsRead > 0) {
-        batchCount++;
-      }
-      reencryptedCount += batchReencrypted;
-      alreadyCurrentCount += batchAlreadyCurrent;
-      unmatchedCount += batchUnmatched.size();
-      for (Object pk : batchUnmatched) {
-        if (unmatchedPrimaryKeys.size() >= DataKeyReencryptionResult.MAX_REPORTED_UNMATCHED_KEYS) {
+        if (rowsRead > 0) {
+          batchCount++;
+        }
+        reencryptedCount += batchReencrypted;
+        alreadyCurrentCount += batchAlreadyCurrent;
+        unmatchedCount += batchUnmatched.size();
+        for (Object pk : batchUnmatched) {
+          if (unmatchedPrimaryKeys.size() >= DataKeyReencryptionResult.MAX_REPORTED_UNMATCHED_KEYS) {
+            break;
+          }
+          unmatchedPrimaryKeys.add(pk);
+        }
+        final int committedBatch = batchNumber;
+        final long loggedReencrypted = batchReencrypted;
+        final long loggedAlreadyCurrent = batchAlreadyCurrent;
+        final int loggedUnmatched = batchUnmatched.size();
+        LOGGER.fine(() -> Messages.get("KeyManagementUtility.batchCommitted",
+            new Object[]{tableName, columnName, String.valueOf(committedBatch), String.valueOf(loggedReencrypted),
+                String.valueOf(loggedAlreadyCurrent), String.valueOf(loggedUnmatched)}));
+
+        if (rowsRead < batchSize) {
           break;
         }
-        unmatchedPrimaryKeys.add(pk);
       }
-      final int committedBatch = batchNumber;
-      final long loggedReencrypted = batchReencrypted;
-      final long loggedAlreadyCurrent = batchAlreadyCurrent;
-      final int loggedUnmatched = batchUnmatched.size();
-      LOGGER.fine(() -> Messages.get("KeyManagementUtility.batchCommitted",
-          new Object[]{tableName, columnName, String.valueOf(committedBatch), String.valueOf(loggedReencrypted),
-              String.valueOf(loggedAlreadyCurrent), String.valueOf(loggedUnmatched)}));
-
-      if (rowsRead < batchSize) {
-        break;
-      }
+    } finally {
+      pages.close();
+      closeStatementQuietly(update);
     }
 
     if (unmatchedCount > 0) {
@@ -779,22 +887,15 @@ public class KeyManagementUtility {
    * Throws before any change otherwise.
    */
   private void precheckRowsUnderKey(
-      Connection conn, String tableName, String columnName, String primaryKeyColumn,
+      Connection conn, ColumnTarget target, String tableName, String columnName,
       StoredKey currentKey, int batchSize) throws SQLException {
     long mismatchCount = 0;
     final List<Object> mismatchedPks = new ArrayList<>();
     @Nullable Object lastPk = null;
-    while (true) {
-      int rowsRead = 0;
-      try (PreparedStatement select =
-               conn.prepareStatement(getSelectPageSql(tableName, columnName, primaryKeyColumn,
-                   lastPk == null, false))) {
-        int paramIndex = 1;
-        if (lastPk != null) {
-          select.setObject(paramIndex++, lastPk);
-        }
-        select.setInt(paramIndex, batchSize);
-        try (ResultSet rs = select.executeQuery()) {
+    try (PageQuery pages = new PageQuery(conn, target, false)) {
+      while (true) {
+        int rowsRead = 0;
+        try (ResultSet rs = pages.execute(lastPk, batchSize)) {
           while (rs.next()) {
             rowsRead++;
             final @Nullable Object pk = rs.getObject(1);
@@ -811,9 +912,9 @@ public class KeyManagementUtility {
             }
           }
         }
-      }
-      if (rowsRead < batchSize) {
-        break;
+        if (rowsRead < batchSize) {
+          break;
+        }
       }
     }
     if (mismatchCount > 0) {
@@ -832,11 +933,14 @@ public class KeyManagementUtility {
     return null;
   }
 
-  /** Reads the column's current key and algorithm from the database, bypassing the metadata cache. */
+  /**
+   * Reads the column's current key, algorithm and stored names from the database, bypassing the
+   * metadata cache. The metadata is looked up with the bare table name, as the plugin stores it.
+   */
   private CurrentColumnKey loadCurrentKey(Connection conn, String tableName, String columnName)
       throws SQLException {
     try (PreparedStatement stmt = conn.prepareStatement(getSelectCurrentKeySql())) {
-      stmt.setString(1, tableName);
+      stmt.setString(1, unqualifiedTableName(tableName));
       stmt.setString(2, columnName);
       try (ResultSet rs = stmt.executeQuery()) {
         if (!rs.next()) {
@@ -845,9 +949,46 @@ public class KeyManagementUtility {
         }
         final StoredKey key = readStoredKey(rs, rs.getInt("key_id"));
         final @Nullable String algorithm = rs.getString("encryption_algorithm");
+        final @Nullable String storedTable = rs.getString("table_name");
+        final @Nullable String storedColumn = rs.getString("column_name");
+        if (storedTable == null || !isValidIdentifier(storedTable)) {
+          throw new KeyManagementException(Messages.get("KeyManagementUtility.invalidStoredName",
+              new Object[]{tableName, columnName, String.valueOf(storedTable)}));
+        }
+        if (storedColumn == null || !isValidIdentifier(storedColumn)) {
+          throw new KeyManagementException(Messages.get("KeyManagementUtility.invalidStoredName",
+              new Object[]{tableName, columnName, String.valueOf(storedColumn)}));
+        }
         return new CurrentColumnKey(key,
-            algorithm == null || algorithm.trim().isEmpty() ? EncryptionAlgorithm.AES_256_GCM : algorithm);
+            algorithm == null || algorithm.trim().isEmpty() ? EncryptionAlgorithm.AES_256_GCM : algorithm,
+            storedTable, storedColumn);
       }
+    }
+  }
+
+  /** Reads the key id the column uses now, or null if the column has no metadata row. */
+  private @Nullable Integer loadColumnKeyId(Connection conn, ColumnTarget target) throws SQLException {
+    try (PreparedStatement stmt = conn.prepareStatement(getSelectColumnKeyIdSql())) {
+      stmt.setString(1, target.table);
+      stmt.setString(2, target.column);
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getInt("key_id") : null;
+      }
+    }
+  }
+
+  /**
+   * Checks that the table, the column and the primary key column exist, with a query that reads no
+   * rows. Runs before any change, so a wrong name fails without side effects.
+   */
+  private void checkColumnsExist(Connection conn, ColumnTarget target) throws KeyManagementException {
+    try (PreparedStatement stmt = conn.prepareStatement(getProbeSql(target));
+         ResultSet ignored = stmt.executeQuery()) {
+      // WHERE 1=0: no rows to read.
+    } catch (SQLException e) {
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.relationCheckFailed",
+          new Object[]{quoteTableName(target), quoteIdentifier(target.column),
+              quoteIdentifier(target.primaryKeyColumn), e.getMessage()}), e);
     }
   }
 
@@ -875,17 +1016,43 @@ public class KeyManagementUtility {
   }
 
   /**
-   * Sets the PostgreSQL HMAC trigger's session cache to the target HMAC key, inside the current
-   * batch transaction. Harmless when the trigger is not installed.
+   * Sets the HMAC trigger's cached key for this connection's session to the target HMAC key, once
+   * per run, before the first batch. Harmless when no trigger is installed. The value lasts for the
+   * whole session, so it stays set on a caller-supplied connection after the method returns; it
+   * then holds the column's current key.
+   *
+   * <p>PostgreSQL: {@code set_config('hmac_key.<table>.<column>', <hex>, false)}, the setting the
+   * trigger reads. The setting is session-scoped but transactional: a ROLLBACK of the transaction
+   * that made it restores the previous value. It is therefore committed on its own here, so that a
+   * later batch rollback cannot undo it. The connection must be in manual-commit mode.
+   *
+   * <p>MySQL: the user variable {@code @hmac_key_<table>_<column>} holding the raw key bytes, the
+   * name and encoding the example procedure caches. User variables are not transactional. A name
+   * longer than 64 characters cannot exist in MySQL and is skipped.
    */
-  private void setPostgresTriggerHmacCache(
-      Connection conn, String tableName, String columnName, byte[] hmacKey) throws SQLException {
-    try (PreparedStatement stmt = conn.prepareStatement(getSetTriggerHmacCacheSql())) {
-      stmt.setString(1, "hmac_key." + unqualifiedTableName(tableName) + "." + columnName);
-      stmt.setString(2, toHex(hmacKey));
-      try (ResultSet ignored = stmt.executeQuery()) {
-        // set_config returns the new value; nothing to read.
+  private void primeTriggerHmacCache(
+      Connection conn, ColumnTarget target, String tableName, String columnName, byte[] hmacKey)
+      throws SQLException {
+    if (keyManager.isPostgreSQL()) {
+      try (PreparedStatement stmt = conn.prepareStatement(getSetPostgresTriggerCacheSql())) {
+        stmt.setString(1, "hmac_key." + target.table + "." + target.column);
+        stmt.setString(2, toHex(hmacKey));
+        try (ResultSet ignored = stmt.executeQuery()) {
+          // set_config returns the new value; nothing to read.
+        }
       }
+      conn.commit();
+      return;
+    }
+    final String variableName = "hmac_key_" + target.table + "_" + target.column;
+    if (variableName.length() > MAX_IDENTIFIER_LENGTH) {
+      LOGGER.fine(() -> Messages.get("KeyManagementUtility.triggerCacheVariableTooLong",
+          new Object[]{tableName, columnName, variableName}));
+      return;
+    }
+    try (PreparedStatement stmt = conn.prepareStatement(getSetMysqlTriggerCacheSql(variableName))) {
+      stmt.setBytes(1, hmacKey);
+      stmt.executeUpdate();
     }
   }
 
@@ -928,24 +1095,38 @@ public class KeyManagementUtility {
     }
   }
 
+  /** The {@link SchemaName} identifier rule, plus a 64-character cap. */
   private static boolean isValidIdentifier(String identifier) {
-    return IDENTIFIER_PATTERN.matcher(identifier).matches();
+    return identifier.length() <= MAX_IDENTIFIER_LENGTH && SchemaName.isValidIdentifier(identifier);
   }
 
   private String quoteIdentifier(String identifier) {
     return keyManager.isPostgreSQL() ? "\"" + identifier + "\"" : "`" + identifier + "`";
   }
 
-  private String quoteTableName(String tableName) {
-    final int dot = tableName.indexOf('.');
-    if (dot < 0) {
-      return quoteIdentifier(tableName);
-    }
-    return quoteIdentifier(tableName.substring(0, dot)) + "." + quoteIdentifier(tableName.substring(dot + 1));
+  private String quoteTableName(ColumnTarget target) {
+    final String table = quoteIdentifier(target.table);
+    return target.schema == null ? table : quoteIdentifier(target.schema) + "." + table;
   }
 
   private static String unqualifiedTableName(String tableName) {
     return tableName.substring(tableName.lastIndexOf('.') + 1);
+  }
+
+  private static @Nullable String schemaPrefix(String tableName) {
+    final int dot = tableName.lastIndexOf('.');
+    return dot < 0 ? null : tableName.substring(0, dot);
+  }
+
+  private void closeStatementQuietly(@Nullable PreparedStatement stmt) {
+    if (stmt == null) {
+      return;
+    }
+    try {
+      stmt.close();
+    } catch (SQLException e) {
+      LOGGER.fine(() -> Messages.get("KeyManagementUtility.closeStatementFailed", new Object[]{e.getMessage()}));
+    }
   }
 
   private static String toHex(byte[] bytes) {
@@ -1021,14 +1202,81 @@ public class KeyManagementUtility {
     }
   }
 
-  /** The current key of a column and the column's algorithm. */
+  /** The current key of a column, the column's algorithm and its names as stored in the metadata. */
   private static final class CurrentColumnKey {
     private final StoredKey key;
     private final String algorithm;
+    private final String storedTable;
+    private final String storedColumn;
 
-    private CurrentColumnKey(StoredKey key, String algorithm) {
+    private CurrentColumnKey(StoredKey key, String algorithm, String storedTable, String storedColumn) {
       this.key = key;
       this.algorithm = algorithm;
+      this.storedTable = storedTable;
+      this.storedColumn = storedColumn;
+    }
+  }
+
+  /**
+   * The data table and columns used in SQL. The table and column names are the validated spelling
+   * stored in {@code encryption_metadata}; the schema prefix and the primary key column are the
+   * caller's validated spelling.
+   */
+  private static final class ColumnTarget {
+    private final @Nullable String schema;
+    private final String table;
+    private final String column;
+    private final String primaryKeyColumn;
+
+    private ColumnTarget(@Nullable String schema, String table, String column, String primaryKeyColumn) {
+      this.schema = schema;
+      this.table = table;
+      this.column = column;
+      this.primaryKeyColumn = primaryKeyColumn;
+    }
+  }
+
+  /**
+   * The first-page and next-page keyset SELECT statements of one run, each prepared on first use
+   * and reused for every later page.
+   */
+  private final class PageQuery implements AutoCloseable {
+    private final Connection conn;
+    private final ColumnTarget target;
+    private final boolean forUpdate;
+    private @Nullable PreparedStatement firstPage;
+    private @Nullable PreparedStatement nextPage;
+
+    private PageQuery(Connection conn, ColumnTarget target, boolean forUpdate) {
+      this.conn = conn;
+      this.target = target;
+      this.forUpdate = forUpdate;
+    }
+
+    private ResultSet execute(@Nullable Object lastPk, int batchSize) throws SQLException {
+      if (lastPk == null) {
+        PreparedStatement stmt = firstPage;
+        if (stmt == null) {
+          stmt = conn.prepareStatement(getSelectPageSql(target, true, forUpdate));
+          firstPage = stmt;
+        }
+        stmt.setInt(1, batchSize);
+        return stmt.executeQuery();
+      }
+      PreparedStatement stmt = nextPage;
+      if (stmt == null) {
+        stmt = conn.prepareStatement(getSelectPageSql(target, false, forUpdate));
+        nextPage = stmt;
+      }
+      stmt.setObject(1, lastPk);
+      stmt.setInt(2, batchSize);
+      return stmt.executeQuery();
+    }
+
+    @Override
+    public void close() {
+      closeStatementQuietly(firstPage);
+      closeStatementQuietly(nextPage);
     }
   }
 

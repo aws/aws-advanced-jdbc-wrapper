@@ -76,6 +76,7 @@ DECLARE
     encrypted_payload bytea;
     calculated_hmac bytea;
     cache_key text;
+    from_cache boolean := false;
 BEGIN
     EXECUTE format('SELECT ($1).%I', col_name) INTO col_value USING NEW;
 
@@ -84,6 +85,7 @@ BEGIN
         cache_key := 'hmac_key.' || TG_TABLE_NAME || '.' || col_name;
         BEGIN
             hmac_key := decode(current_setting(cache_key), 'hex');
+            from_cache := true;
         EXCEPTION WHEN OTHERS THEN
             -- Not cached, fetch from metadata
             EXECUTE format(
@@ -112,6 +114,23 @@ BEGIN
         encrypted_payload := substring(data_bytes from 33);
 
         calculated_hmac := hmac(encrypted_payload, hmac_key, 'sha256');
+
+        -- The cached key can be stale after a data key rotation: reload it once and retry
+        IF stored_hmac != calculated_hmac AND from_cache THEN
+            EXECUTE format(
+                'SELECT ks.hmac_key FROM %I.encryption_metadata em ' ||
+                'JOIN %I.key_storage ks ON em.key_id = ks.id ' ||
+                'WHERE em.table_name = $1 AND em.column_name = $2',
+                metadata_schema, metadata_schema
+            ) INTO hmac_key USING TG_TABLE_NAME, col_name;
+
+            IF hmac_key IS NULL THEN
+                RAISE EXCEPTION 'No HMAC key found for %.%', TG_TABLE_NAME, col_name;
+            END IF;
+
+            PERFORM set_config(cache_key, encode(hmac_key, 'hex'), false);
+            calculated_hmac := hmac(encrypted_payload, hmac_key, 'sha256');
+        END IF;
 
         IF stored_hmac != calculated_hmac THEN
             RAISE EXCEPTION 'HMAC verification failed for column %. Stored: %, Calculated: %',

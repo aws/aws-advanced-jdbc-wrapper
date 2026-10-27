@@ -494,7 +494,7 @@ public class KmsKeyRotationIntegrationTest {
    * The PostgreSQL HMAC trigger caches the HMAC key per session. The rotation must succeed on a
    * session that cached the old key (the utility refreshes the cache with set_config), and a value
    * bound as bytea must compare against the encrypted_data domain. Another session that cached the
-   * old key keeps rejecting writes until it is recycled.
+   * old key reloads the key from the metadata on the first mismatch, so its writes succeed.
    */
   @TestTemplate
   @EnableOnDatabaseEngine(DatabaseEngine.PG)
@@ -536,9 +536,11 @@ public class KmsKeyRotationIntegrationTest {
       }
     }
 
-    // Session Q still caches the old HMAC key: a write of a value under the new key is rejected.
-    final SQLException staleSessionError = assertThrows(SQLException.class, () -> touchRow(sessionQ, table, minId));
-    assertTrue(causeChainContains(staleSessionError, HMAC_FAILURE), staleSessionError.getMessage());
+    // Session Q still caches the old HMAC key. The value under the new key fails the check against
+    // it, so the trigger reloads the current key, updates the cache and accepts the write.
+    assertEquals(hmacKeyHex(oldKeyId), currentSetting(sessionQ, settingName));
+    touchRow(sessionQ, table, minId);
+    assertEquals(hmacKeyHex(newKeyId), currentSetting(sessionQ, settingName));
 
     assertAllRowsDecrypt(table, 15, false);
   }
@@ -564,6 +566,53 @@ public class KmsKeyRotationIntegrationTest {
     assertEquals(kmsKeyId, masterKeyArn(oldKeyId));
 
     assertAllRowsDecrypt(table, 8, false);
+  }
+
+  /**
+   * A schema-qualified table name is accepted. The metadata is looked up with the bare table name,
+   * as the plugin stores it, and the prefix is used only in the SQL against the data table.
+   */
+  @TestTemplate
+  void test09RotateWithSchemaQualifiedTableName() throws Exception {
+    final String table = createEncryptedTable("schema", SSN);
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 1, 6, false);
+    }
+    final int oldKeyId = currentKeyId(table, SSN);
+
+    final DataKeyReencryptionResult result;
+    try (Connection plain = openPlainConnection()) {
+      final String schema = isPg ? "public" : plain.getCatalog();
+      result = newUtility(plain).rotateDataKeyAndReencrypt(schema + "." + table, SSN, PK, null, 4);
+    }
+
+    assertResult(result, 6, 0, 0, 2);
+    assertEquals(Collections.singletonList(oldKeyId), result.getSourceKeyIds());
+    assertEquals(result.getCurrentKeyId(), currentKeyId(table, SSN));
+    assertAllRowsDecrypt(table, 6, false);
+  }
+
+  /** A wrong primary key column fails before a key is created, with nothing changed. */
+  @TestTemplate
+  void test10MissingPrimaryKeyColumnFailsBeforeKeyCreation() throws Exception {
+    final String table = createEncryptedTable("nopk", SSN);
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 1, 3, false);
+    }
+    final int oldKeyId = currentKeyId(table, SSN);
+    final int keyRowsBefore = keyRowCount(table);
+    final Map<Integer, byte[]> rawBefore = readRawValues(table, SSN);
+
+    try (Connection plain = openPlainConnection()) {
+      final KeyManagementUtility utility = newUtility(plain);
+      assertThrows(KeyManagementException.class,
+          () -> utility.rotateDataKeyAndReencrypt(table, SSN, "no_such_pk", null, 4));
+    }
+
+    assertEquals(oldKeyId, currentKeyId(table, SSN));
+    assertEquals(keyRowsBefore, keyRowCount(table));
+    assertRawValuesUnchanged(rawBefore, readRawValues(table, SSN));
+    assertAllRowsDecrypt(table, 3, false);
   }
 
   // ---------------------------------------------------------------------------------------------

@@ -126,7 +126,11 @@ public class KeyManagementUtilityReencryptionTest {
   }
 
   private void init(boolean postgres, String tableName) {
-    db = new FakeReencryptionDatabase(postgres, tableName, COLUMN);
+    init(postgres, tableName, COLUMN);
+  }
+
+  private void init(boolean postgres, String tableName, String columnName) {
+    db = new FakeReencryptionDatabase(postgres, tableName, columnName);
     final EncryptionConfig config = EncryptionConfig.builder()
         .kmsRegion("us-east-1")
         .maxRetries(0)
@@ -179,9 +183,9 @@ public class KeyManagementUtilityReencryptionTest {
   }
 
   @Test
-  void rotate_postgres_setsTriggerCachePerBatchAndQuotes() throws Exception {
+  void rotate_postgres_setsTriggerCacheOnceAndQuotes() throws Exception {
     init(true, "app.users");
-    final TestKey oldKey = createKey("key-app.users-ssn-1");
+    final TestKey oldKey = createKey("key-users-ssn-1");
     db.setMetadataKeyId(oldKey.id);
     for (long pk = 1; pk <= 4; pk++) {
       db.putRow(pk, encrypt("value-" + pk, oldKey));
@@ -198,12 +202,12 @@ public class KeyManagementUtilityReencryptionTest {
     for (long pk = 1; pk <= 4; pk++) {
       assertDecryptsTo("value-" + pk, db.getRow(pk), newKey);
     }
-    // Two full pages and one empty page: three batch transactions, each sets the trigger cache.
-    assertEquals(3, db.getSetConfigCalls().size());
-    for (String[] call : db.getSetConfigCalls()) {
-      assertEquals("hmac_key.users.ssn", call[0]);
-      assertEquals(hex(newKey.hmacKey), call[1]);
-    }
+    // Three batch transactions (two full pages, one empty page); the trigger cache is set once.
+    assertEquals(1, db.getSetConfigCalls().size());
+    assertEquals("hmac_key.users.ssn", db.getSetConfigCalls().get(0)[0]);
+    assertEquals(hex(newKey.hmacKey), db.getSetConfigCalls().get(0)[1]);
+    assertEquals(hex(newKey.hmacKey), db.getSessionSetting("hmac_key.users.ssn"));
+    assertTrue(db.getKey(newKey.id).name.startsWith("key-users-ssn-"), db.getKey(newKey.id).name);
     assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("FROM \"app\".\"users\"")
         && sql.contains("\"ssn\" IS NOT NULL") && sql.contains("ORDER BY \"id\"")));
     assertTrue(db.getExecutedSql().stream().anyMatch(
@@ -578,11 +582,15 @@ public class KeyManagementUtilityReencryptionTest {
     final Map<Long, byte[]> before = db.getRows();
     db.forceSwitchConflict();
 
-    assertThrows(KeyManagementException.class,
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
         () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
 
+    final int newKeyId = db.getLastInsertedKeyId();
     assertEquals(oldKey.id, db.getMetadataKeyId());
-    assertEquals(2, db.getKeyCount(), "the new key row is stored but not activated");
+    assertEquals(1, db.getKeyCount(), "the unused new key row is deleted");
+    assertNotNull(db.getKey(oldKey.id));
+    assertTrue(exception.getMessage().contains("new key id " + newKeyId), exception.getMessage());
+    assertTrue(exception.getMessage().contains("still uses key id " + oldKey.id), exception.getMessage());
     assertTrue(db.getRowUpdatePks().isEmpty());
     assertTrue(db.getRollbackCount() >= 1);
     assertTrue(db.isAutoCommit());
@@ -604,7 +612,348 @@ public class KeyManagementUtilityReencryptionTest {
     assertNotEquals(oldKey.id, db.getMetadataKeyId());
   }
 
+  @Test
+  void identifierOf64Characters_accepted() {
+    init(false, TABLE);
+    final String name64 = repeat('a', 64);
+
+    // Passes the identifier check and reaches the metadata lookup, which finds no such column.
+    assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, name64, PK, null, 10));
+    assertThrows(KeyManagementException.class,
+        () -> utility.reencryptRemainingRows(name64, COLUMN, PK, Collections.singletonList(1), 10));
+    verifyNoInteractions(kmsClient);
+  }
+
+  // ---- 7. names: schema prefix, stored spelling, existence check -----------------------------
+
+  @Test
+  void rotate_schemaQualifiedName_looksUpBareMetadataName() throws Exception {
+    init(true, "app.users");
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final DataKeyReencryptionResult result =
+        utility.rotateDataKeyAndReencrypt("app.users", COLUMN, PK, null, 10);
+
+    assertEquals(1, result.getReencryptedCount());
+    assertEquals("app.users", result.getTableName());
+    assertNotEquals(oldKey.id, db.getMetadataKeyId(), "the switch matches the bare metadata name");
+    assertFalse(db.getMetadataLookups().isEmpty());
+    for (String[] lookup : db.getMetadataLookups()) {
+      assertArrayEquals(new String[] {"users", COLUMN}, lookup);
+    }
+    assertTrue(db.getExecutedSql().stream().anyMatch(
+        sql -> sql.equals("SELECT \"id\", \"ssn\" FROM \"app\".\"users\" WHERE 1=0")));
+    assertTrue(db.getExecutedSql().stream().anyMatch(
+        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" = ?")));
+  }
+
+  @Test
+  void repair_schemaQualifiedName_mysql() throws Exception {
+    init(false, "app.users");
+    final TestKey oldKey = createKey("old");
+    final TestKey currentKey = createKey("current");
+    db.setMetadataKeyId(currentKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final DataKeyReencryptionResult result =
+        utility.reencryptRemainingRows("app.users", COLUMN, PK, Collections.singletonList(oldKey.id), 10);
+
+    assertEquals(1, result.getReencryptedCount());
+    assertDecryptsTo("a", db.getRow(1), currentKey);
+    assertArrayEquals(new String[] {"users", COLUMN}, db.getMetadataLookups().get(0));
+    assertTrue(db.getExecutedSql().stream().anyMatch(
+        sql -> sql.equals("UPDATE `app`.`users` SET `ssn` = ? WHERE `id` = ? AND `ssn` = ?")));
+    assertArrayEquals(currentKey.hmacKey, db.getUserVariable("@hmac_key_users_ssn"));
+  }
+
+  @Test
+  void rotate_usesStoredNameSpelling() throws Exception {
+    init(false, TABLE);
+    db.setCaseInsensitiveMetadataMatch(true);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    db.putRow(2, encrypt("b", oldKey));
+
+    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt("USERS", "SSN", PK, null, 10);
+
+    assertEquals(2, result.getReencryptedCount());
+    assertNotEquals(oldKey.id, db.getMetadataKeyId());
+    assertTrue(db.getExecutedSql().stream().anyMatch(
+        sql -> sql.equals("UPDATE `users` SET `ssn` = ? WHERE `id` = ? AND `ssn` = ?")));
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("`USERS`") || sql.contains("`SSN`")));
+    assertEquals(Collections.singletonList("@hmac_key_users_ssn"), db.getUserVariableCalls());
+  }
+
+  @Test
+  void rotate_postgres_wrongCase_noMetadataMatch_noSideEffects() throws Exception {
+    init(true, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt("Users", COLUMN, PK, null, 10));
+
+    verify(kmsClient, never()).generateDataKey(any(GenerateDataKeyRequest.class));
+    assertEquals(1, db.getKeyCount());
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("INSERT") || sql.startsWith("UPDATE")));
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void rotate_missingPrimaryKeyColumn_failsBeforeKeyCreation() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, "user_id", null, 10));
+
+    assertTrue(exception.getMessage().contains("Cannot read the columns `ssn` and `user_id` of table `users`"),
+        exception.getMessage());
+    assertTrue(exception.getMessage().contains("Nothing was changed"), exception.getMessage());
+    verify(kmsClient, never()).generateDataKey(any(GenerateDataKeyRequest.class));
+    assertEquals(1, db.getKeyCount());
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("INSERT") || sql.startsWith("UPDATE")));
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.contains(" LIMIT ?")),
+        "the probe runs before the read-only pre-check");
+    assertRowsEqual(before, db.getRows());
+    assertTrue(db.isAutoCommit());
+  }
+
+  @Test
+  void repair_missingTable_failsBeforeWrites() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    final TestKey currentKey = createKey("current");
+    db.setMetadataKeyId(currentKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    assertThrows(KeyManagementException.class,
+        () -> utility.reencryptRemainingRows("other.users", COLUMN, PK, Collections.singletonList(oldKey.id), 10));
+
+    assertEquals(0, db.getCommitCount());
+    assertTrue(db.getUserVariableCalls().isEmpty());
+    assertTrue(db.getRowUpdatePks().isEmpty());
+    assertRowsEqual(before, db.getRows());
+    assertTrue(db.isAutoCommit());
+  }
+
+  @Test
+  void rotate_invalidStoredName_rejected() throws Exception {
+    init(false, TABLE);
+    db.setStoredNames("us-ers", COLUMN);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    assertTrue(exception.getMessage().contains("us-ers"), exception.getMessage());
+    verifyNoInteractions(kmsClient);
+    assertEquals(1, db.getKeyCount());
+  }
+
+  // ---- 8. failures before and after the switch -----------------------------------------------
+
+  @Test
+  void rotate_switchUpdateFails_deletesNewKeyRow() throws Exception {
+    init(true, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    db.failOnSwitchUpdate();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    final int newKeyId = db.getLastInsertedKeyId();
+    assertNotEquals(oldKey.id, newKeyId);
+    assertEquals(1, db.getKeyCount());
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertTrue(exception.getMessage().contains("new key id " + newKeyId), exception.getMessage());
+    assertTrue(exception.getMessage().contains("was deleted"), exception.getMessage());
+    assertTrue(exception.getMessage().contains("still uses key id " + oldKey.id), exception.getMessage());
+    assertTrue(db.getSetConfigCalls().isEmpty());
+    assertTrue(db.isAutoCommit());
+  }
+
+  @Test
+  void rotate_newKeyDeleteFails_messageNamesNewKeyId() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    db.failOnSwitchUpdate();
+    db.failOnKeyDelete();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    final int newKeyId = db.getLastInsertedKeyId();
+    assertEquals(2, db.getKeyCount());
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertTrue(exception.getMessage().contains("delete the new key id " + newKeyId), exception.getMessage());
+    assertTrue(exception.getMessage().contains("delete key_storage row " + newKeyId), exception.getMessage());
+    assertTrue(exception.getMessage().contains("still uses key id " + oldKey.id), exception.getMessage());
+    assertTrue(db.isAutoCommit());
+  }
+
+  @Test
+  void rotate_commitErrorAfterSwitchApplied_keepsNewKey() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    db.failOnCommitNumber(1, true);
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    final int newKeyId = db.getLastInsertedKeyId();
+    assertEquals(2, db.getKeyCount(), "the column uses the new key, so it is kept");
+    assertEquals(newKeyId, db.getMetadataKeyId());
+    assertTrue(exception.getMessage().contains("after the switch to key id " + newKeyId), exception.getMessage());
+    assertTrue(exception.getMessage().contains("old key id " + oldKey.id), exception.getMessage());
+  }
+
+  @Test
+  void rotate_failureAfterSwitch_messageNamesOldKey() throws Exception {
+    init(true, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    db.failOnSetConfig();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    final int newKeyId = db.getMetadataKeyId();
+    assertNotEquals(oldKey.id, newKeyId, "the switch is committed before the trigger cache is set");
+    assertEquals(2, db.getKeyCount());
+    assertTrue(exception.getMessage().contains("old key id(s) [" + oldKey.id + "]"), exception.getMessage());
+    assertTrue(exception.getMessage().contains("failed in batch 1"), exception.getMessage());
+    assertTrue(db.getRowUpdatePks().isEmpty());
+    assertTrue(db.isAutoCommit());
+  }
+
+  // ---- 9. trigger cache and statement reuse --------------------------------------------------
+
+  @Test
+  void rotate_postgres_triggerCacheSurvivesBatchRollback() throws Exception {
+    init(true, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    for (long pk = 1; pk <= 4; pk++) {
+      db.putRow(pk, encrypt("v" + pk, oldKey));
+    }
+    // The first batch fails and is rolled back; the trigger cache was committed before it.
+    db.failOnExecuteBatchNumber(1);
+
+    assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 2));
+
+    final TestKey newKey = keyFromDb(db.getMetadataKeyId());
+    assertTrue(db.getRollbackCount() >= 1);
+    assertEquals(1, db.getSetConfigCalls().size());
+    assertEquals(hex(newKey.hmacKey), db.getSessionSetting("hmac_key.users.ssn"));
+  }
+
+  @Test
+  void repair_postgres_setsTriggerCacheToCurrentKey() throws Exception {
+    init(true, TABLE);
+    final TestKey oldKey = createKey("old");
+    final TestKey currentKey = createKey("current");
+    db.setMetadataKeyId(currentKey.id);
+    for (long pk = 1; pk <= 5; pk++) {
+      db.putRow(pk, encrypt("v" + pk, oldKey));
+    }
+
+    final DataKeyReencryptionResult result =
+        utility.reencryptRemainingRows(TABLE, COLUMN, PK, Collections.singletonList(oldKey.id), 2);
+
+    assertEquals(5, result.getReencryptedCount());
+    assertEquals(1, db.getSetConfigCalls().size());
+    assertEquals("hmac_key.users.ssn", db.getSetConfigCalls().get(0)[0]);
+    assertEquals(hex(currentKey.hmacKey), db.getSessionSetting("hmac_key.users.ssn"));
+  }
+
+  @Test
+  void rotate_mysql_setsTriggerUserVariableOnce() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    for (long pk = 1; pk <= 7; pk++) {
+      db.putRow(pk, encrypt("v" + pk, oldKey));
+    }
+
+    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 3);
+
+    final TestKey newKey = keyFromDb(result.getCurrentKeyId());
+    assertEquals(1, db.countPrepared(sql -> sql.equals("SET @hmac_key_users_ssn = ?")));
+    assertArrayEquals(newKey.hmacKey, db.getUserVariable("@hmac_key_users_ssn"));
+    assertTrue(db.getSetConfigCalls().isEmpty());
+    assertEquals(4, db.getCommitCount(), "1 switch commit and 3 batch commits");
+  }
+
+  @Test
+  void rotate_mysql_longNames_skipTriggerVariable() throws Exception {
+    final String longTable = repeat('t', 60);
+    init(false, longTable);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(longTable, COLUMN, PK, null, 10);
+
+    assertEquals(1, result.getReencryptedCount());
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("SET @")));
+    assertTrue(db.getUserVariableCalls().isEmpty());
+  }
+
+  @Test
+  void rotate_preparesStatementsOnce() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    for (long pk = 1; pk <= 7; pk++) {
+      db.putRow(pk, encrypt("v" + pk, oldKey));
+    }
+
+    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 3);
+
+    assertEquals(7, result.getReencryptedCount());
+    assertEquals(3, result.getBatchCount());
+    assertEquals(1, db.countPrepared(sql -> sql.startsWith("UPDATE `users` SET")));
+    assertEquals(1, db.countPrepared(
+        sql -> sql.contains(" LIMIT ?") && !sql.contains(" > ?") && sql.endsWith(" FOR UPDATE")));
+    assertEquals(1, db.countPrepared(
+        sql -> sql.contains(" LIMIT ?") && sql.contains(" > ?") && sql.endsWith(" FOR UPDATE")));
+    assertEquals(1, db.countPrepared(
+        sql -> sql.contains(" LIMIT ?") && !sql.contains(" > ?") && !sql.endsWith(" FOR UPDATE")));
+    assertEquals(1, db.countPrepared(
+        sql -> sql.contains(" LIMIT ?") && sql.contains(" > ?") && !sql.endsWith(" FOR UPDATE")));
+  }
+
   // ---- helpers -------------------------------------------------------------------------------
+
+  private static String repeat(char c, int count) {
+    final StringBuilder sb = new StringBuilder(count);
+    for (int i = 0; i < count; i++) {
+      sb.append(c);
+    }
+    return sb.toString();
+  }
 
   private TestKey createKey(String name) {
     final byte[] blob = randomBytes(16);

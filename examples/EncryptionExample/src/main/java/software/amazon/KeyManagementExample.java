@@ -120,9 +120,14 @@ public class KeyManagementExample {
    * on a plain JDBC connection or DataSource (without the kmsEncryption plugin): reads through the
    * plugin fail for rows that are not converted yet while the batches run.
    *
+   * <p>Application instances that still cache the old key keep writing rows under it until their
+   * metadata cache refreshes. Convert those rows later with {@link #repairAfterCacheRefresh(int)},
+   * passing the returned old key id.
+   *
+   * @return the previous key id of users.ssn, needed by the later repair pass
    * @throws KeyManagementException if key management operations fail
    */
-  public void performKeyRotation() throws KeyManagementException {
+  public int performKeyRotation() throws KeyManagementException {
     LOGGER.info("Rotating column data keys with re-encryption");
 
     // Rotate the data key of users.ssn under the same master key. "id" is the primary key column.
@@ -139,11 +144,23 @@ public class KeyManagementExample {
         KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
     LOGGER.info(() -> String.format("Rotated key for orders.credit_card_number: %s", cardResult));
 
-    // Application instances that still cache the old key can write rows under it until their
-    // metadata cache refreshes (metadataCacheRefreshIntervalMs). After that interval, convert those
-    // rows too. Keep the old key_storage rows and KMS keys while backups hold data under them.
+    // Keep the old key_storage rows and KMS keys while backups hold data under them.
+    return ssnResult.getSourceKeyIds().get(0);
+  }
+
+  /**
+   * Example: Converting rows that stale application instances wrote under the old key.
+   *
+   * <p>This belongs in a separate, later job: run it after {@code metadataCacheRefreshIntervalMs}
+   * (5 minutes by default) has passed since {@link #performKeyRotation()}, or after restarting the
+   * applications. Running it right after the rotation misses the rows written in that interval.
+   *
+   * @param oldKeyId the previous key id of users.ssn, returned by {@link #performKeyRotation()}
+   * @throws KeyManagementException if key management operations fail
+   */
+  public void repairAfterCacheRefresh(int oldKeyId) throws KeyManagementException {
     DataKeyReencryptionResult repairResult = keyManagementUtility.reencryptRemainingRows(
-        "users", "ssn", "id", Collections.singletonList(ssnResult.getSourceKeyIds().get(0)),
+        "users", "ssn", "id", Collections.singletonList(oldKeyId),
         KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
     LOGGER.info(() -> String.format("Repair pass for users.ssn: %s", repairResult));
   }
@@ -212,7 +229,10 @@ public class KeyManagementExample {
       // Run examples (commented out since we don't have real connections)
       // example.setupNewApplication();
       // example.addEncryptionToExistingColumn();
-      // example.performKeyRotation();
+      // int oldSsnKeyId = example.performKeyRotation();
+      // The repair pass is a separate, later invocation: run it after metadataCacheRefreshIntervalMs
+      // (or after restarting the applications), not right after the rotation.
+      // example.repairAfterCacheRefresh(oldSsnKeyId);
       // example.auditExistingKeys();
       // example.removeEncryptionFromColumn();
 
