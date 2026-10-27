@@ -149,10 +149,14 @@ public class BasicConnectivityTests {
   /**
    * Closing a wrapper connection with autocommit disabled must not commit uncommitted work, even with no
    * plugins. The target drivers roll it back on close.
+   *
+   * <p>Disabled for Blue/Green runs: its DDL on the blue cluster can't be replicated by Aurora PG
+   * logical replication, so RDS cancels the switchover that BlueGreenDeploymentTests performs later.
    */
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
   @MakeSureFirstInstanceWriter
+  @DisableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
   public void test_WrapperConnection_closeWithAutoCommitFalse_doesNotCommit(TestDriver testDriver)
       throws SQLException {
     LOGGER.info(testDriver.toString());
