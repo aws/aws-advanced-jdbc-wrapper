@@ -113,6 +113,9 @@ public class KmsKeyRotationIntegrationTest {
   private static final String SCORE = "score";
   private static final String PK = "id";
   private static final SecureRandom RANDOM = new SecureRandom();
+  // MySQL errors when the user may not create routines or triggers (binary logging without SUPER or
+  // log_bin_trust_function_creators, or a missing privilege).
+  private static final List<Integer> MYSQL_ROUTINE_PRIVILEGE_ERRORS = Arrays.asList(1419, 1227, 1142, 1370);
 
   private static String kmsKeyId;
   private static String secondKmsKeyId;
@@ -630,6 +633,65 @@ public class KmsKeyRotationIntegrationTest {
     assertAllRowsDecrypt(table, 3, false);
   }
 
+  /**
+   * The MySQL counterpart of test07. The HMAC trigger caches the key per session in the user
+   * variable {@code @hmac_key_<table>_<column>}. The rotation primes it on its own session; another
+   * session that cached the old key reloads the key from the metadata on the first mismatch, and a
+   * value with a wrong HMAC is still rejected.
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  void test11MysqlTriggerSessionWithCachedOldHmacKey() throws Exception {
+    final String table = createEncryptedTable("mytrig", SSN);
+    try (Connection conn = openPlainConnection()) {
+      EncryptedDataTypeInstaller.installMySqlHmacValidation(conn, SchemaName.of(METADATA_SCHEMA));
+      EncryptedDataTypeInstaller.createMySqlHmacTriggers(conn, table, SSN);
+    } catch (SQLException e) {
+      assumeTrue(!MYSQL_ROUTINE_PRIVILEGE_ERRORS.contains(e.getErrorCode()),
+          "The MySQL HMAC validation triggers could not be installed: " + e.getMessage());
+      throw e;
+    }
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 1, 15, false);
+    }
+    final int oldKeyId = currentKeyId(table, SSN);
+    final String variableName = "hmac_key_" + table + "_" + SSN;
+
+    final Connection sessionP = openPlainConnection();
+    connections.add(sessionP);
+    final Connection sessionQ = openPlainConnection();
+    connections.add(sessionQ);
+    final int minId = minId(sessionP, table);
+    touchRow(sessionP, table, minId);
+    assertEquals(hmacKeyHex(oldKeyId), userVariableHex(sessionP, variableName));
+    touchRow(sessionQ, table, minId);
+    assertEquals(hmacKeyHex(oldKeyId), userVariableHex(sessionQ, variableName));
+
+    final DataKeyReencryptionResult result =
+        newUtility(sessionP).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
+    assertResult(result, 15, 0, 0, 4);
+    final int newKeyId = currentKeyId(table, SSN);
+    assertNotEquals(oldKeyId, newKeyId);
+
+    assertEquals(hmacKeyHex(newKeyId), userVariableHex(sessionP, variableName));
+    touchRow(sessionP, table, minId);
+
+    // Session Q still caches the old HMAC key. The value under the new key fails the check against
+    // it, so the trigger reloads the current key, updates the cache and accepts the write.
+    assertEquals(hmacKeyHex(oldKeyId), userVariableHex(sessionQ, variableName));
+    touchRow(sessionQ, table, minId);
+    assertEquals(hmacKeyHex(newKeyId), userVariableHex(sessionQ, variableName));
+
+    // The reload does not hide a real mismatch: a zeroed HMAC is rejected.
+    try (PreparedStatement stmt = sessionQ.prepareStatement(
+        "UPDATE " + table + " SET ssn = UNHEX(CONCAT(REPEAT('00', 32), SUBSTRING(HEX(ssn), 65))) WHERE id = ?")) {
+      stmt.setInt(1, minId);
+      assertHmacFailure(stmt::executeUpdate);
+    }
+
+    assertAllRowsDecrypt(table, 15, false);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------------------------
@@ -869,7 +931,7 @@ public class KmsKeyRotationIntegrationTest {
     }
   }
 
-  /** Rewrites the row's own value, which fires the PostgreSQL HMAC trigger in this session. */
+  /** Rewrites the row's own value, which fires the HMAC trigger in this session. */
   private static void touchRow(Connection conn, String table, int id) throws SQLException {
     try (PreparedStatement stmt = conn.prepareStatement("UPDATE " + table + " SET ssn = ssn WHERE id = ?")) {
       stmt.setInt(1, id);
@@ -884,6 +946,15 @@ public class KmsKeyRotationIntegrationTest {
         assertTrue(rs.next());
         return rs.getString(1);
       }
+    }
+  }
+
+  /** Lower-case hex of a MySQL user variable; the name is built from validated identifiers. */
+  private static String userVariableHex(Connection conn, String name) throws SQLException {
+    try (Statement stmt = conn.createStatement();
+         ResultSet rs = stmt.executeQuery("SELECT LOWER(HEX(@" + name + "))")) {
+      assertTrue(rs.next());
+      return rs.getString(1);
     }
   }
 

@@ -137,12 +137,13 @@ CREATE TABLE encrypt.encryption_metadata (
 
 PostgreSQL supports a custom `encrypted_data` domain type with HMAC verification.
 
-```java
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
+Install it by running the script [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql) from the repository, with `SCHEMA_NAME` replaced by your metadata schema (the driver jar does not include the script or an installer):
 
-// Install the encrypted_data type and validation functions
-EncryptedDataTypeInstaller.installEncryptedDataType(connection, "encrypt");
+```bash
+sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type.sql | psql -h <host> -U <user> -d <database>
 ```
+
+The script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`. Run it only on a database that has no columns of that type yet.
 
 This creates:
 - `encrypted_data` domain type (base type: BYTEA)
@@ -175,6 +176,8 @@ CREATE TABLE users (
     email VARCHAR(100)
 );
 ```
+
+For the optional MySQL HMAC validation triggers, see step 8 of the [Database Encryption Setup Guide](../../DatabaseEncryptionSetup.md#8-add-hmac-validation-triggers-optional).
 
 ## KMS Key Setup
 
@@ -298,15 +301,15 @@ Properties props = new Properties();
 // Enable KMS encryption plugin. It requires the sqlParser plugin, which analyzes each SQL statement.
 props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");
 
-// Configure KMS master key
-props.setProperty("kmsKeyArn", "arn:aws:kms:us-east-1:123456789012:key/...");
-props.setProperty("kmsRegion", "us-east-1");
+// KMS region (defaults to us-east-1 if not set). The KMS master key is not a connection
+// property: each column's key is chosen when encryption is initialized for that column.
+props.setProperty("kms.region", "us-east-1");
 
 // Optional: Configure metadata schema (default: "encrypt")
 props.setProperty("encryptionMetadataSchema", "encrypt");
 
-// Optional: Configure data key cache (default: 300 seconds)
-props.setProperty("dataKeyCacheTTL", "300");
+// Optional: Configure data key cache expiration (default: 3600000 ms, 1 hour)
+props.setProperty("dataKeyCacheExpirationMs", "3600000");
 
 // Get connection
 String url = "jdbc:aws-wrapper:postgresql://localhost:5432/mydb";
@@ -316,7 +319,7 @@ Connection conn = DriverManager.getConnection(url, props);
 ### Connection URL Format
 
 ```
-jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kmsKeyArn=arn:aws:kms:...&kmsRegion=us-east-1
+jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kms.region=us-east-1
 ```
 
 ### AWS Credentials
@@ -523,7 +526,8 @@ if (!repair.isComplete()) {
 3. **Run `rotateDataKeyAndReencrypt()`** on a connection without the `kmsEncryption` plugin. Record the old and new key ids from the log or from `result.getSourceKeyIds()` and `result.getCurrentKeyId()`.
 4. **If it fails**, fix the cause and run `reencryptRemainingRows()` with the old key id. Committed batches are kept.
 5. **Wait at least `metadataCacheRefreshIntervalMs`** (default 300000 ms) or restart the applications, then run `reencryptRemainingRows()` again with the old key id. This converts rows that applications wrote under the old key before their metadata cache refreshed.
-6. **With the PostgreSQL HMAC trigger**, each database session caches the column's HMAC key. The trigger function `validate_encrypted_data_hmac()` from this version reloads the key from the metadata when a value fails the check against the cached key, so pooled sessions pick up the new key on their own. If your `validate_encrypted_data_hmac()` was created by an earlier version, re-create it: run only its `CREATE OR REPLACE FUNCTION` statement from [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql), with `SCHEMA_NAME` replaced by your metadata schema. Until then, recycle pooled connections (for example, restart the applications), because an old function rejects values under the new key until the session ends. Do not re-run `EncryptedDataTypeInstaller.installEncryptedDataType()` on a database with data: its script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of that type.
+6. **With the PostgreSQL HMAC trigger**, each database session caches the column's HMAC key. The trigger function `validate_encrypted_data_hmac()` from this version reloads the key from the metadata when a value fails the check against the cached key, so pooled sessions pick up the new key on their own. If your `validate_encrypted_data_hmac()` was created by an earlier version, re-create it: run only its `CREATE OR REPLACE FUNCTION` statement from [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql), with `SCHEMA_NAME` replaced by your metadata schema. Until then, recycle pooled connections (for example, restart the applications), because an old function rejects values under the new key until the session ends. Do not re-run the whole script on a database with data: it starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of that type.
+   **With the MySQL HMAC trigger**, the cache is the session's user variable `@hmac_key_<table>_<column>`, and the procedure `validate_encrypted_data_hmac` reloads the key the same way. If your triggers call the earlier `validate_encrypted_data_hmac_before_insert`, they could not run at all (MySQL error 1336): re-install the script and re-create the triggers as described in step 8 of the [Database Encryption Setup Guide](../../DatabaseEncryptionSetup.md#8-add-hmac-validation-triggers-optional). The MySQL script only replaces routines and does not touch your tables.
 7. **Keep the old `key_storage` row and its KMS key** until every backup and snapshot that holds data encrypted under the old key has expired.
 
 The following example runs steps 3 and 4 for the `ssn` column of the `users` table, and step 5 as a separate, later job. It uses an AWS Advanced JDBC Wrapper connection with the `failover2` and `efm2` plugins and without `kmsEncryption`. If a failover happens during a batch, that batch is rolled back and the call fails; run `reencryptRemainingRows()` to resume.
@@ -626,11 +630,14 @@ FROM users;
 The plugin caches decrypted data keys to reduce KMS API calls.
 
 ```java
-// Configure cache TTL (default: 300 seconds)
-props.setProperty("dataKeyCacheTTL", "600");  // 10 minutes
+// Configure cache expiration (default: 3600000 ms, 1 hour)
+props.setProperty("dataKeyCacheExpirationMs", "600000");  // 10 minutes
 
-// Cache is automatically managed
-// Keys are evicted after TTL expires
+// Optional: maximum number of cached keys (default: 1000), or disable the cache
+props.setProperty("dataKeyCacheMaxSize", "1000");
+props.setProperty("dataKeyCacheEnabled", "true");
+
+// Keys are evicted after the expiration time
 ```
 
 ### Multiple Encrypted Columns
@@ -700,7 +707,7 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 - HMAC key may have changed
 - Check `encrypt.key_storage.hmac_key` matches key used for encryption
 - The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()`), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)
-- With the PostgreSQL HMAC trigger, a pooled session may still cache the previous HMAC key after a rotation. The current trigger function reloads the key on a mismatch. With a function created by an earlier version, re-create the function (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
+- With the PostgreSQL or MySQL HMAC trigger, a pooled session may still cache the previous HMAC key after a rotation. The current trigger function and MySQL procedure reload the key on a mismatch. With a function created by an earlier version, re-create the function (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
 
 **4. "Cannot insert plain text into encrypted column"**
 - This is expected behavior with PostgreSQL triggers
