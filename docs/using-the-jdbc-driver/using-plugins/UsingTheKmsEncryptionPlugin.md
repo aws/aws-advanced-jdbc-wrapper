@@ -140,7 +140,7 @@ String url = "jdbc:aws-wrapper:postgresql://your-cluster.cluster-xyz.us-east-1.r
 Properties props = new Properties();
 props.setProperty("user", "username");
 props.setProperty("password", "password");
-props.setProperty("wrapperPlugins", "kmsEncryption");
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption"); // kmsEncryption requires sqlParser
 props.setProperty("kms.region", "us-east-1");
 props.setProperty("auditLoggingEnabled", "true");
 

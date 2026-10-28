@@ -137,7 +137,7 @@ curl http://localhost:8080/users/1
 | `db.password` | `DB_PASSWORD` | `password` | Database password |
 | `aws.kms.key.id` | `AWS_KMS_KEY_ID` | - | KMS key ARN |
 | `aws.kms.encryption.columns` | `AWS_KMS_ENCRYPTION_COLUMNS` | `users.ssn` | Columns to encrypt |
-| `aws.jdbc.wrapper.plugins` | `AWS_JDBC_WRAPPER_PLUGINS` | `kmsEncryption` | JDBC wrapper plugins |
+| `aws.jdbc.wrapper.plugins` | `AWS_JDBC_WRAPPER_PLUGINS` | `sqlParser,kmsEncryption` | JDBC wrapper plugins (`kmsEncryption` requires `sqlParser`) |
 
 ## Security Notes
 

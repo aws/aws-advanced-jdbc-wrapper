@@ -230,7 +230,7 @@ The connection configuration is the same for both PostgreSQL and MySQL:
 Properties props = new Properties();
 props.setProperty("user", "dbuser");
 props.setProperty("password", "password");
-props.setProperty("wrapperPlugins", "kmsEncryption");
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");  // kmsEncryption requires sqlParser
 props.setProperty("kmsKeyArn", "arn:aws:kms:us-east-1:123456789012:key/...");
 props.setProperty("kmsRegion", "us-east-1");
 props.setProperty("encryptionMetadataSchema", "encrypt");  // Optional, defaults to "encrypt"

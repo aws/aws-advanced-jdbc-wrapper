@@ -652,7 +652,8 @@ public class KmsKeyRotationIntegrationTest {
    */
   private Connection openPluginConnection() throws SQLException {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    // kmsEncryption needs the SQL parse results that the sqlParser plugin puts in the call context.
+    props.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
     props.setProperty(EncryptionConfig.METADATA_CACHE_REFRESH_INTERVAL_MS.name, "3600000");
     final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);

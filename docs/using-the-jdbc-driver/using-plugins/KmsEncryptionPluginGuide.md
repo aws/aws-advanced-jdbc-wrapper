@@ -295,8 +295,8 @@ VALUES
 ```java
 Properties props = new Properties();
 
-// Enable KMS encryption plugin
-props.setProperty("wrapperPlugins", "kmsEncryption");
+// Enable KMS encryption plugin. It requires the sqlParser plugin, which analyzes each SQL statement.
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");
 
 // Configure KMS master key
 props.setProperty("kmsKeyArn", "arn:aws:kms:us-east-1:123456789012:key/...");
@@ -316,7 +316,7 @@ Connection conn = DriverManager.getConnection(url, props);
 ### Connection URL Format
 
 ```
-jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=kmsEncryption&kmsKeyArn=arn:aws:kms:...&kmsRegion=us-east-1
+jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kmsKeyArn=arn:aws:kms:...&kmsRegion=us-east-1
 ```
 
 ### AWS Credentials
