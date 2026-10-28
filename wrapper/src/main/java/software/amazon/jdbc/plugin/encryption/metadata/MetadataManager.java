@@ -143,7 +143,7 @@ public class MetadataManager {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
         + "       em.created_at, em.updated_at, "
-        + "       ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, "
+        + "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, "
         + "       ks.created_at as key_created_at, ks.last_used_at "
         + "FROM "
         + schema + ".encryption_metadata em "
