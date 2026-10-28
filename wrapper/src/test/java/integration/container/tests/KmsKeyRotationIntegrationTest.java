@@ -54,6 +54,7 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -122,6 +123,7 @@ public class KmsKeyRotationIntegrationTest {
   // (NoClassDefFoundError), before the class-level conditions can skip it.
   private static Object kmsClient;
   private static EncryptionConfig encryptionConfig;
+  private static boolean metadataSchemaReady;
 
   private final List<String> tables = new ArrayList<>();
   private final List<Connection> connections = new ArrayList<>();
@@ -144,7 +146,18 @@ public class KmsKeyRotationIntegrationTest {
         .kmsRegion(region)
         .encryptionMetadataSchema(METADATA_SCHEMA)
         .build();
+  }
 
+  /**
+   * Creates the metadata schema once per class. This cannot run in {@code @BeforeAll}: the connection
+   * URL depends on the current test driver, which {@link TestDriverProvider} sets for each test
+   * invocation, before {@code @BeforeEach} methods run.
+   */
+  @BeforeEach
+  void setUpMetadataSchemaOnce() throws Exception {
+    if (metadataSchemaReady) {
+      return;
+    }
     final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
     try (Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
@@ -202,11 +215,13 @@ public class KmsKeyRotationIntegrationTest {
                 + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
       }
     }
+    metadataSchemaReady = true;
     LOGGER.finest("Key rotation test setup completed");
   }
 
   @AfterAll
   static void tearDown() {
+    metadataSchemaReady = false;
     if (kmsClient != null) {
       ((KmsClient) kmsClient).close();
       kmsClient = null;
