@@ -20,9 +20,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -40,8 +42,10 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.parser.ParameterMappingProblem;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
@@ -58,6 +62,24 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   private static final Logger LOGGER =
       Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
+
+  /**
+   * Stream and LOB setters. Their values cannot be encrypted, so they are rejected when the
+   * parameter maps to an encrypted column instead of silently writing plaintext.
+   */
+  private static final Set<String> UNSUPPORTED_ENCRYPTION_SETTERS =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETUNICODESTREAM.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETCLOB.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETBLOB.methodName);
+        }
+      });
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
@@ -80,6 +102,8 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
           add(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_SETBYTES.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETNSTRING.methodName);
+          addAll(UNSUPPORTED_ENCRYPTION_SETTERS);
           add(JdbcMethod.RESULTSET_GETSTRING.methodName);
           add(JdbcMethod.RESULTSET_GETINT.methodName);
           add(JdbcMethod.RESULTSET_GETLONG.methodName);
@@ -196,13 +220,181 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       }
 
       try {
-        statementContexts.put(ps, new StatementContext(pluginService.getCallContext()));
+        final StatementContext ctx = new StatementContext(pluginService.getCallContext());
+        checkUnmappedParameters(ps, ctx);
+        statementContexts.put(ps, ctx);
       } catch (SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }
     }
 
     return result;
+  }
+
+  /**
+   * Fails closed when the SQL parser reported parameters it could not map to columns and those
+   * problems concern a table with encrypted columns. In strict mode the statement is closed and an
+   * exception is thrown; otherwise one warning is logged. Messages name tables, columns, parameter
+   * indexes and counts only, never SQL text.
+   */
+  private void checkUnmappedParameters(final PreparedStatement ps, final StatementContext ctx)
+      throws SQLException {
+    if (ctx.problems.isEmpty()) {
+      return;
+    }
+    final MetadataManager metadataManager = encryptionUtility.getMetadataManager();
+    if (metadataManager == null) {
+      return;
+    }
+
+    final boolean strict = encryptionUtility.isFailOnUnmappedParameter();
+    final Set<String> affectedTables = new LinkedHashSet<>();
+    final List<String> details = new ArrayList<>();
+    try {
+      collectRelevantProblems(metadataManager, ctx.problems, affectedTables, details);
+    } catch (MetadataException e) {
+      if (strict) {
+        closeQuietly(ps, e);
+        throw e;
+      }
+      LOGGER.warning(() -> Messages.get(
+          "KmsEncryptionConnectionPlugin.unmappedParametersCheckFailed",
+          new Object[] {e.getMessage()}));
+      return;
+    }
+
+    if (details.isEmpty()) {
+      return;
+    }
+
+    final String tables = String.join(", ", affectedTables);
+    final String detail = String.join("; ", details);
+    if (strict) {
+      final SQLException exception = new SQLException(Messages.get(
+          "KmsEncryptionConnectionPlugin.unmappedParameters", new Object[] {tables, detail}));
+      closeQuietly(ps, exception);
+      throw exception;
+    }
+    LOGGER.warning(() -> Messages.get(
+        "KmsEncryptionConnectionPlugin.unmappedParametersWarning", new Object[] {tables, detail}));
+  }
+
+  private static void closeQuietly(final PreparedStatement ps, final SQLException primary) {
+    try {
+      ps.close();
+    } catch (SQLException closeException) {
+      primary.addSuppressed(closeException);
+    }
+  }
+
+  /**
+   * Adds the rendered text of every problem that concerns a table with encrypted columns to
+   * {@code details}, and the concerned tables to {@code affectedTables}.
+   */
+  private static void collectRelevantProblems(
+      final MetadataManager metadataManager,
+      final List<ParameterMappingProblem> problems,
+      final Set<String> affectedTables,
+      final List<String> details) throws MetadataException {
+    @Nullable Set<String> encryptedTableNames = null;
+    for (ParameterMappingProblem problem : problems) {
+      final @Nullable String table = problem.getTable();
+      switch (problem.getType()) {
+        case PARAMS_IN_EXPRESSION:
+          if (table != null && anyColumnEncrypted(metadataManager, table, problem.getColumns())) {
+            affectedTables.add(table);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.paramsInExpression",
+                new Object[] {String.join(", ", problem.getColumns()),
+                    joinIndexes(problem.getParameterIndexes())}));
+          }
+          break;
+        case UNKNOWN_TARGET_PARAMS:
+          if (table != null && (problem.getColumns().isEmpty()
+              ? metadataManager.hasEncryptedColumns(table)
+              : anyColumnEncrypted(metadataManager, table, problem.getColumns()))) {
+            affectedTables.add(table);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.unknownTargetParams",
+                new Object[] {joinIndexes(problem.getParameterIndexes())}));
+          }
+          break;
+        case NO_COLUMN_LIST:
+          if (table != null && metadataManager.hasEncryptedColumns(table)) {
+            affectedTables.add(table);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.noColumnList"));
+          }
+          break;
+        case FIXED_INDEX_PARAMETER:
+          if (table != null && metadataManager.hasEncryptedColumns(table)) {
+            affectedTables.add(table);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.fixedIndexParameter"));
+          }
+          break;
+        case PLACEHOLDER_COUNT_MISMATCH:
+          if (table != null && metadataManager.hasEncryptedColumns(table)) {
+            affectedTables.add(table);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.placeholderCountMismatch",
+                new Object[] {String.valueOf(problem.getExpectedCount()),
+                    String.valueOf(problem.getActualCount())}));
+          }
+          break;
+        case UNSUPPORTED_STATEMENT:
+          if (table != null && metadataManager.hasEncryptedColumns(table)) {
+            affectedTables.add(table);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.unsupportedStatement",
+                new Object[] {String.valueOf(problem.getStatementKind())}));
+          }
+          break;
+        case UNPARSED_STATEMENT:
+          if (encryptedTableNames == null) {
+            encryptedTableNames = metadataManager.getEncryptedTableNames();
+          }
+          final Set<String> matched = matchEncryptedTables(
+              problem.getCandidateTables(), encryptedTableNames);
+          if (!matched.isEmpty()) {
+            affectedTables.addAll(matched);
+            details.add(Messages.get("KmsEncryptionConnectionPlugin.unparsedStatement"));
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  private static boolean anyColumnEncrypted(
+      final MetadataManager metadataManager, final String table, final List<String> columns)
+      throws MetadataException {
+    for (String column : columns) {
+      if (metadataManager.isColumnEncrypted(table, column)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static Set<String> matchEncryptedTables(
+      final List<String> candidates, final Set<String> encryptedTableNames) {
+    final Set<String> matched = new LinkedHashSet<>();
+    for (String encryptedTable : encryptedTableNames) {
+      for (String candidate : candidates) {
+        if (candidate.equalsIgnoreCase(encryptedTable)) {
+          matched.add(encryptedTable);
+          break;
+        }
+      }
+    }
+    return matched;
+  }
+
+  private static String joinIndexes(final List<Integer> indexes) {
+    final StringBuilder sb = new StringBuilder();
+    for (Integer index : indexes) {
+      if (sb.length() > 0) {
+        sb.append(", ");
+      }
+      sb.append(index);
+    }
+    return sb.toString();
   }
 
   @SuppressWarnings("unchecked")
@@ -261,6 +453,13 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     MetadataManager metadataManager = encryptionUtility.getMetadataManager();
     if (metadataManager == null || !metadataManager.isColumnEncrypted(tableName, columnName)) {
       return jdbcCallable.call();
+    }
+
+    if (UNSUPPORTED_ENCRYPTION_SETTERS.contains(methodName)) {
+      // A stream or LOB value cannot be encrypted; passing it through would write plaintext.
+      throw new SQLException(Messages.get(
+          "KmsEncryptionConnectionPlugin.unsupportedSetterForEncryptedColumn",
+          new Object[] {String.valueOf(paramIndex), tableName, columnName, methodName}));
     }
 
     ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
@@ -499,6 +698,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   private static class StatementContext {
     final @Nullable String tableName;
     final Map<Integer, String> parameterColumnMapping;
+    final List<ParameterMappingProblem> problems;
 
     // Raw type casts from context — generic parameters (Set<String>, Map<Integer,String>)
     // cannot be checked at runtime due to type erasure. Types are documented in SqlContextKeys
@@ -519,6 +719,12 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       if (paramMapping != null) {
         this.parameterColumnMapping.putAll(paramMapping);
       }
+
+      List<ParameterMappingProblem> mappingProblems =
+          ctx.getAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS, List.class);
+      this.problems = mappingProblems == null
+          ? Collections.emptyList()
+          : Collections.unmodifiableList(new ArrayList<>(mappingProblems));
     }
 
     @Nullable String getColumnNameForParameter(int paramIndex) {

@@ -359,6 +359,17 @@ public class KmsEncryptionUtility {
   }
 
   /**
+   * Whether statements on tables with encrypted columns are rejected when their parameters cannot
+   * be reliably mapped to columns. Defaults to true (fail closed) before the configuration is
+   * loaded.
+   *
+   * @return true to reject such statements, false to only log a warning
+   */
+  public boolean isFailOnUnmappedParameter() {
+    return config == null || config.isFailOnUnmappedParameter();
+  }
+
+  /**
    * Returns the metadata manager.
    *
    * @return MetadataManager instance

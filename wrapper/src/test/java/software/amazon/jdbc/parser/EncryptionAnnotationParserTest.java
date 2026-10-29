@@ -20,12 +20,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import software.amazon.jdbc.parser.PlaceholderScanner.Mode;
 
 /** Tests for EncryptionAnnotationParser. */
 public class EncryptionAnnotationParserTest {
+
+  private static final String ANN = "/*@encrypt:users.ssn*/";
 
   @BeforeEach
   public void setUp() {
@@ -180,5 +194,114 @@ public class EncryptionAnnotationParserTest {
 
     assertEquals(1, annotations.size());
     assertEquals("public.users.ssn", annotations.get(1));
+  }
+
+  /** Variant B rows: SQL, mode, expected parameter index of the annotation (null = no annotation). */
+  static Stream<Arguments> variantBCases() {
+    return Stream.of(
+        Arguments.of("B1", "UPDATE users SET note = 'ok', ssn = " + ANN + " ? WHERE id = 1",
+            Mode.GENERIC, 1),
+        Arguments.of("B2", "UPDATE users SET note = 'really?', ssn = " + ANN + " ? WHERE id = 1",
+            Mode.GENERIC, 1),
+        Arguments.of("B3", "INSERT INTO users (note, ssn) VALUES ('it''s ok?', " + ANN + " ?)",
+            Mode.GENERIC, 1),
+        Arguments.of("B4", "INSERT INTO users (note, ssn) VALUES (E'a\\'?', " + ANN + " ?)",
+            Mode.POSTGRESQL, 1),
+        Arguments.of("B4", "INSERT INTO users (note, ssn) VALUES (E'a\\'?', " + ANN + " ?)",
+            Mode.GENERIC, 1),
+        Arguments.of("B5", "UPDATE users SET \"what?\" = 'x', ssn = " + ANN + " ? WHERE id = ?",
+            Mode.POSTGRESQL, 1),
+        Arguments.of("B6", "-- why?\nUPDATE users SET ssn = " + ANN + " ? WHERE id = ?",
+            Mode.GENERIC, 1),
+        Arguments.of("B7", "/* why? */ UPDATE users SET ssn = " + ANN + " ? WHERE id = ?",
+            Mode.GENERIC, 1),
+        Arguments.of("B8", "UPDATE users SET note = $$really?$$, ssn = " + ANN + " ? WHERE id = 1",
+            Mode.POSTGRESQL, 1),
+        Arguments.of("B9", "UPDATE users SET flag = (attrs ?? 'k'), ssn = " + ANN + " ? WHERE id = ?",
+            Mode.GENERIC, 1),
+        Arguments.of("B10", "UPDATE users SET name = ?, ssn = ? WHERE id = ? -- " + ANN + " ?",
+            Mode.GENERIC, null),
+        Arguments.of("B11", "INSERT INTO users (note, name, ssn) VALUES ('" + ANN + " ?', ?, ?)",
+            Mode.GENERIC, null),
+        Arguments.of("B12", "INSERT INTO users (note, ssn) VALUES ('a\\'?', " + ANN + " ?)",
+            Mode.MYSQL, 1),
+        Arguments.of("B13", "UPDATE users SET `what?` = 'x', ssn = " + ANN + " ? WHERE id = ?",
+            Mode.MYSQL, 1),
+        Arguments.of("B13", "UPDATE users SET `what?` = 'x', ssn = " + ANN + " ? WHERE id = ?",
+            Mode.GENERIC, 1),
+        // Backticks are not quotes in PostgreSQL, so the '?' inside them is a placeholder there.
+        Arguments.of("B13", "UPDATE users SET `what?` = 'x', ssn = " + ANN + " ? WHERE id = ?",
+            Mode.POSTGRESQL, 2),
+        Arguments.of("B14", "INSERT INTO users (note, ssn) VALUES ('what?', " + ANN + " ?)",
+            Mode.GENERIC, 1),
+        Arguments.of("B15", "INSERT INTO users (name, ssn) VALUES ('n', " + ANN + " ?)",
+            Mode.GENERIC, 1),
+        // Annotation inside an outer (nested) PostgreSQL comment does not count.
+        Arguments.of("nested", "UPDATE users SET a = 1 /* " + ANN + " ? */, ssn = ? WHERE id = 1",
+            Mode.POSTGRESQL, null));
+  }
+
+  @ParameterizedTest(name = "{0} {2}")
+  @MethodSource("variantBCases")
+  public void testParseAnnotations_variantB(
+      final String id, final String sql, final Mode mode, final Integer expectedIndex) {
+    Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql, mode);
+
+    if (expectedIndex == null) {
+      assertTrue(annotations.isEmpty(), id + ": " + annotations);
+    } else {
+      assertEquals(Collections.singletonMap(expectedIndex, "users.ssn"), annotations, id);
+    }
+    assertEquals(annotations,
+        EncryptionAnnotationParser.parseAnnotations(sql, PlaceholderScanner.scan(sql, mode)), id);
+  }
+
+  @Test
+  public void testParseAnnotations_escapedQuestionMarkIsDroppedWithWarning() {
+    String sql = "SELECT * FROM users WHERE attrs " + ANN + " ?? 'k' AND id = ?";
+    Logger logger = Logger.getLogger(EncryptionAnnotationParser.class.getName());
+    List<LogRecord> records = new ArrayList<>();
+    Handler handler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        if (record.getLevel() == Level.WARNING) {
+          records.add(record);
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    logger.addHandler(handler);
+    try {
+      Map<Integer, String> annotations =
+          EncryptionAnnotationParser.parseAnnotations(sql, Mode.GENERIC);
+      assertTrue(annotations.isEmpty());
+    } finally {
+      logger.removeHandler(handler);
+    }
+    assertEquals(1, records.size());
+    assertTrue(records.get(0).getMessage().contains("users.ssn"));
+    assertFalse(records.get(0).getMessage().contains("SELECT"));
+  }
+
+  @Test
+  public void testStripAnnotations_leavesLiteralsIntact() {
+    String sql = "INSERT INTO users (note, ssn) VALUES ('" + ANN + " ?', " + ANN + " ?)";
+    String clean = EncryptionAnnotationParser.stripAnnotations(sql, Mode.GENERIC);
+
+    assertEquals("INSERT INTO users (note, ssn) VALUES ('" + ANN + " ?', ?)", clean);
+    assertEquals(clean, EncryptionAnnotationParser.stripAnnotations(sql));
+  }
+
+  @Test
+  public void testStripAnnotations_leavesLineCommentsIntact() {
+    String sql = "UPDATE users SET ssn = ? -- " + ANN + " ?";
+    assertEquals(sql, EncryptionAnnotationParser.stripAnnotations(sql, Mode.GENERIC));
   }
 }

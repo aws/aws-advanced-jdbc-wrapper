@@ -85,50 +85,79 @@ public final class JSQLParserAnalyzer {
   }
 
   /**
+   * Parse a SQL statement.
+   *
+   * @param sql SQL statement to parse
+   * @return the parsed statement, or null when the SQL is blank or cannot be parsed
+   */
+  public static @Nullable Statement parse(@Nullable String sql) {
+    if (sql == null || sql.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      return CCJSqlParserUtil.parse(sql);
+    } catch (JSQLParserException e) {
+      LOGGER.fine(() -> Messages.get("JSQLParserAnalyzer.failedToParse", new Object[]{e.getMessage()}));
+      return null;
+    }
+  }
+
+  /**
    * Analyze SQL statement.
    *
    * @param sql SQL statement to analyze
    * @return Query analysis result
    */
   public static QueryAnalysis analyze(String sql) {
-    QueryAnalysis analysis = new QueryAnalysis();
-
     if (sql == null || sql.trim().isEmpty()) {
+      QueryAnalysis analysis = new QueryAnalysis();
       analysis.queryType = QueryType.UNKNOWN;
       return analysis;
     }
+    return analyze(parse(sql), sql);
+  }
 
-    try {
-      Statement statement = CCJSqlParserUtil.parse(sql);
-      analysis.hasParameters = containsParameters(statement);
+  /**
+   * Analyze an already parsed SQL statement.
+   *
+   * @param statement the statement returned by {@link #parse(String)}, or null when parsing failed
+   * @param sql the SQL text of the statement, used as a fallback when {@code statement} is null
+   * @return Query analysis result
+   */
+  public static QueryAnalysis analyze(@Nullable Statement statement, @Nullable String sql) {
+    QueryAnalysis analysis = new QueryAnalysis();
 
-      if (statement instanceof Select) {
-        analysis.queryType = QueryType.SELECT;
-        extractFromSelect((Select) statement, analysis);
-      } else if (statement instanceof Insert) {
-        analysis.queryType = QueryType.INSERT;
-        extractFromInsert((Insert) statement, analysis);
-      } else if (statement instanceof Update) {
-        analysis.queryType = QueryType.UPDATE;
-        extractFromUpdate((Update) statement, analysis);
-      } else if (statement instanceof Delete) {
-        analysis.queryType = QueryType.DELETE;
-        extractFromDelete((Delete) statement, analysis);
-      } else if (statement instanceof net.sf.jsqlparser.statement.create.table.CreateTable) {
-        analysis.queryType = QueryType.CREATE;
-        extractFromCreateTable(
-            (net.sf.jsqlparser.statement.create.table.CreateTable) statement, analysis);
-      } else if (statement instanceof net.sf.jsqlparser.statement.drop.Drop) {
-        analysis.queryType = QueryType.DROP;
-        extractFromDrop((net.sf.jsqlparser.statement.drop.Drop) statement, analysis);
-      } else {
-        analysis.queryType = QueryType.UNKNOWN;
-      }
+    if (statement == null) {
+      // Blank SQL, or SQL that could not be parsed: fall back to simple string parsing
+      analysis.queryType = sql == null || sql.trim().isEmpty()
+          ? QueryType.UNKNOWN
+          : detectQueryType(sql);
+      return analysis;
+    }
 
-    } catch (JSQLParserException e) {
-      LOGGER.fine(() -> Messages.get("JSQLParserAnalyzer.failedToParse", new Object[]{e.getMessage()}));
-      // Fallback to simple string parsing
-      analysis.queryType = detectQueryType(sql);
+    analysis.hasParameters = containsParameters(statement);
+
+    if (statement instanceof Select) {
+      analysis.queryType = QueryType.SELECT;
+      extractFromSelect((Select) statement, analysis);
+    } else if (statement instanceof Insert) {
+      analysis.queryType = QueryType.INSERT;
+      extractFromInsert((Insert) statement, analysis);
+    } else if (statement instanceof Update) {
+      analysis.queryType = QueryType.UPDATE;
+      extractFromUpdate((Update) statement, analysis);
+    } else if (statement instanceof Delete) {
+      analysis.queryType = QueryType.DELETE;
+      extractFromDelete((Delete) statement, analysis);
+    } else if (statement instanceof net.sf.jsqlparser.statement.create.table.CreateTable) {
+      analysis.queryType = QueryType.CREATE;
+      extractFromCreateTable(
+          (net.sf.jsqlparser.statement.create.table.CreateTable) statement, analysis);
+    } else if (statement instanceof net.sf.jsqlparser.statement.drop.Drop) {
+      analysis.queryType = QueryType.DROP;
+      extractFromDrop((net.sf.jsqlparser.statement.drop.Drop) statement, analysis);
+    } else {
+      analysis.queryType = QueryType.UNKNOWN;
     }
 
     return analysis;

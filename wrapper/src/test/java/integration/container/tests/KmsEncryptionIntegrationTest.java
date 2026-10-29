@@ -17,7 +17,9 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -32,18 +34,20 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -79,7 +83,10 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger LOGGER = Logger.getLogger(KmsEncryptionIntegrationTest.class.getName());
+  private static final String KMS_KEY_ID_ENV = "KMS_KEY_ID";
   private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
+  private static final String PLUGINS = "sqlParser,kmsEncryption";
+  private static final int MIN_ENCRYPTED_LENGTH = 45;
   private static final String TEST_SSN_1 = "111-11-1111";
   private static final String TEST_NAME_1 = "Alice Test";
   private static final String TEST_EMAIL_1 = "alice@test.com";
@@ -90,17 +97,26 @@ public class KmsEncryptionIntegrationTest {
   private static Connection connection;
   private static String kmsKeyArn;
   private static String region;
+  private static boolean setupDone;
 
-  @BeforeAll
-  static void setUp() throws Exception {
-    kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
+  @BeforeEach
+  void setUp() throws Exception {
+    kmsKeyArn = System.getenv(KMS_KEY_ID_ENV);
+    if (kmsKeyArn == null || kmsKeyArn.isEmpty()) {
+      kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
+    }
     assumeTrue(
         kmsKeyArn != null && !kmsKeyArn.isEmpty(),
-        "KMS Key ARN must be provided via " + KMS_KEY_ARN_ENV + " environment variable");
+        "KMS key must be provided via the " + KMS_KEY_ID_ENV + " (or " + KMS_KEY_ARN_ENV
+            + ") environment variable");
+
+    if (setupDone) {
+      return;
+    }
 
     region = TestEnvironment.getCurrent().getInfo().getRegion();
     Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    props.setProperty(PropertyDefinition.PLUGINS.name, PLUGINS);
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
 
     // Get the metadata schema from config (defaults to "encrypt")
@@ -154,6 +170,7 @@ public class KmsEncryptionIntegrationTest {
       }
     }
     connection = DriverManager.getConnection(url, props);
+    setupDone = true;
   }
 
   @AfterEach
@@ -287,11 +304,131 @@ public class KmsEncryptionIntegrationTest {
       }
     }
 
-    // Verify KMS master key ARN is configured
-    LOGGER.info("kmsKeyArn:::" + kmsKeyArn);
-    LOGGER.info("KMS_KEY_ARN_ENV:::" + KMS_KEY_ARN_ENV);
-    assertEquals(kmsKeyArn, System.getenv(KMS_KEY_ARN_ENV));
-    assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
+    // Verify the stored master key is the configured KMS key (KMS_KEY_ID is a key id, not
+    // necessarily an ARN)
+    String masterKeySql =
+        "SELECT master_key_arn FROM "
+            + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue
+            + ".key_storage WHERE name = ?";
+    try (PreparedStatement pstmt = connection.prepareStatement(masterKeySql)) {
+      pstmt.setString(1, "test-key-users-ssn");
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals(kmsKeyArn, rs.getString("master_key_arn"));
+      }
+    }
+  }
+
+  /**
+   * Reporter statement 1: a literal before the encrypted column. The automatic mapping must map
+   * parameter 1 to {@code ssn}, not to {@code name}, so the SSN is stored encrypted.
+   */
+  @TestTemplate
+  void testReporterLiteralBeforeEncryptedColumnIsEncrypted() throws Exception {
+    final String name = "Reporter A";
+    final String ssn = "123-45-6789";
+    final String email = "reporter.a@test.com";
+    deleteUsersByName(name);
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "INSERT INTO users (name, ssn, email) VALUES ('" + name + "', ?, ?)")) {
+      pstmt.setString(1, ssn);
+      pstmt.setString(2, email);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    assertWrapperRoundTrip(name, ssn);
+    assertStoredEncrypted(name, ssn);
+  }
+
+  /**
+   * Reporter statement 2: a {@code ?} inside a string literal before an annotated parameter. The
+   * annotation must be attached to the real placeholder, so the SSN is stored encrypted.
+   */
+  @TestTemplate
+  void testReporterQuestionMarkLiteralWithAnnotationIsEncrypted() throws Exception {
+    final String name = "Reporter B";
+    final String ssn = "987-65-4321";
+    deleteUsersByName(name);
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+      pstmt.setString(1, name);
+      pstmt.setString(2, "000-00-0000");
+      pstmt.setString(3, "reporter.b@test.com");
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "UPDATE users SET email = 'really?', ssn = /*@encrypt:users.ssn*/ ? WHERE name = '"
+            + name + "'")) {
+      pstmt.setString(1, ssn);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    assertWrapperRoundTrip(name, ssn);
+    assertStoredEncrypted(name, ssn);
+  }
+
+  /**
+   * An INSERT without a column list on a table with encrypted columns cannot be mapped, so the
+   * plugin must reject it at prepare time (default encryptionFailOnUnmappedParameter=true).
+   */
+  @TestTemplate
+  void testUnmappableInsertIsRejected() {
+    final SQLException e = assertThrows(SQLException.class,
+        () -> connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?)"));
+    assertTrue(e.getMessage() != null
+            && e.getMessage().contains(EncryptionConfig.FAIL_ON_UNMAPPED_PARAMETER.name),
+        "Unexpected message: " + e.getMessage());
+  }
+
+  private static void deleteUsersByName(final String name) throws SQLException {
+    try (Connection plainConn = DriverManager.getConnection(
+            ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+        PreparedStatement pstmt = plainConn.prepareStatement("DELETE FROM users WHERE name = ?")) {
+      pstmt.setString(1, name);
+      pstmt.executeUpdate();
+    }
+  }
+
+  private static void assertWrapperRoundTrip(final String name, final String ssn)
+      throws SQLException {
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "SELECT ssn FROM users WHERE name = ?")) {
+      pstmt.setString(1, name);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find inserted user");
+        assertEquals(ssn, rs.getString("ssn"), "SSN should be decrypted through the wrapper");
+      }
+    }
+  }
+
+  private static void assertStoredEncrypted(final String name, final String ssn)
+      throws SQLException {
+    final boolean isPg =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
+    final String sql = isPg
+        ? "SELECT ssn, has_valid_hmac_structure(ssn) AS valid_structure FROM users WHERE name = ?"
+        : "SELECT ssn FROM users WHERE name = ?";
+    try (Connection plainConn = DriverManager.getConnection(
+            ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+        PreparedStatement pstmt = plainConn.prepareStatement(sql)) {
+      pstmt.setString(1, name);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find inserted user");
+        final byte[] stored = rs.getBytes("ssn");
+        assertNotNull(stored, "Stored SSN must not be null");
+        assertTrue(stored.length >= MIN_ENCRYPTED_LENGTH,
+            "Stored SSN is too short to be ciphertext: " + stored.length);
+        assertFalse(Arrays.equals(ssn.getBytes(StandardCharsets.UTF_8), stored),
+            "Stored SSN must not be the plaintext");
+        if (isPg) {
+          assertTrue(rs.getBoolean("valid_structure"),
+              "Stored SSN should have a valid HMAC structure");
+        }
+      }
+    }
   }
 
   @TestTemplate
@@ -350,7 +487,7 @@ public class KmsEncryptionIntegrationTest {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    props.setProperty(PropertyDefinition.PLUGINS.name, PLUGINS);
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
     ds.setTargetDataSourceProperties(props);
 
@@ -389,7 +526,7 @@ public class KmsEncryptionIntegrationTest {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties encProps = ConnectionStringHelper.getDefaultProperties();
-    encProps.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    encProps.setProperty(PropertyDefinition.PLUGINS.name, PLUGINS);
     encProps.setProperty(EncryptionConfig.KMS_REGION.name, region);
     ds.setTargetDataSourceProperties(encProps);
 
@@ -748,7 +885,7 @@ public class KmsEncryptionIntegrationTest {
     // but we can verify the property is processed without errors
 
     Properties propsWithProfile = ConnectionStringHelper.getDefaultProperties();
-    propsWithProfile.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
+    propsWithProfile.setProperty(PropertyDefinition.PLUGINS.name, PLUGINS);
     propsWithProfile.setProperty("kms.region", region);
     propsWithProfile.setProperty("kms.MasterKeyArn", kmsKeyArn);
     propsWithProfile.setProperty("encryption.metadataSchema", "encrypt");
