@@ -17,7 +17,9 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -32,6 +34,7 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -97,6 +100,8 @@ public class KmsEncryptionIntegrationTest {
   // MySQL errors when the user may not create routines or triggers (binary logging without SUPER or
   // log_bin_trust_function_creators, or a missing privilege).
   private static final List<Integer> MYSQL_ROUTINE_PRIVILEGE_ERRORS = Arrays.asList(1419, 1227, 1142, 1370);
+  // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) bytes, before the GCM payload.
+  private static final int MIN_ENCRYPTED_LENGTH = 45;
   private static final String TEST_SSN_1 = "111-11-1111";
   private static final String TEST_NAME_1 = "Alice Test";
   private static final String TEST_EMAIL_1 = "alice@test.com";
@@ -329,6 +334,116 @@ public class KmsEncryptionIntegrationTest {
         assertTrue(rs.next());
         assertEquals(1, rs.getInt(1));
         assertEquals(kmsKeyId, rs.getString(2));
+      }
+    }
+  }
+
+  /**
+   * Reporter statement 1: a literal before the encrypted column. The automatic mapping must map
+   * parameter 1 to {@code ssn}, not to {@code name}, so the SSN is stored encrypted.
+   */
+  @TestTemplate
+  void testReporterLiteralBeforeEncryptedColumnIsEncrypted() throws Exception {
+    final String name = "Reporter A";
+    final String ssn = "123-45-6789";
+    final String email = "reporter.a@test.com";
+    deleteUsersByName(name);
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "INSERT INTO " + TABLE + " (name, ssn, email) VALUES ('" + name + "', ?, ?)")) {
+      pstmt.setString(1, ssn);
+      pstmt.setString(2, email);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    assertWrapperRoundTrip(name, ssn);
+    assertStoredEncrypted(name, ssn);
+  }
+
+  /**
+   * Reporter statement 2: a {@code ?} inside a string literal before an annotated parameter. The
+   * annotation must be attached to the real placeholder, so the SSN is stored encrypted.
+   */
+  @TestTemplate
+  void testReporterQuestionMarkLiteralWithAnnotationIsEncrypted() throws Exception {
+    final String name = "Reporter B";
+    final String ssn = "987-65-4321";
+    deleteUsersByName(name);
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
+      pstmt.setString(1, name);
+      pstmt.setString(2, "000-00-0000");
+      pstmt.setString(3, "reporter.b@test.com");
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "UPDATE " + TABLE + " SET email = 'really?', ssn = /*@encrypt:" + TABLE + ".ssn*/ ? WHERE name = '"
+            + name + "'")) {
+      pstmt.setString(1, ssn);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    assertWrapperRoundTrip(name, ssn);
+    assertStoredEncrypted(name, ssn);
+  }
+
+  /**
+   * An INSERT without a column list on a table with encrypted columns cannot be mapped, so the
+   * plugin must reject it at prepare time (default encryptionFailOnUnmappedParameter=true).
+   */
+  @TestTemplate
+  void testUnmappableInsertIsRejected() {
+    final SQLException e = assertThrows(SQLException.class,
+        () -> connection.prepareStatement("INSERT INTO " + TABLE + " VALUES (DEFAULT, ?, ?, ?)"));
+    assertTrue(e.getMessage() != null
+            && e.getMessage().contains(EncryptionConfig.FAIL_ON_UNMAPPED_PARAMETER.name),
+        "Unexpected message: " + e.getMessage());
+  }
+
+  private static void deleteUsersByName(final String name) throws SQLException {
+    try (Connection plainConn = DriverManager.getConnection(
+            ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+        PreparedStatement pstmt = plainConn.prepareStatement("DELETE FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, name);
+      pstmt.executeUpdate();
+    }
+  }
+
+  private static void assertWrapperRoundTrip(final String name, final String ssn)
+      throws SQLException {
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, name);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find inserted user");
+        assertEquals(ssn, rs.getString("ssn"), "SSN should be decrypted through the wrapper");
+      }
+    }
+  }
+
+  private static void assertStoredEncrypted(final String name, final String ssn)
+      throws SQLException {
+    final String sql = isPg
+        ? "SELECT ssn, has_valid_hmac_structure(ssn) AS valid_structure FROM " + TABLE + " WHERE name = ?"
+        : "SELECT ssn FROM " + TABLE + " WHERE name = ?";
+    try (Connection plainConn = DriverManager.getConnection(
+            ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+        PreparedStatement pstmt = plainConn.prepareStatement(sql)) {
+      pstmt.setString(1, name);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find inserted user");
+        final byte[] stored = rs.getBytes("ssn");
+        assertNotNull(stored, "Stored SSN must not be null");
+        assertTrue(stored.length >= MIN_ENCRYPTED_LENGTH,
+            "Stored SSN is too short to be ciphertext: " + stored.length);
+        assertFalse(Arrays.equals(ssn.getBytes(StandardCharsets.UTF_8), stored),
+            "Stored SSN must not be the plaintext");
+        if (isPg) {
+          assertTrue(rs.getBoolean("valid_structure"),
+              "Stored SSN should have a valid HMAC structure");
+        }
       }
     }
   }

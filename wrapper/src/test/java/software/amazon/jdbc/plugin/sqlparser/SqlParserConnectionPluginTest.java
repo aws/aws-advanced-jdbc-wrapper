@@ -23,8 +23,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,9 +42,12 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.parser.ParameterMappingProblem;
 import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
 import software.amazon.jdbc.parser.SqlContextKeys;
+import software.amazon.jdbc.targetdriverdialect.MysqlConnectorJTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 
 public class SqlParserConnectionPluginTest {
 
@@ -191,5 +203,136 @@ public class SqlParserConnectionPluginTest {
     executeWithSql("SELECT * FROM users WHERE id = 1");
 
     assertEquals(Boolean.FALSE, callContext.getAttribute(SqlContextKeys.FOR_UPDATE, Boolean.class));
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<Integer, String> paramMapping() {
+    return callContext.getAttribute(SqlContextKeys.PARAM_MAPPING, Map.class);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<ParameterMappingProblem> problems() {
+    return callContext.getAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS, List.class);
+  }
+
+  @Test
+  void test_literalBeforeEncryptedColumn_mapsByPosition() throws Exception {
+    executeWithSql("INSERT INTO users (name, ssn) VALUES ('literal-name', ?)");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+    assertTrue(problems().isEmpty());
+  }
+
+  @Test
+  void test_questionMarkInLiteralWithAnnotation_mapsAnnotatedPlaceholder() throws Exception {
+    executeWithSql(
+        "UPDATE users SET note = 'really?', ssn = /*@encrypt:users.ssn*/ ? WHERE id = 1");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+    assertTrue(problems().isEmpty());
+  }
+
+  @Test
+  void test_postgresDialect_backtickQuestionMark_reportsCountMismatch() throws Exception {
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+
+    executeWithSql("UPDATE users SET `what?` = 'x', ssn = ? WHERE id = ?");
+
+    assertEquals(1, problems().size());
+    assertEquals(ParameterMappingProblem.Type.PLACEHOLDER_COUNT_MISMATCH, problems().get(0).getType());
+  }
+
+  @Test
+  void test_mysqlDialect_backtickQuestionMark_hasNoProblems() throws Exception {
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new MysqlConnectorJTargetDriverDialect());
+
+    executeWithSql("UPDATE users SET `what?` = 'x', ssn = ? WHERE id = ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+    assertTrue(problems().isEmpty());
+  }
+
+  @Test
+  void test_unparsableWrite_reportsUnparsedStatement() throws Exception {
+    executeWithSql("UPDATE users SET flag = (attrs ?? 'k'), ssn = ? WHERE id = ?");
+
+    assertEquals(1, problems().size());
+    assertEquals(ParameterMappingProblem.Type.UNPARSED_STATEMENT, problems().get(0).getType());
+    assertEquals(QueryType.UPDATE, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertTrue(callContext.getAttribute(SqlContextKeys.TABLES, Set.class).isEmpty());
+  }
+
+  @Test
+  void test_annotationConflictingWithMapping_annotationWinsAndWarns() throws Exception {
+    final Logger logger = Logger.getLogger(SqlParserConnectionPlugin.class.getName());
+    final List<LogRecord> warnings = new ArrayList<>();
+    final Handler handler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        if (record.getLevel() == Level.WARNING) {
+          warnings.add(record);
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    logger.addHandler(handler);
+    try {
+      executeWithSql("INSERT INTO users (name, ssn) VALUES (/*@encrypt:users.ssn*/ ?, ?)");
+    } finally {
+      logger.removeHandler(handler);
+    }
+
+    final Map<Integer, String> expected = new HashMap<>();
+    expected.put(1, "users.ssn");
+    expected.put(2, "users.ssn");
+    assertEquals(expected, paramMapping());
+    assertEquals(1, warnings.size());
+    assertFalse(warnings.get(0).getMessage().contains("INSERT"));
+  }
+
+  @Test
+  void test_schemaQualifiedAnnotation_doesNotWarn() throws Exception {
+    final Logger logger = Logger.getLogger(SqlParserConnectionPlugin.class.getName());
+    final List<LogRecord> warnings = new ArrayList<>();
+    final Handler handler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        if (record.getLevel() == Level.WARNING) {
+          warnings.add(record);
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    logger.addHandler(handler);
+    try {
+      executeWithSql("INSERT INTO public.users (name, ssn) VALUES (?, /*@encrypt:public.users.ssn*/ ?)");
+    } finally {
+      logger.removeHandler(handler);
+    }
+
+    assertEquals("public.users.ssn", paramMapping().get(2));
+    assertTrue(warnings.isEmpty());
+  }
+
+  @Test
+  void test_plainSelect_setsEmptyProblems() throws Exception {
+    executeWithSql("SELECT * FROM users WHERE id = 1");
+
+    assertTrue(callContext.hasAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS));
+    assertTrue(problems().isEmpty());
   }
 }

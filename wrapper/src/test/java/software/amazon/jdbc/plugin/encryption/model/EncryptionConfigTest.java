@@ -17,12 +17,40 @@
 package software.amazon.jdbc.plugin.encryption.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 public class EncryptionConfigTest {
+
+  @Test
+  public void testFailOnUnmappedParameter_defaultsToTrue() {
+    assertTrue(EncryptionConfig.builder().kmsRegion("us-east-1").build()
+        .isFailOnUnmappedParameter());
+
+    Properties props = new Properties();
+    props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    assertTrue(EncryptionConfig.fromProperties(props).isFailOnUnmappedParameter());
+  }
+
+  @Test
+  public void testFailOnUnmappedParameter_falseFromProperties() {
+    Properties props = new Properties();
+    props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    props.setProperty(EncryptionConfig.FAIL_ON_UNMAPPED_PARAMETER.name, "false");
+
+    EncryptionConfig config = EncryptionConfig.fromProperties(props);
+
+    assertFalse(config.isFailOnUnmappedParameter());
+    assertNotEquals(
+        EncryptionConfig.builder().kmsRegion("us-east-1").build(),
+        EncryptionConfig.builder().kmsRegion("us-east-1").failOnUnmappedParameter(false).build());
+  }
 
   @Test
   public void testValidSchemaNames() {

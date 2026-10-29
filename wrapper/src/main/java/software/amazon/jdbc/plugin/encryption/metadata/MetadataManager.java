@@ -27,7 +27,9 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -137,6 +139,16 @@ public class MetadataManager {
   private String getCheckColumnEncryptedSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+  }
+
+  private String getCheckTableEncryptedSql() {
+    SchemaName schema = config.getEncryptionMetadataSchema();
+    return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name = ?";
+  }
+
+  private String getEncryptedTableNamesSql() {
+    SchemaName schema = config.getEncryptionMetadataSchema();
+    return "SELECT DISTINCT table_name FROM " + schema + ".encryption_metadata";
   }
 
   private String getColumnConfigSql() {
@@ -250,6 +262,107 @@ public class MetadataManager {
 
     // Fallback to database query
     return isColumnEncryptedFromDatabase(tableName, columnName);
+  }
+
+  /**
+   * Checks if a table has at least one column configured for encryption. Uses cache if available
+   * and valid, otherwise queries database directly.
+   *
+   * @param tableName the table name
+   * @return true if the table has encrypted columns, false otherwise
+   * @throws MetadataException if database operations fail
+   */
+  public boolean hasEncryptedColumns(final @Nullable String tableName) throws MetadataException {
+    if (tableName == null) {
+      return false;
+    }
+
+    if (config.isCacheEnabled() && isCacheValid()) {
+      final String prefix = tableName + ".";
+      cacheLock.readLock().lock();
+      try {
+        for (String columnIdentifier : metadataCache.keySet()) {
+          if (columnIdentifier.startsWith(prefix)) {
+            return true;
+          }
+        }
+        return false;
+      } finally {
+        cacheLock.readLock().unlock();
+      }
+    }
+
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getCheckTableEncryptedSql())) {
+        stmt.setString(1, tableName);
+        try (ResultSet rs = stmt.executeQuery()) {
+          return rs.next();
+        }
+      }
+    } catch (SQLException e) {
+      final String errorMsg =
+          Messages.get("MetadataManager.checkTableEncryptedFailed", new Object[] {tableName});
+      LOGGER.severe(() -> errorMsg);
+      throw new MetadataException(errorMsg, e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> Messages.get(
+            "MetadataManager.closeConnectionFailed", new Object[] {e.getMessage()}));
+      }
+    }
+  }
+
+  /**
+   * Returns the names of all tables that have at least one column configured for encryption. Uses
+   * cache if available and valid, otherwise queries database directly.
+   *
+   * @return table names as stored in the encryption metadata
+   * @throws MetadataException if database operations fail
+   */
+  public Set<String> getEncryptedTableNames() throws MetadataException {
+    final Set<String> tableNames = new HashSet<>();
+
+    if (config.isCacheEnabled() && isCacheValid()) {
+      cacheLock.readLock().lock();
+      try {
+        for (ColumnEncryptionConfig columnConfig : metadataCache.values()) {
+          tableNames.add(columnConfig.getTableName());
+        }
+        return tableNames;
+      } finally {
+        cacheLock.readLock().unlock();
+      }
+    }
+
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      try (PreparedStatement stmt = conn.prepareStatement(getEncryptedTableNamesSql());
+          ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          final @Nullable String tableName = rs.getString("table_name");
+          if (tableName != null) {
+            tableNames.add(tableName);
+          }
+        }
+        return tableNames;
+      }
+    } catch (SQLException e) {
+      final String errorMsg = Messages.get("MetadataManager.loadEncryptedTableNamesFailed");
+      LOGGER.severe(() -> errorMsg);
+      throw new MetadataException(errorMsg, e);
+    } finally {
+      try {
+        closeConnection(conn);
+      } catch (SQLException e) {
+        LOGGER.warning(() -> Messages.get(
+            "MetadataManager.closeConnectionFailed", new Object[] {e.getMessage()}));
+      }
+    }
   }
 
   /**
