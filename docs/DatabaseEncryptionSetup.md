@@ -31,18 +31,31 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 MySQL does not require any extensions; the plugin includes a pure SQL HMAC-SHA256 implementation.
 
-### 3. Install Encrypted Data Type (PostgreSQL Only)
+### 3. Install Encrypted Data Type and HMAC Functions
 
-PostgreSQL supports a custom `encrypted_data` DOMAIN type that enforces minimum length validation at the database level. Install it using:
+The database objects are defined in SQL scripts in the driver's source repository. The released driver jar does not contain an installer for them. Take the scripts from the release tag that matches your driver version:
 
-```java
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
+- PostgreSQL: [`wrapper/src/test/resources/sql/encrypted_data_type.sql`](../wrapper/src/test/resources/sql/encrypted_data_type.sql)
+- MySQL: [`wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql`](../wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql)
 
-Connection conn = DriverManager.getConnection(url, props);
-EncryptedDataTypeInstaller.installEncryptedDataType(conn, "encrypt");
+Replace every `SCHEMA_NAME` in the script with your metadata schema (default `encrypt`, see step 1), then run it against the application database.
+
+**PostgreSQL** creates the `encrypted_data` DOMAIN type (a `BYTEA` with a minimum length check), the `has_valid_hmac_structure()` function and the `validate_encrypted_data_hmac()` trigger function. Run it in the schema where your application tables live, so that `encrypted_data` resolves in step 7:
+
+```bash
+sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type.sql | psql -h host -U dbuser -d database -v ON_ERROR_STOP=1
 ```
 
-MySQL does not support DOMAINs. Encrypted columns use `VARBINARY(256)` instead (see step 7).
+> [!WARNING]\
+> The PostgreSQL script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`. Running it again after you created tables drops every column of type `encrypted_data`. Run it only once, before step 7.
+
+**MySQL** creates the HMAC functions and the `validate_encrypted_data_hmac_before_insert` procedure used by the triggers in step 8. The script uses `DELIMITER`, so run it with the `mysql` command-line client rather than through JDBC:
+
+```bash
+sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type_mysql.sql | mysql -h host -u dbuser -p database
+```
+
+MySQL does not support DOMAINs. Encrypted columns use `VARBINARY(256)` instead (see step 7), so MySQL has no type-level check that a column holds encrypted data.
 
 ### 4. Create Key Storage Table
 
@@ -181,9 +194,11 @@ CREATE TABLE users (
 );
 ```
 
-### 8. Add HMAC Validation Triggers (Optional)
+### 8. Add HMAC Validation Triggers (Recommended)
 
-Database triggers provide defense-in-depth by validating HMAC on insert/update. The JDBC driver already validates HMAC at the application level, so triggers are optional.
+HMAC validation triggers check on every insert and update that the value written to an encrypted column carries a valid HMAC for the column's key. They reject plaintext and tampered values on the database side, so they act as a fail-closed backstop when a value reaches the database unencrypted: for example, written by a client that does not use the plugin, or by a statement the plugin was configured not to reject (`encryptionFailOnUnmappedParameter=false`). Add a trigger for every encrypted column.
+
+On PostgreSQL the `encrypted_data` domain only checks the minimum length. On MySQL there is no domain-level type check at all, so the trigger is the only database-side guard.
 
 **PostgreSQL:**
 ```sql
@@ -218,7 +233,7 @@ DELIMITER ;
 | Trigger Syntax | Single trigger for INSERT/UPDATE | Separate triggers needed |
 | Session Caching | `current_setting()` | User variables (`@var`) |
 
-**Recommendation:** For most deployments, skip database triggers and rely on the application-level HMAC validation built into the JDBC driver.
+**Recommendation:** Create the triggers in all deployments. The driver validates the HMAC when it reads and decrypts a value, but only a trigger stops an unencrypted value from being stored.
 
 ### 9. Configure JDBC Connection
 
@@ -228,7 +243,7 @@ The connection configuration is the same for both PostgreSQL and MySQL:
 Properties props = new Properties();
 props.setProperty("user", "dbuser");
 props.setProperty("password", "password");
-props.setProperty("wrapperPlugins", "kmsEncryption");
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");  // sqlParser is required
 props.setProperty("kmsKeyArn", "arn:aws:kms:us-east-1:123456789012:key/...");
 props.setProperty("kmsRegion", "us-east-1");
 props.setProperty("encryptionMetadataSchema", "encrypt");  // Optional, defaults to "encrypt"
@@ -351,7 +366,7 @@ Annotations take precedence over metadata-based encryption when present. Both ap
 - Verify trigger is using correct metadata schema
 
 ### Type Not Found (PostgreSQL)
-- Run `EncryptedDataTypeInstaller.installEncryptedDataType()`
+- Run the `encrypted_data_type.sql` script as described in [step 3](#3-install-encrypted-data-type-and-hmac-functions)
 - Verify `pgcrypto` extension is installed
 - Check that domain was created in correct schema
 

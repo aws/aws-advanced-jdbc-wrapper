@@ -31,8 +31,18 @@ public final class SqlContextKeys {
   /** Affected table names as {@code Set<String>}. */
   public static final String TABLES = "sql.tables";
 
-  /** Parameter index to column name mapping as {@code Map<Integer, String>}. */
+  /**
+   * Parameter index to column name mapping as {@code Map<Integer, String>}. Values are
+   * {@code table.column} for INSERT/UPDATE and bare column names for SELECT. Annotations override
+   * the automatic mapping.
+   */
   public static final String PARAM_MAPPING = "sql.paramMapping";
+
+  /**
+   * Parameters that could not be reliably mapped to columns as
+   * {@code List<}{@link ParameterMappingProblem}{@code >}; empty when there are none.
+   */
+  public static final String PARAM_MAPPING_PROBLEMS = "sql.paramMappingProblems";
 
   /** SQL with annotations stripped. */
   public static final String CLEAN_SQL = "sql.cleanSql";

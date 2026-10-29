@@ -120,34 +120,27 @@ public final class SqlAnalysisService {
   /**
    * Gets column-to-parameter mapping for prepared statement parameters.
    *
+   * <p>Parameters are mapped by their position in the parsed statement, so literals and expressions
+   * do not shift the mapping. Problems found while mapping are not reported by this method.
+   *
    * @param sql the SQL statement to analyze
-   * @return a map of parameter index to column name
+   * @return a map of parameter index to bare column name
+   * @deprecated use {@link ParameterColumnMapper#map}, which also reports the parameters that
+   *     cannot be mapped reliably.
    */
+  @Deprecated
   public static Map<Integer, String> getColumnParameterMapping(String sql) {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {
-      // Use JSQLParser for analysis
-      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = JSQLParserAnalyzer.analyze(sql);
-
-      if (queryAnalysis != null) {
-        // For SELECT statements, map parameters to WHERE clause columns
-        if (queryAnalysis.queryType == QueryType.SELECT) {
-          for (int i = 0; i < queryAnalysis.whereColumns.size(); i++) {
-            JSQLParserAnalyzer.ColumnInfo column = queryAnalysis.whereColumns.get(i);
-            mapping.put(i + 1, column.columnName.replace("`", ""));
-          }
-        } else if (!queryAnalysis.columns.isEmpty()) {
-          // For INSERT/UPDATE, map parameters to main columns in order
-          int parameterIndex = 1;
-          for (JSQLParserAnalyzer.ColumnInfo column : queryAnalysis.columns) {
-            mapping.put(parameterIndex++, column.columnName.replace("`", ""));
-          }
-        }
-      }
+      mapping.putAll(ParameterColumnMapper.map(
+              JSQLParserAnalyzer.parse(sql),
+              PlaceholderScanner.scan(sql, PlaceholderScanner.Mode.GENERIC))
+          .getBareColumns());
     } catch (Exception e) {
       LOGGER.warning(
-          () -> Messages.get("SqlAnalysisService.failedColumnMapping", new Object[]{sql}));
+          () -> Messages.get(
+              "SqlAnalysisService.failedColumnMapping", new Object[]{e.getClass().getName()}));
     }
 
     return mapping;

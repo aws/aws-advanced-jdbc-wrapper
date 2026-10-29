@@ -18,7 +18,8 @@ The KMS Encryption Plugin provides transparent client-side encryption using AWS 
 - AWS KMS key with appropriate permissions
 - Database table to store encryption metadata
 - AWS credentials configured (via IAM roles, profiles, or environment variables)
-- **JSqlParser 4.5.x dependency** - Required for SQL parsing and analysis
+- **JSqlParser 4.9 dependency** - Required for SQL parsing and analysis
+- **The `sqlParser` plugin** - Must be loaded together with `kmsEncryption` (for example `wrapperPlugins=sqlParser,kmsEncryption`). It parses each statement and maps its parameters to columns; without it, `kmsEncryption` refuses to prepare statements
 
 ### Creating AWS KMS Master Key
 
@@ -99,20 +100,20 @@ VALUES ('users', 'ssn', 'AES-256-GCM', 'your-generated-key-id');
 
 ### Adding JSqlParser Dependency
 
-The KMS Encryption Plugin requires JSqlParser 4.5.x for SQL statement analysis. Add this dependency to your project:
+The KMS Encryption Plugin requires JSqlParser 4.9 for SQL statement analysis. Add this dependency to your project:
 
 **Maven:**
 ```xml
 <dependency>
     <groupId>com.github.jsqlparser</groupId>
     <artifactId>jsqlparser</artifactId>
-    <version>4.5</version>
+    <version>4.9</version>
 </dependency>
 ```
 
 **Gradle:**
 ```gradle
-implementation 'com.github.jsqlparser:jsqlparser:4.5'
+implementation 'com.github.jsqlparser:jsqlparser:4.9'
 ```
 
 ## Configuration
@@ -123,6 +124,7 @@ implementation 'com.github.jsqlparser:jsqlparser:4.5'
 |----------|-------------------------|-------------|----------|---------|
 | `kms.region` | 4.0.0 | AWS KMS region for encryption operations | Yes | None |
 | `encryptionMetadataSchema` | 4.0.0 | Schema name for encryption metadata tables | No | `encrypt` |
+| `encryptionFailOnUnmappedParameter` | 4.6.0 | When `true` (default), the plugin rejects a statement on a table with encrypted columns with an `SQLException` at prepare time if it cannot reliably map the statement's parameters to columns (see [Limitations](#limitations)). When `false`, the plugin only logs a WARNING and prepares the statement; values bound to encrypted columns may then be written unencrypted. | No | `true` |
 | `metadataCacheEnabled` | 4.0.0 | Enable/disable metadata caching | No | `true` |
 | `metadataCacheExpirationMinutes` | 4.0.0 | Metadata cache expiration time in minutes | No | `60` |
 | `metadataCacheRefreshIntervalMs` | 4.0.0 | Metadata cache refresh interval in milliseconds | No | `300000` |
@@ -140,12 +142,14 @@ String url = "jdbc:aws-wrapper:postgresql://your-cluster.cluster-xyz.us-east-1.r
 Properties props = new Properties();
 props.setProperty("user", "username");
 props.setProperty("password", "password");
-props.setProperty("wrapperPlugins", "kmsEncryption");
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");
 props.setProperty("kms.region", "us-east-1");
 props.setProperty("auditLoggingEnabled", "true");
 
 Connection conn = DriverManager.getConnection(url, props);
 ```
+
+The `sqlParser` plugin is required and must run before `kmsEncryption`. List it first; with `autoSortWrapperPluginOrder` enabled (the default) the driver also sorts it ahead of `kmsEncryption`. If `sqlParser` is missing, preparing a statement fails with `SQL parse results not found in call context`.
 
 ## Setup
 
@@ -309,14 +313,18 @@ try (PreparedStatement stmt = connection.prepareStatement(sql2)) {
 - You need automatic encryption based on column names
 - You want easier maintenance and consistency
 
-**Note:** Both approaches can be used together. When an annotation is present, it takes precedence over metadata configuration for that specific parameter.
+**Note:** Both approaches can be used together. When an annotation is present, it takes precedence over metadata configuration for that specific parameter. If the annotation names a different column than the one the statement assigns the parameter to, the plugin uses the annotation and logs a WARNING.
 
 ### Annotation Syntax Rules
 
 1. The annotation must be a SQL comment: `/*@encrypt:table.column*/`
-2. It must immediately precede the `?` parameter placeholder
+2. It must immediately precede the `?` parameter placeholder. It applies to the next real placeholder that follows it
 3. The format is: `table.column` (both table and column names required)
 4. Whitespace between the annotation and `?` is allowed but not required
+5. Only an annotation that starts its own block comment outside string literals and other comments counts. Annotation-like text inside a string literal, a line comment (`-- ...`, MySQL `# ...`) or another block comment is ignored
+6. A `?` inside a string literal, a quoted identifier, a comment or a PostgreSQL dollar-quoted string is not a parameter placeholder, and neither is the PostgreSQL `??` operator. Such characters do not shift the parameter numbering
+7. An annotation that is not followed by a placeholder is ignored, and the plugin logs a WARNING
+8. Annotations do not bypass the fail-closed check described in [Limitations](#limitations). A statement that the plugin cannot map reliably on a table with encrypted columns is rejected even if it contains annotations
 
 > [!WARNING]\
 > **The annotation is sent to the database as part of the statement.** It is a valid SQL comment, so it does not affect how the statement executes, but it is not removed from the SQL text: it appears in server-side statement logs, in `pg_stat_statements`, in slow-query logs, and in any query-capture tooling. Since the annotation names the table and column being encrypted, using it discloses which columns hold sensitive data to anyone who can read those logs. If that matters in your environment, mark columns through the metadata table instead of through annotations.
@@ -381,6 +389,14 @@ Ensure your application has the necessary KMS permissions:
 2. **Metadata Table Not Found**: Verify the encryption metadata table exists and is accessible
 3. **Region Mismatch**: Ensure the KMS region matches where your key is located
 4. **Invalid Key ID**: Verify the KMS key ID or ARN is correct and accessible
+5. **`Refusing to prepare a statement on table '...': it has encrypted columns, but the statement's parameters cannot be reliably mapped to columns (...)`**: The statement writes to a table with encrypted columns, but the plugin cannot tell which parameter belongs to which column, so it cannot guarantee that the encrypted column values get encrypted. The text in parentheses names the reason, for example `INSERT without a column list` or `column ssn receives parameter(s) 2 inside an expression`. The message never contains the SQL text or parameter values. To fix it, rewrite the statement in one of the supported shapes listed in [Limitations](#limitations):
+   - list the columns explicitly: `INSERT INTO users (name, ssn) VALUES (?, ?)`;
+   - bind each encrypted column value with its own `?`, for example `SET ssn = ?` instead of `SET ssn = lower(?)` or `SET ssn = (SELECT ...)`;
+   - do not write literals or expressions into encrypted columns;
+   - use `INSERT` or `UPDATE` instead of `REPLACE` or `MERGE`, and plain `?` placeholders instead of numbered ones (`?1`).
+
+   Only if you have verified that the statement never writes an unencrypted value to an encrypted column, set `encryptionFailOnUnmappedParameter=false`. The plugin then logs a WARNING and prepares the statement.
+6. **`... is not supported for encrypted columns. Use setString, setNString, setBytes or setObject.`**: A stream or LOB setter (`setCharacterStream`, `setBinaryStream`, `setClob`, `setBlob`, and similar) was called for a parameter that maps to an encrypted column. Pass the value with one of the listed setters.
 
 ### Debugging
 
@@ -397,7 +413,37 @@ Check the application logs for encryption-related messages.
 - Currently supports string data types for encryption
 - Requires metadata configuration for each encrypted column
 - Performance impact mainly during data key operations, mitigated by caching
-- Limited to INSERT and UPDATE operations for automatic encryption
+
+### Statements the plugin maps automatically
+
+Automatic encryption works for `PreparedStatement` parameters in these statement shapes:
+
+- `INSERT` with a column list: single-row and multi-row `VALUES`, `INSERT ... SELECT` (including `UNION`), and MySQL `INSERT ... SET`
+- `UPDATE ... SET`, including row assignments such as `SET (name, ssn) = (?, ?)`
+- PostgreSQL `INSERT ... ON CONFLICT ... DO UPDATE SET` and MySQL `INSERT ... ON DUPLICATE KEY UPDATE`
+
+A value is encrypted only when it is bound by its own `?` placeholder directly to the encrypted column. A cast around the placeholder and parentheses are allowed, for example `CAST(? AS bytea)`, `?::bytea` or `(?)`. String literals and other expressions are never encrypted: in `SET ssn = '123-45-6789'` or `SET ssn = lower(?)` the plugin cannot encrypt the value. Literals and expressions in other columns of the same statement are fine and do not shift the parameter numbering.
+
+### Statements rejected by default
+
+On a table with encrypted columns, the plugin rejects the following statements with an `SQLException` when they are prepared, so that no value is written unencrypted (controlled by `encryptionFailOnUnmappedParameter`, default `true`):
+
+- `INSERT` without a column list
+- parameters inside an expression (function call, arithmetic, concatenation, `CASE`, sub-select) that is assigned to an encrypted column
+- parameters whose target column cannot be determined, for example a sub-select or an unknown target table
+- `REPLACE` and `MERGE` statements
+- statements the SQL parser cannot read, for example PostgreSQL `E'...'` strings, MySQL backslash escapes inside string literals (`'it\'s'`), or the PostgreSQL JSONB `??` operator
+- numbered placeholders such as `?1`
+- statements where the number of parameters found by the parser differs from the number of placeholders the driver sends
+
+Statements on tables without encrypted columns are never rejected. Versions before 4.6.0 did not reject these statements and could write values bound to encrypted columns unencrypted without an error or a log entry. See the [Troubleshooting](#troubleshooting) section for how to fix a rejected statement.
+
+### Other limitations
+
+- Stream and LOB setters (`setCharacterStream`, `setNCharacterStream`, `setAsciiStream`, `setBinaryStream`, `setUnicodeStream`, `setClob`, `setNClob`, `setBlob`) throw an `SQLException` when the parameter maps to an encrypted column. Use `setString`, `setNString`, `setBytes` or `setObject`.
+- `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
+- Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.
+- Table names are matched against the metadata case-sensitively. Use the same spelling in statements as in `encryption_metadata`.
 
 ## Best Practices
 

@@ -17,15 +17,19 @@
 package software.amazon.jdbc.plugin.sqlparser;
 
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.sf.jsqlparser.statement.Statement;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -33,11 +37,18 @@ import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.parser.EncryptionAnnotationParser;
 import software.amazon.jdbc.parser.JSQLParserAnalyzer;
+import software.amazon.jdbc.parser.ParameterColumnMapper;
+import software.amazon.jdbc.parser.ParameterMappingProblem;
+import software.amazon.jdbc.parser.PlaceholderScanner;
 import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
-import software.amazon.jdbc.parser.SqlAnalysisService;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.targetdriverdialect.MariadbTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.MysqlConnectorJTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Plugin that parses SQL statements and populates the {@link PluginCallContext}
@@ -47,6 +58,8 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
  * (e.g., kmsEncryption, autoReadWriteSplitting).
  */
 public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
+
+  private static final Logger LOGGER = Logger.getLogger(SqlParserConnectionPlugin.class.getName());
 
   private static final Pattern ROUTING_HINT_PATTERN =
       Pattern.compile("/\\*\\s*@\\s*(reader|writer|keep)\\s*\\*/", Pattern.CASE_INSENSITIVE);
@@ -153,27 +166,76 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       routingHint = RoutingHint.fromString(routingMatcher.group(1));
     }
 
+    // Find the real placeholders, literals and comments once, with the target driver's rules
+    final PlaceholderScanner.Result scan = PlaceholderScanner.scan(sql, resolveScannerMode());
+
     // Parse and strip annotations
-    final Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
-    String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
+    final Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql, scan);
+    String cleanSql = EncryptionAnnotationParser.stripAnnotations(sql, scan);
     cleanSql = ROUTING_HINT_PATTERN.matcher(cleanSql).replaceAll("").trim();
 
-    // Parse SQL structure
-    JSQLParserAnalyzer.QueryAnalysis analysis = JSQLParserAnalyzer.analyze(cleanSql);
+    // Parse SQL structure once; only comments were removed, so the placeholder ordinals of sql and
+    // cleanSql are identical
+    final @Nullable Statement statement = JSQLParserAnalyzer.parse(cleanSql);
+    JSQLParserAnalyzer.QueryAnalysis analysis = JSQLParserAnalyzer.analyze(statement, cleanSql);
 
     Set<String> tables = new HashSet<>();
     for (String table : analysis.tables) {
       tables.add(table.replace("`", "").replace("\"", ""));
     }
 
-    // Build parameter mapping
-    Map<Integer, String> paramMapping = new HashMap<>();
-    paramMapping.putAll(SqlAnalysisService.getColumnParameterMapping(cleanSql));
-    paramMapping.putAll(annotations);
+    // Build parameter mapping; annotations take precedence
+    final ParameterColumnMapper.ParameterMapping mapping = ParameterColumnMapper.map(statement, scan);
+    Map<Integer, String> paramMapping = new HashMap<>(mapping.getColumns());
+    for (Map.Entry<Integer, String> annotation : annotations.entrySet()) {
+      final String mapped = paramMapping.get(annotation.getKey());
+      if (mapped != null && conflicts(annotation.getValue(), mapped)) {
+        LOGGER.warning(() -> Messages.get(
+            "SqlParserConnectionPlugin.annotationConflictsWithMapping",
+            new Object[] {String.valueOf(annotation.getKey()), annotation.getValue(), mapped}));
+      }
+      paramMapping.put(annotation.getKey(), annotation.getValue());
+    }
 
     return new ParsedSqlResult(
         analysis.queryType, tables, paramMapping, cleanSql,
-        annotations, analysis.forUpdate, routingHint);
+        annotations, analysis.forUpdate, routingHint, mapping.getProblems());
+  }
+
+  private PlaceholderScanner.Mode resolveScannerMode() {
+    final TargetDriverDialect dialect = pluginService.getTargetDriverDialect();
+    if (dialect instanceof PgTargetDriverDialect) {
+      return PlaceholderScanner.Mode.POSTGRESQL;
+    }
+    if (dialect instanceof MysqlConnectorJTargetDriverDialect
+        || dialect instanceof MariadbTargetDriverDialect) {
+      return PlaceholderScanner.Mode.MYSQL;
+    }
+    return PlaceholderScanner.Mode.GENERIC;
+  }
+
+  /**
+   * An annotation conflicts with the automatic mapping when the column differs, or when the last
+   * segment of the table differs (so {@code public.users.ssn} and {@code users.ssn} agree).
+   */
+  private static boolean conflicts(final String annotation, final String mapped) {
+    final int annotationDot = annotation.lastIndexOf('.');
+    final int mappedDot = mapped.lastIndexOf('.');
+    final String annotationColumn = annotation.substring(annotationDot + 1);
+    final String mappedColumn = mapped.substring(mappedDot + 1);
+    if (!annotationColumn.equalsIgnoreCase(mappedColumn)) {
+      return true;
+    }
+    if (annotationDot < 0 || mappedDot < 0) {
+      return false;
+    }
+    final String annotationTable = lastSegment(annotation.substring(0, annotationDot));
+    final String mappedTable = lastSegment(mapped.substring(0, mappedDot));
+    return !annotationTable.equalsIgnoreCase(mappedTable);
+  }
+
+  private static String lastSegment(final String qualifiedName) {
+    return qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
   }
 
   private void applyToContext(ParsedSqlResult parsed) {
@@ -181,6 +243,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     ctx.setAttribute(SqlContextKeys.QUERY_TYPE, parsed.queryType);
     ctx.setAttribute(SqlContextKeys.TABLES, parsed.tables);
     ctx.setAttribute(SqlContextKeys.PARAM_MAPPING, parsed.paramMapping);
+    ctx.setAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS, parsed.problems);
     ctx.setAttribute(SqlContextKeys.CLEAN_SQL, parsed.cleanSql);
     ctx.setAttribute(SqlContextKeys.ANNOTATIONS, parsed.annotations);
     ctx.setAttribute(SqlContextKeys.FOR_UPDATE, parsed.forUpdate);
@@ -198,11 +261,12 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     final Map<Integer, String> annotations;
     final boolean forUpdate;
     final @Nullable RoutingHint routingHint;
+    final List<ParameterMappingProblem> problems;
 
     ParsedSqlResult(QueryType queryType, Set<String> tables,
         Map<Integer, String> paramMapping, String cleanSql,
         Map<Integer, String> annotations, boolean forUpdate,
-        @Nullable RoutingHint routingHint) {
+        @Nullable RoutingHint routingHint, List<ParameterMappingProblem> problems) {
       this.queryType = queryType;
       this.tables = tables;
       this.paramMapping = paramMapping;
@@ -210,6 +274,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       this.annotations = annotations;
       this.forUpdate = forUpdate;
       this.routingHint = routingHint;
+      this.problems = Collections.unmodifiableList(new ArrayList<>(problems));
     }
   }
 }

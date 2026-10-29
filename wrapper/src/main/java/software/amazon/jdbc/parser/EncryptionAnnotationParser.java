@@ -16,69 +16,106 @@
 
 package software.amazon.jdbc.parser;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Parses SQL encryption annotations from SQL statements.
  *
  * <p>Annotations format: comment with @encrypt:table.column followed by parameter placeholder.
+ *
+ * <p>Only an annotation that starts a block comment outside string literals, quoted identifiers and
+ * other comments counts. It applies to the real parameter placeholder that follows it, and the
+ * parameter index is the position of that placeholder among all real placeholders of the statement
+ * (see {@link PlaceholderScanner}).
  */
 public final class EncryptionAnnotationParser {
 
+  private static final Logger LOGGER = Logger.getLogger(EncryptionAnnotationParser.class.getName());
+
   private static final Pattern ENCRYPT_ANNOTATION_PATTERN =
       Pattern.compile("/\\*@encrypt:([\\w.]+)\\*/\\s*\\?");
+
+  private static final Pattern STRIP_ANNOTATION_PATTERN =
+      Pattern.compile("/\\*@encrypt:[\\w.]+\\*/\\s*");
 
   private EncryptionAnnotationParser() {
     // Utility class
   }
 
   /**
-   * Parse SQL for encryption annotations.
+   * Parse SQL for encryption annotations using {@link PlaceholderScanner.Mode#GENERIC} lexical rules.
    *
    * @param sql SQL statement with potential annotations
    * @return Map of parameter index (1-based) to column identifier (table.column)
    */
   public static Map<Integer, String> parseAnnotations(String sql) {
+    return parseAnnotations(sql, PlaceholderScanner.Mode.GENERIC);
+  }
+
+  /**
+   * Parse SQL for encryption annotations.
+   *
+   * @param sql SQL statement with potential annotations
+   * @param mode lexical rules of the target driver
+   * @return Map of parameter index (1-based) to column identifier (table.column)
+   */
+  public static Map<Integer, String> parseAnnotations(String sql, PlaceholderScanner.Mode mode) {
     if (sql == null || sql.isEmpty()) {
       return new HashMap<>();
     }
+    return parseAnnotations(sql, PlaceholderScanner.scan(sql, mode));
+  }
 
-    Map<Integer, String> encryptionMap = new HashMap<>();
-    Matcher annotationMatcher = ENCRYPT_ANNOTATION_PATTERN.matcher(sql);
-    
-    // Find all annotations with their positions
-    Map<Integer, String> annotationsByPosition = new HashMap<>();
+  /**
+   * Parse SQL for encryption annotations.
+   *
+   * @param sql SQL statement with potential annotations
+   * @param scan result of {@link PlaceholderScanner#scan} for the same {@code sql}
+   * @return Map of parameter index (1-based) to column identifier (table.column)
+   */
+  public static Map<Integer, String> parseAnnotations(String sql, PlaceholderScanner.Result scan) {
+    final Map<Integer, String> encryptionMap = new HashMap<>();
+    if (sql == null || sql.isEmpty()) {
+      return encryptionMap;
+    }
+
+    final List<Integer> placeholderOffsets = scan.getPlaceholderOffsets();
+    final Matcher annotationMatcher = ENCRYPT_ANNOTATION_PATTERN.matcher(sql);
     while (annotationMatcher.find()) {
-      int questionMarkPos = annotationMatcher.end() - 1; // Position of the '?'
+      // Annotation-like text inside literals, quoted identifiers or other comments is ignored.
+      if (!scan.isBlockCommentStart(annotationMatcher.start())) {
+        continue;
+      }
       // Matcher.group() is declared nullable; group 1 is a mandatory part of the pattern, so a
       // successful match always captures it. Skipping a null group keeps the map values non-null.
       final String columnIdentifier = annotationMatcher.group(1);
-      if (columnIdentifier != null) {
-        annotationsByPosition.put(questionMarkPos, columnIdentifier);
+      if (columnIdentifier == null) {
+        continue;
       }
-    }
-    
-    // Count all '?' placeholders and map annotations to parameter indices
-    int paramIndex = 1;
-    for (int i = 0; i < sql.length(); i++) {
-      if (sql.charAt(i) == '?') {
-        // A mapping is present only for annotated placeholders, and its value is never null.
-        final String columnIdentifier = annotationsByPosition.get(i);
-        if (columnIdentifier != null) {
-          encryptionMap.put(paramIndex, columnIdentifier);
-        }
-        paramIndex++;
+      final int questionMarkPos = annotationMatcher.end() - 1;
+      final int placeholderIndex = Collections.binarySearch(placeholderOffsets, questionMarkPos);
+      if (placeholderIndex < 0) {
+        LOGGER.warning(() -> Messages.get(
+            "EncryptionAnnotationParser.annotationWithoutPlaceholder",
+            new Object[] {columnIdentifier}));
+        continue;
       }
+      encryptionMap.put(placeholderIndex + 1, columnIdentifier);
     }
 
     return encryptionMap;
   }
 
   /**
-   * Strips encryption annotations from a SQL statement.
+   * Strips encryption annotations from a SQL statement using {@link PlaceholderScanner.Mode#GENERIC}
+   * lexical rules.
    *
    * <p>The returned text is used for the wrapper's own parsing only. It is <b>not</b> the text sent
    * to the database: the plugin pipeline hands each JDBC method the arguments the application
@@ -90,10 +127,53 @@ public final class EncryptionAnnotationParser {
    * @return SQL with annotations removed
    */
   public static String stripAnnotations(String sql) {
+    return stripAnnotations(sql, PlaceholderScanner.Mode.GENERIC);
+  }
+
+  /**
+   * Strips encryption annotations from a SQL statement. See {@link #stripAnnotations(String)}.
+   *
+   * @param sql SQL statement with annotations
+   * @param mode lexical rules of the target driver
+   * @return SQL with annotations removed
+   */
+  public static String stripAnnotations(String sql, PlaceholderScanner.Mode mode) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
-    return sql.replaceAll("/\\*@encrypt:[\\w.]+\\*/\\s*", "");
+    return stripAnnotations(sql, PlaceholderScanner.scan(sql, mode));
+  }
+
+  /**
+   * Strips encryption annotations from a SQL statement. Only annotations that start a top-level
+   * block comment are removed; string literals and other comments are left untouched. See
+   * {@link #stripAnnotations(String)}.
+   *
+   * @param sql SQL statement with annotations
+   * @param scan result of {@link PlaceholderScanner#scan} for the same {@code sql}
+   * @return SQL with annotations removed
+   */
+  public static String stripAnnotations(String sql, PlaceholderScanner.Result scan) {
+    if (sql == null || sql.isEmpty()) {
+      return sql;
+    }
+    final Matcher matcher = STRIP_ANNOTATION_PATTERN.matcher(sql);
+    final StringBuilder result = new StringBuilder(sql.length());
+    int copiedUpTo = 0;
+    boolean stripped = false;
+    while (matcher.find()) {
+      if (!scan.isBlockCommentStart(matcher.start())) {
+        continue;
+      }
+      result.append(sql, copiedUpTo, matcher.start());
+      copiedUpTo = matcher.end();
+      stripped = true;
+    }
+    if (!stripped) {
+      return sql;
+    }
+    result.append(sql, copiedUpTo, sql.length());
+    return result.toString();
   }
 
   /**

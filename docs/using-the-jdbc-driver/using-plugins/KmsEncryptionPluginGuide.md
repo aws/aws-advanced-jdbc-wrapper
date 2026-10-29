@@ -133,21 +133,31 @@ CREATE TABLE encrypt.encryption_metadata (
 );
 ```
 
-### Step 4: Install Encrypted Data Type (PostgreSQL Only)
+### Step 4: Install Encrypted Data Type and HMAC Functions
 
-PostgreSQL supports a custom `encrypted_data` domain type with HMAC verification.
+The database objects are defined in SQL scripts in the driver's source repository. The released driver jar does not contain an installer for them. Take the script from the release tag that matches your driver version, replace every `SCHEMA_NAME` with your metadata schema (default `encrypt`), and run it against the application database:
 
-```java
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
+- PostgreSQL: [`wrapper/src/test/resources/sql/encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql)
+- MySQL: [`wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql) (uses `DELIMITER`, so run it with the `mysql` command-line client)
 
-// Install the encrypted_data type and validation functions
-EncryptedDataTypeInstaller.installEncryptedDataType(connection, "encrypt");
+```bash
+# PostgreSQL
+sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type.sql | psql -h host -U dbuser -d mydb -v ON_ERROR_STOP=1
+# MySQL
+sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type_mysql.sql | mysql -h host -u dbuser -p mydb
 ```
 
-This creates:
+On PostgreSQL this creates:
 - `encrypted_data` domain type (base type: BYTEA)
 - `has_valid_hmac_structure()` function for structure validation
 - `validate_encrypted_data_hmac()` trigger function for HMAC verification
+
+On MySQL it creates the HMAC functions and the `validate_encrypted_data_hmac_before_insert` procedure used by the HMAC validation triggers.
+
+> [!WARNING]\
+> The PostgreSQL script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`. Running it again after you created tables drops every column of type `encrypted_data`.
+
+See [Database Encryption Setup](../../DatabaseEncryptionSetup.md#3-install-encrypted-data-type-and-hmac-functions) for details.
 
 ### Step 5: Create Application Tables
 
@@ -160,7 +170,7 @@ CREATE TABLE users (
     email VARCHAR(100)
 );
 
--- Add HMAC validation trigger
+-- Add HMAC validation trigger (recommended)
 CREATE TRIGGER validate_ssn_hmac
     BEFORE INSERT OR UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn');
@@ -175,6 +185,8 @@ CREATE TABLE users (
     email VARCHAR(100)
 );
 ```
+
+**HMAC validation triggers are recommended for every encrypted column.** They reject plaintext and tampered values on the database side, which makes them a fail-closed backstop if a value reaches the database unencrypted. MySQL has no domain-level type check, so there the trigger is the only database-side guard. See [step 8 of Database Encryption Setup](../../DatabaseEncryptionSetup.md#8-add-hmac-validation-triggers-recommended) for the MySQL trigger definitions.
 
 ## KMS Key Setup
 
@@ -293,8 +305,8 @@ VALUES
 ```java
 Properties props = new Properties();
 
-// Enable KMS encryption plugin
-props.setProperty("wrapperPlugins", "kmsEncryption");
+// Enable KMS encryption plugin (the sqlParser plugin is required and must come first)
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");
 
 // Configure KMS master key
 props.setProperty("kmsKeyArn", "arn:aws:kms:us-east-1:123456789012:key/...");
@@ -314,7 +326,7 @@ Connection conn = DriverManager.getConnection(url, props);
 ### Connection URL Format
 
 ```
-jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=kmsEncryption&kmsKeyArn=arn:aws:kms:...&kmsRegion=us-east-1
+jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kmsKeyArn=arn:aws:kms:...&kmsRegion=us-east-1
 ```
 
 ### AWS Credentials
@@ -386,6 +398,8 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 
 // Annotation format: /*@encrypt:table_name.column_name*/
 ```
+
+Annotations do not make an unmappable statement acceptable. If the plugin cannot map a statement's parameters to columns on a table with encrypted columns, it rejects the statement even when it carries annotations (see [Troubleshooting](#troubleshooting)). For the full annotation rules, see [Annotation Syntax Rules](./UsingTheKmsEncryptionPlugin.md#annotation-syntax-rules).
 
 ### Verifying Encryption
 
@@ -605,7 +619,25 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 **4. "Cannot insert plain text into encrypted column"**
 - This is expected behavior with PostgreSQL triggers
 - Use the plugin connection for all operations
-- Or use annotation: `/*@encrypt:table.column*/`
+- Or use annotation: `/*@encrypt:table.column*/`. Annotations do not bypass the parameter-mapping check described in entry 5: a statement the plugin cannot map reliably is still rejected
+
+**5. "Refusing to prepare a statement on table '...': it has encrypted columns, but the statement's parameters cannot be reliably mapped to columns (...)"**
+
+The statement writes to a table with encrypted columns, but the plugin cannot tell which parameter belongs to which column, so it cannot guarantee encryption. The plugin rejects the statement at prepare time instead of risking writing plaintext. The text in parentheses names the reason; the message never contains the SQL text or parameter values.
+
+Common causes:
+- `INSERT` without a column list (`INSERT INTO users VALUES (?, ?, ?)`)
+- a parameter inside an expression assigned to an encrypted column (`SET ssn = lower(?)`, `SET ssn = (SELECT ...)`)
+- `REPLACE` or `MERGE` statements, or numbered placeholders (`?1`)
+- SQL the parser cannot read, such as PostgreSQL `E'...'` strings, MySQL backslash escapes in literals, or the JSONB `??` operator
+
+Fixes:
+- list the columns explicitly: `INSERT INTO users (name, ssn) VALUES (?, ?)`
+- bind each encrypted column value with its own `?` placeholder
+- do not write literals or expressions into encrypted columns
+- only if you have verified that the statement never writes an unencrypted value to an encrypted column, set `encryptionFailOnUnmappedParameter=false`; the plugin then logs a WARNING and prepares the statement
+
+See [Limitations](./UsingTheKmsEncryptionPlugin.md#limitations) for the full list of supported and rejected statement shapes.
 
 ### Debugging
 

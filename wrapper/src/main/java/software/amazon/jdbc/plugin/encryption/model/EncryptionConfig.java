@@ -76,6 +76,13 @@ public class EncryptionConfig {
       new AwsWrapperProperty(
           "encryptionMetadataSchema", "encrypt", "Schema name for encryption metadata tables");
 
+  public static final AwsWrapperProperty FAIL_ON_UNMAPPED_PARAMETER =
+      new AwsWrapperProperty(
+          "encryptionFailOnUnmappedParameter",
+          "true",
+          "Reject statements on tables with encrypted columns whose parameters cannot be mapped "
+              + "to columns.");
+
   static {
     PropertyDefinition.registerPluginProperties(EncryptionConfig.class);
   }
@@ -91,6 +98,7 @@ public class EncryptionConfig {
   private final Duration dataKeyCacheExpiration;
   private final Duration metadataRefreshInterval;
   private final SchemaName encryptionMetadataSchema;
+  private final boolean failOnUnmappedParameter;
 
   private EncryptionConfig(Builder builder) {
     this.kmsRegion = Objects.requireNonNull(builder.kmsRegion, "kmsRegion cannot be null");
@@ -106,6 +114,7 @@ public class EncryptionConfig {
     this.encryptionMetadataSchema =
         Objects.requireNonNull(
             builder.encryptionMetadataSchema, "encryptionMetadataSchema cannot be null");
+    this.failOnUnmappedParameter = builder.failOnUnmappedParameter;
   }
 
   public String getKmsRegion() {
@@ -150,6 +159,16 @@ public class EncryptionConfig {
 
   public SchemaName getEncryptionMetadataSchema() {
     return encryptionMetadataSchema;
+  }
+
+  /**
+   * Whether statements on tables with encrypted columns are rejected when their parameters cannot
+   * be reliably mapped to columns.
+   *
+   * @return true to reject such statements (default), false to only log a warning
+   */
+  public boolean isFailOnUnmappedParameter() {
+    return failOnUnmappedParameter;
   }
 
   /**
@@ -202,6 +221,7 @@ public class EncryptionConfig {
         && auditLoggingEnabled == that.auditLoggingEnabled
         && dataKeyCacheEnabled == that.dataKeyCacheEnabled
         && dataKeyCacheMaxSize == that.dataKeyCacheMaxSize
+        && failOnUnmappedParameter == that.failOnUnmappedParameter
         && Objects.equals(kmsRegion, that.kmsRegion)
         && Objects.equals(retryBackoffBase, that.retryBackoffBase)
         && Objects.equals(dataKeyCacheExpiration, that.dataKeyCacheExpiration)
@@ -220,7 +240,8 @@ public class EncryptionConfig {
         dataKeyCacheEnabled,
         dataKeyCacheMaxSize,
         dataKeyCacheExpiration,
-        metadataRefreshInterval);
+        metadataRefreshInterval,
+        failOnUnmappedParameter);
   }
 
   @Override
@@ -247,6 +268,8 @@ public class EncryptionConfig {
         + dataKeyCacheExpiration
         + ", metadataRefreshInterval="
         + metadataRefreshInterval
+        + ", failOnUnmappedParameter="
+        + failOnUnmappedParameter
         + '}';
   }
 
@@ -277,6 +300,7 @@ public class EncryptionConfig {
     builder.metadataRefreshInterval(
         Duration.ofMillis(METADATA_CACHE_REFRESH_INTERVAL_MS.getLong(properties)));
     builder.encryptionMetadataSchema(ENCRYPTION_METADATA_SCHEMA.getString(properties));
+    builder.failOnUnmappedParameter(FAIL_ON_UNMAPPED_PARAMETER.getBoolean(properties));
 
     return builder.build();
   }
@@ -297,6 +321,7 @@ public class EncryptionConfig {
     private Duration dataKeyCacheExpiration = Duration.ofMinutes(30);
     private Duration metadataRefreshInterval = Duration.ofMinutes(5);
     private SchemaName encryptionMetadataSchema = SchemaName.of("encrypt"); // Default schema name
+    private boolean failOnUnmappedParameter = true;
 
     public Builder kmsRegion(String kmsRegion) {
       this.kmsRegion = kmsRegion;
@@ -350,6 +375,11 @@ public class EncryptionConfig {
 
     public Builder encryptionMetadataSchema(@Nullable String encryptionMetadataSchema) {
       this.encryptionMetadataSchema = SchemaName.of(encryptionMetadataSchema);
+      return this;
+    }
+
+    public Builder failOnUnmappedParameter(boolean failOnUnmappedParameter) {
+      this.failOnUnmappedParameter = failOnUnmappedParameter;
       return this;
     }
 
