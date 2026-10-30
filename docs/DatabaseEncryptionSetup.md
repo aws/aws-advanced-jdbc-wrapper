@@ -29,18 +29,17 @@ CREATE SCHEMA encrypt;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 ```
 
-MySQL does not require any extensions; the plugin includes a pure SQL HMAC-SHA256 implementation.
+MySQL does not require any extensions. The optional HMAC validation triggers (step 8) use a pure SQL HMAC-SHA256 implementation from the script [`encrypted_data_type_mysql.sql`](../wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql).
 
 ### 3. Install Encrypted Data Type (PostgreSQL Only)
 
-PostgreSQL supports a custom `encrypted_data` DOMAIN type that enforces minimum length validation at the database level. Install it using:
+PostgreSQL supports a custom `encrypted_data` DOMAIN type that enforces minimum length validation at the database level. Install it by running the script [`encrypted_data_type.sql`](../wrapper/src/test/resources/sql/encrypted_data_type.sql) from the repository, with `SCHEMA_NAME` replaced by your metadata schema (the driver jar does not include the script or an installer):
 
-```java
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
-
-Connection conn = DriverManager.getConnection(url, props);
-EncryptedDataTypeInstaller.installEncryptedDataType(conn, "encrypt");
+```bash
+sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type.sql | psql -h <host> -U <user> -d <database>
 ```
+
+The script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`. Run it only on a database that has no columns of that type yet.
 
 MySQL does not support DOMAINs. Encrypted columns use `VARBINARY(256)` instead (see step 7).
 
@@ -193,30 +192,25 @@ CREATE TRIGGER validate_ssn_hmac
     EXECUTE FUNCTION validate_encrypted_data_hmac('ssn');
 ```
 
-**MySQL:**
+**MySQL:** first install the routines. In [`encrypted_data_type_mysql.sql`](../wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql), replace `SCHEMA_NAME` with your metadata schema (the procedure runs from triggers, so it cannot use dynamic SQL), then run the script with the `mysql` client in the database that holds your tables. Then create one trigger per event and column:
 ```sql
-DELIMITER $$
-CREATE TRIGGER validate_ssn_hmac_insert
-BEFORE INSERT ON users
-FOR EACH ROW
-BEGIN
-    CALL validate_encrypted_data_hmac_before_insert('users', 'ssn', NEW.ssn);
-END$$
-
-CREATE TRIGGER validate_ssn_hmac_update
-BEFORE UPDATE ON users
-FOR EACH ROW
-BEGIN
-    CALL validate_encrypted_data_hmac_before_insert('users', 'ssn', NEW.ssn);
-END$$
-DELIMITER ;
+CREATE TRIGGER users_ssn_hmac_ins BEFORE INSERT ON users FOR EACH ROW
+  CALL validate_encrypted_data_hmac('users', 'ssn', NEW.ssn, @hmac_key_users_ssn);
+CREATE TRIGGER users_ssn_hmac_upd BEFORE UPDATE ON users FOR EACH ROW
+  CALL validate_encrypted_data_hmac('users', 'ssn', NEW.ssn, @hmac_key_users_ssn);
 ```
+
+The last argument is the per-session cache of the HMAC key. It must be the user variable `@hmac_key_<table>_<column>` (at most 64 characters), which the JDBC `KeyManagementUtility` also sets when it re-encrypts the column. With binary logging enabled, creating the routines and triggers needs the `SUPER` privilege or `log_bin_trust_function_creators=1`.
+
+The earlier procedure `validate_encrypted_data_hmac_before_insert` used dynamic SQL and failed when called from a trigger (MySQL error 1336). If you installed it, re-run the script (it drops the old procedure) and re-create the triggers as shown above.
 
 | Feature | PostgreSQL | MySQL |
 |---------|------------|-------|
 | Native HMAC | `hmac()` via pgcrypto | Pure SQL implementation |
 | Trigger Syntax | Single trigger for INSERT/UPDATE | Separate triggers needed |
 | Session Caching | `current_setting()` | User variables (`@var`) |
+
+After a data key rotation, the PostgreSQL trigger function and the MySQL procedure reload their cached HMAC key from the metadata once when a value fails verification against it, and reject the value only if it also fails against the reloaded key. Routines created by an earlier version do not; see the [Data key rotation procedure](./using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#data-key-rotation-procedure).
 
 **Recommendation:** For most deployments, skip database triggers and rely on the application-level HMAC validation built into the JDBC driver.
 
@@ -228,9 +222,8 @@ The connection configuration is the same for both PostgreSQL and MySQL:
 Properties props = new Properties();
 props.setProperty("user", "dbuser");
 props.setProperty("password", "password");
-props.setProperty("wrapperPlugins", "kmsEncryption");
-props.setProperty("kmsKeyArn", "arn:aws:kms:us-east-1:123456789012:key/...");
-props.setProperty("kmsRegion", "us-east-1");
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");  // kmsEncryption requires sqlParser
+props.setProperty("kms.region", "us-east-1");  // Defaults to us-east-1 if not set
 props.setProperty("encryptionMetadataSchema", "encrypt");  // Optional, defaults to "encrypt"
 
 // PostgreSQL
@@ -262,7 +255,7 @@ Even if the HMAC key is compromised, the encrypted data remains secure.
 - **IV (12 bytes)**: Initialization vector for AES-GCM
 - **Ciphertext**: AES-256-GCM encrypted data
 
-Minimum length: 45 bytes (32 + 1 + 12 + 16-byte auth tag)
+Minimum length: 61 bytes (32 + 1 + 12 + 16-byte GCM auth tag, for an empty plaintext). The driver rejects shorter values. The database-side checks (the PostgreSQL `encrypted_data` domain and the HMAC trigger functions) use a looser 45-byte minimum.
 
 ### API Usage
 
@@ -336,7 +329,7 @@ Annotations take precedence over metadata-based encryption when present. Both ap
 
 ## Security Considerations
 
-1. **Key Rotation**: Periodically rotate KMS keys and re-encrypt data
+1. **Key Rotation**: Enable automatic rotation on the KMS key; it is transparent to the plugin. Rotating a column's data key requires re-encrypting all its rows; see [Key Rotation](./using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#key-rotation). Never delete an old data key or KMS key while data or backups encrypted under it exist.
 2. **Access Control**: Restrict access to `encrypt` schema tables
 3. **Audit Logging**: Enable CloudTrail for KMS operations
 4. **HMAC Keys**: Store HMAC keys securely, consider encrypting them at rest
@@ -351,7 +344,7 @@ Annotations take precedence over metadata-based encryption when present. Both ap
 - Verify trigger is using correct metadata schema
 
 ### Type Not Found (PostgreSQL)
-- Run `EncryptedDataTypeInstaller.installEncryptedDataType()`
+- Run [`encrypted_data_type.sql`](../wrapper/src/test/resources/sql/encrypted_data_type.sql) (see step 3)
 - Verify `pgcrypto` extension is installed
 - Check that domain was created in correct schema
 

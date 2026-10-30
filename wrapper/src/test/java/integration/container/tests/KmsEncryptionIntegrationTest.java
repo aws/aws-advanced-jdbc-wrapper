@@ -38,15 +38,17 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +62,14 @@ import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
-/** Integration test for KMS encryption functionality with JSqlParser. */
+/**
+ * Integration test for KMS encryption functionality with JSqlParser.
+ *
+ * <p>Requires {@code KMS_KEY_ID} (a key ID or ARN; {@code AWS_KMS_KEY_ARN} is used as a fallback)
+ * and AWS credentials in the test container. The schema and the shared plugin connection are set up
+ * in {@code @BeforeEach}, once per class, because the connection URL depends on the test driver,
+ * which {@link TestDriverProvider} sets only after {@code @BeforeAll}.
+ */
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -79,7 +88,15 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger LOGGER = Logger.getLogger(KmsEncryptionIntegrationTest.class.getName());
+  private static final String KMS_KEY_ID_ENV = "KMS_KEY_ID";
   private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
+  private static final String METADATA_SCHEMA = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
+  // A test-specific table name, so that DROP TABLE never removes an unrelated table.
+  private static final String TABLE = "kms_enc_users";
+  private static final String KEY_NAME = "test-key-users-ssn";
+  // MySQL errors when the user may not create routines or triggers (binary logging without SUPER or
+  // log_bin_trust_function_creators, or a missing privilege).
+  private static final List<Integer> MYSQL_ROUTINE_PRIVILEGE_ERRORS = Arrays.asList(1419, 1227, 1142, 1370);
   private static final String TEST_SSN_1 = "111-11-1111";
   private static final String TEST_NAME_1 = "Alice Test";
   private static final String TEST_EMAIL_1 = "alice@test.com";
@@ -88,52 +105,58 @@ public class KmsEncryptionIntegrationTest {
   private static final String TEST_EMAIL_2 = "bob@test.com";
 
   private static Connection connection;
-  private static String kmsKeyArn;
+  private static String kmsKeyId;
   private static String region;
+  private static boolean isPg;
+  private static boolean mysqlTriggersInstalled;
+  private static boolean schemaReady;
 
   @BeforeAll
   static void setUp() throws Exception {
-    kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
-    assumeTrue(
-        kmsKeyArn != null && !kmsKeyArn.isEmpty(),
-        "KMS Key ARN must be provided via " + KMS_KEY_ARN_ENV + " environment variable");
+    kmsKeyId = firstNonEmpty(System.getenv(KMS_KEY_ID_ENV), System.getenv(KMS_KEY_ARN_ENV));
+    assumeTrue(kmsKeyId != null,
+        "A KMS key must be provided via " + KMS_KEY_ID_ENV + " or " + KMS_KEY_ARN_ENV);
 
-    region = TestEnvironment.getCurrent().getInfo().getRegion();
-    Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
-    props.setProperty(EncryptionConfig.KMS_REGION.name, region);
+    region = firstNonEmpty(regionFromArn(kmsKeyId), TestEnvironment.getCurrent().getInfo().getRegion());
+    assumeTrue(region != null,
+        "The KMS region is unknown: pass " + KMS_KEY_ID_ENV + " as a key ARN or run on an AWS deployment");
 
-    // Get the metadata schema from config (defaults to "encrypt")
-    SchemaName metadataSchema = SchemaName.of(EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue);
+    isPg = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
+  }
 
-    String url = ConnectionStringHelper.getWrapperUrl();
+  /**
+   * Creates the metadata schema, the test table and the shared plugin connection once per class.
+   * This cannot run in {@code @BeforeAll}: the connection URL depends on the current test driver,
+   * which {@link TestDriverProvider} sets for each test invocation, before {@code @BeforeEach}
+   * methods run.
+   */
+  @BeforeEach
+  void setUpSchemaOnce() throws Exception {
+    if (schemaReady) {
+      return;
+    }
+    final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
+
     // use a direct connection so that we setup all of the metadata before instantiating the
     // encrypted connection
-    String directUrl = ConnectionStringHelper.getUrl();
-
-    try (Connection directConnection = DriverManager.getConnection(directUrl, props)) {
-      DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    try (Connection directConnection = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
 
       // Setup encryption metadata schema
       try (Statement stmt = directConnection.createStatement()) {
         // PostgreSQL supports CASCADE, MySQL doesn't
-        if (dbEngine == DatabaseEngine.PG) {
+        if (isPg) {
           stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
         } else {
           stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema);
         }
         stmt.execute("CREATE SCHEMA " + metadataSchema);
-        stmt.execute("DROP TABLE IF EXISTS users");
+        stmt.execute("DROP TABLE IF EXISTS " + TABLE);
 
-        switch (dbEngine) {
-          case PG:
-            setupPostgreSQL(directConnection, stmt, metadataSchema);
-            break;
-          case MYSQL:
-            setupMySQL(directConnection, stmt, metadataSchema);
-            break;
-          default:
-            throw new UnsupportedOperationException("Unsupported database: " + dbEngine);
+        if (isPg) {
+          setupPostgreSQL(directConnection, stmt, metadataSchema);
+        } else {
+          setupMySQL(directConnection, stmt, metadataSchema);
         }
 
         LOGGER.finest("Test setup completed");
@@ -142,31 +165,35 @@ public class KmsEncryptionIntegrationTest {
         try (PreparedStatement finalCheck =
             directConnection.prepareStatement(
                 "SELECT COUNT(*) FROM " + metadataSchema + "."
-                    + "encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
-          ResultSet rs = finalCheck.executeQuery();
-          rs.next();
-          int count = rs.getInt(1);
-          LOGGER.info("Final metadata verification: " + count + " rows found for users.ssn");
-          if (count == 0) {
-            throw new RuntimeException("Encryption metadata was not properly created!");
+                    + "encryption_metadata WHERE table_name = ? AND column_name = 'ssn'")) {
+          finalCheck.setString(1, TABLE);
+          try (ResultSet rs = finalCheck.executeQuery()) {
+            rs.next();
+            int count = rs.getInt(1);
+            LOGGER.info("Final metadata verification: " + count + " rows found for " + TABLE + ".ssn");
+            if (count == 0) {
+              throw new RuntimeException("Encryption metadata was not properly created!");
+            }
           }
         }
       }
     }
-    connection = DriverManager.getConnection(url, props);
+    connection = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), pluginProps());
+    schemaReady = true;
   }
 
   @AfterEach
-  void cleanupTestData() {
-    // Clean up test data between tests without dropping schema
-    /*
-    if (connection != null && !connection.isClosed()) {
-      try (Statement stmt = connection.createStatement()) {
-        stmt.execute("DELETE FROM users WHERE name LIKE '%Test'");
-        logger.finest("Cleaned up test data");
-      }
+  void cleanupTestData() throws SQLException {
+    // Clean up test data between tests without dropping schema. DELETE fires no HMAC trigger.
+    if (!schemaReady) {
+      return;
     }
-     */
+    try (Connection plainConn = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+         Statement stmt = plainConn.createStatement()) {
+      stmt.execute("DELETE FROM " + TABLE);
+      LOGGER.finest("Cleaned up test data");
+    }
   }
 
   @AfterAll
@@ -174,11 +201,23 @@ public class KmsEncryptionIntegrationTest {
     if (connection != null && !connection.isClosed()) {
       connection.close();
     }
+    connection = null;
+    schemaReady = false;
+    mysqlTriggersInstalled = false;
+  }
+
+  /** Connection properties with the KMS encryption plugin. */
+  private static Properties pluginProps() {
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    // kmsEncryption needs the SQL parse results that the sqlParser plugin puts in the call context.
+    props.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,kmsEncryption");
+    props.setProperty(EncryptionConfig.KMS_REGION.name, region);
+    return props;
   }
 
   @TestTemplate
   void testBasicEncryption() throws Exception {
-    String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
+    String insertSql = "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)";
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
       pstmt.setString(1, TEST_NAME_1);
       pstmt.setString(2, TEST_SSN_1);
@@ -186,7 +225,7 @@ public class KmsEncryptionIntegrationTest {
       pstmt.executeUpdate();
     }
 
-    String selectSql = "SELECT name, ssn, email FROM users WHERE name = ?";
+    String selectSql = "SELECT name, ssn, email FROM " + TABLE + " WHERE name = ?";
     try (PreparedStatement pstmt = connection.prepareStatement(selectSql)) {
       pstmt.setString(1, TEST_NAME_1);
       try (ResultSet rs = pstmt.executeQuery()) {
@@ -214,7 +253,7 @@ public class KmsEncryptionIntegrationTest {
 
   @TestTemplate
   void testUpdateEncryption() throws Exception {
-    String insertSql = "INSERT INTO users (name, ssn,email) VALUES (?, ?, ?)";
+    String insertSql = "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)";
     LOGGER.finest("testUpdateEncryption: INSERT SQL: " + insertSql);
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
       LOGGER.finest(
@@ -225,22 +264,25 @@ public class KmsEncryptionIntegrationTest {
       assertEquals(1, pstmt.executeUpdate());
     }
 
-    // Check what was actually stored in the database
-    LOGGER.finest("Checking what was stored in database...");
-    try (PreparedStatement stmt =
-        connection.prepareStatement(
-            "SELECT name, ssn, pg_typeof(name) as name_type, pg_typeof(ssn) as ssn_type FROM users where name = ?")) {
-      stmt.setString(1, TEST_NAME_2);
-      ResultSet rs = stmt.executeQuery();
-      while (rs.next()) {
-        assertEquals(TEST_NAME_2, rs.getString("name"));
-        assertEquals(TEST_SSN_1, rs.getString("ssn"));
-        assertEquals("character varying", rs.getString("name_type"));
-        assertEquals("encrypted_data", rs.getString("ssn_type"));
+    // Check what was actually stored in the database (pg_typeof exists only on PostgreSQL)
+    if (isPg) {
+      LOGGER.finest("Checking what was stored in database...");
+      try (PreparedStatement stmt =
+          connection.prepareStatement(
+              "SELECT name, ssn, pg_typeof(name) as name_type, pg_typeof(ssn) as ssn_type FROM "
+                  + TABLE + " where name = ?")) {
+        stmt.setString(1, TEST_NAME_2);
+        try (ResultSet rs = stmt.executeQuery()) {
+          assertTrue(rs.next());
+          assertEquals(TEST_NAME_2, rs.getString("name"));
+          assertEquals(TEST_SSN_1, rs.getString("ssn"));
+          assertEquals("character varying", rs.getString("name_type"));
+          assertEquals("encrypted_data", rs.getString("ssn_type"));
+        }
       }
     }
 
-    String updateSql = "UPDATE users SET ssn = ? WHERE name = ?";
+    String updateSql = "UPDATE " + TABLE + " SET ssn = ? WHERE name = ?";
     LOGGER.finest("testUpdateEncryption: UPDATE SQL: " + updateSql);
     try (PreparedStatement pstmt = connection.prepareStatement(updateSql)) {
       LOGGER.finest("Setting UPDATE parameters: ssn=" + TEST_SSN_2 + ", name=" + TEST_NAME_2);
@@ -249,7 +291,7 @@ public class KmsEncryptionIntegrationTest {
       assertEquals(1, pstmt.executeUpdate());
     }
 
-    String selectSql = "SELECT ssn FROM users WHERE name = ?";
+    String selectSql = "SELECT ssn FROM " + TABLE + " WHERE name = ?";
     try (PreparedStatement pstmt = connection.prepareStatement(selectSql)) {
       pstmt.setString(1, TEST_NAME_2);
       try (ResultSet rs = pstmt.executeQuery()) {
@@ -261,43 +303,40 @@ public class KmsEncryptionIntegrationTest {
 
   @TestTemplate
   void testEncryptionMetadataSetup() throws Exception {
-    // Verify encryption metadata was created with master key ARN
+    // Verify encryption metadata was created
     String metadataSql =
         "SELECT table_name, column_name, encryption_algorithm FROM "
-            + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue
-            + ".encryption_metadata WHERE table_name = 'users'";
+            + METADATA_SCHEMA
+            + ".encryption_metadata WHERE table_name = ?";
     try (PreparedStatement pstmt = connection.prepareStatement(metadataSql)) {
+      pstmt.setString(1, TABLE);
       try (ResultSet rs = pstmt.executeQuery()) {
         assertTrue(rs.next());
-        assertEquals("users", rs.getString("table_name"));
+        assertEquals(TABLE, rs.getString("table_name"));
         assertEquals("ssn", rs.getString("column_name"));
         assertEquals("AES-256-GCM", rs.getString("encryption_algorithm"));
       }
     }
 
-    // Verify key storage table exists and is ready for KMS key storage
+    // Verify the data key row references the configured KMS master key
     String keyStorageSql =
-        "SELECT COUNT(*) FROM "
-            + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue
-            + ".key_storage";
+        "SELECT COUNT(*), MAX(master_key_arn) FROM "
+            + METADATA_SCHEMA
+            + ".key_storage WHERE name = ?";
     try (PreparedStatement pstmt = connection.prepareStatement(keyStorageSql)) {
+      pstmt.setString(1, KEY_NAME);
       try (ResultSet rs = pstmt.executeQuery()) {
         assertTrue(rs.next());
-        assertTrue(rs.getInt(1) >= 0);
+        assertEquals(1, rs.getInt(1));
+        assertEquals(kmsKeyId, rs.getString(2));
       }
     }
-
-    // Verify KMS master key ARN is configured
-    LOGGER.info("kmsKeyArn:::" + kmsKeyArn);
-    LOGGER.info("KMS_KEY_ARN_ENV:::" + KMS_KEY_ARN_ENV);
-    assertEquals(kmsKeyArn, System.getenv(KMS_KEY_ARN_ENV));
-    assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
   }
 
   @TestTemplate
   void testEncryptedDataTypeHmacVerification() throws Exception {
     // Insert test data
-    String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
+    String insertSql = "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)";
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
       pstmt.setString(1, "HMAC Test User");
       pstmt.setString(2, "999-99-9999");
@@ -305,21 +344,36 @@ public class KmsEncryptionIntegrationTest {
       assertEquals(1, pstmt.executeUpdate());
     }
 
-    // Verify HMAC structure at database level (doesn't require key)
-    String structureCheckSql =
-        "SELECT name, has_valid_hmac_structure(ssn) as valid_structure FROM users WHERE name = ?";
-    try (PreparedStatement pstmt = connection.prepareStatement(structureCheckSql)) {
-      pstmt.setString(1, "HMAC Test User");
-      try (ResultSet rs = pstmt.executeQuery()) {
-        assertTrue(rs.next());
-        assertTrue(
-            rs.getBoolean("valid_structure"), "Encrypted data should have valid HMAC structure");
-        LOGGER.info("HMAC structure validation passed for encrypted SSN");
+    if (isPg) {
+      // Verify HMAC structure at database level (doesn't require key)
+      String structureCheckSql =
+          "SELECT name, has_valid_hmac_structure(ssn) as valid_structure FROM " + TABLE + " WHERE name = ?";
+      try (PreparedStatement pstmt = connection.prepareStatement(structureCheckSql)) {
+        pstmt.setString(1, "HMAC Test User");
+        try (ResultSet rs = pstmt.executeQuery()) {
+          assertTrue(rs.next());
+          assertTrue(
+              rs.getBoolean("valid_structure"), "Encrypted data should have valid HMAC structure");
+          LOGGER.info("HMAC structure validation passed for encrypted SSN");
+        }
+      }
+    } else {
+      // MySQL has no has_valid_hmac_structure: check the stored length on a plain connection.
+      // [HMAC 32][type 1][IV 12][ciphertext + GCM tag 16] is at least 61 bytes.
+      try (Connection plainConn = DriverManager.getConnection(
+          ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+           PreparedStatement pstmt = plainConn.prepareStatement(
+               "SELECT LENGTH(ssn) FROM " + TABLE + " WHERE name = ?")) {
+        pstmt.setString(1, "HMAC Test User");
+        try (ResultSet rs = pstmt.executeQuery()) {
+          assertTrue(rs.next());
+          assertTrue(rs.getInt(1) >= 61, "Encrypted data should have valid HMAC structure");
+        }
       }
     }
 
     // Verify we can still decrypt the data
-    String selectSql = "SELECT ssn FROM users WHERE name = ?";
+    String selectSql = "SELECT ssn FROM " + TABLE + " WHERE name = ?";
     try (PreparedStatement pstmt = connection.prepareStatement(selectSql)) {
       pstmt.setString(1, "HMAC Test User");
       try (ResultSet rs = pstmt.executeQuery()) {
@@ -330,12 +384,17 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
-  public void testPlainTextFails() {
+  @TestTemplate
+  void testPlainTextFails() {
+    // On PostgreSQL the encrypted_data domain rejects the value; on MySQL the HMAC trigger does.
+    if (!isPg) {
+      assumeTrue(mysqlTriggersInstalled, "The MySQL HMAC validation triggers could not be installed");
+    }
     // make sure we cannot insert plain text into the ssn column
     assertThrows(SQLException.class, () -> {
-      Statement stmt = connection.createStatement();
-      stmt.execute("INSERT INTO users (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
+      try (Statement stmt = connection.createStatement()) {
+        stmt.execute("INSERT INTO " + TABLE + " (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
+      }
     });
   }
 
@@ -348,16 +407,12 @@ public class KmsEncryptionIntegrationTest {
     ds.setDatabase(TestEnvironment.getCurrent()
         .getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
-
-    final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
-    props.setProperty(EncryptionConfig.KMS_REGION.name, region);
-    ds.setTargetDataSourceProperties(props);
+    ds.setTargetDataSourceProperties(pluginProps());
 
     try (Connection dsConn = ds.getConnection()) {
       // Insert via DataSource connection
       try (PreparedStatement pstmt = dsConn.prepareStatement(
-          "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+          "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
         pstmt.setString(1, "DataSource Test");
         pstmt.setString(2, "444-44-4444");
         pstmt.setString(3, "ds@test.com");
@@ -366,7 +421,7 @@ public class KmsEncryptionIntegrationTest {
 
       // Read back and verify decryption
       try (PreparedStatement pstmt = dsConn.prepareStatement(
-          "SELECT name, ssn, email FROM users WHERE name = ?")) {
+          "SELECT name, ssn, email FROM " + TABLE + " WHERE name = ?")) {
         pstmt.setString(1, "DataSource Test");
         try (ResultSet rs = pstmt.executeQuery()) {
           assertTrue(rs.next());
@@ -387,16 +442,12 @@ public class KmsEncryptionIntegrationTest {
     ds.setDatabase(TestEnvironment.getCurrent()
         .getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
-
-    final Properties encProps = ConnectionStringHelper.getDefaultProperties();
-    encProps.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
-    encProps.setProperty(EncryptionConfig.KMS_REGION.name, region);
-    ds.setTargetDataSourceProperties(encProps);
+    ds.setTargetDataSourceProperties(pluginProps());
 
     // Insert via encrypted DataSource
     try (Connection dsConn = ds.getConnection()) {
       try (PreparedStatement pstmt = dsConn.prepareStatement(
-          "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+          "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
         pstmt.setString(1, "DS Verify Test");
         pstmt.setString(2, "555-55-5555");
         pstmt.setString(3, "dsverify@test.com");
@@ -409,7 +460,7 @@ public class KmsEncryptionIntegrationTest {
     String plainUrl = ConnectionStringHelper.getUrl();
     try (Connection plainConn = DriverManager.getConnection(plainUrl, plainProps);
         PreparedStatement pstmt = plainConn.prepareStatement(
-            "SELECT name, ssn FROM users WHERE name = ?")) {
+            "SELECT name, ssn FROM " + TABLE + " WHERE name = ?")) {
       pstmt.setString(1, "DS Verify Test");
       try (ResultSet rs = pstmt.executeQuery()) {
         assertTrue(rs.next());
@@ -459,9 +510,9 @@ public class KmsEncryptionIntegrationTest {
 
     insertKeyAndMetadata(conn, metadataSchema.getValue());
 
-    // Create users table with encrypted_data type
+    // Create the test table with encrypted_data type
     stmt.execute(
-        "CREATE TABLE users ("
+        "CREATE TABLE " + TABLE + " ("
             + "id SERIAL PRIMARY KEY, "
             + "name VARCHAR(100), "
             + "ssn encrypted_data, "
@@ -469,8 +520,8 @@ public class KmsEncryptionIntegrationTest {
 
     // Add trigger to validate HMAC
     stmt.execute(
-        "CREATE TRIGGER validate_ssn_hmac "
-            + "BEFORE INSERT OR UPDATE ON users "
+        "CREATE TRIGGER validate_" + TABLE + "_ssn_hmac "
+            + "BEFORE INSERT OR UPDATE ON " + TABLE + " "
             + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
   }
 
@@ -480,7 +531,7 @@ public class KmsEncryptionIntegrationTest {
 
     // MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
     stmt.execute(
-        "CREATE TABLE encrypt.key_storage ("
+        "CREATE TABLE " + metadataSchema + ".key_storage ("
             + "id INT AUTO_INCREMENT PRIMARY KEY, "
             + "name VARCHAR(255) NOT NULL, "
             + "master_key_arn VARCHAR(512) NOT NULL, "
@@ -491,7 +542,7 @@ public class KmsEncryptionIntegrationTest {
             + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
     stmt.execute(
-        "CREATE TABLE encrypt.encryption_metadata ("
+        "CREATE TABLE " + metadataSchema + ".encryption_metadata ("
             + "table_name VARCHAR(255) NOT NULL, "
             + "column_name VARCHAR(255) NOT NULL, "
             + "encryption_algorithm VARCHAR(50) NOT NULL, "
@@ -499,38 +550,51 @@ public class KmsEncryptionIntegrationTest {
             + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
             + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
             + "PRIMARY KEY (table_name, column_name), "
-            + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id))");
+            + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
 
-    insertKeyAndMetadata(conn, "encrypt.");
+    insertKeyAndMetadata(conn, metadataSchema.getValue());
 
     stmt.execute(
-        "CREATE TABLE users ("
+        "CREATE TABLE " + TABLE + " ("
             + "id INT AUTO_INCREMENT PRIMARY KEY, "
             + "name VARCHAR(100), "
             + "ssn VARBINARY(256), "
             + "email VARCHAR(100))");
+
+    // Optional HMAC validation triggers (the database user may lack the privilege to create them)
+    try {
+      EncryptedDataTypeInstaller.installMySqlHmacValidation(conn, metadataSchema);
+      EncryptedDataTypeInstaller.createMySqlHmacTriggers(conn, TABLE, "ssn");
+      mysqlTriggersInstalled = true;
+    } catch (SQLException e) {
+      if (!MYSQL_ROUTINE_PRIVILEGE_ERRORS.contains(e.getErrorCode())) {
+        throw e;
+      }
+      LOGGER.info("MySQL HMAC validation triggers not installed: " + e.getMessage());
+    }
   }
 
   private static void insertKeyAndMetadata(Connection conn, String metadataSchema)
       throws Exception {
-    // Generate KMS data key
-    KmsClient kmsClient = KmsClient.builder().region(Region.of(region)).build();
-    GenerateDataKeyRequest dataKeyRequest =
-        GenerateDataKeyRequest.builder().keyId(kmsKeyArn).keySpec("AES_256").build();
-    GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
-    String encryptedDataKeyBase64 =
-        Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
+    // Generate KMS data key. KMS accepts a key ID, key ARN or alias.
+    final String encryptedDataKeyBase64;
+    try (KmsClient kmsClient = KmsClient.builder().region(Region.of(region)).build()) {
+      GenerateDataKeyRequest dataKeyRequest =
+          GenerateDataKeyRequest.builder().keyId(kmsKeyId).keySpec("AES_256").build();
+      GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
+      encryptedDataKeyBase64 =
+          Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
+    }
 
     // Generate HMAC key
     byte[] hmacKey = new byte[32];
     new java.security.SecureRandom().nextBytes(hmacKey);
 
     // Insert key
-    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     String tablePrefix = (metadataSchema != null) ? metadataSchema + "." : "";
     String insertKeySql;
 
-    if (dbEngine == DatabaseEngine.PG) {
+    if (isPg) {
       insertKeySql =
           "INSERT INTO "
               + tablePrefix
@@ -546,22 +610,24 @@ public class KmsEncryptionIntegrationTest {
 
     int generatedKeyId;
     try (PreparedStatement keyStmt = conn.prepareStatement(insertKeySql,
-        dbEngine == DatabaseEngine.PG ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
-      keyStmt.setString(1, "test-key-users-ssn");
-      keyStmt.setString(2, kmsKeyArn);
+        isPg ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
+      keyStmt.setString(1, KEY_NAME);
+      keyStmt.setString(2, kmsKeyId);
       keyStmt.setString(3, encryptedDataKeyBase64);
       keyStmt.setBytes(4, hmacKey);
       keyStmt.setString(5, "AES_256");
 
-      if (dbEngine == DatabaseEngine.PG) {
-        ResultSet keyRs = keyStmt.executeQuery();
-        keyRs.next();
-        generatedKeyId = keyRs.getInt(1);
+      if (isPg) {
+        try (ResultSet keyRs = keyStmt.executeQuery()) {
+          keyRs.next();
+          generatedKeyId = keyRs.getInt(1);
+        }
       } else {
         keyStmt.executeUpdate();
-        ResultSet keyRs = keyStmt.getGeneratedKeys();
-        keyRs.next();
-        generatedKeyId = keyRs.getInt(1);
+        try (ResultSet keyRs = keyStmt.getGeneratedKeys()) {
+          keyRs.next();
+          generatedKeyId = keyRs.getInt(1);
+        }
       }
     }
 
@@ -572,7 +638,7 @@ public class KmsEncryptionIntegrationTest {
                 + tablePrefix
                 + "encryption_metadata (table_name, column_name, encryption_algorithm, key_id) "
                 + "VALUES (?, ?, ?, ?)")) {
-      metaStmt.setString(1, "users");
+      metaStmt.setString(1, TABLE);
       metaStmt.setString(2, "ssn");
       metaStmt.setString(3, "AES-256-GCM");
       metaStmt.setInt(4, generatedKeyId);
@@ -586,7 +652,8 @@ public class KmsEncryptionIntegrationTest {
     LOGGER.info("Starting testEncryptionWithAnnotations");
 
     // Insert using annotation syntax
-    String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, /*@encrypt:users.ssn*/ ?, ?)";
+    String insertSql =
+        "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, /*@encrypt:" + TABLE + ".ssn*/ ?, ?)";
     try (PreparedStatement stmt = connection.prepareStatement(insertSql)) {
       stmt.setString(1, "Alice Annotation");
       stmt.setString(2, "111-22-3333"); // Will be encrypted via annotation
@@ -596,14 +663,15 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Query and verify decryption
-    try (PreparedStatement stmt = connection.prepareStatement("SELECT name, ssn, email FROM users WHERE name = ?")) {
+    try (PreparedStatement stmt = connection.prepareStatement(
+        "SELECT name, ssn, email FROM " + TABLE + " WHERE name = ?")) {
       stmt.setString(1, "Alice Annotation");
-      ResultSet rs = stmt.executeQuery();
-
-      assertTrue(rs.next(), "Should find inserted user");
-      assertEquals("Alice Annotation", rs.getString("name"));
-      assertEquals("111-22-3333", rs.getString("ssn"), "SSN should be decrypted");
-      assertEquals("alice@example.com", rs.getString("email"));
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find inserted user");
+        assertEquals("Alice Annotation", rs.getString("name"));
+        assertEquals("111-22-3333", rs.getString("ssn"), "SSN should be decrypted");
+        assertEquals("alice@example.com", rs.getString("email"));
+      }
 
       LOGGER.info("Successfully verified annotation-based encryption/decryption");
     }
@@ -615,7 +683,8 @@ public class KmsEncryptionIntegrationTest {
 
     // Insert using annotation - this explicitly tells the plugin to encrypt
     // even if we're inserting into a different column position
-    String insertSql = "INSERT INTO users (name, email, ssn) VALUES (?, ?, /*@encrypt:users.ssn*/ ?)";
+    String insertSql =
+        "INSERT INTO " + TABLE + " (name, email, ssn) VALUES (?, ?, /*@encrypt:" + TABLE + ".ssn*/ ?)";
     try (PreparedStatement stmt = connection.prepareStatement(insertSql)) {
       stmt.setString(1, "Bob Annotation");
       stmt.setString(2, "bob@example.com");
@@ -625,13 +694,14 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Verify decryption works
-    try (PreparedStatement stmt = connection.prepareStatement("SELECT name, ssn FROM users WHERE name = ?")) {
+    try (PreparedStatement stmt = connection.prepareStatement(
+        "SELECT name, ssn FROM " + TABLE + " WHERE name = ?")) {
       stmt.setString(1, "Bob Annotation");
-      ResultSet rs = stmt.executeQuery();
-
-      assertTrue(rs.next());
-      assertEquals("Bob Annotation", rs.getString("name"));
-      assertEquals("222-33-4444", rs.getString("ssn"), "SSN should be decrypted");
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals("Bob Annotation", rs.getString("name"));
+        assertEquals("222-33-4444", rs.getString("ssn"), "SSN should be decrypted");
+      }
 
       LOGGER.info("Successfully verified annotation with different column order");
     }
@@ -643,7 +713,7 @@ public class KmsEncryptionIntegrationTest {
 
     // Insert initial data
     try (PreparedStatement stmt = connection.prepareStatement(
-        "INSERT INTO users (name, ssn, email) VALUES (?, /*@encrypt:users.ssn*/ ?, ?)")) {
+        "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, /*@encrypt:" + TABLE + ".ssn*/ ?, ?)")) {
       stmt.setString(1, "Dave Update");
       stmt.setString(2, "444-55-6666");
       stmt.setString(3, "dave@example.com");
@@ -651,7 +721,7 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Update using annotation
-    String updateSql = "UPDATE users SET ssn = /*@encrypt:users.ssn*/ ? WHERE name = ?";
+    String updateSql = "UPDATE " + TABLE + " SET ssn = /*@encrypt:" + TABLE + ".ssn*/ ? WHERE name = ?";
     try (PreparedStatement stmt = connection.prepareStatement(updateSql)) {
       stmt.setString(1, "555-66-7777"); // New encrypted value
       stmt.setString(2, "Dave Update");
@@ -661,12 +731,12 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Verify updated value
-    try (PreparedStatement stmt = connection.prepareStatement("SELECT ssn FROM users WHERE name = ?")) {
+    try (PreparedStatement stmt = connection.prepareStatement("SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
       stmt.setString(1, "Dave Update");
-      ResultSet rs = stmt.executeQuery();
-
-      assertTrue(rs.next());
-      assertEquals("555-66-7777", rs.getString("ssn"), "Should have new encrypted value");
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals("555-66-7777", rs.getString("ssn"), "Should have new encrypted value");
+      }
 
       LOGGER.info("Successfully verified annotation-based update");
     }
@@ -681,8 +751,8 @@ public class KmsEncryptionIntegrationTest {
    * statement resolves {@code ssn} on its own and the annotation makes no difference. That is why a
    * defect in the annotation path was able to survive them: the metadata lookup key was composed as
    * {@code tableName + "." + columnName} from an already-qualified annotation value, producing
-   * {@code users.users.ssn}, missing, and silently skipping encryption — but the positional mapping
-   * covered for it.
+   * {@code kms_enc_users.kms_enc_users.ssn}, missing, and silently skipping encryption — but the
+   * positional mapping covered for it.
    *
    * <p>Here a literal in the {@code VALUES} list shifts the placeholder indices: the column list is
    * {@code (name, email, ssn)} so the positional mapping is {@code 1 -> name, 2 -> email,
@@ -702,8 +772,8 @@ public class KmsEncryptionIntegrationTest {
     final String ssn = "666-77-8888";
     final String email = "mismatch@example.com";
 
-    final String insertSql =
-        "INSERT INTO users (name, email, ssn) VALUES ('" + name + "', ?, /*@encrypt:users.ssn*/ ?)";
+    final String insertSql = "INSERT INTO " + TABLE + " (name, email, ssn) VALUES ('" + name
+        + "', ?, /*@encrypt:" + TABLE + ".ssn*/ ?)";
     try (PreparedStatement stmt = connection.prepareStatement(insertSql)) {
       stmt.setString(1, email);
       stmt.setString(2, ssn);
@@ -713,7 +783,7 @@ public class KmsEncryptionIntegrationTest {
 
     // The wrapper must still round-trip the value.
     try (PreparedStatement stmt = connection.prepareStatement(
-        "SELECT name, ssn, email FROM users WHERE name = ?")) {
+        "SELECT name, ssn, email FROM " + TABLE + " WHERE name = ?")) {
       stmt.setString(1, name);
       try (ResultSet rs = stmt.executeQuery()) {
         assertTrue(rs.next(), "Should find inserted user");
@@ -727,7 +797,7 @@ public class KmsEncryptionIntegrationTest {
     final String plainUrl = ConnectionStringHelper.getUrl();
     try (Connection plainConn = DriverManager.getConnection(plainUrl, plainProps);
         PreparedStatement stmt = plainConn.prepareStatement(
-            "SELECT ssn FROM users WHERE name = ?")) {
+            "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
       stmt.setString(1, name);
       try (ResultSet rs = stmt.executeQuery()) {
         assertTrue(rs.next());
@@ -747,11 +817,8 @@ public class KmsEncryptionIntegrationTest {
     // Note: We can't test actual profile switching in integration tests,
     // but we can verify the property is processed without errors
 
-    Properties propsWithProfile = ConnectionStringHelper.getDefaultProperties();
-    propsWithProfile.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
-    propsWithProfile.setProperty("kms.region", region);
-    propsWithProfile.setProperty("kms.MasterKeyArn", kmsKeyArn);
-    propsWithProfile.setProperty("encryption.metadataSchema", "encrypt");
+    Properties propsWithProfile = pluginProps();
+    propsWithProfile.setProperty(EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.name, METADATA_SCHEMA);
 
     // Set awsProfile property (will use default credentials if profile doesn't exist)
     propsWithProfile.setProperty(PropertyDefinition.AWS_PROFILE.name, "default");
@@ -764,7 +831,7 @@ public class KmsEncryptionIntegrationTest {
 
       // Verify encryption still works with profile property set
       try (PreparedStatement stmt = connWithProfile.prepareStatement(
-          "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)")) {
+          "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
         stmt.setString(1, "Profile Test");
         stmt.setString(2, "999-99-9999");
         stmt.setString(3, "profile@test.com");
@@ -774,16 +841,34 @@ public class KmsEncryptionIntegrationTest {
 
       // Verify decryption works
       try (PreparedStatement stmt = connWithProfile.prepareStatement(
-          "SELECT ssn FROM users WHERE name = ?")) {
+          "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
         stmt.setString(1, "Profile Test");
-        ResultSet rs = stmt.executeQuery();
-
-        assertTrue(rs.next(), "Should find inserted row");
-        assertEquals("999-99-9999", rs.getString("ssn"),
-            "Should decrypt SSN correctly with awsProfile property");
+        try (ResultSet rs = stmt.executeQuery()) {
+          assertTrue(rs.next(), "Should find inserted row");
+          assertEquals("999-99-9999", rs.getString("ssn"),
+              "Should decrypt SSN correctly with awsProfile property");
+        }
 
         LOGGER.info("Successfully verified encryption/decryption with awsProfile property");
       }
     }
+  }
+
+  private static String regionFromArn(String keyId) {
+    // arn:aws:kms:<region>:<account>:key/<id>
+    if (keyId == null || !keyId.startsWith("arn:")) {
+      return null;
+    }
+    final String[] parts = keyId.split(":");
+    return parts.length > 3 ? parts[3] : null;
+  }
+
+  private static String firstNonEmpty(String... values) {
+    for (String value : values) {
+      if (value != null && !value.trim().isEmpty()) {
+        return value.trim();
+      }
+    }
+    return null;
   }
 }

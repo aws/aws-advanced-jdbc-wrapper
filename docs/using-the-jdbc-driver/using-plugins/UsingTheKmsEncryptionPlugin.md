@@ -140,7 +140,7 @@ String url = "jdbc:aws-wrapper:postgresql://your-cluster.cluster-xyz.us-east-1.r
 Properties props = new Properties();
 props.setProperty("user", "username");
 props.setProperty("password", "password");
-props.setProperty("wrapperPlugins", "kmsEncryption");
+props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption"); // kmsEncryption requires sqlParser
 props.setProperty("kms.region", "us-east-1");
 props.setProperty("auditLoggingEnabled", "true");
 
@@ -369,7 +369,7 @@ Ensure your application has the necessary KMS permissions:
 
 - KMS calls are only needed for data key generation/decryption, not for each data encryption/decryption
 - Data key caching significantly reduces KMS API calls for repeated operations
-- Consider the impact on performance for high-throughput applications during key rotation
+- Rotating the KMS key has no runtime impact. Rotating a column's data key re-encrypts every row of the column and needs a maintenance window; see [Key Rotation](./KmsEncryptionPluginGuide.md#key-rotation)
 - KMS has rate limits that may affect very high-volume key operations
 - The plugin caches both metadata and data keys to minimize external calls
 
@@ -406,7 +406,7 @@ Check the application logs for encryption-related messages.
 3. **Monitor Usage**: Monitor KMS usage and costs
 4. **Test Performance**: Test the performance impact in your specific use case
 5. **Backup Metadata**: Ensure the encryption metadata table is included in backups
-6. **Key Rotation**: Implement a strategy for KMS key rotation
+6. **Key Rotation**: Enable automatic rotation on the KMS key; it is transparent to the plugin. Rotating a column's data key requires re-encrypting its rows; see [Key Rotation](./KmsEncryptionPluginGuide.md#key-rotation). Never delete an old data key or KMS key while data or backups encrypted under it exist.
 
 ## Example Application
 

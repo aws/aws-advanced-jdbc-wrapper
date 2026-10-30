@@ -275,7 +275,10 @@ public class ContainerHelper {
             "app/test/resources/junit-platform.properties")
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/resources/certs/ca.crt"),
-            "app/test/resources/certs/ca.crt");
+            "app/test/resources/certs/ca.crt")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/sql"),
+            "app/test/resources/sql"); // used by EncryptedDataTypeInstaller in KMS encryption tests
   }
 
   protected Long execInContainer(

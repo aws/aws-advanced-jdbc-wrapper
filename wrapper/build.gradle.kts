@@ -1600,3 +1600,32 @@ tasks.register<Test>("test-kms-encryption") {
     systemProperty("test-encryption-only", "true")
 
 }
+
+tasks.register<Test>("test-kms-encryption-docker") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-bg", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk11", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk21", "true")
+        systemProperty("test-no-openjdk24", "true")
+        systemProperty("test-no-instances-2", "true")
+        systemProperty("test-no-instances-3", "true")
+        systemProperty("test-no-instances-5", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-iam", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-traces-telemetry", "true")
+        systemProperty("test-no-metrics-telemetry", "true")
+        systemProperty("test-encryption-only", "true")
+    }
+}

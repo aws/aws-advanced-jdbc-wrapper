@@ -45,6 +45,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:rds:2.42.38")
     testImplementation("software.amazon.awssdk:sts:2.42.38")
     testImplementation("software.amazon.awssdk:secretsmanager:2.42.38")
+    testImplementation("software.amazon.awssdk:kms:2.42.38") // Required by kmsEncryption plugin tests
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.20.4")
     testImplementation("org.testcontainers:mysql:1.20.4")
@@ -215,6 +216,7 @@ val testClassWeightsSeconds = mapOf(
     "BlueGreenDeploymentTests" to 0,
     "DatabasePerformanceMetricTest" to 0,
     "KmsEncryptionIntegrationTest" to 0,
+    "KmsKeyRotationIntegrationTest" to 0,
     "PerformanceTest" to 0,
     "ReadWriteSplittingPerformanceTest" to 0,
     "RemoteQueryCachePluginTests" to 0,

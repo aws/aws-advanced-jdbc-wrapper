@@ -573,6 +573,106 @@ public class EncryptionService {
     }
   }
 
+  /**
+   * Re-encrypts a stored value from one data key to another without deserializing it. Verifies the
+   * HMAC with {@code oldHmacKey}, decrypts the AES-GCM payload with {@code oldDataKey}, and
+   * encrypts the same plaintext bytes with {@code newDataKey} and a fresh random IV. The type marker
+   * byte is copied unchanged (it is not parsed, so the Java type of the value is not needed). The
+   * result has the normal layout [HMAC-SHA256 32][type marker 1][IV 12][ciphertext + tag 16] with an
+   * HMAC computed with {@code newHmacKey}.
+   *
+   * @param encryptedValue the stored value, encrypted under the old keys
+   * @param oldDataKey the data key the value is encrypted with
+   * @param oldHmacKey the HMAC key the value is authenticated with
+   * @param newDataKey the data key to encrypt the value with
+   * @param newHmacKey the HMAC key to authenticate the result with
+   * @param algorithm the encryption algorithm of both keys
+   * @return the value encrypted under the new keys
+   * @throws EncryptionException if the value is too short, the HMAC does not verify with
+   *     {@code oldHmacKey}, GCM authentication fails, or a key or the algorithm is invalid
+   */
+  public byte[] reencrypt(
+      byte[] encryptedValue, byte[] oldDataKey, byte[] oldHmacKey,
+      byte[] newDataKey, byte[] newHmacKey, String algorithm)
+      throws EncryptionException {
+    validateAlgorithm(algorithm);
+    validateDataKey(oldDataKey, algorithm);
+    validateDataKey(newDataKey, algorithm);
+    if (oldHmacKey == null || newHmacKey == null) {
+      throw EncryptionException.invalidKey(Messages.get("EncryptionService.hmacKeyNull"))
+          .withAlgorithm(algorithm)
+          .withOperation("REENCRYPT");
+    }
+
+    final int minimumLength = HMAC_TAG_LENGTH + 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH;
+    if (encryptedValue == null || encryptedValue.length < minimumLength) {
+      throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidEncryptedLength"), null)
+          .withAlgorithm(algorithm)
+          .withOperation("REENCRYPT")
+          .withContext("dataLength", encryptedValue == null ? 0 : encryptedValue.length)
+          .withContext("minimumLength", minimumLength);
+    }
+
+    byte @Nullable [] plaintext = null;
+    final byte[] oldIv = new byte[GCM_IV_LENGTH];
+    final byte[] newIv = new byte[GCM_IV_LENGTH];
+    try {
+      final byte[] storedHmacTag = Arrays.copyOfRange(encryptedValue, 0, HMAC_TAG_LENGTH);
+      final byte[] encryptedData = Arrays.copyOfRange(encryptedValue, HMAC_TAG_LENGTH, encryptedValue.length);
+
+      final Mac oldHmac = Mac.getInstance(HMAC_ALGORITHM);
+      oldHmac.init(new SecretKeySpec(oldHmacKey, HMAC_ALGORITHM));
+      if (!MessageDigest.isEqual(storedHmacTag, oldHmac.doFinal(encryptedData))) {
+        throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.hmacTampered"), null)
+            .withAlgorithm(algorithm)
+            .withOperation("REENCRYPT");
+      }
+
+      final byte typeMarker = encryptedData[0];
+      System.arraycopy(encryptedData, 1, oldIv, 0, GCM_IV_LENGTH);
+      final byte[] oldCiphertext = Arrays.copyOfRange(encryptedData, 1 + GCM_IV_LENGTH, encryptedData.length);
+
+      final Cipher decryptCipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
+      decryptCipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(oldDataKey, "AES"),
+          new GCMParameterSpec(GCM_TAG_LENGTH * 8, oldIv));
+      plaintext = decryptCipher.doFinal(oldCiphertext);
+
+      secureRandom.nextBytes(newIv);
+      final Cipher encryptCipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
+      encryptCipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(newDataKey, "AES"),
+          new GCMParameterSpec(GCM_TAG_LENGTH * 8, newIv));
+      final byte[] newCiphertext = encryptCipher.doFinal(plaintext);
+
+      final ByteBuffer dataBuffer = ByteBuffer.allocate(1 + GCM_IV_LENGTH + newCiphertext.length);
+      dataBuffer.put(typeMarker);
+      dataBuffer.put(newIv);
+      dataBuffer.put(newCiphertext);
+      final byte[] newEncryptedData = dataBuffer.array();
+
+      final Mac newHmac = Mac.getInstance(HMAC_ALGORITHM);
+      newHmac.init(new SecretKeySpec(newHmacKey, HMAC_ALGORITHM));
+      final byte[] newHmacTag = newHmac.doFinal(newEncryptedData);
+
+      final ByteBuffer finalBuffer = ByteBuffer.allocate(HMAC_TAG_LENGTH + newEncryptedData.length);
+      finalBuffer.put(newHmacTag);
+      finalBuffer.put(newEncryptedData);
+      return finalBuffer.array();
+
+    } catch (EncryptionException e) {
+      throw e;
+    } catch (Exception e) {
+      throw EncryptionException.encryptionFailed(Messages.get("EncryptionService.reencryptFailed"), e)
+          .withAlgorithm(algorithm)
+          .withOperation("REENCRYPT");
+    } finally {
+      if (plaintext != null) {
+        Arrays.fill(plaintext, (byte) 0);
+      }
+      Arrays.fill(oldIv, (byte) 0);
+      Arrays.fill(newIv, (byte) 0);
+    }
+  }
+
   private static String bytesToHex(byte[] bytes) {
     StringBuilder sb = new StringBuilder();
     for (byte b : bytes) {

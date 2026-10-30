@@ -142,6 +142,8 @@ public class TestEnvironmentConfiguration {
   public final String awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
   public final String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
   public final String kmsKeyId = System.getenv("KMS_KEY_ID");
+  // Optional second KMS key, used only by the KMS data key rotation tests.
+  public final String kmsKeyId2 = System.getenv("KMS_KEY_ID_2");
   public final String iamUser = System.getenv("IAM_USER");
 
 }

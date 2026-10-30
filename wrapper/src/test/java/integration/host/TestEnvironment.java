@@ -120,6 +120,7 @@ public class TestEnvironment implements AutoCloseable {
   private String awsSecretAccessKey;
   private String awsSessionToken;
   private String kmsKeyId;
+  private String kmsKeyId2;
 
   private GenericContainer<?> testContainer;
   private final ArrayList<GenericContainer<?>> databaseContainers = new ArrayList<>();
@@ -149,6 +150,10 @@ public class TestEnvironment implements AutoCloseable {
       case DOCKER:
         env = new TestEnvironment(request);
         initDatabaseParams(env);
+        if (request.getFeatures().contains(TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY)) {
+          // The KMS encryption tests call AWS KMS from the test container.
+          initAwsCredentials(env);
+        }
         createDatabaseContainers(env);
         createValkeyCacheContainer(env);
 
@@ -1309,6 +1314,7 @@ public class TestEnvironment implements AutoCloseable {
     env.awsSecretAccessKey = config.awsSecretAccessKey;
     env.awsSessionToken = config.awsSessionToken;
     env.kmsKeyId = config.kmsKeyId;
+    env.kmsKeyId2 = config.kmsKeyId2;
 
     if (StringUtils.isNullOrEmpty(env.awsAccessKeyId)) {
       throw new RuntimeException("Environment variable AWS_ACCESS_KEY_ID is required.");
@@ -1485,6 +1491,9 @@ public class TestEnvironment implements AutoCloseable {
           .withEnv("AWS_SECRET_ACCESS_KEY", env.awsSecretAccessKey)
           .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken)
           .withEnv("KMS_KEY_ID", env.kmsKeyId);
+      if (!StringUtils.isNullOrEmpty(env.kmsKeyId2)) {
+        env.testContainer.withEnv("KMS_KEY_ID_2", env.kmsKeyId2);
+      }
     }
 
     env.testContainer.start();

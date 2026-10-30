@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.encryption.model;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
@@ -28,6 +29,8 @@ import software.amazon.jdbc.util.Messages;
 public final class SchemaName {
 
   private static final String VALID_PATTERN = "^[a-zA-Z_][a-zA-Z0-9_]*$";
+
+  private static final Pattern VALID = Pattern.compile(VALID_PATTERN);
 
   private final String value;
 
@@ -46,13 +49,24 @@ public final class SchemaName {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException(Messages.get("SchemaName.nullOrEmpty"));
     }
-    if (!name.matches(VALID_PATTERN)) {
+    if (!isValidIdentifier(name)) {
       throw new IllegalArgumentException(
           Messages.get("SchemaName.invalidName", new Object[]{name
               + "'. Must start with a letter or underscore and contain only"
               + " letters, digits, and underscores."}));
     }
     return new SchemaName(name);
+  }
+
+  /**
+   * Checks a name against the identifier rule used for schema names: a letter or underscore,
+   * followed by letters, digits and underscores. No length limit is applied.
+   *
+   * @param name the name to check
+   * @return true if the name is non-null and matches the rule
+   */
+  public static boolean isValidIdentifier(@Nullable String name) {
+    return name != null && VALID.matcher(name).matches();
   }
 
   /**
