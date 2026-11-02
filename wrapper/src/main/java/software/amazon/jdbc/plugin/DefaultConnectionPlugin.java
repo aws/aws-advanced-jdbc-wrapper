@@ -45,6 +45,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.SqlMethodAnalyzer.SqlStatementAnalysis;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -124,9 +125,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
 
+    final SqlStatementAnalysis sqlAnalysis = sqlMethodAnalyzer.analyze(jdbcMethodArgs);
+
     // Check previous autocommit value before calling jdbcMethodFunc.
     final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
-        this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
+        this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs, sqlAnalysis);
 
     T result;
     try {
@@ -152,17 +155,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
-    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
+    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)) {
       this.pluginManagerService.setInTransaction(true);
     } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)
             // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
             || doesSwitchAutoCommitFalseTrue) {
       this.pluginManagerService.setInTransaction(false);
     }
 
-    if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
-      final Boolean autocommit = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+    if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, sqlAnalysis)) {
+      final Boolean autocommit = sqlAnalysis.getAutoCommitValue();
       if (autocommit != null) {
         try {
           currentConn.setAutoCommit(autocommit);
