@@ -18,23 +18,44 @@ package software.amazon.jdbc.plugin.encryption;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
@@ -42,11 +63,14 @@ import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
+import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPlugin;
 import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 
 public class KmsEncryptionConnectionPluginTest {
 
@@ -80,6 +104,7 @@ public class KmsEncryptionConnectionPluginTest {
         .thenReturn(new GenericTargetDriverDialect());
     when(mockPluginService.getCallContext())
         .thenReturn(callContext);
+    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(true);
 
     plugin = new KmsEncryptionConnectionPlugin(mockPluginService, mockUtility);
   }
@@ -500,6 +525,365 @@ public class KmsEncryptionConnectionPluginTest {
         1, "value");
 
     assertTrue(called[0], "Should pass through after statement close");
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Chained sqlParser + kmsEncryption tests. Only users.ssn is encrypted.
+  // ---------------------------------------------------------------------------------------------
+
+  private static final String ANNOTATION = "/*@encrypt:users.ssn*/";
+
+  private void stubEncryptedUsersSsn() throws Exception {
+    when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+    when(mockMetadataManager.hasEncryptedColumns("users")).thenReturn(true);
+    when(mockMetadataManager.getEncryptedTableNames()).thenReturn(Collections.singleton("users"));
+    when(mockMetadataManager.getColumnConfig("users", "ssn")).thenReturn(createTestConfig());
+    when(mockKeyManager.decryptDataKey(anyString(), anyString())).thenReturn(testDataKey);
+    when(mockEncryptionService.encrypt(any(), any(), any(), anyString())).thenReturn(testEncrypted);
+  }
+
+  private PreparedStatement prepareChained(String sql) throws SQLException {
+    SqlParserConnectionPlugin parserPlugin =
+        new SqlParserConnectionPlugin(mockPluginService, new Properties());
+    return parserPlugin.execute(
+        PreparedStatement.class, SQLException.class, mockConnection,
+        "Connection.prepareStatement",
+        () -> plugin.execute(
+            PreparedStatement.class, SQLException.class, mockConnection,
+            "Connection.prepareStatement", () -> mockPreparedStatement, sql),
+        new Object[] {sql});
+  }
+
+  /** Binds parameters 1..n with setString and returns the indexes that were encrypted. */
+  private Set<Integer> boundEncrypted(int n) throws SQLException {
+    return boundEncrypted(n, "PreparedStatement.setString");
+  }
+
+  private Set<Integer> boundEncrypted(int n, String methodName) throws SQLException {
+    Set<Integer> encrypted = new TreeSet<>();
+    for (int i = 1; i <= n; i++) {
+      boolean[] passedThrough = {false};
+      plugin.execute(
+          Void.class, SQLException.class, mockPreparedStatement, methodName,
+          () -> {
+            passedThrough[0] = true;
+            return null;
+          },
+          i, "v" + i);
+      if (passedThrough[0]) {
+        verify(mockPreparedStatement, never()).setBytes(eq(i), any());
+      } else {
+        verify(mockPreparedStatement).setBytes(eq(i), any());
+        encrypted.add(i);
+      }
+    }
+    return encrypted;
+  }
+
+  private static Set<Integer> indexes(Integer... values) {
+    return new TreeSet<>(Arrays.asList(values));
+  }
+
+  /** Captures WARNING records of the KMS plugin logger while {@code action} runs. */
+  private List<LogRecord> captureWarnings(ThrowingRunnable action) throws Exception {
+    Logger logger = Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
+    List<LogRecord> records = new ArrayList<>();
+    Handler handler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        if (record.getLevel() == Level.WARNING) {
+          records.add(record);
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    handler.setLevel(Level.ALL);
+    logger.addHandler(handler);
+    try {
+      action.run();
+    } finally {
+      logger.removeHandler(handler);
+    }
+    return records;
+  }
+
+  @FunctionalInterface
+  private interface ThrowingRunnable {
+    void run() throws Exception;
+  }
+
+  static Stream<Arguments> chainedEncryptionCases() {
+    return Stream.of(
+        // (a) reporter statements
+        Arguments.of("A2", "INSERT INTO users (name, ssn) VALUES ('literal-name', ?)", 1,
+            indexes(1)),
+        Arguments.of("B2",
+            "UPDATE users SET note = 'really?', ssn = " + ANNOTATION + " ? WHERE id = 1", 1,
+            indexes(1)),
+        // (b) multi-row and upserts
+        Arguments.of("A6", "INSERT INTO users (name, ssn) VALUES (?, ?), (?, ?)", 4,
+            indexes(2, 4)),
+        Arguments.of("A11",
+            "INSERT INTO users (id, ssn) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET ssn = ?", 3,
+            indexes(2, 3)),
+        Arguments.of("A12",
+            "INSERT INTO users (id, ssn) VALUES (?, ?) ON DUPLICATE KEY UPDATE ssn = ?", 3,
+            indexes(2, 3)),
+        // (g) controls and the remaining starred rows
+        Arguments.of("A1", "INSERT INTO users (name, ssn) VALUES (?, ?)", 2, indexes(2)),
+        Arguments.of("A3", "UPDATE users SET name = 'x', ssn = ? WHERE id = ?", 2, indexes(1)),
+        Arguments.of("A4", "UPDATE users SET ssn = ? WHERE id = ?", 2, indexes(1)),
+        Arguments.of("A7c",
+            "INSERT INTO users (name, ssn) SELECT 'n', ? FROM staging WHERE id = ?", 2,
+            indexes(1)),
+        Arguments.of("A9", "INSERT INTO users (name, ssn) VALUES (concat(?, ?), ?)", 3,
+            indexes(3)),
+        Arguments.of("A16", "INSERT INTO users (\"name\", \"ssn\") VALUES (?, ?)", 2, indexes(2)),
+        Arguments.of("A21", "UPDATE users SET ver = ver + 1, ssn = ? WHERE id = ?", 2,
+            indexes(1)),
+        Arguments.of("A22", "INSERT INTO public.users (name, ssn) VALUES ('n', ?)", 1,
+            indexes(1)),
+        Arguments.of("B1", "UPDATE users SET note = 'ok', ssn = " + ANNOTATION + " ? WHERE id = 1",
+            1, indexes(1)),
+        Arguments.of("B6", "-- why?\nUPDATE users SET ssn = " + ANNOTATION + " ? WHERE id = ?", 2,
+            indexes(1)),
+        Arguments.of("B7", "/* why? */ UPDATE users SET ssn = " + ANNOTATION + " ? WHERE id = ?",
+            2, indexes(1)),
+        Arguments.of("B11",
+            "INSERT INTO users (note, name, ssn) VALUES ('" + ANNOTATION + " ?', ?, ?)", 2,
+            indexes(2)),
+        Arguments.of("B14",
+            "INSERT INTO users (note, ssn) VALUES ('what?', " + ANNOTATION + " ?)", 1,
+            indexes(1)));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("chainedEncryptionCases")
+  void test_chained_encryptsExactlyTheEncryptedColumnParameters(
+      String id, String sql, int parameterCount, Set<Integer> expected) throws Exception {
+    stubEncryptedUsersSsn();
+
+    List<LogRecord> warnings = captureWarnings(() -> {
+      assertEquals(mockPreparedStatement, prepareChained(sql));
+      assertEquals(expected, boundEncrypted(parameterCount));
+    });
+
+    assertTrue(warnings.isEmpty(), "No WARNING expected for " + id);
+    verify(mockPreparedStatement, never()).close();
+  }
+
+  @Test
+  void test_chained_insertWithoutColumnList_strict_throwsAndClosesStatement() throws Exception {
+    stubEncryptedUsersSsn();
+    String sql = "INSERT INTO users VALUES (?, ?, ?)";
+
+    SQLException e = assertThrows(SQLException.class, () -> prepareChained(sql));
+
+    verify(mockPreparedStatement).close();
+    assertTrue(e.getMessage().contains("users"), e.getMessage());
+    assertTrue(e.getMessage().contains("encryptionFailOnUnmappedParameter"), e.getMessage());
+    assertFalse(e.getMessage().contains(sql), e.getMessage());
+  }
+
+  static Stream<Arguments> chainedRejectedCases() {
+    return Stream.of(
+        // PARAMS_IN_EXPRESSION on the encrypted column
+        Arguments.of("expressionOnEncryptedColumn",
+            "INSERT INTO users (name, ssn) VALUES (?, lower(?))", false),
+        Arguments.of("scalarSubSelectOnEncryptedColumn",
+            "UPDATE users SET ssn = (SELECT s FROM t WHERE id = ?) WHERE id = ?", false),
+        // UNKNOWN_TARGET_PARAMS covering the encrypted column
+        Arguments.of("rowSubSelect",
+            "UPDATE users SET (name, ssn) = (SELECT a, b FROM t WHERE id = ?) WHERE id = ?",
+            false),
+        // FIXED_INDEX_PARAMETER
+        Arguments.of("numberedPlaceholders",
+            "INSERT INTO users (name, ssn) VALUES (?1, ?2)", false),
+        // UNSUPPORTED_STATEMENT
+        Arguments.of("replace", "REPLACE INTO users (name, ssn) VALUES (?, ?)", false),
+        Arguments.of("merge",
+            "MERGE INTO users u USING src s ON (u.id = s.id)"
+                + " WHEN MATCHED THEN UPDATE SET u.ssn = ?",
+            false),
+        // PLACEHOLDER_COUNT_MISMATCH (backticks are not quotes for PostgreSQL)
+        Arguments.of("countMismatch",
+            "UPDATE users SET `what?` = 'x', ssn = ? WHERE id = ?", true));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("chainedRejectedCases")
+  void test_chained_relevantProblem_strict_throwsAndClosesStatement(
+      String id, String sql, boolean postgresDialect) throws Exception {
+    stubEncryptedUsersSsn();
+    if (postgresDialect) {
+      when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+    }
+
+    SQLException e = assertThrows(SQLException.class, () -> prepareChained(sql));
+
+    verify(mockPreparedStatement).close();
+    assertTrue(e.getMessage().contains("users"), e.getMessage());
+    assertTrue(e.getMessage().contains("encryptionFailOnUnmappedParameter"), e.getMessage());
+    assertFalse(e.getMessage().contains(sql), e.getMessage());
+  }
+
+  @Test
+  void test_chained_strict_closeFailureIsSuppressed() throws Exception {
+    stubEncryptedUsersSsn();
+    SQLException closeFailure = new SQLException("close failed");
+    doThrow(closeFailure).when(mockPreparedStatement).close();
+
+    SQLException e = assertThrows(SQLException.class,
+        () -> prepareChained("INSERT INTO users VALUES (?, ?, ?)"));
+
+    assertEquals(1, e.getSuppressed().length);
+    assertSame(closeFailure, e.getSuppressed()[0]);
+  }
+
+  @Test
+  void test_chained_insertWithoutColumnList_nonStrict_logsOneWarning() throws Exception {
+    stubEncryptedUsersSsn();
+    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(false);
+    String sql = "INSERT INTO users VALUES (?, ?, ?)";
+
+    List<LogRecord> warnings = captureWarnings(() -> {
+      assertEquals(mockPreparedStatement, prepareChained(sql));
+      assertEquals(Collections.emptySet(), boundEncrypted(3));
+    });
+
+    assertEquals(1, warnings.size());
+    String message = warnings.get(0).getMessage();
+    assertTrue(message.contains("users"), message);
+    assertFalse(message.contains(sql), message);
+    verify(mockPreparedStatement, never()).close();
+  }
+
+  @Test
+  void test_chained_problemsOnTableWithoutEncryptedColumns_prepareWithoutWarning()
+      throws Exception {
+    stubEncryptedUsersSsn();
+
+    List<LogRecord> warnings = captureWarnings(() -> {
+      assertEquals(mockPreparedStatement, prepareChained("INSERT INTO other_table VALUES (?, ?)"));
+      assertEquals(mockPreparedStatement,
+          prepareChained("INSERT INTO other_table (a, b) VALUES (lower(?), ?)"));
+      assertEquals(mockPreparedStatement,
+          prepareChained("UPDATE other_table SET flag = (attrs ?? 'k'), x = ? WHERE id = ?"));
+    });
+
+    assertTrue(warnings.isEmpty());
+    verify(mockPreparedStatement, never()).close();
+  }
+
+  @Test
+  void test_chained_unparsedUpdateOnEncryptedTable_strict_throws() throws Exception {
+    stubEncryptedUsersSsn();
+
+    SQLException e = assertThrows(SQLException.class, () -> prepareChained(
+        "UPDATE users SET flag = (attrs ?? 'k'), ssn = " + ANNOTATION + " ? WHERE id = ?"));
+
+    verify(mockPreparedStatement).close();
+    assertTrue(e.getMessage().contains("users"), e.getMessage());
+    assertFalse(e.getMessage().contains("attrs"), e.getMessage());
+  }
+
+  @Test
+  void test_chained_unparsedUpdateOnEncryptedTable_nonStrict_annotationStillEncrypts()
+      throws Exception {
+    stubEncryptedUsersSsn();
+    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(false);
+
+    List<LogRecord> warnings = captureWarnings(() -> {
+      prepareChained(
+          "UPDATE users SET flag = (attrs ?? 'k'), ssn = " + ANNOTATION + " ? WHERE id = ?");
+      assertEquals(indexes(1), boundEncrypted(2));
+    });
+
+    assertEquals(1, warnings.size());
+  }
+
+  @Test
+  void test_chained_metadataFailureDuringCheck_strict_throws() throws Exception {
+    stubEncryptedUsersSsn();
+    when(mockMetadataManager.hasEncryptedColumns("users"))
+        .thenThrow(new MetadataException("lookup failed"));
+
+    assertThrows(MetadataException.class,
+        () -> prepareChained("INSERT INTO users VALUES (?, ?, ?)"));
+    verify(mockPreparedStatement).close();
+  }
+
+  @Test
+  void test_chained_metadataFailureDuringCheck_nonStrict_logsOneWarning() throws Exception {
+    stubEncryptedUsersSsn();
+    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(false);
+    when(mockMetadataManager.hasEncryptedColumns("users"))
+        .thenThrow(new MetadataException("lookup failed"));
+
+    List<LogRecord> warnings = captureWarnings(
+        () -> prepareChained("INSERT INTO users VALUES (?, ?, ?)"));
+
+    assertEquals(1, warnings.size());
+    verify(mockPreparedStatement, never()).close();
+  }
+
+  @Test
+  void test_chained_setNString_encryptsEncryptedColumn() throws Exception {
+    stubEncryptedUsersSsn();
+    prepareChained("INSERT INTO users (name, ssn) VALUES (?, ?)");
+
+    assertEquals(indexes(2), boundEncrypted(2, "PreparedStatement.setNString"));
+  }
+
+  @Test
+  void test_chained_streamSetter_onEncryptedColumn_throws_elsePassesThrough() throws Exception {
+    stubEncryptedUsersSsn();
+    prepareChained("INSERT INTO users (name, ssn) VALUES (?, ?)");
+
+    SQLException e = assertThrows(SQLException.class, () -> plugin.execute(
+        Void.class, SQLException.class, mockPreparedStatement,
+        "PreparedStatement.setCharacterStream", () -> null,
+        2, new StringReader("123-45-6789")));
+    assertTrue(e.getMessage().contains("users.ssn"), e.getMessage());
+    assertTrue(e.getMessage().contains("PreparedStatement.setCharacterStream"), e.getMessage());
+    assertFalse(e.getMessage().contains("123-45-6789"), e.getMessage());
+
+    boolean[] called = {false};
+    plugin.execute(
+        Void.class, SQLException.class, mockPreparedStatement,
+        "PreparedStatement.setCharacterStream", () -> {
+          called[0] = true;
+          return null;
+        },
+        1, new StringReader("Alice"));
+    assertTrue(called[0], "Stream setter on a non-encrypted column must pass through");
+    verify(mockPreparedStatement, never()).setBytes(anyInt(), any());
+  }
+
+  @Test
+  void test_subscribedMethods_containsNewSetters() {
+    Set<String> methods = plugin.getSubscribedMethods();
+
+    for (String setter : Arrays.asList(
+        "PreparedStatement.setNString",
+        "PreparedStatement.setCharacterStream",
+        "PreparedStatement.setNCharacterStream",
+        "PreparedStatement.setAsciiStream",
+        "PreparedStatement.setBinaryStream",
+        "PreparedStatement.setClob",
+        "PreparedStatement.setNClob",
+        "PreparedStatement.setBlob",
+        "PreparedStatement.setUnicodeStream")) {
+      assertTrue(methods.contains(setter), setter);
+    }
   }
 
   @Test

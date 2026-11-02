@@ -72,7 +72,7 @@ pluginManagement {
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "3.+"
         id("com.github.vlsi.ide") version "3.+"
-        id("me.champeau.jmh") version "0.+"
+        id("me.champeau.jmh") version "0.7.3" // 0.7.4+ requires Java 11 to run Gradle; CI builds on Java 8
         id("org.checkerframework") version "0.+"
         id("com.kncept.junit.reporter") version "2.1.0"
     }
