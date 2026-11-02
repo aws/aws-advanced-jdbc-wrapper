@@ -557,8 +557,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isInTransaction() {
-    return this.isInTransaction;
+  public @Nullable Boolean isInTransaction() {
+    final Connection currentConnection = this.currentConnection;
+    if (currentConnection == null) {
+      return null;
+    }
+
+    final Boolean driverState = this.targetDriverDialect.isInTransaction(currentConnection);
+    // A target driver that does not expose its transaction state, or a connection already closed.
+    // Fall back to what the wrapper inferred from the SQL and the JDBC calls it has seen.
+    return driverState != null ? driverState : this.isInTransaction;
   }
 
   @Override
