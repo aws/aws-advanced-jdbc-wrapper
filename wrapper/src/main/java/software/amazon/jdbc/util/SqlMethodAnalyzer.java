@@ -53,6 +53,8 @@ public class SqlMethodAnalyzer {
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName
       )));
 
+  private static final String SET_AUTOCOMMIT_PREFIX = "SET AUTOCOMMIT";
+
   private static final Set<String> CLOSE_TRANSACTION_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<>(Arrays.asList(
           JdbcMethod.CONNECTION_COMMIT.methodName,
@@ -61,14 +63,128 @@ public class SqlMethodAnalyzer {
           JdbcMethod.CONNECTION_ABORT.methodName
       )));
 
+  /**
+   * Everything this analyzer can derive from the SQL of a single JDBC call, so the same text is
+   * parsed once per call rather than once per question asked about it. A call with no SQL argument
+   * is represented by {@link #NO_STATEMENT}.
+   *
+   * <p>The facts here depend only on the SQL. Whether a call opens or closes a transaction also
+   * depends on the method name and on the connection's autocommit setting, so that stays in
+   * {@link SqlMethodAnalyzer#doesOpenTransaction} and
+   * {@link SqlMethodAnalyzer#doesCloseTransaction}, which take an analysis to work from.
+   */
+  public static final class SqlStatementAnalysis {
+
+    private final boolean present;
+    private final boolean startsTransaction;
+    private final boolean closesTransaction;
+    private final boolean dml;
+    private final boolean settingAutoCommit;
+    private final @Nullable Boolean autoCommitValue;
+
+    private SqlStatementAnalysis(
+        final boolean present,
+        final boolean startsTransaction,
+        final boolean closesTransaction,
+        final boolean dml,
+        final boolean settingAutoCommit,
+        final @Nullable Boolean autoCommitValue) {
+      this.present = present;
+      this.startsTransaction = startsTransaction;
+      this.closesTransaction = closesTransaction;
+      this.dml = dml;
+      this.settingAutoCommit = settingAutoCommit;
+      this.autoCommitValue = autoCommitValue;
+    }
+
+    /** Whether the call carried a SQL argument at all. */
+    public boolean isPresent() {
+      return this.present;
+    }
+
+    public boolean startsTransaction() {
+      return this.startsTransaction;
+    }
+
+    public boolean closesTransaction() {
+      return this.closesTransaction;
+    }
+
+    public boolean isDml() {
+      return this.dml;
+    }
+
+    /** Whether the statement is a {@code SET AUTOCOMMIT} of either value. */
+    public boolean isSettingAutoCommit() {
+      return this.settingAutoCommit;
+    }
+
+    /**
+     * The value a {@code SET AUTOCOMMIT} statement assigns, or {@code null} if the statement is not
+     * one or its value could not be read.
+     */
+    public @Nullable Boolean getAutoCommitValue() {
+      return this.autoCommitValue;
+    }
+  }
+
+  /** The analysis of a call that carried no SQL, for example {@code Connection.commit}. */
+  public static final SqlStatementAnalysis NO_STATEMENT =
+      new SqlStatementAnalysis(false, false, false, false, false, null);
+
+  /**
+   * Analyzes the SQL of a JDBC call once, so the result can be handed to every question about it.
+   *
+   * @param args the JDBC method arguments, whose first element is taken as the SQL.
+   * @return the analysis, or {@link #NO_STATEMENT} if the call carried no SQL.
+   */
+  public SqlStatementAnalysis analyze(final @Nullable Object[] args) {
+    if (args == null || args.length < 1) {
+      return NO_STATEMENT;
+    }
+    return this.analyze(String.valueOf(args[0]));
+  }
+
+  /**
+   * Analyzes one SQL string once, so the result can be handed to every question about it.
+   *
+   * @param sql the SQL to analyze.
+   * @return the analysis of {@code sql}.
+   */
+  public SqlStatementAnalysis analyze(final String sql) {
+    final String statement = getFirstSqlStatement(sql);
+    final boolean startsTransaction = isStatementStartingTransaction(statement);
+    final boolean closesTransaction = isStatementClosingTransaction(statement);
+    final boolean settingAutoCommit = statement.startsWith(SET_AUTOCOMMIT_PREFIX);
+    return new SqlStatementAnalysis(
+        true,
+        startsTransaction,
+        closesTransaction,
+        !startsTransaction
+            && !closesTransaction
+            && !statement.startsWith("SET ")
+            && !statement.startsWith("USE ")
+            && !statement.startsWith("SHOW "),
+        settingAutoCommit,
+        settingAutoCommit ? readAutoCommitValue(statement) : null);
+  }
+
   public boolean doesOpenTransaction(final Connection conn, final String methodName,
       final @Nullable Object[] args) {
+    return this.doesOpenTransaction(conn, methodName, args, this.analyze(args));
+  }
+
+  /**
+   * As {@link #doesOpenTransaction(Connection, String, Object[])}, working from an analysis the
+   * caller has already made of the same SQL.
+   */
+  public boolean doesOpenTransaction(final Connection conn, final String methodName,
+      final @Nullable Object[] args, final SqlStatementAnalysis analysis) {
     if (!(EXECUTE_SQL_METHOD_NAMES.contains(methodName) && args != null && args.length >= 1)) {
       return false;
     }
 
-    final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    if (isStatementStartingTransaction(statement)) {
+    if (analysis.startsTransaction()) {
       return true;
     }
 
@@ -79,7 +195,7 @@ public class SqlMethodAnalyzer {
       return false;
     }
 
-    return !autocommit && isStatementDml(statement);
+    return !autocommit && analysis.isDml();
   }
 
   private String getFirstSqlStatement(final String sql) {
@@ -146,6 +262,12 @@ public class SqlMethodAnalyzer {
       return sql;
     }
 
+    if (!mayContainComment(sql)) {
+      // Nothing to strip, so the scan below would copy the query character by character into an
+      // identical string. Most queries take this path.
+      return sql;
+    }
+
     final int length = sql.length();
     final StringBuilder result = new StringBuilder(length);
     int i = 0;
@@ -178,6 +300,35 @@ public class SqlMethodAnalyzer {
     }
 
     return result.toString();
+  }
+
+  /**
+   * Whether the query holds one of the three comment openers the stripping scan reacts to. That
+   * scan allocates a builder and copies every character, so ruling it out keeps the common case of
+   * a query with no comment in it allocation free.
+   *
+   * <p>All three openers have to be looked for, not just {@code /*}: the scan strips {@code --} and
+   * {@code #} line comments as well, and missing one of those would leave a comment in front of the
+   * leading keyword, hiding a transaction-control statement from every caller.
+   *
+   * <p>Quoted sections need no check of their own. The scan copies them verbatim, so a query
+   * carrying quotes but no opener comes back unchanged anyway, and one carrying an opener inside a
+   * quoted section fails this check and reaches the full scan, which preserves it.
+   */
+  private static boolean mayContainComment(final String sql) {
+    final int lastIndex = sql.length() - 1;
+    for (int i = 0; i <= lastIndex; i++) {
+      final char c = sql.charAt(i);
+      if (c == '#') {
+        return true;
+      }
+      if (i < lastIndex
+          && ((c == '-' && sql.charAt(i + 1) == '-')
+              || (c == '/' && sql.charAt(i + 1) == '*'))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static int skipBlockComment(
@@ -256,11 +407,20 @@ public class SqlMethodAnalyzer {
 
   public boolean doesCloseTransaction(final Connection conn, final String methodName,
       final @Nullable Object[] args) {
+    return this.doesCloseTransaction(conn, methodName, args, this.analyze(args));
+  }
+
+  /**
+   * As {@link #doesCloseTransaction(Connection, String, Object[])}, working from an analysis the
+   * caller has already made of the same SQL.
+   */
+  public boolean doesCloseTransaction(final Connection conn, final String methodName,
+      final @Nullable Object[] args, final SqlStatementAnalysis analysis) {
     if (CLOSE_TRANSACTION_METHOD_NAMES.contains(methodName)) {
       return true;
     }
 
-    if (doesSwitchAutoCommitFalseTrue(conn, methodName, args)) {
+    if (doesSwitchAutoCommitFalseTrue(conn, methodName, args, analysis)) {
       return true;
     }
 
@@ -268,8 +428,7 @@ public class SqlMethodAnalyzer {
       return false;
     }
 
-    final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    return isStatementClosingTransaction(statement);
+    return analysis.closesTransaction();
   }
 
   public boolean isStatementDml(final String statement) {
@@ -298,22 +457,33 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean isStatementSettingAutoCommit(final String methodName, final @Nullable Object[] args) {
-    if (args == null || args.length < 1) {
-      return false;
-    }
+    return this.isStatementSettingAutoCommit(methodName, this.analyze(args));
+  }
 
-    if (!EXECUTE_SQL_METHOD_NAMES.contains(methodName)) {
-      return false;
-    }
-
-    final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    return statement.startsWith("SET AUTOCOMMIT");
+  /**
+   * As {@link #isStatementSettingAutoCommit(String, Object[])}, working from an analysis the caller
+   * has already made of the same SQL.
+   */
+  public boolean isStatementSettingAutoCommit(
+      final String methodName, final SqlStatementAnalysis analysis) {
+    return analysis.isPresent()
+        && EXECUTE_SQL_METHOD_NAMES.contains(methodName)
+        && analysis.isSettingAutoCommit();
   }
 
   public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,
       final @Nullable Object[] jdbcMethodArgs) {
-    final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
-        methodName, jdbcMethodArgs);
+    return this.doesSwitchAutoCommitFalseTrue(
+        conn, methodName, jdbcMethodArgs, this.analyze(jdbcMethodArgs));
+  }
+
+  /**
+   * As {@link #doesSwitchAutoCommitFalseTrue(Connection, String, Object[])}, working from an
+   * analysis the caller has already made of the same SQL.
+   */
+  public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,
+      final @Nullable Object[] jdbcMethodArgs, final SqlStatementAnalysis analysis) {
+    final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(methodName, analysis);
     if (!isStatementSettingAutoCommit && !JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName)) {
       return false;
     }
@@ -329,7 +499,7 @@ public class SqlMethodAnalyzer {
     if (JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName) && jdbcMethodArgs.length > 0) {
       newAutoCommitVal = (Boolean) jdbcMethodArgs[0];
     } else if (isStatementSettingAutoCommit) {
-      newAutoCommitVal = getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+      newAutoCommitVal = analysis.getAutoCommitValue();
     }
 
     return !oldAutoCommitVal && Boolean.TRUE.equals(newAutoCommitVal);
@@ -340,7 +510,12 @@ public class SqlMethodAnalyzer {
       return null;
     }
 
-    String sql = getFirstSqlStatement(String.valueOf(args[0]));
+    return readAutoCommitValue(getFirstSqlStatement(String.valueOf(args[0])));
+  }
+
+  /** Reads the assigned value out of a statement already normalized by getFirstSqlStatement. */
+  private static @Nullable Boolean readAutoCommitValue(final String statement) {
+    String sql = statement;
 
     final int valueIndex;
     int separatorIndex = sql.indexOf("=");

@@ -17,7 +17,9 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import com.mysql.cj.exceptions.CJException;
+import com.mysql.cj.jdbc.JdbcConnection;
 import com.mysql.cj.jdbc.MysqlDataSource;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -27,6 +29,7 @@ import java.util.logging.Logger;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
@@ -145,5 +148,33 @@ public class MysqlConnectorJDriverHelper {
   @SuppressWarnings("return")
   public String getSQLState(final Throwable throwable) {
     return throwable instanceof CJException ? ((CJException) throwable).getSQLState() : null;
+  }
+
+  /**
+   * Reads the transaction status Connector/J recorded from the last server packet, held as the
+   * {@code SERVER_STATUS_IN_TRANS} flag on the session's {@code ServerSession}. No round trip is
+   * made. Returns {@code null} if the status cannot be reached, in which case the caller keeps
+   * using its own tracking.
+   *
+   * @param connection the target driver connection to inspect.
+   * @return what Connector/J reports, or {@code null} if it cannot be reached.
+   */
+  public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    try {
+      // isWrapperFor also rejects a closed connection: ConnectionImpl keeps the status flags from
+      // the last query after close, and COM_QUIT does not clear them, so a closed connection can
+      // still claim a transaction is open.
+      if (!connection.isWrapperFor(JdbcConnection.class)) {
+        return null;
+      }
+      return connection.unwrap(JdbcConnection.class)
+          .getSession().getServerSession().inTransactionOnServer();
+    } catch (final SQLException e) {
+      return null;
+    } catch (final RuntimeException e) {
+      // The session reaches its ServerSession through the protocol, which a concurrent forceClose
+      // releases, so the chain can fail outside the JDBC contract once the connection is torn down.
+      return null;
+    }
   }
 }

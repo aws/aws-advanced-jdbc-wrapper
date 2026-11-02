@@ -194,7 +194,7 @@ public class SqlRoutingSignal implements RoutingSignal {
         return false;
       }
 
-      if (pluginService.isInTransaction()) {
+      if (Boolean.TRUE.equals(pluginService.isInTransaction())) {
         return true;
       }
 

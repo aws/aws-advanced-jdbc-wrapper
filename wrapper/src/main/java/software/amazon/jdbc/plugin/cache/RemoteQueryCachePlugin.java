@@ -52,6 +52,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.SqlMethodAnalyzer.SqlStatementAnalysis;
 import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -527,7 +528,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       }
     }
 
-    final boolean isInTransaction = pluginService.isInTransaction();
+    final boolean isInTransaction = Boolean.TRUE.equals(pluginService.isInTransaction());
 
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
@@ -671,11 +672,14 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       return jdbcMethodFunc.call();
     }
 
+    // Both transaction questions below ask about the same SQL, so it is parsed once here.
+    final SqlStatementAnalysis sqlAnalysis = sqlMethodAnalyzer.analyze(jdbcMethodArgs);
     final boolean doesSwitchAutoCommitFalseTrue =
         sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
             this.pluginService.getCurrentConnection(),
             methodName,
-            jdbcMethodArgs);
+            jdbcMethodArgs,
+            sqlAnalysis);
     final boolean isStatementExecution = isStatementExecutionMethod(methodName);
     final boolean isDatabaseContextSetter =
         JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
@@ -724,7 +728,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         sqlMethodAnalyzer.doesCloseTransaction(
             currentConnection,
             methodName,
-            jdbcMethodArgs);
+            jdbcMethodArgs,
+            sqlAnalysis);
     if (impact != AuthorizationStateImpact.TRACKED
         && !isDatabaseContextSetter
         && !doesCloseTransaction

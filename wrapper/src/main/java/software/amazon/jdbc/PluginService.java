@@ -179,7 +179,19 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
 
   void setAvailability(@NonNull HostSpec hostSpec, @NonNull HostAvailability availability);
 
-  boolean isInTransaction();
+  /**
+   * Indicates whether the current connection is inside a transaction, or {@code null} when there is
+   * no current connection to ask about.
+   *
+   * <p>Calls the target driver dialect to check if the target connection is inside a transaction,
+   * {@link software.amazon.jdbc.targetdriverdialect.TargetDriverDialect#isInTransaction(Connection)}.
+   * If unknown, check the parsed state from the SQL and the JDBC calls recorded via
+   * {@link #setInTransaction(boolean)}.
+   *
+   * @return whether the current connection is inside a transaction, or {@code null} if there is no
+   *     current connection.
+   */
+  @Nullable Boolean isInTransaction();
 
   /**
    * Indicates whether the current connection is enlisted in an active XA transaction branch (i.e.

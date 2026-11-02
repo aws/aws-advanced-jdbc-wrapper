@@ -16,12 +16,16 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.CommonDataSource;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.postgresql.core.BaseConnection;
+import org.postgresql.core.TransactionState;
 import org.postgresql.ds.common.BaseDataSource;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
@@ -121,5 +125,28 @@ public class PgDriverHelper {
 
   public void registerDriver() throws SQLException {
     org.postgresql.Driver.register();
+  }
+
+  /**
+   * Reads the transaction state pgjdbc recorded from the last message the server sent, held on the
+   * connection's query executor. No round trip is made. Returns {@code null} if the state cannot be
+   * reached, in which case the caller keeps using its own tracking.
+   *
+   * @param connection the target driver connection to inspect.
+   * @return what pgjdbc reports, or {@code null} if it cannot be reached.
+   */
+  public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    try {
+      // isWrapperFor also rejects a closed connection, whose recorded state is the one left over
+      // from the last query on it.
+      if (!connection.isWrapperFor(BaseConnection.class)) {
+        return null;
+      }
+      // TransactionState.FAILED counts as in-transaction: the session still holds an aborted
+      // transaction block that only a COMMIT or ROLLBACK leaves.
+      return connection.unwrap(BaseConnection.class).getTransactionState() != TransactionState.IDLE;
+    } catch (final SQLException e) {
+      return null;
+    }
   }
 }

@@ -363,7 +363,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isInTransaction() {
+  public @Nullable Boolean isInTransaction() {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
   }

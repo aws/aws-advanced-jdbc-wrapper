@@ -252,7 +252,7 @@ public class PluginServiceBenchmarks {
   }
 
   @Benchmark
-  public boolean isInTransaction() {
+  public Boolean isInTransaction() {
     return this.pluginService.isInTransaction();
   }
 
