@@ -54,17 +54,18 @@ jobs:
           output-credentials: true
       - name: Run Blue/Green integration tests
         run: |
-          case "${{ matrix.testTask }}" in
+          case "$MATRIX_TEST_TASK" in
             mysql-aurora-mariadb-driver)       ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=2" ;;
             mysql-aurora-mysql-driver)         ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=2" ;;
             mysql-rds-instance-mariadb-driver) ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=1" ;;
             mysql-rds-instance-mysql-driver)   ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=1" ;;
             pg-aurora)                         ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=2" ;;
             pg-rds-instance)                   ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=1" ;;
-            *) echo "Unknown testTask ${{ matrix.testTask }}"; exit 1 ;;
+            *) echo "Unknown testTask $MATRIX_TEST_TASK"; exit 1 ;;
           esac
-          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-bluegreen=true $ARGS
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds -Dorchestra-bluegreen=true $ARGS
         env:
+          MATRIX_TEST_TASK: ${{ matrix.testTask }}
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}

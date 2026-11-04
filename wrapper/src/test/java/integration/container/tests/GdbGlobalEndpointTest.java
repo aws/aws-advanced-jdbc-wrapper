@@ -55,6 +55,7 @@ import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Connecting through a global database's own endpoint, with the {@code initialConnection} plugin.
@@ -127,7 +128,8 @@ public class GdbGlobalEndpointTest {
     // which cannot catch AWS issuing a shape the pattern does not expect.
     final RdsUrlType type = new RdsUtils().identifyRdsType(endpoint);
 
-    LOGGER.info("Global endpoint " + endpoint + " classified as " + type);
+    LOGGER.info(TestMessages.get(
+        "GdbGlobalEndpointTest.classified", new Object[] {endpoint, type}));
     assertEquals(RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER, type,
         "the endpoint AWS published for this global database is not recognised as a global writer endpoint, so "
             + "every global-specific branch in the driver would be skipped");
@@ -146,7 +148,7 @@ public class GdbGlobalEndpointTest {
 
     try (Connection conn = connect(testDriver, props(testDriver))) {
       final String instanceId = auroraUtil.queryInstanceId(conn);
-      LOGGER.info("The global endpoint resolved to " + instanceId);
+      LOGGER.info(TestMessages.get("GdbGlobalEndpointTest.resolved", new Object[] {instanceId}));
 
       // For a global endpoint the plugin substitutes the writer unconditionally - there is no region comparison
       // to make, because the endpoint names no region. So the connection must land on an instance, not stay on
@@ -178,7 +180,7 @@ public class GdbGlobalEndpointTest {
       }
     });
 
-    LOGGER.finest("Refused as expected: " + e.getMessage());
+    LOGGER.finest(TestMessages.get("GdbGlobalEndpointTest.refused", new Object[] {e.getMessage()}));
   }
 
   @TestTemplate
@@ -220,7 +222,7 @@ public class GdbGlobalEndpointTest {
         global().getRegion(global().getPrimaryRegion()).getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    LOGGER.finest("Connecting to " + url);
+    LOGGER.finest(TestMessages.get("GdbGlobalEndpointTest.connecting", new Object[] {url}));
     return DriverManager.getConnection(url, props);
   }
 

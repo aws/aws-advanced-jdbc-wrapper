@@ -57,6 +57,7 @@ import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Moves an Aurora global database's writer to another region under an open connection.
@@ -76,9 +77,9 @@ import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
  *
  * <p>This class changes the environment: after it runs, the region that was primary is not. Every other GDB class
  * assumes the layout the topology was published with - which region holds the writer, and therefore which
- * regions hold only readers - so this runs after them and switches back when it is done. The switch back is
- * best-effort: if it fails, the environment is still valid, just mirrored, and it is deleted at the end of the
- * run anyway.
+ * regions hold only readers - so this runs after them and switches back when it is done. A switch-back failure
+ * fails the run; when the driver assertion already failed, the restoration failure is attached as suppressed
+ * so the original finding stays primary.
  */
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -129,8 +130,8 @@ public class GdbCrossRegionSwitchoverTest {
     final String homeRegion = info.getPrimaryRegion();
     final TestRegionalClusterInfo target = info.getFirstSecondaryRegion();
 
-    LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " from " + homeRegion
-        + " to " + target.getRegion());
+    LOGGER.info(() -> TestMessages.get("GdbCrossRegionSwitchoverTest.switching",
+        new Object[] {info.getGlobalClusterIdentifier(), homeRegion, target.getRegion()}));
 
     // strict-writer in both modes: this connection wants a writer wherever it ends up, which is the
     // configuration a write workload uses and the one that makes the assertion below meaningful. The home region
@@ -145,6 +146,7 @@ public class GdbCrossRegionSwitchoverTest {
         info.getRegion(homeRegion).getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
+    Throwable testFailure = null;
     try (Connection conn = DriverManager.getConnection(url, props)) {
       final String before = auroraUtil.queryInstanceId(conn);
       assertTrue(info.getRegion(homeRegion).getInstanceIdentifiers().contains(before),
@@ -159,7 +161,7 @@ public class GdbCrossRegionSwitchoverTest {
       assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
 
       final String after = auroraUtil.queryInstanceId(conn);
-      LOGGER.info("After switchover the connection is on " + after);
+      LOGGER.info(() -> TestMessages.get("GdbCrossRegionSwitchoverTest.connectionAfter", new Object[] {after}));
 
       assertTrue(target.getInstanceIdentifiers().contains(after),
           "after the switchover the connection should be on an instance in " + target.getRegion()
@@ -169,8 +171,19 @@ public class GdbCrossRegionSwitchoverTest {
       // to a reader would pass every assertion above and fail the first write a real application made.
       assertWritable(conn);
 
+    } catch (final SQLException | RuntimeException | Error failure) {
+      testFailure = failure;
+      throw failure;
     } finally {
-      switchBack(info, homeRegion, testDriver);
+      try {
+        switchBack(info, homeRegion, testDriver);
+      } catch (final RuntimeException restoreFailure) {
+        if (testFailure != null) {
+          testFailure.addSuppressed(restoreFailure);
+        } else {
+          throw restoreFailure;
+        }
+      }
     }
   }
 
@@ -230,29 +243,29 @@ public class GdbCrossRegionSwitchoverTest {
 
       } catch (final RuntimeException e) {
         lastRefusal = e;
-        LOGGER.info("Switchover to " + toRegion + " not possible yet: " + e.getMessage());
+        LOGGER.info(() -> TestMessages.get(
+            "GdbCrossRegionSwitchoverTest.notPossibleYet", new Object[] {toRegion, e.getMessage()}));
       }
 
       try {
         TimeUnit.SECONDS.sleep(15);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting to switch over to " + toRegion, e);
+        throw new RuntimeException(TestMessages.get(
+            "GdbCrossRegionSwitchoverTest.interrupted", new Object[] {toRegion}), e);
       }
     }
 
-    throw new RuntimeException("Could not switch " + info.getGlobalClusterIdentifier() + " over to "
-        + toRegion + " within " + SWITCHOVER_TIMEOUT.toMinutes() + " minutes.", lastRefusal);
+    throw new RuntimeException(TestMessages.get("GdbCrossRegionSwitchoverTest.timedOut",
+        new Object[] {info.getGlobalClusterIdentifier(), toRegion, SWITCHOVER_TIMEOUT.toMinutes()}), lastRefusal);
   }
 
   /**
    * Returns the primary region to where it started.
    *
-   * <p>Best-effort in the end - the environment is valid either way, and failing teardown here would replace
-   * whatever the test found with a message about a switchover - but persistent about it, because a mirrored
-   * topology is not as harmless as it first looked. Teardown deletes region by region, primary last, and RDS
-   * refuses to delete the actual master's last instance while a replica exists; on a run where this method gave
-   * up, that refusal ate the whole teardown budget and left clusters billing in two regions.
+   * <p>The method fails when restoration cannot complete. Its caller suppresses that failure onto an
+   * original test failure so the driver finding remains primary; when the test itself passed, restoration
+   * failure becomes the run failure.
    *
    * <p>The retrying matters for a specific reason: the switchover this test performed reports complete on the
    * <em>global</em> cluster while the regional clusters are still {@code modifying}, and RDS refuses a new
@@ -263,16 +276,18 @@ public class GdbCrossRegionSwitchoverTest {
       final TestGlobalDatabaseInfo info, final String homeRegion, final TestDriver testDriver) {
 
     final long deadline = System.nanoTime() + SWITCHOVER_TIMEOUT.toNanos();
-    String lastRefusal = "not attempted";
+    String lastRefusal = TestMessages.get("GdbCrossRegionSwitchoverTest.notAttempted");
 
     while (System.nanoTime() < deadline) {
       try {
         if (homeRegion.equals(auroraUtil.getGlobalClusterPrimaryRegion(info.getGlobalClusterIdentifier()))) {
-          LOGGER.info(info.getGlobalClusterIdentifier() + " is back on " + homeRegion);
+          LOGGER.info(TestMessages.get("GdbCrossRegionSwitchoverTest.backOnHome",
+              new Object[] {info.getGlobalClusterIdentifier(), homeRegion}));
           awaitHomeRegionWritable(info, homeRegion, testDriver);
           return;
         }
-        LOGGER.info("Switching " + info.getGlobalClusterIdentifier() + " back to " + homeRegion);
+        LOGGER.info(TestMessages.get("GdbCrossRegionSwitchoverTest.switchingBack",
+            new Object[] {info.getGlobalClusterIdentifier(), homeRegion}));
         switchover(info, homeRegion);
         awaitHomeRegionWritable(info, homeRegion, testDriver);
         return;
@@ -281,7 +296,8 @@ public class GdbCrossRegionSwitchoverTest {
         // Almost always the modifying-state refusal above; anything rarer is equally well served by waiting
         // and asking again, since the loop re-reads the primary region on every pass.
         lastRefusal = e.getMessage();
-        LOGGER.info("Switch-back not possible yet: " + lastRefusal);
+        LOGGER.info(TestMessages.get(
+            "GdbCrossRegionSwitchoverTest.switchBackNotPossible", new Object[] {lastRefusal}));
       }
 
       try {
@@ -292,9 +308,17 @@ public class GdbCrossRegionSwitchoverTest {
       }
     }
 
-    LOGGER.warning("Could not switch " + info.getGlobalClusterIdentifier() + " back to " + homeRegion
-        + " within " + SWITCHOVER_TIMEOUT.toMinutes() + " minutes; last refusal: " + lastRefusal
-        + ". Teardown must not assume the provisioning-time primary still holds the writer.");
+    String actualPrimary = TestMessages.get("GdbCrossRegionSwitchoverTest.unknownPrimary");
+    try {
+      actualPrimary = auroraUtil.getGlobalClusterPrimaryRegion(info.getGlobalClusterIdentifier());
+    } catch (final RuntimeException stateFailure) {
+      lastRefusal = TestMessages.get(
+          "GdbCrossRegionSwitchoverTest.switchBackStateUnknown",
+          new Object[] {lastRefusal, stateFailure.getMessage()});
+    }
+    throw new RuntimeException(TestMessages.get("GdbCrossRegionSwitchoverTest.switchBackTimedOut",
+        new Object[] {info.getGlobalClusterIdentifier(), homeRegion, SWITCHOVER_TIMEOUT.toMinutes(),
+            lastRefusal, actualPrimary}));
   }
 
   /**
@@ -312,8 +336,8 @@ public class GdbCrossRegionSwitchoverTest {
    * driver that resolved this correctly would mask an environment that had not settled, and one that did not
    * would be blamed for the environment.
    *
-   * <p>Best-effort, like the switch back it completes: a slow region is not a finding about the driver, and
-   * throwing here would replace whatever the test found with a message about an endpoint.
+   * <p>Failure is propagated to {@link #switchBack}; the caller preserves any original test failure by
+   * attaching restoration failures as suppressed exceptions.
    */
   private void awaitHomeRegionWritable(
       final TestGlobalDatabaseInfo info, final String homeRegion, final TestDriver testDriver) {
@@ -330,7 +354,7 @@ public class GdbCrossRegionSwitchoverTest {
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
 
     final long deadline = System.nanoTime() + HOME_WRITABLE_TIMEOUT.toNanos();
-    String lastReason = "not attempted";
+    String lastReason = TestMessages.get("GdbCrossRegionSwitchoverTest.notAttempted");
 
     while (System.nanoTime() < deadline) {
       try (Connection conn = DriverManager.getConnection(url, props);
@@ -338,27 +362,29 @@ public class GdbCrossRegionSwitchoverTest {
           ResultSet rs = statement.executeQuery(readOnlyProbe())) {
 
         if (rs.next() && !rs.getBoolean(1)) {
-          LOGGER.info(homeRegion + " serves a writer again");
+          LOGGER.info(TestMessages.get(
+              "GdbCrossRegionSwitchoverTest.writerAvailable", new Object[] {homeRegion}));
           return;
         }
-        lastReason = "the cluster endpoint still answers as a reader";
+        lastReason = TestMessages.get("GdbCrossRegionSwitchoverTest.stillReader");
 
       } catch (final SQLException e) {
         lastReason = e.getMessage();
       }
 
-      LOGGER.info("Waiting for " + homeRegion + " to serve a writer: " + lastReason);
+      LOGGER.info(TestMessages.get(
+          "GdbCrossRegionSwitchoverTest.waitingForWriter", new Object[] {homeRegion, lastReason}));
       try {
         TimeUnit.SECONDS.sleep(10);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        return;
+        throw new RuntimeException(TestMessages.get(
+            "GdbCrossRegionSwitchoverTest.writerInterrupted", new Object[] {homeRegion}), e);
       }
     }
 
-    LOGGER.warning(homeRegion + " still did not serve a writer after " + HOME_WRITABLE_TIMEOUT.toMinutes()
-        + " minutes; last reason: " + lastReason + ". A test that connects there next may fail for that "
-        + "reason rather than its own.");
+    throw new RuntimeException(TestMessages.get("GdbCrossRegionSwitchoverTest.writerTimedOut",
+        new Object[] {homeRegion, HOME_WRITABLE_TIMEOUT.toMinutes(), lastReason}));
   }
 
   /**

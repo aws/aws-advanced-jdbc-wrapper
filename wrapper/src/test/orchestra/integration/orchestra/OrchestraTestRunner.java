@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.EnvComposition;
 import software.amazon.orchestra.EnvCompositionBuilder;
 import software.amazon.orchestra.OnError;
@@ -90,13 +90,9 @@ import software.amazon.orchestra.instruments.network.TransparentNetworkGatewayIn
  * it the suite could not reach the database at all.
  */
 @Tag("orchestra")
-// A guard against a hung run, not a budget for a legitimate one - and 90 minutes was the latter by mistake. A
-// three-instance performance run spends 25 minutes provisioning and then an hour in PerformanceTest's repeats,
-// and this killed it at 90 with a bare InterruptedException from the exec awaiting the container, which reads
-// as an infrastructure failure rather than as a timeout. Blue/green makes the gap wider still: the deployment
-// instrument alone is configured with a four-hour provisioning budget, so anything shorter than that here
-// would cancel runs the composition considers healthy.
-@Timeout(value = 8, unit = TimeUnit.HOURS)
+// Keep thirty minutes under the 330-minute CodeBuild limit for JUnit to unwind the composition and destroy
+// its resources before the outer runner can terminate the process.
+@Timeout(value = 5, unit = TimeUnit.HOURS)
 public class OrchestraTestRunner {
 
   private static final Logger LOGGER = Logger.getLogger(OrchestraTestRunner.class.getName());
@@ -209,9 +205,8 @@ public class OrchestraTestRunner {
       case "GDB":
         return DatabaseEngineDeployment.AURORA_GLOBAL;
       default:
-        throw new IllegalArgumentException(
-            "orchestra-deployment=" + requested + " is not a deployment this task can provision. Supported: "
-                + "aurora, multi-az-cluster, multi-az-instance, aurora-global.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "OrchestraTestRunner.unsupportedDeployment", new Object[] {requested}));
     }
   }
 
@@ -283,9 +278,7 @@ public class OrchestraTestRunner {
     }
 
     if (drivers.isEmpty()) {
-      throw new IllegalArgumentException(
-          "orchestra-drivers was given but named no driver. Omit it to run every driver the engine "
-              + "supports.");
+      throw new IllegalArgumentException(TestMessages.get("OrchestraTestRunner.noDrivers"));
     }
     return drivers;
   }
@@ -308,9 +301,8 @@ public class OrchestraTestRunner {
       case MARIADB:
         return TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS;
       default:
-        throw new IllegalArgumentException(
-            "No skip feature is known for driver " + driver + ". Add the pairing rather than letting a "
-                + "driver be unswitchable.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "OrchestraTestRunner.noSkipFeature", new Object[] {driver}));
     }
   }
 
@@ -356,25 +348,18 @@ public class OrchestraTestRunner {
    */
   private static void rejectUnsupportedMode(final DatabaseEngineDeployment deployment) {
     if (blueGreen() && DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
-      throw new IllegalArgumentException(
-          "orchestra-bluegreen=true is not supported with orchestra-deployment=multi-az-cluster, and the "
-              + "harness does not run that combination either: blue/green applies to aurora and "
-              + "multi-az-instance.");
+      throw new IllegalArgumentException(TestMessages.get(
+          "OrchestraTestRunner.blueGreenMultiAzCluster"));
     }
 
     if (DatabaseEngineDeployment.AURORA_GLOBAL.equals(deployment)) {
       if (blueGreen()) {
-        throw new IllegalArgumentException(
-            "orchestra-bluegreen=true is not supported with orchestra-deployment=aurora-global. A blue/green "
-                + "deployment is created from a regional cluster, and a global database's clusters are not "
-                + "eligible while they are members of it.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "OrchestraTestRunner.blueGreenGlobal"));
       }
       if (engines().length > 1) {
-        throw new IllegalArgumentException(
-            "orchestra-deployment=aurora-global provisions one global database, and orchestra-engines named "
-                + engines().length + " engines. An engine matrix rebinds the database role, which on a global "
-                + "run is a view of the topology rather than a cluster of its own - so the second slot would "
-                + "provision an unrelated database. Run one engine at a time.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "OrchestraTestRunner.globalEngineMatrix", new Object[] {engines().length}));
       }
     }
 
@@ -407,25 +392,21 @@ public class OrchestraTestRunner {
     }
 
     if (blueGreen()) {
-      throw new IllegalArgumentException(
-          "orchestra-suite=" + suite + " cannot be combined with orchestra-bluegreen=true. The blue/green "
-              + "tests disable on every suite feature, and the suite's own class is not a blue/green test, "
-              + "so the run would provision a deployment and execute nothing.");
+      throw new IllegalArgumentException(TestMessages.get(
+          "OrchestraTestRunner.suiteWithBlueGreen", new Object[] {suite}));
     }
 
     if (!suite.supports(deployment)) {
-      throw new IllegalArgumentException(
-          "orchestra-suite=" + suite + " does not run against orchestra-deployment=" + deployment.name()
-              + ". Its test class enables on: " + suite.supportedDeployments() + ".");
+      throw new IllegalArgumentException(TestMessages.get(
+          "OrchestraTestRunner.unsupportedSuiteDeployment",
+          new Object[] {suite, deployment.name(), suite.supportedDeployments()}));
     }
 
     for (final int count : instanceCounts()) {
       if (count < suite.minimumInstances()) {
-        throw new IllegalArgumentException(
-            "orchestra-suite=" + suite + " needs at least " + suite.minimumInstances()
-                + " instances and orchestra-instances asks for " + count + ". Its test class carries "
-                + "@EnableOnNumOfInstances(min = " + suite.minimumInstances() + "), so that slot would "
-                + "provision a cluster and run nothing.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "OrchestraTestRunner.insufficientInstances",
+            new Object[] {suite, suite.minimumInstances(), count}));
       }
     }
 
@@ -433,12 +414,8 @@ public class OrchestraTestRunner {
     // is assumeTrue, so without a key it reports as skipped and the run reports as passed - which is what
     // the harness does today, since it sets KMS_KEY_ID while the test reads AWS_KMS_KEY_ARN.
     if (suite.needsKmsKey() && OrchestraAuroraConfig.kmsKey() == null) {
-      throw new IllegalArgumentException(
-          "orchestra-suite=" + suite + " needs a KMS key, and neither the KMS_KEY_ID environment variable "
-              + "nor -Dorchestra-kms-key is set. The key is an input rather than something this composition "
-              + "creates: the workflow driving this suite reuses alias/jdbc-encryption-key. Without it the "
-              + "test would skip its own precondition and the run would report success having encrypted "
-              + "nothing.");
+      throw new IllegalArgumentException(TestMessages.get(
+          "OrchestraTestRunner.missingKmsKey", new Object[] {suite}));
     }
   }
 
@@ -467,11 +444,8 @@ public class OrchestraTestRunner {
       }
 
       if (!anySuits) {
-        throw new IllegalArgumentException(
-            "No driver in orchestra-drivers=" + selected + " can be used against the " + wrapperEngine
-                + " engine, so that slot would provision a database and run no tests. The MariaDB driver "
-                + "works against MySQL and MariaDB engines; the MySQL and PostgreSQL drivers only against "
-                + "their own.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "OrchestraTestRunner.noCompatibleDriver", new Object[] {selected, wrapperEngine}));
       }
     }
   }
@@ -496,13 +470,6 @@ public class OrchestraTestRunner {
   public void runTests() throws Exception {
     rejectUnsupportedMode(deployment());
 
-    // Sweep leftovers from earlier runs regardless of who authorizes this run's address.
-    new AuroraTestUtility(
-        Region.of(OrchestraAuroraConfig.resolveAwsRegion()),
-        null,
-        DefaultCredentialsProvider.create())
-        .securityGroupRulesCleanUp();
-
     final boolean globalDatabase = DatabaseEngineDeployment.AURORA_GLOBAL.equals(deployment());
 
     // The global configuration is the Aurora one plus regions, so a global run inherits every other setting
@@ -511,6 +478,11 @@ public class OrchestraTestRunner {
     final OrchestraAuroraConfig configuration = globalDatabase
         ? new OrchestraGlobalDatabaseConfig(IN_CONTAINER_TASK)
         : new OrchestraAuroraConfig(IN_CONTAINER_TASK);
+
+    // Sweep leftovers in every region this run can authorize. The workflow-level revoke remains best-effort,
+    // so this is the backstop for cancelled runs and must cover global-database secondaries too.
+    securityGroupRulesCleanUp(configuration);
+    PrepareGradleCache.execute(configuration);
 
     // Resolved once and shared, which is the point of FEATURES being a constant: the default TestShape and
     // the shape EngineVariation rebuilds per engine must advertise the same capabilities, and calling
@@ -523,7 +495,7 @@ public class OrchestraTestRunner {
     // Keep authorization external when CodeBuild jobs share one egress address. The cleanup sweep above still
     // runs because it reclaims leftovers from earlier runs rather than this run's rule.
     if (skipIpAuthorization()) {
-      LOGGER.info(() -> Messages.get("OrchestraTestRunner.ipAuthorizationSkipped"));
+      LOGGER.info(() -> TestMessages.get("OrchestraTestRunner.ipAuthorizationSkipped"));
     } else {
       builder.addGlobalResource(globalDatabase
           ? new MultiRegionSecurityGroupIpWhitelist()
@@ -631,9 +603,23 @@ public class OrchestraTestRunner {
             // composition would hide whether the others are fine, and the question a matrix exists to
             // answer is which combinations work - so every slot runs and the build still fails at the end.
             .onError(compositionCount() > 1 ? OnError.CONTINUE : OnError.FAIL)
+            .beforeUse(new PrepareGradleRuntime())
             .useComposition(new GradleTestContainerRun(configuration.getGradleTask())))
         .build()
         .run(configuration);
+  }
+
+  private static void securityGroupRulesCleanUp(final OrchestraAuroraConfig configuration) {
+    final java.util.List<String> secondaryRegions = configuration instanceof OrchestraGlobalDatabaseConfig
+        ? ((OrchestraGlobalDatabaseConfig) configuration).getGlobalSecondaryRegions()
+        : java.util.Collections.emptyList();
+
+    for (final String region : OrchestraTestPolicy.authorizedRegions(
+        OrchestraAuroraConfig.resolveAwsRegion(), secondaryRegions)) {
+      new AuroraTestUtility(
+          Region.of(region), null, DefaultCredentialsProvider.create())
+          .securityGroupRulesCleanUp();
+    }
   }
 
   /**
@@ -646,15 +632,21 @@ public class OrchestraTestRunner {
    * @return at least one engine
    */
   private static RdsEngine[] engines() {
-    final String requested = System.getProperty("orchestra-engines");
-    if (requested == null || requested.trim().isEmpty()) {
-      return new RdsEngine[] {RdsEngine.POSTGRES};
-    }
-
-    final String[] names = requested.split(",");
-    final RdsEngine[] engines = new RdsEngine[names.length];
-    for (int i = 0; i < names.length; i++) {
-      engines[i] = RdsEngine.valueOf(names[i].trim().toUpperCase(Locale.ROOT));
+    final DatabaseEngine[] requested = EngineAliases.requested(
+        System.getProperty("orchestra-engines"), DatabaseEngine.PG, false);
+    final RdsEngine[] engines = new RdsEngine[requested.length];
+    for (int i = 0; i < requested.length; i++) {
+      switch (requested[i]) {
+        case PG:
+          engines[i] = RdsEngine.POSTGRES;
+          break;
+        case MYSQL:
+          engines[i] = RdsEngine.MYSQL;
+          break;
+        default:
+          throw new IllegalArgumentException(TestMessages.get(
+              "OrchestraTestRunner.unsupportedRdsEngine", new Object[] {requested[i]}));
+      }
     }
     return engines;
   }

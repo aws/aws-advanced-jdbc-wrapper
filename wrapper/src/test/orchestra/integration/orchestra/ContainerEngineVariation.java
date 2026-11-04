@@ -23,10 +23,12 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.InstrumentDefinition;
 import software.amazon.orchestra.Variation;
 import software.amazon.orchestra.contract.Database;
+import software.amazon.orchestra.instruments.docker.MariaDbContainerInstrumentDefinition;
 import software.amazon.orchestra.instruments.docker.MySqlContainerInstrumentDefinition;
 import software.amazon.orchestra.instruments.docker.PostgresContainerInstrumentDefinition;
 
@@ -38,10 +40,8 @@ import software.amazon.orchestra.instruments.docker.PostgresContainerInstrumentD
  * migrated task that could only start PostgreSQL would narrow what every pull request is checked against, while
  * looking like a like-for-like replacement.
  *
- * <p>Two engines, not three. The harness's Docker matrix also runs a MariaDB server, and that is deliberately
- * not reproduced: MariaDB as an engine is out of scope for this migration. The MariaDB <em>driver</em> is not -
- * it is an axis of its own ({@code -Dorchestra-drivers}) and it runs against a MySQL server, which is how CI
- * pins it.
+ * <p>MariaDB is a distinct server engine here, as it was in the retired Docker matrix. The MariaDB
+ * <em>driver</em> remains a separate axis and may also run against MySQL.
  *
  * <p>Each slot rebinds two things together, because they have to agree: the {@code Database} role, so the right
  * container starts, and {@code TestShape}, so the in-container conditions see the engine that is actually
@@ -63,9 +63,7 @@ public class ContainerEngineVariation implements Variation {
       final DatabaseEngine[] engines, final EnumSet<TestEnvironmentFeatures> features) {
 
     if (engines == null || engines.length == 0) {
-      throw new IllegalArgumentException(
-          "At least one engine is required. A variation with no values produces no compositions, which "
-              + "reports as a run that passed without testing anything.");
+      throw new IllegalArgumentException(TestMessages.get("ContainerEngineVariation.empty"));
     }
     this.engines = engines.clone();
     this.features = features;
@@ -84,43 +82,8 @@ public class ContainerEngineVariation implements Variation {
    * @throws IllegalArgumentException if a name is not an engine this task can run
    */
   public static DatabaseEngine[] requested() {
-    final String requested = System.getProperty("orchestra-engines");
-    if (requested == null || requested.trim().isEmpty()) {
-      return new DatabaseEngine[] {DatabaseEngine.PG};
-    }
-
-    final List<DatabaseEngine> engines = new ArrayList<>();
-    for (final String name : requested.split(",")) {
-      final String token = name.trim().toLowerCase(Locale.ROOT);
-      if (token.isEmpty()) {
-        continue;
-      }
-
-      switch (token) {
-        case "pg":
-        case "postgres":
-        case "postgresql":
-          engines.add(DatabaseEngine.PG);
-          break;
-        case "mysql":
-          engines.add(DatabaseEngine.MYSQL);
-          break;
-        case "mariadb":
-          throw new IllegalArgumentException(
-              "orchestra-engines=mariadb is out of scope for this task: a MariaDB server is not run. The "
-                  + "MariaDB driver is a separate axis - use -Dorchestra-drivers=mariadb against a MySQL "
-                  + "engine, which is what CI does.");
-        default:
-          throw new IllegalArgumentException(
-              "orchestra-engines names '" + token + "', which is not an engine this task can run. "
-                  + "Supported: pg, mysql.");
-      }
-    }
-
-    if (engines.isEmpty()) {
-      return new DatabaseEngine[] {DatabaseEngine.PG};
-    }
-    return engines.toArray(new DatabaseEngine[0]);
+    return EngineAliases.requested(
+        System.getProperty("orchestra-engines"), DatabaseEngine.PG, true);
   }
 
   /**
@@ -138,10 +101,11 @@ public class ContainerEngineVariation implements Variation {
         return new PostgresContainerInstrumentDefinition();
       case MYSQL:
         return new MySqlContainerInstrumentDefinition();
+      case MARIADB:
+        return new MariaDbContainerInstrumentDefinition();
       default:
-        throw new IllegalArgumentException(
-            "No container instrument is wired for engine " + engine + ". Add the pairing rather than "
-                + "letting a composition provision a database the suite was not asked for.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "ContainerEngineVariation.unsupported", new Object[] {engine}));
     }
   }
 

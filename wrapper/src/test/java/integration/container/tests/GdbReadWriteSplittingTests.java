@@ -53,6 +53,7 @@ import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.readwritesplitting.GdbSettings;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Read/write splitting from inside a secondary region of a global database.
@@ -124,7 +125,8 @@ public class GdbReadWriteSplittingTests {
         conn.setReadOnly(true);
 
         final String readerId = auroraUtil.queryInstanceId(conn);
-        LOGGER.finest("Reader " + (sample + 1) + " of " + READER_SAMPLES + ": " + readerId);
+        LOGGER.finest(TestMessages.get("GdbReadWriteSplittingTests.readerSample",
+            new Object[] {sample + 1, READER_SAMPLES, readerId}));
 
         assertTrue(home.getInstanceIdentifiers().contains(readerId),
             "gdbRwRestrictReaderToHomeRegion is on by default, so the reader must be in " + home.getRegion()
@@ -149,7 +151,8 @@ public class GdbReadWriteSplittingTests {
       final String readerId = auroraUtil.queryInstanceId(conn);
 
       final SQLException e = assertThrows(SQLException.class, () -> conn.setReadOnly(false));
-      LOGGER.finest("setReadOnly(false) was refused with: " + e.getMessage());
+      LOGGER.finest(TestMessages.get(
+          "GdbReadWriteSplittingTests.setReadOnlyRefused", new Object[] {e.getMessage()}));
 
       // And the refusal has to leave the connection alone. A plugin that failed the switch but abandoned the
       // reader would leave the application holding something unusable, which is worse than the switch failing.
@@ -273,12 +276,13 @@ public class GdbReadWriteSplittingTests {
         TimeUnit.SECONDS.sleep(2);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new SQLException("Interrupted while waiting for " + GWF_TABLE + " to replicate.", e);
+        throw new SQLException(TestMessages.get(
+            "GdbReadWriteSplittingTests.replicationInterrupted", new Object[] {GWF_TABLE}), e);
       }
     }
 
-    throw new SQLException("Table " + GWF_TABLE + " did not replicate to this region within 3 minutes, so "
-        + "the forwarded write cannot be attempted. That is a replication problem, not a driver one.");
+    throw new SQLException(TestMessages.get(
+        "GdbReadWriteSplittingTests.replicationTimedOut", new Object[] {GWF_TABLE}));
   }
 
   /** The session parameter that engages write forwarding, under whichever name this engine gives it. */
@@ -308,7 +312,7 @@ public class GdbReadWriteSplittingTests {
       }
     });
 
-    LOGGER.finest("Rejected as expected: " + e.getMessage());
+    LOGGER.finest(TestMessages.get("GdbReadWriteSplittingTests.rejected", new Object[] {e.getMessage()}));
   }
 
   /**
@@ -325,7 +329,7 @@ public class GdbReadWriteSplittingTests {
         home.getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    LOGGER.finest("Connecting to " + url);
+    LOGGER.finest(TestMessages.get("GdbReadWriteSplittingTests.connecting", new Object[] {url}));
     return DriverManager.getConnection(url, props);
   }
 

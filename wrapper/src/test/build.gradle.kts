@@ -14,6 +14,7 @@
 *    limitations under the License.
 */
 
+import java.net.URLClassLoader
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.*
 import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 
@@ -24,6 +25,15 @@ plugins {
 repositories {
     mavenCentral()
 }
+
+val valkeyGlideArchitecture = System.getProperty("os.arch").let {
+    when (it) {
+        "aarch64", "arm64" -> "aarch_64"
+        else -> "x86_64"
+    }
+}
+val valkeyGlideGlibc by configurations.creating
+val valkeyGlideMusl by configurations.creating
 
 dependencies {
     testImplementation("org.junit.platform:junit-platform-commons:1.11.3")
@@ -80,12 +90,6 @@ dependencies {
     testImplementation("org.jboss.logging:jboss-logging:3.4.3.Final")
     testImplementation("com.atomikos:transactions-jta:5.0.9")
     testImplementation("com.atomikos:transactions-jdbc:5.0.9")
-    val arch = System.getProperty("os.arch").let {
-        when (it) {
-            "aarch64", "arm64" -> "aarch_64"
-            else -> "x86_64"
-        }
-    }
     val isMusl = try {
         val process = ProcessBuilder("ldd", "--version").redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()
@@ -95,8 +99,17 @@ dependencies {
         // If ldd doesn't exist, check for Alpine marker
         File("/etc/alpine-release").exists()
     }
-    val glideClassifier = if (isMusl) "linux_musl-$arch" else "linux-$arch"
+    val glideClassifier = if (isMusl) {
+        "linux_musl-$valkeyGlideArchitecture"
+    } else {
+        "linux-$valkeyGlideArchitecture"
+    }
     testImplementation("io.valkey:valkey-glide:2.3.0:$glideClassifier")
+
+    // The prepared cache is shared by Alpine and glibc-based JVM images. Keep the selected runtime
+    // dependency above, and resolve each native artifact explicitly for the final offline containers.
+    valkeyGlideGlibc("io.valkey:valkey-glide:2.3.0:linux-$valkeyGlideArchitecture")
+    valkeyGlideMusl("io.valkey:valkey-glide:2.3.0:linux_musl-$valkeyGlideArchitecture")
 }
 
 // Hibernate v7.3 requires at least Java 17
@@ -121,6 +134,19 @@ dependencies {
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.1.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
+}
+
+// Runs only in the cache-preparation container. Resolving these classpaths populates the exact external
+// dependency graph the copied in-container Test task can use on Java 8 and Java 17+, plus both supported
+// Valkey Linux native classifiers for the active architecture. File-based inputs under /app are copied by
+// Orchestra and therefore do not belong in Gradle's module cache.
+tasks.register("resolveOrchestraRuntime") {
+    doLast {
+        configurations.testRuntimeClasspath.get().resolve()
+        configurations[hibernateTest.runtimeClasspathConfigurationName].resolve()
+        valkeyGlideGlibc.resolve()
+        valkeyGlideMusl.resolve()
+    }
 }
 
 tasks.withType<Test> {
@@ -364,7 +390,11 @@ tasks.register<Test>("in-container") {
             val patterns = explicitClasses.split(",")
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
-                .map { Regex(Regex.escape(it).replace("\\*", "\\E.*\\Q")) }
+                .map { pattern ->
+                    pattern.split('*')
+                        .joinToString(".*") { segment -> Regex.escape(segment) }
+                        .toRegex()
+                }
 
             allClasses = allClasses.filter { className -> patterns.any { it.matches(className) } }
             require(allClasses.isNotEmpty()) {
@@ -372,6 +402,46 @@ tasks.register<Test>("in-container") {
                     "shard would have nothing to run."
             }
             println("test-classes narrowed the shardable set to ${allClasses.size} class(es)")
+        }
+
+        val includedTags = System.getProperty("test-include-tags")
+            ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+            ?: emptySet()
+        val excludedTags = System.getProperty("test-exclude-tags")
+            ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+            ?: emptySet()
+        if (includedTags.isNotEmpty() || excludedTags.isNotEmpty()) {
+            val urls = classpath.files.map { it.toURI().toURL() }.toTypedArray()
+            URLClassLoader(urls, ClassLoader.getSystemClassLoader()).use { loader ->
+                @Suppress("UNCHECKED_CAST")
+                val tagType = loader.loadClass("org.junit.jupiter.api.Tag")
+                    as Class<out Annotation>
+                val tagValue = tagType.getMethod("value")
+                val selector = loader.loadClass(
+                    "software.amazon.jdbc.integration.orchestra.ShardSelection")
+                    .getMethod(
+                        "classSelected",
+                        Set::class.java,
+                        Collection::class.java,
+                        Set::class.java,
+                        Set::class.java)
+
+                fun tags(element: java.lang.reflect.AnnotatedElement): Set<String> =
+                    element.getAnnotationsByType(tagType)
+                        .map { tagValue.invoke(it) as String }
+                        .toSet()
+
+                allClasses = allClasses.filter { className ->
+                    val testClass = Class.forName(className, false, loader)
+                    val methodTags = testClass.declaredMethods.map { tags(it) }
+                    selector.invoke(
+                        null, tags(testClass), methodTags, includedTags, excludedTags) as Boolean
+                }
+            }
+            require(allClasses.isNotEmpty()) {
+                "The requested suite tags selected no shardable test classes."
+            }
+            println("Suite tags narrowed the shardable set to ${allClasses.size} class(es)")
         }
 
         require(allClasses.size >= shardCount) {

@@ -51,6 +51,7 @@ import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * IAM authentication against a secondary region of a global database.
@@ -130,8 +131,8 @@ public class GdbIamAuthTest {
       }
     });
 
-    LOGGER.finest("A token signed for " + wrongRegion + " was rejected by " + secondary.getRegion()
-        + ", as it should be: " + e.getMessage());
+    LOGGER.finest(TestMessages.get("GdbIamAuthTest.wrongRegionRejected",
+        new Object[] {wrongRegion, secondary.getRegion(), e.getMessage()}));
   }
 
   @TestTemplate
@@ -197,7 +198,7 @@ public class GdbIamAuthTest {
         cluster.getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    LOGGER.finest("Connecting to " + url);
+    LOGGER.finest(TestMessages.get("GdbIamAuthTest.connecting", new Object[] {url}));
     return DriverManager.getConnection(url, props);
   }
 

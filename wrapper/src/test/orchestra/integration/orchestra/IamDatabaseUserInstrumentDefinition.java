@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.EnvConfiguration;
 import software.amazon.orchestra.Instrument;
@@ -102,8 +103,9 @@ public class IamDatabaseUserInstrumentDefinition implements InstrumentDefinition
       }
     }
 
-    LOGGER.info(() -> "IAM database user '" + this.username + "' is ready on "
-        + cluster.clusterIdentifier() + ".");
+    LOGGER.info(() -> TestMessages.get(
+        "IamDatabaseUserInstrumentDefinition.ready",
+        new Object[] {this.username, cluster.clusterIdentifier()}));
 
     return new SimpleInstrument(this, null);
   }
@@ -148,9 +150,8 @@ public class IamDatabaseUserInstrumentDefinition implements InstrumentDefinition
           "GRANT SELECT ON mysql.* TO '" + this.username + "'@'%';");
     }
 
-    throw new UnsupportedOperationException(
-        "No IAM user statements are known for the " + engine + " engine. Add them rather than provisioning "
-            + "a database whose IAM tests cannot authenticate.");
+    throw new UnsupportedOperationException(TestMessages.get(
+        "IamDatabaseUserInstrumentDefinition.unsupportedEngine", new Object[] {engine}));
   }
 
   @Override

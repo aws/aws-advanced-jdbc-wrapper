@@ -20,6 +20,7 @@ import integration.TargetJvm;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.Variation;
 import software.amazon.orchestra.instruments.docker.JavaTestContainerConfiguration;
@@ -83,8 +84,7 @@ public class JvmVariation implements Variation {
    */
   public JvmVariation(final TargetJvm... jvms) {
     if (jvms == null || jvms.length == 0) {
-      throw new IllegalArgumentException(
-          "A JvmVariation needs at least one JVM, otherwise it would produce no compositions at all.");
+      throw new IllegalArgumentException(TestMessages.get("JvmVariation.empty"));
     }
     this.jvms = jvms.clone();
   }

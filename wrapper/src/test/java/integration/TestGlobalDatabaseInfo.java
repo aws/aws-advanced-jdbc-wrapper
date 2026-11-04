@@ -19,6 +19,7 @@ package integration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * What the tests know about an Aurora global database beyond the one cluster they connect to.
@@ -84,7 +85,12 @@ public class TestGlobalDatabaseInfo {
   }
 
   public void setRegions(final List<TestRegionalClusterInfo> regions) {
-    this.regions = regions == null ? new ArrayList<>() : regions;
+    final List<TestRegionalClusterInfo> ordered =
+        regions == null ? new ArrayList<>() : new ArrayList<>(regions);
+    ordered.sort((left, right) -> Boolean.compare(
+        !left.getRegion().equals(this.primaryRegion),
+        !right.getRegion().equals(this.primaryRegion)));
+    this.regions = ordered;
   }
 
   /**
@@ -101,8 +107,8 @@ public class TestGlobalDatabaseInfo {
         return cluster;
       }
     }
-    throw new IllegalArgumentException(
-        "This global database has no cluster in " + region + ". It has " + regionNames() + ".");
+    throw new IllegalArgumentException(TestMessages.get(
+        "TestGlobalDatabaseInfo.unknownRegion", new Object[] {region, regionNames()}));
   }
 
   /**
@@ -133,9 +139,8 @@ public class TestGlobalDatabaseInfo {
   public TestRegionalClusterInfo getFirstSecondaryRegion() {
     final List<TestRegionalClusterInfo> secondaries = getSecondaryRegions();
     if (secondaries.isEmpty()) {
-      throw new IllegalStateException(
-          "This global database reports only " + regionNames() + ", so it has no secondary region. A global "
-              + "database environment is provisioned with at least one.");
+      throw new IllegalStateException(TestMessages.get(
+          "TestGlobalDatabaseInfo.noSecondary", new Object[] {regionNames()}));
     }
     return secondaries.get(0);
   }
@@ -153,7 +158,9 @@ public class TestGlobalDatabaseInfo {
     final StringBuilder patterns = new StringBuilder();
     for (final TestRegionalClusterInfo cluster : this.regions) {
       if (cluster.getInstanceEndpointSuffix() == null) {
-        continue;
+        throw new IllegalStateException(TestMessages.get(
+            "TestGlobalDatabaseInfo.missingInstanceEndpointSuffix",
+            new Object[] {cluster.getRegion()}));
       }
       if (patterns.length() > 0) {
         patterns.append(',');

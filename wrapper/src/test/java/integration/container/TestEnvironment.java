@@ -21,6 +21,7 @@ import com.amazonaws.xray.AWSXRayRecorderBuilder;
 import com.amazonaws.xray.config.DaemonConfiguration;
 import com.amazonaws.xray.emitters.Emitter;
 import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.client.NetworkControlClient;
 
 public class TestEnvironment {
@@ -120,7 +122,7 @@ public class TestEnvironment {
         AWSXRayRecorderBuilder builder = AWSXRayRecorderBuilder.standard().withEmitter(emitter);
         AWSXRay.setGlobalRecorder(builder.build());
       } catch (Exception ex) {
-        throw new RuntimeException("Error initializing XRay.", ex);
+        throw new RuntimeException(TestMessages.get("TestEnvironment.xrayInitializationFailed"), ex);
       }
     }
 
@@ -154,7 +156,7 @@ public class TestEnvironment {
             .buildAndRegisterGlobal();
 
       } catch (Exception ex) {
-        throw new RuntimeException("Error initializing XRay.", ex);
+        throw new RuntimeException(TestMessages.get("TestEnvironment.xrayInitializationFailed"), ex);
       }
     }
 
@@ -183,6 +185,9 @@ public class TestEnvironment {
     final TestDatabaseInfo database = environment.info.getDatabaseInfo();
 
     try {
+      if (database.getInstances() == null || database.getInstances().isEmpty()) {
+        throw new IllegalStateException(TestMessages.get("TestEnvironment.missingGatewayInstances"));
+      }
       for (TestInstanceInfo instance : database.getInstances()) {
         registerEndpoint(
             client, environment, instance.getInstanceId(), instance.getHost(), instance.getPort());
@@ -191,18 +196,22 @@ public class TestEnvironment {
       // The cluster endpoints are registered under their own hostnames because that is how
       // simulateTemporaryFailure asks for them. Selecting a destination by name rather than by listener is
       // what lets the same endpoint be impaired without any client being reconfigured.
-      registerEndpoint(client, environment,
-          database.getClusterEndpoint(), database.getClusterEndpoint(), database.getClusterEndpointPort());
-      registerEndpoint(client, environment,
-          database.getClusterReadOnlyEndpoint(), database.getClusterReadOnlyEndpoint(),
-          database.getClusterReadOnlyEndpointPort());
+      final DatabaseEngineDeployment deployment =
+          environment.info.getRequest().getDatabaseEngineDeployment();
+      if (!DatabaseEngineDeployment.DOCKER.equals(deployment)
+          && !DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE.equals(deployment)) {
+        registerEndpoint(client, environment,
+            database.getClusterEndpoint(), database.getClusterEndpoint(),
+            database.getClusterEndpointPort());
+        registerEndpoint(client, environment,
+            database.getClusterReadOnlyEndpoint(), database.getClusterReadOnlyEndpoint(),
+            database.getClusterReadOnlyEndpointPort());
+      }
 
       registerGlobalDatabaseRegions(client, environment);
 
     } catch (IOException e) {
-      throw new RuntimeException(
-          "Could not register destination selectors with Orchestra's gateway, so no test can impair "
-              + "network traffic.", e);
+      throw new RuntimeException(TestMessages.get("TestEnvironment.gatewayRegistrationFailed"), e);
     }
   }
 
@@ -262,9 +271,7 @@ public class TestEnvironment {
       final String host,
       final int port) throws IOException {
 
-    if (StringUtils.isNullOrEmpty(host) || StringUtils.isNullOrEmpty(name)) {
-      return;
-    }
+    requireEndpoint(name, host);
     client.register(name, host + ":" + port);
     names.add(name);
   }
@@ -283,15 +290,19 @@ public class TestEnvironment {
       final String host,
       final int port) throws IOException {
 
-    if (StringUtils.isNullOrEmpty(host)) {
-      return;
-    }
+    requireEndpoint(name, host);
     client.register(name, host + ":" + port);
     environment.gatewaySelectors.add(name);
   }
 
-  /**
-   * Returns the names of every impairable destination.
+  private static void requireEndpoint(final String name, final String host) {
+    if (StringUtils.isNullOrEmpty(name) || StringUtils.isNullOrEmpty(host)) {
+      throw new IllegalStateException(TestMessages.get(
+          "TestEnvironment.missingGatewayEndpoint", new Object[] {name, host}));
+    }
+  }
+
+  /** Returns the names of every impairable destination.
    *
    * <p>What {@code ProxyHelper}'s "all connectivity" and "all latencies" operations iterate. Names rather
    * than proxy handles, because the gateway is addressed by destination name over its control API and there
@@ -311,14 +322,34 @@ public class TestEnvironment {
    * <p>Separate from {@link #getProxyNames()} on purpose; see {@link #gatewaySelectorsByRegion}.
    *
    * @param region the AWS region
-   * @return that region's destination names, empty when the region is unknown or this is not a global database
+   * @return that region's destination names
+   * @throws IllegalArgumentException when the environment has no registered destinations for the region
    */
   public java.util.Collection<String> getProxyNames(final String region) {
     if (this.gatewaySelectorsByRegion == null) {
-      return Collections.emptyList();
+      throw new IllegalArgumentException(TestMessages.get(
+          "TestEnvironment.unknownGatewayRegion", new Object[] {region}));
     }
     final java.util.Set<String> names = this.gatewaySelectorsByRegion.get(region);
-    return names == null ? Collections.emptyList() : Collections.unmodifiableCollection(names);
+    if (names == null || names.isEmpty()) {
+      throw new IllegalArgumentException(TestMessages.get(
+          "TestEnvironment.unknownGatewayRegion", new Object[] {region}));
+    }
+    return Collections.unmodifiableCollection(names);
+  }
+
+  public boolean isProxyNameRegistered(final String name) {
+    if (this.gatewaySelectors != null && this.gatewaySelectors.contains(name)) {
+      return true;
+    }
+    if (this.gatewaySelectorsByRegion != null) {
+      for (final java.util.Set<String> names : this.gatewaySelectorsByRegion.values()) {
+        if (names.contains(name)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   public TestEnvironmentInfo getInfo() {

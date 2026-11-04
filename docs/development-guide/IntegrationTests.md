@@ -52,7 +52,7 @@ Provisioned resources are named with the prefix `test-orchestra-`. Docker-only r
 Each task provisions one environment, runs the in-container suite against it, and tears it down:
 
 - `orchestra-test-docker`: databases in containers, no AWS account needed. This is the pull request gate.
-- `orchestra-test-pg-aurora`: an AWS deployment - Aurora by default, and Multi-AZ or blue/green on request.
+- `orchestra-test-rds`: an AWS deployment - Aurora by default, and Multi-AZ or blue/green on request.
 - `orchestra-test-hibernate`: Hibernate ORM's own test suite, with the wrapper as its JDBC driver.
 
 What each task provisions and runs is chosen with `-Dorchestra-*` properties rather than by picking a
@@ -60,8 +60,10 @@ different task. The ones you are most likely to want:
 
 | System Property                | Default          | Description                                                                                     |
 |--------------------------------|------------------|-------------------------------------------------------------------------------------------------|
-| `orchestra-engines`            | `postgres`       | Engines to run, comma separated: `postgres`, `mysql`. One composition per engine.                 |
-| `orchestra-deployment`         | `AURORA`         | `AURORA`, `RDS_MULTI_AZ_CLUSTER` or `RDS_MULTI_AZ_INSTANCE`.                                     |
+| `orchestra-engines`            | `pg`             | Engines to run, comma separated. PostgreSQL accepts `pg`, `postgres`, or `postgresql`; MySQL accepts `mysql`. Docker also accepts `mariadb`. One composition per engine. |
+| `orchestra-deployment`         | `AURORA`         | `AURORA`, `AURORA_GLOBAL`, `RDS_MULTI_AZ_CLUSTER` or `RDS_MULTI_AZ_INSTANCE`.                                    |
+| `orchestra-secondary-regions`  | `us-west-2`       | Secondary regions for `AURORA_GLOBAL`, comma separated.                                                          |
+| `orchestra-secondary-instances` | `2`              | Instances to provision in each secondary global-database region.                                                 |
 | `orchestra-instances`          | deployment default | Cluster sizes to run, comma separated.                                                          |
 | `orchestra-drivers`            | every driver     | Which JDBC drivers the suite connects with: `pg`, `mysql`, `mariadb`.                             |
 | `orchestra-jvms`               | one JVM          | JVMs to run the suite on, named by `TargetJvm`, for example `OPENJDK17,OPENJDK21`.                |
@@ -88,6 +90,22 @@ which a running container has bound.
 
 Test results can be found at `wrapper/build/report/index.html`.
 
+Aurora Global Database tests carry the `gdb` JUnit tag and are excluded from standard suites. They require
+one engine per invocation because a global topology cannot vary engines in place. For example:
+
+```bash
+./gradlew --no-parallel --no-daemon orchestra-test-rds \
+  -Dorchestra-deployment=aurora-global \
+  -Dorchestra-engines=postgres \
+  -Dorchestra-drivers=pg \
+  -Dorchestra-secondary-regions=us-west-2 \
+  -Dorchestra-secondary-instances=2
+```
+
+The dedicated GDB workflows expose the secondary regions and instance count as dispatch inputs. The runner
+adds the `gdb` include tag for global deployments. Standard runs add `gdb` to their exclusions so GDB classes
+do not affect execution or shard balancing.
+
 Each GitHub-hosted integration workflow has a `*-codebuild.yml` counterpart that runs the same Orchestra
 command on self-hosted CodeBuild runners. Update both workflows when changing a test matrix or command.
 
@@ -108,7 +126,7 @@ The default of shard 1 of 1 runs every test class, so local runs and non-sharded
 exactly as before.
 
 ```bash
-./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora \
+./gradlew --no-parallel --no-daemon orchestra-test-rds \
   -Dtest-shard-index=2 -Dtest-shard-count=4
 ```
 

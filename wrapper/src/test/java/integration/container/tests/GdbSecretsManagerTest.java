@@ -36,6 +36,8 @@ import integration.container.condition.EnableOnTestFeature;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -57,6 +59,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.CreateSecretRequest;
 import software.amazon.awssdk.services.secretsmanager.model.DeleteSecretRequest;
+import software.amazon.awssdk.services.secretsmanager.model.ListSecretsResponse;
+import software.amazon.awssdk.services.secretsmanager.model.SecretListEntry;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
@@ -64,6 +68,7 @@ import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin2;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Fetching database credentials from Secrets Manager while connected to a secondary region.
@@ -98,6 +103,8 @@ import software.amazon.jdbc.util.StringUtils;
 public class GdbSecretsManagerTest {
 
   private static final Logger LOGGER = Logger.getLogger(GdbSecretsManagerTest.class.getName());
+  private static final String SECRET_PREFIX = "aws-jdbc-wrapper-it-gdb-sm-";
+  private static final int ORPHAN_AGE_HOURS = 12;
 
   private static SecretsManagerClient secretsManagerClient;
   private static String secretId;
@@ -116,9 +123,11 @@ public class GdbSecretsManagerTest {
         .credentialsProvider(credentialsProvider(info))
         .build();
 
+    sweepOrphanedSecrets();
+
     // The master credentials, which every region of the global database shares. This is the fact the class is
     // about, expressed as the fixture: one secret, and it is not created per region.
-    secretId = "aws-jdbc-wrapper-it-gdb-sm-" + UUID.randomUUID();
+    secretId = SECRET_PREFIX + UUID.randomUUID();
     final String secretString = String.format(
         "{\"username\":\"%s\",\"password\":\"%s\"}",
         info.getDatabaseInfo().getUsername(),
@@ -129,7 +138,39 @@ public class GdbSecretsManagerTest {
         .secretString(secretString)
         .build()).arn();
 
-    LOGGER.finest("Created test secret " + secretId + " in " + secretRegion);
+    LOGGER.finest(TestMessages.get(
+        "GdbSecretsManagerTest.created", new Object[] {secretId, secretRegion}));
+  }
+
+  private static void sweepOrphanedSecrets() {
+    try {
+      for (final ListSecretsResponse page : secretsManagerClient.listSecretsPaginator()) {
+        for (final SecretListEntry secret : page.secretList()) {
+          if (secret.name() == null
+              || !secret.name().startsWith(SECRET_PREFIX)
+              || secret.createdDate() == null
+              || secret.createdDate().plus(ORPHAN_AGE_HOURS, ChronoUnit.HOURS).isAfter(Instant.now())
+              || secret.deletedDate() != null) {
+            continue;
+          }
+          try {
+            secretsManagerClient.deleteSecret(DeleteSecretRequest.builder()
+                .secretId(secret.arn())
+                .forceDeleteWithoutRecovery(true)
+                .build());
+            LOGGER.finest(TestMessages.get(
+                "GdbSecretsManagerTest.orphanDeleted", new Object[] {secret.name()}));
+          } catch (final Exception e) {
+            LOGGER.warning(TestMessages.get(
+                "GdbSecretsManagerTest.orphanDeleteFailed",
+                new Object[] {secret.name(), e.getMessage()}));
+          }
+        }
+      }
+    } catch (final Exception e) {
+      LOGGER.warning(TestMessages.get(
+          "GdbSecretsManagerTest.orphanSweepFailed", new Object[] {e.getMessage()}));
+    }
   }
 
   @AfterAll
@@ -144,9 +185,10 @@ public class GdbSecretsManagerTest {
           .secretId(secretId)
           .forceDeleteWithoutRecovery(true)
           .build());
-      LOGGER.finest("Deleted test secret " + secretId);
+      LOGGER.finest(TestMessages.get("GdbSecretsManagerTest.deleted", new Object[] {secretId}));
     } catch (final Exception e) {
-      LOGGER.warning("Failed to delete test secret " + secretId + ": " + e.getMessage());
+      LOGGER.warning(TestMessages.get(
+          "GdbSecretsManagerTest.deleteFailed", new Object[] {secretId, e.getMessage()}));
     } finally {
       secretsManagerClient.close();
     }
@@ -206,7 +248,8 @@ public class GdbSecretsManagerTest {
       }
     });
 
-    LOGGER.finest("As expected, the secret was not found in " + secondary.getRegion() + ": " + e.getMessage());
+    LOGGER.finest(TestMessages.get("GdbSecretsManagerTest.notFoundInRegion",
+        new Object[] {secondary.getRegion(), e.getMessage()}));
   }
 
   @TestTemplate
@@ -256,7 +299,7 @@ public class GdbSecretsManagerTest {
         cluster.getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    LOGGER.finest("Connecting to " + url);
+    LOGGER.finest(TestMessages.get("GdbSecretsManagerTest.connecting", new Object[] {url}));
     return DriverManager.getConnection(url, props);
   }
 

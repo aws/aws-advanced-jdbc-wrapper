@@ -68,14 +68,15 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          case "${{ matrix.dbEngine }}" in
+          case "$MATRIX_DB_ENGINE" in
             mysql-aurora)                ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql" ;;
             mysql-aurora-mariadb-driver) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb" ;;
             pg-aurora)                   ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg" ;;
-            *) echo "Unknown dbEngine ${{ matrix.dbEngine }}"; exit 1 ;;
+            *) echo "Unknown dbEngine $MATRIX_DB_ENGINE"; exit 1 ;;
           esac
-          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora $ARGS -Dorchestra-instances=2
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds $ARGS -Dorchestra-instances=2
         env:
+          MATRIX_DB_ENGINE: ${{ matrix.dbEngine }}
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}

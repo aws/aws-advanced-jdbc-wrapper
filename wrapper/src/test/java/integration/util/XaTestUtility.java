@@ -19,6 +19,7 @@ package integration.util;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestEnvironment;
 import java.sql.Connection;
@@ -27,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.TestMessages;
 
 /** Shared helpers for the XA ({@code XADataSource}) integration tests. */
 public final class XaTestUtility {
@@ -68,15 +70,17 @@ public final class XaTestUtility {
   }
 
   /**
-   * Skips the calling test when the database will not let this user run {@code XA RECOVER}.
+   * Verifies that the database user can run {@code XA RECOVER}. A missing Docker grant fails the
+   * test because the repository owns that container setup; managed deployments skip because the
+   * provider owns their privilege model.
    *
    * <p>MySQL 8 restricts {@code XA RECOVER} to holders of {@code XA_RECOVER_ADMIN}, on the reasoning that
    * listing another session's in-doubt branches is an administrative act. The Docker container grants it to
    * the test user on first boot, so this normally passes; on a managed deployment the user is whichever one
    * the provider created, and whether it holds the privilege is the provider's decision rather than ours.
-   * Nothing the driver does can work around it, so a test that needs to recover is skipped rather than
-   * failed - the same treatment {@link #assumePreparedTransactionsSupported} gives a server with prepared
-   * transactions disabled.
+   * A managed deployment still skips because nothing the driver does can work around the
+   * provider's privilege policy; a Docker refusal is propagated because it means this repository's
+   * initialization script regressed.
    *
    * <p>Asked of the server rather than derived from {@code SHOW GRANTS}. A privilege can arrive through a
    * role, in which case it does not appear among the user's own grants, so reading them could report absent
@@ -88,6 +92,8 @@ public final class XaTestUtility {
    */
   public static void assumeXaRecoverSupported() throws SQLException {
     final DatabaseEngine engine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    final DatabaseEngineDeployment deployment =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
     if (!DatabaseEngine.MYSQL.equals(engine)) {
       return;
     }
@@ -110,6 +116,9 @@ public final class XaTestUtility {
           && !message.contains("XA_RECOVER_ADMIN")) {
         throw e;
       }
+      if (!skipMissingXaRecoverPrivilege(deployment)) {
+        throw e;
+      }
       permitted = false;
       reason = message;
     }
@@ -118,6 +127,10 @@ public final class XaTestUtility {
         permitted,
         "This user may not run XA RECOVER on this server, so a prepared branch cannot be discovered: "
             + reason + ". Grant XA_RECOVER_ADMIN to run the XA recovery tests.");
+  }
+
+  public static boolean skipMissingXaRecoverPrivilege(final DatabaseEngineDeployment deployment) {
+    return !DatabaseEngineDeployment.DOCKER.equals(deployment);
   }
 
   /**
@@ -166,7 +179,8 @@ public final class XaTestUtility {
       try {
         return Integer.parseInt(value.trim());
       } catch (final NumberFormatException e) {
-        LOGGER.finest(() -> "Unexpected max_prepared_transactions value: " + value);
+        LOGGER.finest(() -> TestMessages.get(
+            "XaTestUtility.unexpectedMaxPreparedTransactions", new Object[] {value}));
         return 0;
       }
     }

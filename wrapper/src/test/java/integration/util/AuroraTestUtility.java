@@ -154,6 +154,7 @@ import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Provides useful functions for RDS integration testing. To use this functionality the following environment variables
@@ -1800,7 +1801,7 @@ public class AuroraTestUtility {
       long timeoutMinutes) throws InterruptedException {
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
-    if (deployment == DatabaseEngineDeployment.AURORA) {
+    if (deployment.isAurora()) {
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterIp = hostToIP(clusterEndpoint);
       long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(timeoutMinutes);
@@ -1971,30 +1972,33 @@ public class AuroraTestUtility {
             builder -> builder.dbInstanceIdentifier(instanceId).build());
 
         if (response.sdkHttpResponse().isSuccessful()) {
-          LOGGER.finest(String.format("rebootDBInstance for %s in %s request is sent", instanceId, regionName));
+          LOGGER.finest(TestMessages.get(
+              "AuroraTestUtility.regionalRebootSent", new Object[] {instanceId, regionName}));
           return;
         }
 
         lastHttpStatus = response.sdkHttpResponse().statusCode()
             + " " + response.sdkHttpResponse().statusText().orElse("");
-        LOGGER.finest(String.format("rebootDBInstance for %s in %s response: %s",
-            instanceId, regionName, lastHttpStatus));
+        LOGGER.finest(TestMessages.get(
+            "AuroraTestUtility.regionalRebootResponse",
+            new Object[] {instanceId, regionName, lastHttpStatus}));
 
       } catch (final Exception e) {
         lastFailure = e;
-        LOGGER.finest(String.format("rebootDBInstance '%s' in %s failed: %s",
-            instanceId, regionName, e.getMessage()));
+        LOGGER.finest(TestMessages.get(
+            "AuroraTestUtility.regionalRebootFailed",
+            new Object[] {instanceId, regionName, e.getMessage()}));
         TimeUnit.MILLISECONDS.sleep(1000);
       }
     }
 
     final String detail = lastFailure != null
         ? lastFailure.getMessage()
-        : "last response was " + lastHttpStatus;
+        : TestMessages.get("AuroraTestUtility.lastResponse", new Object[] {lastHttpStatus});
 
-    throw new RuntimeException(
-        String.format("Failed to request a reboot of instance %s in %s: %s", instanceId, regionName, detail),
-        lastFailure);
+    throw new RuntimeException(TestMessages.get(
+        "AuroraTestUtility.regionalRebootExhausted",
+        new Object[] {instanceId, regionName, detail}), lastFailure);
   }
 
   /**
@@ -2025,22 +2029,28 @@ public class AuroraTestUtility {
         if ("available".equalsIgnoreCase(status)) {
           return;
         }
-        LOGGER.finest(String.format("Waiting for %s in %s; status is %s", instanceId, regionName, status));
+        LOGGER.finest(TestMessages.get(
+            "AuroraTestUtility.regionalInstanceStatus",
+            new Object[] {instanceId, regionName, status}));
 
       } catch (final DbInstanceNotFoundException e) {
-        LOGGER.finest(String.format("Instance %s in %s not found yet.", instanceId, regionName));
+        LOGGER.finest(TestMessages.get(
+            "AuroraTestUtility.regionalInstanceNotFound",
+            new Object[] {instanceId, regionName}));
       }
 
       try {
         TimeUnit.SECONDS.sleep(10);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting for an instance to become available.", e);
+        throw new RuntimeException(TestMessages.get(
+            "AuroraTestUtility.instanceWaitInterrupted"), e);
       }
     }
 
-    throw new RuntimeException(String.format(
-        "Instance %s in %s was not available within %d minutes.", instanceId, regionName, timeout.toMinutes()));
+    throw new RuntimeException(TestMessages.get(
+        "AuroraTestUtility.regionalInstanceTimedOut",
+        new Object[] {instanceId, regionName, timeout.toMinutes()}));
   }
 
   public void rebootInstance(String instanceId) throws InterruptedException {
@@ -2534,12 +2544,14 @@ public class AuroraTestUtility {
             .build());
 
     if (!response.sdkHttpResponse().isSuccessful()) {
-      LOGGER.finest(String.format("switchoverBlueGreenDeployment response: %d, %s",
-          response.sdkHttpResponse().statusCode(),
-          response.sdkHttpResponse().statusText()));
-      throw new RuntimeException(response.sdkHttpResponse().statusText().orElse("Unspecified error."));
+      LOGGER.finest(TestMessages.get(
+          "AuroraTestUtility.blueGreenSwitchoverResponse",
+          new Object[] {response.sdkHttpResponse().statusCode(),
+              response.sdkHttpResponse().statusText()}));
+      throw new RuntimeException(response.sdkHttpResponse().statusText()
+          .orElse(TestMessages.get("AuroraTestUtility.unspecifiedError")));
     } else {
-      LOGGER.finest("switchoverBlueGreenDeployment request is sent");
+      LOGGER.finest(() -> TestMessages.get("AuroraTestUtility.blueGreenSwitchoverSent"));
     }
   }
 
@@ -2566,12 +2578,14 @@ public class AuroraTestUtility {
             .build());
 
     if (!response.sdkHttpResponse().isSuccessful()) {
-      LOGGER.finest(String.format("switchoverGlobalCluster response: %d, %s",
-          response.sdkHttpResponse().statusCode(),
-          response.sdkHttpResponse().statusText()));
-      throw new RuntimeException(response.sdkHttpResponse().statusText().orElse("Unspecified error."));
+      LOGGER.finest(TestMessages.get(
+          "AuroraTestUtility.globalSwitchoverResponse",
+          new Object[] {response.sdkHttpResponse().statusCode(),
+              response.sdkHttpResponse().statusText()}));
+      throw new RuntimeException(response.sdkHttpResponse().statusText()
+          .orElse(TestMessages.get("AuroraTestUtility.unspecifiedError")));
     } else {
-      LOGGER.finest("switchoverGlobalCluster request is sent");
+      LOGGER.finest(() -> TestMessages.get("AuroraTestUtility.switchoverRequestSent"));
     }
   }
 
@@ -2621,24 +2635,31 @@ public class AuroraTestUtility {
     while (System.nanoTime() < deadline) {
       final String primary = getGlobalClusterPrimaryRegion(globalClusterId);
       if (region.equals(primary)) {
-        LOGGER.finest(String.format("Global cluster %s is now primary in %s", globalClusterId, region));
+        LOGGER.finest(TestMessages.get(
+            "AuroraTestUtility.globalPrimaryReached",
+            new Object[] {globalClusterId, region}));
         return;
       }
 
-      LOGGER.finest(String.format("Waiting for %s to become primary in %s; it is %s",
-          globalClusterId, region, primary == null ? "mid-switchover" : "primary in " + primary));
+      final String primaryState = primary == null
+          ? TestMessages.get("AuroraTestUtility.midSwitchover")
+          : TestMessages.get("AuroraTestUtility.primaryIn", new Object[] {primary});
+      LOGGER.finest(TestMessages.get(
+          "AuroraTestUtility.waitingForGlobalPrimary",
+          new Object[] {globalClusterId, region, primaryState}));
 
       try {
         TimeUnit.SECONDS.sleep(20);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting for a global cluster switchover.", e);
+        throw new RuntimeException(TestMessages.get(
+            "AuroraTestUtility.globalSwitchoverInterrupted"), e);
       }
     }
 
-    throw new RuntimeException(String.format(
-        "Global cluster %s did not report its writer in %s within %d minutes.",
-        globalClusterId, region, timeout.toMinutes()));
+    throw new RuntimeException(TestMessages.get(
+        "AuroraTestUtility.globalPrimaryTimedOut",
+        new Object[] {globalClusterId, region, timeout.toMinutes()}));
   }
 
   /**
@@ -2664,8 +2685,8 @@ public class AuroraTestUtility {
       }
     }
 
-    throw new RuntimeException(String.format(
-        "Global cluster %s has no member in %s.", globalClusterId, region));
+    throw new RuntimeException(TestMessages.get(
+        "AuroraTestUtility.globalMemberMissing", new Object[] {globalClusterId, region}));
   }
 
   /** Returns the region an RDS ARN names, or null when it cannot be read. */

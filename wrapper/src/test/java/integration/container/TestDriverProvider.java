@@ -142,7 +142,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                 final DatabaseEngineDeployment deployment =
                     TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
-                if (deployment == DatabaseEngineDeployment.AURORA
+                if (deployment.isAurora()
                     || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
 
                   // Try 3 times to check cluster health status
@@ -156,6 +156,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                       // Nothing we can do other than to reboot a cluster and hope it gets back in a better shape.
                       switch (deployment) {
                         case AURORA:
+                        case AURORA_GLOBAL:
                           rebootAllClusterInstances();
                           break;
                         case RDS_MULTI_AZ_CLUSTER:

@@ -56,11 +56,12 @@ val openTelemetryVersion = "1.62.0"
 //     no Testcontainers, no AWS SDK. It is compiled for Java 8 and says so in its metadata, which is
 //     what lets the Java 8 `test` source set below depend on it.
 //
-// A snapshot, and temporarily so. Orchestra is in a private repository with no release yet, and
-// publishes a snapshot on every push to its main. Change these to a release version once there is one,
-// and the snapshot repository declared below goes at the same time.
-val orchestraVersion = "0.1.0-SNAPSHOT"
+// Pin the immutable timestamped snapshot published for the migration. A mutable -SNAPSHOT would let
+// identical wrapper commits compile and provision resources with different Orchestra bytes over time.
+val orchestraVersion = "0.1.0-20261008.193218-1"
 val orchestraGroup = "software.amazon.orchestra"
+val orchestraContract = "$orchestraGroup:advanced-wrapper-orchestra-contract:$orchestraVersion"
+val orchestraCore = "$orchestraGroup:advanced-wrapper-orchestra-core:$orchestraVersion"
 val orchestraInstruments = "$orchestraGroup:advanced-wrapper-orchestra-instruments:$orchestraVersion"
 val orchestraClient = "$orchestraGroup:advanced-wrapper-orchestra-client-java:$orchestraVersion"
 
@@ -135,6 +136,7 @@ dependencies {
     // rather than quietly mis-compiled, because they declare Java 17 - which is the right answer, since
     // provisioning environments is no business of code running inside one.
     testImplementation(orchestraClient)
+    testImplementation(orchestraContract)
 
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:$testcontainersVersion")
@@ -171,14 +173,14 @@ repositories {
     // Orchestra's snapshots, which is the only place it is published until its first release. Temporary:
     // remove this along with the -SNAPSHOT version above once Orchestra publishes a release to Central.
     //
-    // Scoped twice over, so adding a snapshot repository to this build changes nothing else. snapshotsOnly
-    // stops Gradle asking it for release versions, and the group restriction stops any other dependency
-    // being resolved from here - without which a typo in any coordinate could silently be answered by a
-    // snapshot, and every resolution would pay for an extra repository to search.
+    // Scoped by group, so adding the snapshot repository changes no other dependency resolution.
+    // Without the restriction, a typo in another coordinate could silently be answered by a snapshot.
     maven {
         name = "orchestraSnapshots"
         url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-        mavenContent { snapshotsOnly() }
+        // Gradle classifies Maven's timestamp syntax as a release for content filtering, even
+        // though the artifact lives in the snapshots repository. The group restriction still
+        // prevents every non-Orchestra dependency from consulting this repository.
         content { includeGroup(orchestraGroup) }
     }
 }
@@ -201,6 +203,7 @@ val orchestraContainerJars: Configuration by configurations.creating {
 
 dependencies {
     orchestraContainerJars(orchestraClient)
+    orchestraContainerJars(orchestraContract)
 }
 
 if (useJacoco) {
@@ -308,6 +311,10 @@ val orchestraTest = sourceSets.create("orchestraTest") {
     java {
         srcDir("src/test/orchestra")
     }
+    resources {
+        srcDir("src/test/orchestra")
+        exclude("**/*.java")
+    }
     val outputs = sourceSets.main.get().output + sourceSets.test.get().output
     compileClasspath += outputs + sourceSets.test.get().compileClasspath
     // Runtime borrows test's *runtime* classpath, not its compile classpath. The JUnit Jupiter engine is a
@@ -349,6 +356,8 @@ dependencies {
     // the instruments, which bring core and the contract with them through `api`, along with the
     // Testcontainers and AWS SDK dependencies they declare.
     add(orchestraTest.implementationConfigurationName, orchestraInstruments)
+    add(orchestraTest.implementationConfigurationName, orchestraCore)
+    add(orchestraTest.implementationConfigurationName, orchestraContract)
 
     // Still named explicitly, even though the POM now supplies them transitively, so that this build
     // keeps deciding their versions. Leaving it to the POM would mean a version bump in Orchestra
@@ -798,17 +807,41 @@ tasks.register("maskJunitHtmlReport") {
     }
 }
 
+// Orchestra test containers have no external route. Give their resolver an empty, task-owned Gradle user
+// home and the exact /app build script, then let GradleRuntime populate that cache in an Alpine preparation
+// container before Orchestra creates its internal networks. The resolver exits before it archives modules-2,
+// so the archive has no concurrent writers and contains only this build graph rather than the host's history.
+fun Test.shareHostGradleRuntime() {
+    val cacheDirectory = layout.buildDirectory.dir("orchestra/gradle-user-home")
+    val cacheArchive = layout.buildDirectory.file("orchestra/gradle-modules.jar")
+    val containerBuildFile = layout.projectDirectory.file("src/test/build.gradle.kts")
+
+    doFirst {
+        delete(cacheDirectory)
+        delete(cacheArchive)
+
+        val installation = requireNotNull(gradle.gradleHomeDir) {
+            "The active Gradle installation directory is unavailable."
+        }
+        systemProperty("orchestra-gradle-home", installation.absolutePath)
+        systemProperty("orchestra-gradle-cache-directory", cacheDirectory.get().asFile.absolutePath)
+        systemProperty("orchestra-gradle-module-cache-archive", cacheArchive.get().asFile.absolutePath)
+        systemProperty("orchestra-gradle-container-build-file", containerBuildFile.asFile.absolutePath)
+    }
+}
+
 // The migrated equivalent of test-all-pg-aurora, provisioned by Orchestra.
 //
 // A separate task rather than a replacement, so the existing harness stays runnable while the migration is
 // proven. It selects nothing with test-no-* properties: the composition is declared in OrchestraTestRunner,
 // which is the difference the migration is about.
-tasks.register<Test>("orchestra-test-pg-aurora") {
+tasks.register<Test>("orchestra-test-rds") {
     group = "verification"
-    description = "Runs the in-container suite against an Orchestra-provisioned Aurora PostgreSQL cluster."
+    description = "Runs the in-container suite against an Orchestra-provisioned RDS deployment."
 
     testClassesDirs = orchestraTest.output.classesDirs
     classpath = orchestraTest.runtimeClasspath
+    shareHostGradleRuntime()
 
     // Name the exact driver jar to give the container, and depend on it so it exists.
     //
@@ -820,7 +853,6 @@ tasks.register<Test>("orchestra-test-pg-aurora") {
     // too, since it depended on what previous builds had left behind.
     val driverJar = tasks.named<Jar>("jar")
     dependsOn(driverJar)
-    systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
 
     // The Orchestra jars to copy into the container, named the same way as the driver jar above rather
     // than found by path. They used to be checked-in files; now they are whatever the dependency
@@ -835,6 +867,7 @@ tasks.register<Test>("orchestra-test-pg-aurora") {
     // every invocation of this build pay for it, including the ones that never run this task.
     inputs.files(orchestraContainerJars)
     doFirst {
+        systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
         systemProperty("orchestra-library-jars", orchestraContainerJars.asPath)
     }
 
@@ -938,10 +971,10 @@ tasks.register<Test>("orchestra-test-docker") {
 
     testClassesDirs = orchestraTest.output.classesDirs
     classpath = orchestraTest.runtimeClasspath
+    shareHostGradleRuntime()
 
     val driverJar = tasks.named<Jar>("jar")
     dependsOn(driverJar)
-    systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
 
     // The Orchestra jars to copy into the container, named the same way as the driver jar above rather
     // than found by path. They used to be checked-in files; now they are whatever the dependency
@@ -956,6 +989,7 @@ tasks.register<Test>("orchestra-test-docker") {
     // every invocation of this build pay for it, including the ones that never run this task.
     inputs.files(orchestraContainerJars)
     doFirst {
+        systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
         systemProperty("orchestra-library-jars", orchestraContainerJars.asPath)
     }
 
@@ -973,33 +1007,35 @@ tasks.register<Test>("orchestra-test-docker") {
         this.showStandardStreams = true
     }
 
-    listOf(
-        "test-container-registry",
-        "test-include-tags",
-        "test-exclude-tags",
-        "test-shard-index",
-        "test-shard-count",
-        "test-classes",
-        // The JVM axis applies to Docker environments too, and this is the cheapest task to exercise it in.
-        "orchestra-jvms",
-        // Which database server to run: pg or mysql. The harness's Docker matrix varies the server, and that
-        // matrix is the PR gate, so this axis is what makes this task a replacement for it rather than a
-        // narrower version of it.
-        "orchestra-engines",
+    doFirst {
+        listOf(
+            "test-container-registry",
+            "test-include-tags",
+            "test-exclude-tags",
+            "test-shard-index",
+            "test-shard-count",
+            "test-classes",
+            // The JVM axis applies to Docker environments too, and this is the cheapest task to exercise it in.
+            "orchestra-jvms",
+            // Which database server to run: pg or mysql. The harness's Docker matrix varies the server, and that
+            // matrix is the PR gate, so this axis is what makes this task a replacement for it rather than a
+            // narrower version of it.
+            "orchestra-engines",
 
-        // Whether to provision the four Valkey caches and run the caching tests instead of the rest of the
-        // suite. The harness splits these into two jobs over the same matrix - test-all-docker excludes the
-        // caching tag, test-all-caching includes it - and this is that split.
-        "orchestra-caching",
-        // Telemetry applies here too, and is on by default. Forwarded so that asking for none is honoured
-        // rather than dropped: the runner reads this forked JVM's properties, not the Gradle command line, so
-        // a property missing from this list is invisible to it.
-        "orchestra-telemetry",
-        // Not because a suite runs here - none does - but so that asking for one is rejected rather than
-        // silently ignored, which is what an unforwarded property would produce.
-        "orchestra-suite"
-    ).forEach { name ->
-        System.getProperty(name)?.let { systemProperty(name, it) }
+            // Whether to provision the four Valkey caches and run the caching tests instead of the rest of the
+            // suite. The harness splits these into two jobs over the same matrix - test-all-docker excludes the
+            // caching tag, test-all-caching includes it - and this is that split.
+            "orchestra-caching",
+            // Telemetry applies here too, and is on by default. Forwarded so that asking for none is honoured
+            // rather than dropped: the runner reads this forked JVM's properties, not the Gradle command line, so
+            // a property missing from this list is invisible to it.
+            "orchestra-telemetry",
+            // Not because a suite runs here - none does - but so that asking for one is rejected rather than
+            // silently ignored, which is what an unforwarded property would produce.
+            "orchestra-suite"
+        ).forEach { name ->
+            System.getProperty(name)?.let { systemProperty(name, it) }
+        }
     }
 }
 
@@ -1023,13 +1059,13 @@ tasks.register<Test>("orchestra-test-hibernate") {
 
     testClassesDirs = orchestraTest.output.classesDirs
     classpath = orchestraTest.runtimeClasspath
+    shareHostGradleRuntime()
 
     // The jar Hibernate's build will use as its driver. Named by the build rather than globbed, for the reason
     // the other orchestra tasks give: build/libs accumulates, and a shaded bundle on the classpath kills the
     // JVM during boot layer initialisation.
     val driverJar = tasks.named<Jar>("jar")
     dependsOn(driverJar)
-    systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
 
     // The Orchestra jars to copy into the container, named the same way as the driver jar above rather
     // than found by path. They used to be checked-in files; now they are whatever the dependency
@@ -1044,6 +1080,7 @@ tasks.register<Test>("orchestra-test-hibernate") {
     // every invocation of this build pay for it, including the ones that never run this task.
     inputs.files(orchestraContainerJars)
     doFirst {
+        systemProperty("orchestra-driver-jar", driverJar.get().archiveFile.get().asFile.absolutePath)
         systemProperty("orchestra-library-jars", orchestraContainerJars.asPath)
     }
 
@@ -1065,8 +1102,13 @@ tasks.register<Test>("orchestra-test-hibernate") {
 
     // Registry selection still reaches the JVM base image. Postgis remains a Dockerfile FROM and cannot be
     // substituted; test-selection properties do not apply because this task runs Hibernate's suite.
-    System.getProperty("test-container-registry")?.let {
-        systemProperty("test-container-registry", it)
+    doFirst {
+        System.getProperty("test-container-registry")?.let {
+            systemProperty("test-container-registry", it)
+        }
+        System.getProperty("orchestra-jvms")?.let {
+            systemProperty("orchestra-jvms", it)
+        }
     }
 
     dependsOn("jar")

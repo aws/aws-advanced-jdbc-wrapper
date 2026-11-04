@@ -50,6 +50,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Reaches every region of an Aurora global database, and checks each is what it claims to be.
@@ -99,8 +100,8 @@ public class GdbBasicConnectivityTests {
   public void test_topologySpansMoreThanOneRegion() {
     final TestGlobalDatabaseInfo info = global();
 
-    LOGGER.info("Global database " + info.getGlobalClusterIdentifier() + " spans " + info.getRegionNames()
-        + ", primary " + info.getPrimaryRegion());
+    LOGGER.info(() -> TestMessages.get("GdbBasicConnectivityTests.topology",
+        new Object[] {info.getGlobalClusterIdentifier(), info.getRegionNames(), info.getPrimaryRegion()}));
 
     assertTrue(info.getRegionNames().size() >= 2,
         "A global database environment must span at least two regions; this one reports "
@@ -125,7 +126,7 @@ public class GdbBasicConnectivityTests {
     final TestGlobalDatabaseInfo info = global();
     final String patterns = info.getInstanceHostPatterns();
 
-    LOGGER.info("globalClusterInstanceHostPatterns=" + patterns);
+    LOGGER.info(() -> TestMessages.get("GdbBasicConnectivityTests.hostPatterns", new Object[] {patterns}));
 
     // The value every GDB plugin configuration needs. One template per region, or the driver cannot address
     // instances it has only seen the identifiers of - and the failure looks like broken topology discovery.
@@ -208,7 +209,7 @@ public class GdbBasicConnectivityTests {
           cluster.getPort(),
           TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-      LOGGER.finest("Connecting through the wrapper to " + url);
+      LOGGER.finest(() -> TestMessages.get("GdbBasicConnectivityTests.wrapperConnection", new Object[] {url}));
 
       try (Connection conn = DriverManager.getConnection(url, props);
           Statement statement = conn.createStatement();
@@ -224,7 +225,8 @@ public class GdbBasicConnectivityTests {
       final TestDriver testDriver, final TestRegionalClusterInfo cluster, final String host)
       throws SQLException {
 
-    LOGGER.finest("Connecting to " + host + " in " + cluster.getRegion());
+    LOGGER.finest(() -> TestMessages.get(
+        "GdbBasicConnectivityTests.connection", new Object[] {host, cluster.getRegion()}));
 
     try (Connection conn = connect(testDriver, cluster, host);
         Statement statement = conn.createStatement()) {

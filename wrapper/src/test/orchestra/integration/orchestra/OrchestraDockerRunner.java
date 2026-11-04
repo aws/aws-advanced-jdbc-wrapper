@@ -26,6 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.EnvComposition;
 import software.amazon.orchestra.EnvCompositionBuilder;
 import software.amazon.orchestra.OnError;
@@ -129,17 +130,18 @@ public class OrchestraDockerRunner {
     // Ignoring the property would provision a container, run the ordinary suite, and look like the suite had
     // passed.
     if (!TestSuite.requested().isStandard()) {
-      throw new IllegalArgumentException(
-          "orchestra-suite=" + TestSuite.requested() + " is not available on the Docker task: its test "
-              + "class enables on AWS deployments only. Use orchestra-test-pg-aurora.");
+      throw new IllegalArgumentException(TestMessages.get(
+          "OrchestraDockerRunner.unsupportedSuite", new Object[] {TestSuite.requested()}));
     }
 
     final OrchestraDockerConfig configuration = new OrchestraDockerConfig(IN_CONTAINER_TASK);
+    PrepareGradleCache.execute(configuration);
     final EnumSet<TestEnvironmentFeatures> features = features();
 
     // Which database servers to run. The harness's Docker matrix is over the server, and it is the PR gate, so
     // a task that could only start PostgreSQL would quietly narrow what every pull request is checked against.
     final DatabaseEngine[] engines = ContainerEngineVariation.requested();
+    final TargetJvm[] jvms = JvmVariation.requested();
 
     final EnvCompositionBuilder builder = EnvComposition.getBuilder()
         // No SecurityGroupIpWhitelist and no AwsOrphanCleanup. Both are AWS global resources, and a
@@ -166,7 +168,7 @@ public class OrchestraDockerRunner {
         // The engine axis, and the JVM axis beside it: the harness varies both for Docker environments, and
         // this is the cheapest place to exercise either.
         .addVariation(new ContainerEngineVariation(engines, features))
-        .addVariation(new JvmVariation(JvmVariation.requested()));
+        .addVariation(new JvmVariation(jvms));
 
     if (caching()) {
       // The four caches the query-cache and Spring caching tests address by index. A variation rather than four
@@ -181,10 +183,11 @@ public class OrchestraDockerRunner {
 
     builder
         .configureExecutionPipeline(e -> e
-            // CONTINUE once the JVM axis produces more than one slot, for the reason the Aurora runner gives:
-            // the question a matrix answers is which combinations work, so every slot runs and the build
-            // still fails at the end. A single slot should still fail fast.
-            .onError(JvmVariation.requested().length > 1 ? OnError.CONTINUE : OnError.FAIL)
+            // CONTINUE whenever either axis produces more than one slot. A matrix exists to report every
+            // combination, so one failing engine must not hide the remaining engines.
+            .onError(OrchestraTestPolicy.continueAfterFailure(engines.length, jvms.length)
+                ? OnError.CONTINUE : OnError.FAIL)
+            .beforeUse(new PrepareGradleRuntime())
             .useComposition(new GradleTestContainerRun(configuration.getGradleTask())))
         .build()
         .run(configuration);

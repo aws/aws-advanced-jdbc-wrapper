@@ -24,8 +24,8 @@ import java.util.Map;
 import java.util.logging.Logger;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import org.testcontainers.utility.DockerImageName;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Single source for Docker Hub images and their Amazon ECR Public mirrors.
@@ -33,7 +33,7 @@ import software.amazon.jdbc.util.StringUtils;
  * <p>Docker Hub rate limits anonymous pulls per source IP. Select ECR Public with either:
  *
  * <pre>
- *   ./gradlew orchestra-test-pg-aurora -Dtest-container-registry=ecr
+ *   ./gradlew orchestra-test-rds -Dtest-container-registry=ecr
  *   TEST_CONTAINER_REGISTRY=ecr ./gradlew orchestra-test-docker
  * </pre>
  *
@@ -139,11 +139,11 @@ public final class ContainerImages {
     final String resolved = registry.trim().toLowerCase(Locale.ROOT);
 
     if (!ECR.equals(resolved) && !DOCKER_HUB.equals(resolved)) {
-      throw new IllegalArgumentException(Messages.get(
+      throw new IllegalArgumentException(TestMessages.get(
           "ContainerImages.unsupportedRegistry", new Object[] {resolved, DOCKER_HUB, ECR}));
     }
 
-    LOGGER.finest(() -> Messages.get("ContainerImages.selectedRegistry", new Object[] {resolved}));
+    LOGGER.finest(() -> TestMessages.get("ContainerImages.selectedRegistry", new Object[] {resolved}));
     return ECR.equals(resolved);
   }
 }

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.InstrumentDefinition;
 import software.amazon.orchestra.Variation;
@@ -97,8 +98,7 @@ public class EngineVariation implements Variation {
       final RdsEngine... engines) {
 
     if (engines == null || engines.length == 0) {
-      throw new IllegalArgumentException(
-          "An EngineVariation needs at least one engine, otherwise it would produce no compositions.");
+      throw new IllegalArgumentException(TestMessages.get("EngineVariation.empty"));
     }
 
     this.deployment = deployment;
@@ -165,9 +165,8 @@ public class EngineVariation implements Variation {
       case RDS_MULTI_AZ_INSTANCE:
         return new RdsMultiAzInstanceInstrumentDefinition(engine);
       default:
-        throw new IllegalArgumentException(
-            "EngineVariation has no database instrument for " + deployment + ". Add the mapping rather "
-                + "than letting a slot's shape and database disagree about the deployment.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "EngineVariation.unsupportedDeployment", new Object[] {deployment}));
     }
   }
 
@@ -223,9 +222,8 @@ public class EngineVariation implements Variation {
       case RDS_MULTI_AZ_INSTANCE:
         return new DbParameterGroupInstrumentDefinition(engine, suiteParameters(engine));
       default:
-        throw new IllegalArgumentException(
-            "EngineVariation has no parameter group for " + deployment + ". Add the mapping rather than "
-                + "attaching a group whose family the deployment's create call will reject.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "EngineVariation.unsupportedParameterGroup", new Object[] {deployment}));
     }
   }
 
@@ -275,9 +273,8 @@ public class EngineVariation implements Variation {
       case MYSQL:
         return DatabaseEngine.MYSQL;
       default:
-        throw new IllegalArgumentException(
-            "No wrapper DatabaseEngine is mapped to " + engine + ". Add the pairing to EngineVariation "
-                + "rather than letting the shape and the cluster disagree about the engine.");
+        throw new IllegalArgumentException(TestMessages.get(
+            "EngineVariation.unsupportedWrapperEngine", new Object[] {engine}));
     }
   }
 

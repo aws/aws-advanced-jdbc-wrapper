@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.EnvConfiguration;
 import software.amazon.orchestra.instruments.aws.AuroraClusterConfiguration;
 import software.amazon.orchestra.instruments.aws.AwsClients;
@@ -315,6 +316,24 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
   }
 
   /**
+   * Uses the host Gradle installation mounted by {@link #getTestContainerBinds()}.
+   *
+   * <p>Calling the copied wrapper would still consult its distribution cache first and attempt a network
+   * download if the cache layout ever differed. Invoking the mounted distribution directly removes that
+   * network path entirely while keeping the version identical to the host build.
+   */
+  @Override
+  public String getGradleCommand() {
+    return GradleRuntime.containerCommand();
+  }
+
+  /** Keeps dependency resolution inside the prepared cache after the container loses egress. */
+  @Override
+  public List<String> getGradleArguments() {
+    return GradleRuntime.offlineArguments();
+  }
+
+  /**
    * Returns everything copied into the container, mirroring the harness.
    *
    * <p>Ordered, so the mapping reads in the same order as the code it replaces. The Orchestra jars are the
@@ -331,6 +350,7 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
     // The target JVM is applied through a composition proxy, so this configuration object cannot gate the copy.
     copies.put(MODULE.resolve("build/classes/java/hibernateTest"), "/app/hibernateTest");
     copies.put(MODULE.resolve("../gradlew"), "/app/gradlew");
+    copies.putAll(GradleRuntime.containerCopies());
     copies.put(driverJar(), "/app/libs/aws-advanced-jdbc-wrapper.jar");
     copies.put(MODULE.resolve("src/test/build.gradle.kts"), "/app/build.gradle.kts");
 
@@ -358,6 +378,8 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
         "/app/test/resources/rds-ca-rsa2048-g1.pem");
     copies.put(MODULE.resolve("src/test/resources/logging-test.properties"),
         "/app/test/resources/logging-test.properties");
+    copies.put(MODULE.resolve("src/test/resources/aws_advanced_jdbc_wrapper_test_messages.properties"),
+        "/app/test/resources/aws_advanced_jdbc_wrapper_test_messages.properties");
     copies.put(MODULE.resolve("src/test/resources/simplelogger.properties"),
         "/app/test/resources/simplelogger.properties");
     copies.put(MODULE.resolve("src/test/resources/junit-platform.properties"),
@@ -396,6 +418,13 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
     binds.put(outputDirectory("build/test-results"), "/app/build/test-results");
     binds.put(outputDirectory("build/jacoco"), "/app/build/jacoco");
     binds.put(MODULE.resolve("../gradle"), "/app/gradle");
+
+    // The client network is deliberately internal, so the wrapper cannot download its distribution. Share
+    // the exact Gradle installation running this host build; getTestContainerCopies snapshots its resolved
+    // module cache onto the container filesystem, where Gradle's mmap and file locking work on Docker Desktop
+    // and Podman as well as Linux. The Gradle task supplies both host paths, which avoids assuming ~/.gradle
+    // or any particular CodeBuild/developer home directory.
+    binds.putAll(GradleRuntime.containerBinds());
 
     // The host's AWS credentials directory, bound rather than copied, and the only bind here that exists to
     // get something *in* rather than out.
@@ -438,9 +467,8 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
     try {
       Files.createDirectories(path);
     } catch (final IOException e) {
-      throw new IllegalStateException(
-          "Could not create " + path.toAbsolutePath() + ", which the test container needs to publish results "
-              + "into.", e);
+      throw new IllegalStateException(TestMessages.get(
+          "OrchestraAuroraConfig.outputDirectoryFailed", new Object[] {path.toAbsolutePath()}), e);
     }
     return path;
   }
@@ -493,11 +521,19 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
    */
   @Override
   public Map<String, String> getTestContainerEnvironment() {
-    final Map<String, String> environment = new LinkedHashMap<>();
+    final Map<String, String> environment =
+        new LinkedHashMap<>(GradleRuntime.containerEnvironment());
 
     // The region is set either way. It is not in the credentials file, an IAM auth token is signed for a
     // region, and the SDK will not guess one inside a container with no instance metadata.
     environment.put("AWS_REGION", getAwsRegion());
+
+    // Use the AWS SDK's standard service-specific endpoint setting for the manually dispatched custom-endpoint
+    // workflow. Orchestra's host-side RDS clients and the in-container clients then address the same service.
+    final String rdsEndpoint = System.getenv("AWS_ENDPOINT_URL_RDS");
+    if (rdsEndpoint != null && !rdsEndpoint.isBlank()) {
+      environment.put("AWS_ENDPOINT_URL_RDS", rdsEndpoint.trim());
+    }
 
     // Before the branch below, so both apply whichever way credentials reach the container. Neither is a
     // credential, and neither has anything to do with which of those two paths a run takes.
@@ -560,11 +596,9 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
 
     final Path file = AWS_DIRECTORY.resolve("credentials");
     if (!Files.isRegularFile(file)) {
-      throw new IllegalStateException(
-          BIND_CREDENTIALS_PROPERTY + " is set, but " + file.toAbsolutePath() + " does not exist. Binding it "
-              + "anyway would give the container an empty directory and fail every test that calls AWS. "
-              + "Either sign in so the file exists, or drop the property and let the resolved keys be "
-              + "copied instead.");
+      throw new IllegalStateException(TestMessages.get(
+          "OrchestraAuroraConfig.credentialsFileMissing",
+          new Object[] {BIND_CREDENTIALS_PROPERTY, file.toAbsolutePath()}));
     }
     requireStaticKeys(file);
     return true;
@@ -595,16 +629,14 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
         }
       }
     } catch (final IOException e) {
-      throw new IllegalStateException(
-          "Could not read " + file.toAbsolutePath() + " to check that profile " + profile + " has credentials "
-              + "the container can use.", e);
+      throw new IllegalStateException(TestMessages.get(
+          "OrchestraAuroraConfig.credentialsReadFailed",
+          new Object[] {file.toAbsolutePath(), profile}), e);
     }
 
-    throw new IllegalStateException(
-        BIND_CREDENTIALS_PROPERTY + " is set, but profile " + profile + " in " + file.toAbsolutePath()
-            + " has no aws_access_key_id. The container can only use keys written into this file - it cannot "
-            + "run credential_process, SSO, or an assumed-role flow. Refresh the profile so it holds keys, or "
-            + "drop the property and let the host's resolved credentials be copied instead.");
+    throw new IllegalStateException(TestMessages.get(
+        "OrchestraAuroraConfig.profileMissingStaticKeys",
+        new Object[] {BIND_CREDENTIALS_PROPERTY, profile, file.toAbsolutePath()}));
   }
 
   /**
@@ -775,17 +807,13 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
   static Path driverJar() {
     final String configured = System.getProperty("orchestra-driver-jar");
     if (configured == null || configured.trim().isEmpty()) {
-      throw new IllegalStateException(
-          "The system property orchestra-driver-jar is not set, so the driver jar to give the container is "
-              + "unknown. The orchestra-test task sets it from the jar task's output; running this test "
-              + "outside that task needs it supplied.");
+      throw new IllegalStateException(TestMessages.get("OrchestraAuroraConfig.driverJarUnset"));
     }
 
     final Path jar = Path.of(configured);
     if (!Files.isRegularFile(jar)) {
-      throw new IllegalStateException(
-          "orchestra-driver-jar points at " + jar.toAbsolutePath() + ", which is not a file. The driver "
-              + "has probably not been built.");
+      throw new IllegalStateException(TestMessages.get(
+          "OrchestraAuroraConfig.driverJarMissing", new Object[] {jar.toAbsolutePath()}));
     }
     return jar;
   }
@@ -814,10 +842,7 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
   static List<Path> orchestraLibraryJars() {
     final String configured = System.getProperty("orchestra-library-jars");
     if (configured == null || configured.trim().isEmpty()) {
-      throw new IllegalStateException(
-          "The system property orchestra-library-jars is not set, so the Orchestra jars to give the "
-              + "container are unknown. The orchestra-test tasks set it from the resolved Orchestra "
-              + "client dependency; running this test outside those tasks needs it supplied.");
+      throw new IllegalStateException(TestMessages.get("OrchestraAuroraConfig.libraryJarsUnset"));
     }
 
     final List<Path> jars = new ArrayList<>();
@@ -827,17 +852,14 @@ public class OrchestraAuroraConfig implements EnvConfiguration,
       }
       final Path jar = Path.of(entry);
       if (!Files.isRegularFile(jar)) {
-        throw new IllegalStateException(
-            "orchestra-library-jars names " + jar.toAbsolutePath() + ", which is not a file. The "
-                + "Orchestra dependency has probably not been resolved.");
+        throw new IllegalStateException(TestMessages.get(
+            "OrchestraAuroraConfig.libraryJarMissing", new Object[] {jar.toAbsolutePath()}));
       }
       jars.add(jar);
     }
 
     if (jars.isEmpty()) {
-      throw new IllegalStateException(
-          "orchestra-library-jars is set but names no files, so the container would start without the "
-              + "Orchestra client and fail at the first OrchestraClient call.");
+      throw new IllegalStateException(TestMessages.get("OrchestraAuroraConfig.libraryJarsEmpty"));
     }
     return jars;
   }

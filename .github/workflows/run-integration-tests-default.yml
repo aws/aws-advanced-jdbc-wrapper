@@ -87,7 +87,7 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          case "${{ matrix.name }}" in
+          case "$MATRIX_NAME" in
             pg-aurora-3inst-*)            ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=3" ;;
             pg-aurora-1inst)              ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=1" ;;
             mysql-aurora-mariadb-3inst-*) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb -Dorchestra-instances=3" ;;
@@ -98,12 +98,15 @@ jobs:
             mysql-multi-az-instance)      ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=1" ;;
             pg-multi-az-cluster-*)        ARGS="-Dorchestra-deployment=multi-az-cluster -Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=3" ;;
             pg-multi-az-instance)         ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=1" ;;
-            *) echo "Unknown matrix entry ${{ matrix.name }}"; exit 1 ;;
+            *) echo "Unknown matrix entry $MATRIX_NAME"; exit 1 ;;
           esac
-          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora $ARGS \
-            -Dtest-shard-index=${{ matrix.shard }} \
-            -Dtest-shard-count=${{ matrix.shardCount }}
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds $ARGS \
+            -Dtest-shard-index="$MATRIX_SHARD" \
+            -Dtest-shard-count="$MATRIX_SHARD_COUNT"
         env:
+          MATRIX_NAME: ${{ matrix.name }}
+          MATRIX_SHARD: ${{ matrix.shard }}
+          MATRIX_SHARD_COUNT: ${{ matrix.shardCount }}
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}

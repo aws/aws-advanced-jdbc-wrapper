@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.EnvConfiguration;
 import software.amazon.orchestra.Instrument;
@@ -112,8 +113,9 @@ public class RdsToolsExtensionInstrumentDefinition implements InstrumentDefiniti
     // is added once and still does the right thing in an engine matrix, where EngineVariation rebinds the
     // database per slot. MySQL has no rds_tools.
     if (!POSTGRESQL.equals(database.engine())) {
-      LOGGER.fine(() -> "Skipping rds_tools: the database in '" + composition.getDisplayName()
-          + "' is " + database.engine() + ", which has no such extension.");
+      LOGGER.fine(() -> TestMessages.get(
+          "RdsToolsExtensionInstrumentDefinition.skipped",
+          new Object[] {composition.getDisplayName(), database.engine()}));
       return new SimpleInstrument(this, null);
     }
 
@@ -137,7 +139,9 @@ public class RdsToolsExtensionInstrumentDefinition implements InstrumentDefiniti
       }
     }
 
-    LOGGER.info(() -> "rds_tools is ready on " + database.clusterIdentifier() + ".");
+    LOGGER.info(() -> TestMessages.get(
+        "RdsToolsExtensionInstrumentDefinition.ready",
+        new Object[] {database.clusterIdentifier()}));
     return new SimpleInstrument(this, null);
   }
 

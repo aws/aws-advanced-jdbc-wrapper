@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.CompositionAction;
 import software.amazon.orchestra.EnvConfiguration;
@@ -83,8 +84,9 @@ public class HibernateSuiteRun implements CompositionAction {
         composition.getInstrumentState(Database.class, DatabaseState.class);
 
     final List<String> command = suiteCommand(config, database);
-    LOGGER.info(() -> "Running Hibernate's suite in " + testContainer.workingDirectory() + ": "
-        + String.join(" ", command));
+    LOGGER.info(() -> TestMessages.get(
+        "HibernateSuiteRun.running",
+        new Object[] {testContainer.workingDirectory(), loggedCommand(command)}));
 
     final long exitCode = stream(testContainer.container(), command);
 
@@ -94,10 +96,8 @@ public class HibernateSuiteRun implements CompositionAction {
     collectResults(testContainer.container());
 
     if (exitCode != 0) {
-      throw new OrchestraException(
-          "Hibernate's test suite failed in the test container with exit code " + exitCode
-              + ". Its reports were collected into build/test-results; the console output above is the "
-              + "Gradle run itself.");
+      throw new OrchestraException(TestMessages.get(
+          "HibernateSuiteRun.failed", new Object[] {exitCode}));
     }
   }
 
@@ -149,6 +149,14 @@ public class HibernateSuiteRun implements CompositionAction {
     return command;
   }
 
+  static String loggedCommand(final List<String> command) {
+    final List<String> redacted = new ArrayList<>(command.size());
+    for (final String argument : command) {
+      redacted.add(argument.startsWith("-DdbPass=") ? "-DdbPass=*****" : argument);
+    }
+    return String.join(" ", redacted);
+  }
+
   /**
    * Gathers Hibernate's reports into the bound output directory.
    *
@@ -171,11 +179,12 @@ public class HibernateSuiteRun implements CompositionAction {
       final long exitCode = stream(container,
           List.of("bash", "-c", "tr -d '\\r' < " + COLLECT_SCRIPT + " | bash -s"));
       if (exitCode != 0) {
-        LOGGER.warning(() -> "Collecting Hibernate's test results exited with " + exitCode
-            + ", so build/test-results may hold no archives for this run.");
+        LOGGER.warning(() -> TestMessages.get(
+            "HibernateSuiteRun.collectionFailed", new Object[] {exitCode}));
       }
     } catch (final Exception ex) {
-      LOGGER.warning(() -> "Could not collect Hibernate's test results: " + ex);
+      LOGGER.warning(() -> TestMessages.get(
+          "HibernateSuiteRun.collectionException", new Object[] {ex}));
     }
   }
 
@@ -282,7 +291,7 @@ public class HibernateSuiteRun implements CompositionAction {
       if (trimmed.isEmpty()) {
         return;
       }
-      LOGGER.info(() -> "[hibernate] " + trimmed);
+      LOGGER.info(() -> TestMessages.get("HibernateSuiteRun.output", new Object[] {trimmed}));
     }
   }
 }

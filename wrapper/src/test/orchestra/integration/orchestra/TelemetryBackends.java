@@ -20,6 +20,7 @@ import integration.TestEnvironmentFeatures;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.EnvCompositionBuilder;
 import software.amazon.orchestra.instruments.docker.OtlpCollectorInstrumentDefinition;
 import software.amazon.orchestra.instruments.docker.XRayDaemonInstrumentDefinition;
@@ -84,9 +85,8 @@ public final class TelemetryBackends {
           enabled.add(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED);
           break;
         default:
-          throw new IllegalArgumentException(
-              "orchestra-telemetry=" + requested + " names '" + token + "', which is not a telemetry "
-                  + "backend this task provisions. Supported: traces, metrics, or none to disable both.");
+          throw new IllegalArgumentException(TestMessages.get(
+              "TelemetryBackends.unsupported", new Object[] {requested, token}));
       }
     }
     return enabled;

@@ -31,5 +31,10 @@ public enum DatabaseEngineDeployment {
    * only one of them is writable; and the topology a driver sees spans regions, which is what the GDB plugins
    * exist to handle. A test written for {@link #AURORA} would quietly assume all three.
    */
-  AURORA_GLOBAL
+  AURORA_GLOBAL;
+
+  /** Returns whether this deployment is backed by an Aurora cluster. */
+  public boolean isAurora() {
+    return this == AURORA || this == AURORA_GLOBAL;
+  }
 }

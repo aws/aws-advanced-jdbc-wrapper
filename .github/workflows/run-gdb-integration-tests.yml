@@ -14,25 +14,24 @@ on:
         description: 'Instances per secondary region. Two is the minimum for in-region reader failover to have anywhere to go.'
         required: false
         default: '2'
-  schedule:
-    # Sundays at 8:00 PM PST (4:00 AM UTC Monday). Weekly rather than nightly: see the note above.
-    - cron: '0 4 * * 1'
+  # The weekly schedule runs from run-gdb-integration-tests-codebuild.yml.
+  # schedule:
+  #   - cron: '0 4 * * 1'
 
 permissions:
   id-token: write   # This is required for requesting the JWT
   contents: read    # This is required for actions/checkout
 
 concurrency:
-  # Shared with every other workflow that creates real RDS resources, so only one runs at a time. A global run
-  # claims clusters and security group rules in more than one region, which makes it a heavier draw on the same
-  # quotas rather than a separate one. `queue: max` makes the others wait rather than be cancelled.
+  # Shared with every other workflow that creates real RDS resources, so only one runs at a time.
   group: rds-integration-tests
-  queue: max
 
 jobs:
   gdb-integration-tests:
     name: Run Aurora Global Database integration tests
     runs-on: ubuntu-latest
+    # End before JUnit's five-hour timeout loses its cleanup margin.
+    timeout-minutes: 330
     strategy:
       # One engine's failure says nothing about the other's, and each run costs too much to repeat for the sake
       # of learning what the second one would have done.
@@ -64,29 +63,42 @@ jobs:
           output-credentials: true
       - name: 'Resolve run parameters'
         id: params
+        env:
+          INPUT_SECONDARY_REGIONS: ${{ github.event.inputs.secondaryRegions }}
+          INPUT_SECONDARY_INSTANCES: ${{ github.event.inputs.secondaryInstances }}
         run: |
-          # Defaulted here rather than only in the input block so the scheduled run gets them too: workflow_dispatch
-          # input defaults are empty when the trigger is a schedule.
-          SECONDARY_REGIONS="${{ github.event.inputs.secondaryRegions }}"
-          SECONDARY_INSTANCES="${{ github.event.inputs.secondaryInstances }}"
-          echo "secondaryRegions=${SECONDARY_REGIONS:-us-west-2}" >> $GITHUB_OUTPUT
-          echo "secondaryInstances=${SECONDARY_INSTANCES:-2}" >> $GITHUB_OUTPUT
+          # Defaults first because workflow_dispatch defaults are not applied to scheduled runs.
+          REGIONS="${INPUT_SECONDARY_REGIONS:-us-west-2}"
+          INSTANCES="${INPUT_SECONDARY_INSTANCES:-2}"
+          if ! [[ "$REGIONS" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]]; then
+            echo "::error::secondaryRegions must be a comma-separated region list, got '$REGIONS'"
+            exit 1
+          fi
+          if ! [[ "$INSTANCES" =~ ^[0-9]+$ ]]; then
+            echo "::error::secondaryInstances must be an integer, got '$INSTANCES'"
+            exit 1
+          fi
+          echo "secondaryRegions=$REGIONS" >> "$GITHUB_OUTPUT"
+          echo "secondaryInstances=$INSTANCES" >> "$GITHUB_OUTPUT"
       - name: Run Aurora Global Database integration tests
         run: |
-          case "${{ matrix.testTask }}" in
-            pg-aurora-global)    ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg" ;;
+          case "$MATRIX_TEST_TASK" in
+            pg-aurora-global)    ARGS=("-Dorchestra-engines=postgres" "-Dorchestra-drivers=pg") ;;
             # Both MySQL-capable drivers. The MariaDB driver needs require_secure_transport turned off, which
             # is a parameter group setting; a global run creates one group per region for exactly this, so the
             # driver that used to be locked out of MySQL global databases runs here too.
-            mysql-aurora-global) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql,mariadb" ;;
-            *) echo "Unknown testTask ${{ matrix.testTask }}"; exit 1 ;;
+            mysql-aurora-global) ARGS=("-Dorchestra-engines=mysql" "-Dorchestra-drivers=mysql,mariadb") ;;
+            *) echo "Unknown testTask $MATRIX_TEST_TASK"; exit 1 ;;
           esac
-          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora \
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds \
             -Dorchestra-deployment=aurora-global \
-            -Dorchestra-secondary-regions=${{ steps.params.outputs.secondaryRegions }} \
-            -Dorchestra-secondary-instances=${{ steps.params.outputs.secondaryInstances }} \
-            $ARGS
+            -Dorchestra-secondary-regions="$SECONDARY_REGIONS" \
+            -Dorchestra-secondary-instances="$SECONDARY_INSTANCES" \
+            "${ARGS[@]}"
         env:
+          MATRIX_TEST_TASK: ${{ matrix.testTask }}
+          SECONDARY_REGIONS: ${{ steps.params.outputs.secondaryRegions }}
+          SECONDARY_INSTANCES: ${{ steps.params.outputs.secondaryInstances }}
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
@@ -95,6 +107,7 @@ jobs:
           MYSQL_VERSION: "latest"
           PG_VERSION: "latest"
       - name: Mask data
+        if: ${{ !cancelled() }}
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
       - name: Archive junit results for ${{ matrix.testTask }}
@@ -114,23 +127,30 @@ jobs:
       - name: Get Github Action IP
         if: always()
         id: ip
-        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> "$GITHUB_OUTPUT"
       - name: Remove Github Action IP
         if: always()
+        env:
+          PRIMARY_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          SECONDARY_REGIONS: ${{ steps.params.outputs.secondaryRegions }}
+          RUNNER_IPV4: ${{ steps.ip.outputs.ipv4 }}
         run: |
-          # Once per region, because a security group is regional: a global run whitelists this runner in the
-          # primary region and in every secondary, so revoking only the primary would leave a rule behind in each
-          # of the others. Those rules accumulate against the 60-per-group quota and eventually fail later runs
-          # with an error that points at the group rather than at whoever left them.
-          #
-          # Best-effort per region: a rule the run already revoked is not an error worth failing teardown over,
-          # and failing here would leave the remaining regions untouched.
-          for region in ${{ secrets.AWS_DEFAULT_REGION }} $(echo "${{ steps.params.outputs.secondaryRegions }}" | tr ',' ' '); do
-            echo "Revoking ${{ steps.ip.outputs.ipv4 }}/32 in $region"
-            aws ec2 revoke-security-group-ingress \
-              --region "$region" \
-              --group-name default \
-              --protocol all \
-              --port 0-65535 \
-              --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
+          # The pinned Orchestra snapshot authorizes one all-protocols, all-ports rule per region.
+          # Revoke that exact shape and tolerate only a rule that is already absent.
+          failed=0
+          for region in "$PRIMARY_REGION" $(echo "$SECONDARY_REGIONS" | tr ',' ' '); do
+            if output=$(aws ec2 revoke-security-group-ingress \
+                --region "$region" \
+                --group-name default \
+                --protocol all \
+                --port 0-65535 \
+                --cidr "$RUNNER_IPV4/32" 2>&1); then
+              echo "Revoke of all traffic from $RUNNER_IPV4/32 in $region accepted."
+            elif [ "${output#*InvalidPermission.NotFound}" != "$output" ]; then
+              echo "$RUNNER_IPV4/32 in $region was already revoked."
+            else
+              echo "$output"
+              failed=1
+            fi
           done
+          exit "$failed"

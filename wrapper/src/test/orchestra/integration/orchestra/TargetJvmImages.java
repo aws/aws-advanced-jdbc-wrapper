@@ -21,6 +21,7 @@ import integration.util.ContainerImages;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * The one place a {@code TargetJvm} and a container image are paired.
@@ -69,9 +70,8 @@ final class TargetJvmImages {
   static String imageFor(final TargetJvm jvm) {
     final String image = IMAGES.get(jvm);
     if (image == null) {
-      throw new IllegalArgumentException(
-          "No container image is paired with " + jvm + ". Add the pairing to TargetJvmImages rather than "
-              + "letting a run report a JVM it is not on.");
+      throw new IllegalArgumentException(TestMessages.get(
+          "TargetJvmImages.missingImage", new Object[] {jvm}));
     }
     return image;
   }
@@ -97,9 +97,7 @@ final class TargetJvmImages {
         return entry.getKey();
       }
     }
-    throw new IllegalArgumentException(
-        "The container image '" + image + "' is not paired with any TargetJvm, so this run cannot say which "
-            + "JVM it is on - and the in-container conditions gate on exactly that. Add the pairing to "
-            + "TargetJvmImages, or configure one of: " + IMAGES.values() + ".");
+    throw new IllegalArgumentException(TestMessages.get(
+        "TargetJvmImages.unknownImage", new Object[] {image, IMAGES.values()}));
   }
 }

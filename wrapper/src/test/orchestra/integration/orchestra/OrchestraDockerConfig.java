@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import software.amazon.orchestra.instruments.docker.MariaDbContainerConfiguration;
 import software.amazon.orchestra.instruments.docker.MySqlContainerConfiguration;
 import software.amazon.orchestra.instruments.docker.PostgresContainerConfiguration;
 
@@ -47,7 +48,8 @@ import software.amazon.orchestra.instruments.docker.PostgresContainerConfigurati
  * deliberately not bundled into the change that does.
  */
 public class OrchestraDockerConfig extends OrchestraAuroraConfig
-    implements PostgresContainerConfiguration, MySqlContainerConfiguration {
+    implements PostgresContainerConfiguration, MySqlContainerConfiguration,
+    MariaDbContainerConfiguration {
 
   /**
    * Creates the configuration for a Docker run.
@@ -67,7 +69,7 @@ public class OrchestraDockerConfig extends OrchestraAuroraConfig
    */
   @Override
   public Map<String, String> getTestContainerEnvironment() {
-    return Collections.emptyMap();
+    return GradleRuntime.containerEnvironment();
   }
 
   /**
@@ -158,17 +160,19 @@ public class OrchestraDockerConfig extends OrchestraAuroraConfig
    * enumerate the cache tests and fail them on an empty cache list, and a caching run would spend its time on
    * the rest of the suite as well.
    *
-   * <p>{@code putIfAbsent}, so a tag named explicitly on the command line still wins - the inherited method has
-   * already forwarded any. Someone asking for a specific tag is answering a narrower question than the mode's
-   * default.
+   * <p>The mode's tag is appended to any suite or command-line exclusions already present. In particular,
+   * the standard suite excludes {@code gdb}; replacing that value would let global-database tests leak into
+   * Docker runs.
    */
   @Override
   public Map<String, String> getTestContainerSystemProperties() {
     final Map<String, String> properties =
         new LinkedHashMap<>(super.getTestContainerSystemProperties());
 
-    properties.putIfAbsent(
-        OrchestraDockerRunner.caching() ? "test-include-tags" : "test-exclude-tags", "caching");
+    OrchestraTestPolicy.appendTag(
+        properties,
+        OrchestraDockerRunner.caching() ? "test-include-tags" : "test-exclude-tags",
+        "caching");
 
     return properties;
   }
@@ -181,7 +185,7 @@ public class OrchestraDockerConfig extends OrchestraAuroraConfig
    */
   @Override
   public String getMySqlImage() {
-    return "mysql:8.4";
+    return "mysql:8.0.31";
   }
 
   /**
@@ -207,7 +211,8 @@ public class OrchestraDockerConfig extends OrchestraAuroraConfig
   }
 
   /**
-   * Grants the test user the privilege {@code XA RECOVER} needs.
+   * Preserves the retired MySQL container's PROXY grant and grants the test user the privilege
+   * {@code XA RECOVER} needs.
    *
    * <p>The retired harness did this by copying a shell script into the container's init directory, and
    * leaving it out of this composition was not a silent loss of coverage - it was a hang.
@@ -217,14 +222,36 @@ public class OrchestraDockerConfig extends OrchestraAuroraConfig
    * MySQL's {@code lock_wait_timeout} defaults to a year, so the run does not fail - it stops, with the
    * worker blocked in a socket read and nothing in the log to say why.
    *
-   * <p>SQL rather than the harness's shell script, which needed {@code MYSQL_ROOT_PASSWORD} to log in as
-   * root. The image pipes {@code .sql} files through a client that is already root, so the privilege that
-   * has to be granted is the only thing left to say.
+   * <p>SQL rather than the harness's shell scripts, which needed {@code MYSQL_ROOT_PASSWORD} to log in as
+   * root. The image pipes {@code .sql} files through a client that is already root, so both historic grants
+   * can be applied directly.
    */
   @Override
   public Map<String, String> getMySqlInitScripts() {
     return Collections.singletonMap(
-        "01-grant-xa-recover.sql",
-        "GRANT XA_RECOVER_ADMIN ON *.* TO '" + getMySqlUsername() + "'@'%';\nFLUSH PRIVILEGES;\n");
+        "01-grant-test-privileges.sql",
+        "GRANT PROXY ON ''@'' TO 'root'@'%' WITH GRANT OPTION;\n"
+            + "GRANT XA_RECOVER_ADMIN ON *.* TO '" + getMySqlUsername()
+            + "'@'%';\nFLUSH PRIVILEGES;\n");
+  }
+
+  @Override
+  public String getMariaDbImage() {
+    return "mariadb:10";
+  }
+
+  @Override
+  public String getMariaDbDatabaseName() {
+    return getMySqlDatabaseName();
+  }
+
+  @Override
+  public String getMariaDbUsername() {
+    return getMySqlUsername();
+  }
+
+  @Override
+  public String getMariaDbPassword() {
+    return getMySqlPassword();
   }
 }

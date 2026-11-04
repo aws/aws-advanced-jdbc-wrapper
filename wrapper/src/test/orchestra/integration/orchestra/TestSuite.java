@@ -21,6 +21,7 @@ import integration.TestEnvironmentFeatures;
 import integration.TestTags;
 import java.util.EnumSet;
 import java.util.Locale;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Which suite a run exercises, from {@code -Dorchestra-suite}.
@@ -258,8 +259,8 @@ public enum TestSuite {
     for (final TestSuite suite : values()) {
       supported.append(supported.length() == 0 ? "" : ", ").append(suite.token);
     }
-    throw new IllegalArgumentException(
-        "orchestra-suite=" + requested + " is not a suite this task runs. Supported: " + supported + ".");
+    throw new IllegalArgumentException(TestMessages.get(
+        "TestSuite.unsupported", new Object[] {requested, supported}));
   }
 
   /** Returns the property value that selects this suite. */

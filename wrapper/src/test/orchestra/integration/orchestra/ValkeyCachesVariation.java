@@ -22,6 +22,7 @@ import integration.orchestra.CacheRoles.TlsAuthCache;
 import integration.orchestra.CacheRoles.TlsNoAuthCache;
 import java.util.ArrayList;
 import java.util.List;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.Variation;
 import software.amazon.orchestra.instruments.docker.ValkeyContainerConfiguration;
@@ -88,9 +89,8 @@ public class ValkeyCachesVariation implements Variation {
     try {
       return java.nio.file.Files.readString(path);
     } catch (final java.io.IOException e) {
-      throw new java.io.UncheckedIOException(
-          "Could not read the test fixture " + path.toAbsolutePath()
-              + ", which the Valkey caches need in order to be configured.", e);
+      throw new java.io.UncheckedIOException(TestMessages.get(
+          "ValkeyCachesVariation.readFailed", new Object[] {path.toAbsolutePath()}), e);
     }
   }
 

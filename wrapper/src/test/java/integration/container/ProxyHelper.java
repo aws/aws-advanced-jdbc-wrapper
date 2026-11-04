@@ -17,7 +17,10 @@
 package integration.container;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Collection;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.client.NetworkControlClient;
 
 /**
@@ -45,16 +48,20 @@ public class ProxyHelper {
 
   /** Stops all traffic to and from server. */
   public static void disableAllConnectivity() {
-    for (String name : TestEnvironment.getCurrent().getProxyNames()) {
+    for (String name : required(
+        TestEnvironment.getCurrent().getProxyNames(),
+        TestMessages.get("ProxyHelper.allDestinations"))) {
       disableConnectivity(name);
     }
   }
 
   /** Stops all traffic to and from server. */
   public static void disableConnectivity(String instanceName) {
+    requireRegistered(instanceName);
     // Dropped, not rejected. A reset would let the client fail fast, and the failover tests depend on it
     // blocking until its socket timeout - that stall is what they are measuring.
-    gateway(() -> client().disable(instanceName), "disabling connectivity to " + instanceName);
+    strictGateway(() -> client().disable(instanceName),
+        TestMessages.get("ProxyHelper.disabling", new Object[] {instanceName}));
   }
 
   /** Allow traffic to and from server. */
@@ -66,19 +73,22 @@ public class ProxyHelper {
 
   /** Allow traffic to and from server. */
   public static void enableConnectivity(String instanceName) {
-    gateway(() -> client().enable(instanceName), "enabling connectivity to " + instanceName);
+    bestEffortGateway(() -> client().enable(instanceName),
+        TestMessages.get("ProxyHelper.enabling", new Object[] {instanceName}));
   }
 
   public static void setLatency(String instanceName, int latencyMs) {
+    requireRegistered(instanceName);
     // No jitter: the tests want a predictable difference between endpoints, and jitter would make a
     // "fastest host" assertion depend on which sample the driver happened to take.
-    gateway(() -> client().addLatency(instanceName, latencyMs, 0),
-        "setting latency for " + instanceName + " to " + latencyMs + "ms");
+    strictGateway(() -> client().addLatency(instanceName, latencyMs, 0),
+        TestMessages.get("ProxyHelper.settingLatency", new Object[] {instanceName, latencyMs}));
   }
 
   public static void clearAllLatencies() {
     for (String name : TestEnvironment.getCurrent().getProxyNames()) {
-      gateway(() -> client().removeLatency(name), "clearing latency for " + name);
+      bestEffortGateway(() -> client().removeLatency(name),
+          TestMessages.get("ProxyHelper.clearingLatency", new Object[] {name}));
     }
   }
 
@@ -96,10 +106,12 @@ public class ProxyHelper {
    * @param region the AWS region to cut off
    */
   public static void disableRegionConnectivity(final String region) {
-    for (String name : TestEnvironment.getCurrent().getProxyNames(region)) {
+    for (String name : required(
+        TestEnvironment.getCurrent().getProxyNames(region),
+        TestMessages.get("ProxyHelper.region", new Object[] {region}))) {
       disableConnectivity(name);
     }
-    LOGGER.finest("Gateway: region " + region + " is now unreachable");
+    LOGGER.finest(() -> TestMessages.get("ProxyHelper.regionUnreachable", new Object[] {region}));
   }
 
   /**
@@ -108,34 +120,58 @@ public class ProxyHelper {
    * @param region the AWS region to restore
    */
   public static void enableRegionConnectivity(final String region) {
-    for (String name : TestEnvironment.getCurrent().getProxyNames(region)) {
+    final Collection<String> names = TestEnvironment.getCurrent().getProxyNames(region);
+    for (String name : names) {
       enableConnectivity(name);
     }
-    LOGGER.finest("Gateway: region " + region + " is reachable again");
+    LOGGER.finest(() -> TestMessages.get("ProxyHelper.regionReachable", new Object[] {region}));
+  }
+
+  private static void requireRegistered(final String name) {
+    if (!TestEnvironment.getCurrent().isProxyNameRegistered(name)) {
+      throw new IllegalArgumentException(TestMessages.get(
+          "ProxyHelper.unknownDestination", new Object[] {name}));
+    }
   }
 
   private static NetworkControlClient client() {
     return NetworkControlClient.fromEnvironment();
   }
 
-  /**
-   * Runs a gateway call, logging rather than throwing on failure.
-   *
-   * <p>Deliberate, and unchanged from when there were two mechanisms behind this class. These helpers are
-   * called from {@code @BeforeEach} and {@code @AfterEach} as well as from test bodies, and a restore that
-   * throws during cleanup would replace a real test failure with a teardown one.
-   */
-  private static void gateway(final GatewayCall call, final String description) {
+  /** Runs an impairment call and fails the test when the gateway rejects it. */
+  public static void strictGateway(final GatewayCall call, final String description) {
     try {
       call.run();
-      LOGGER.finest("Gateway: " + description);
+      LOGGER.finest(() -> TestMessages.get("ProxyHelper.gatewayAction", new Object[] {description}));
     } catch (IOException e) {
-      LOGGER.finest("Error " + description + ": " + e.getMessage());
+      throw new UncheckedIOException(TestMessages.get(
+          "ProxyHelper.gatewayFailure", new Object[] {description, e.getMessage()}), e);
     }
   }
 
+  /** Runs a restore call without replacing the test's original failure during cleanup. */
+  public static void bestEffortGateway(final GatewayCall call, final String description) {
+    try {
+      call.run();
+      LOGGER.finest(() -> TestMessages.get("ProxyHelper.gatewayAction", new Object[] {description}));
+    } catch (IOException e) {
+      LOGGER.finest(() -> TestMessages.get(
+          "ProxyHelper.gatewayError", new Object[] {description, e.getMessage()}));
+    }
+  }
+
+  /** Rejects an empty impairment target set before a no-op can look like a successful outage. */
+  public static Collection<String> required(
+      final Collection<String> names, final String description) {
+    if (names == null || names.isEmpty()) {
+      throw new IllegalArgumentException(TestMessages.get(
+          "ProxyHelper.noDestinations", new Object[] {description}));
+    }
+    return names;
+  }
+
   /** A gateway operation that may fail to reach the gateway. */
-  private interface GatewayCall {
+  public interface GatewayCall {
     void run() throws IOException;
   }
 }

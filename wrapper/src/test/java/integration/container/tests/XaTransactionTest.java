@@ -52,6 +52,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperXADataSource;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
@@ -256,8 +257,9 @@ public class XaTransactionTest {
           try {
             xaResource.rollback(xid);
           } catch (final XAException rollbackFailed) {
-            LOGGER.finest(() -> "Could not roll back the prepared branch after a failure: "
-                + rollbackFailed.getMessage());
+            LOGGER.finest(() -> TestMessages.get(
+                "XaTransactionTest.rollbackPreparedFailed",
+                new Object[] {rollbackFailed.getMessage()}));
           }
         }
       }

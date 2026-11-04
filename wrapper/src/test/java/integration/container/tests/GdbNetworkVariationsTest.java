@@ -53,6 +53,7 @@ import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * What the driver does when some regions of a global database are not usable.
@@ -120,7 +121,8 @@ public class GdbNetworkVariationsTest {
 
     try (Connection conn = connect(home, props)) {
       assertTrue(conn.isValid(10));
-      LOGGER.finest("Connected without a region restriction, on " + auroraUtil.queryInstanceId(conn));
+      LOGGER.finest(TestMessages.get("GdbNetworkVariationsTest.unrestrictedConnection",
+          new Object[] {auroraUtil.queryInstanceId(conn)}));
     }
   }
 
@@ -159,7 +161,7 @@ public class GdbNetworkVariationsTest {
       }
     });
 
-    LOGGER.finest("Refused, as it should be: " + e.getMessage());
+    LOGGER.finest(TestMessages.get("GdbNetworkVariationsTest.refused", new Object[] {e.getMessage()}));
   }
 
   @TestTemplate
@@ -216,13 +218,29 @@ public class GdbNetworkVariationsTest {
       assertTrue(home.getInstanceIdentifiers().contains(before),
           "expected to start in " + home.getRegion() + ", but the connection is on " + before);
 
-      ProxyHelper.disableRegionConnectivity(writerRegion);
       try {
+        ProxyHelper.disableRegionConnectivity(writerRegion);
+        // Prove the gateway rule is active before asserting driver behavior. This raw-driver connection has no
+        // failover plugin and addresses the disabled primary region directly, so success would mean the outage
+        // injection did not take effect.
+        final TestRegionalClusterInfo writer = info.getRegion(writerRegion);
+        final Properties direct = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+        DriverHelper.setConnectTimeout(testDriver, direct, 5, TimeUnit.SECONDS);
+        DriverHelper.setSocketTimeout(testDriver, direct, 5, TimeUnit.SECONDS);
+        assertThrows(SQLException.class, () -> DriverManager.getConnection(
+            ConnectionStringHelper.getUrl(
+                testDriver,
+                writer.getClusterEndpoint(),
+                writer.getPort(),
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+            direct));
+
         // The connection itself is in a region that is still up, so it must keep working. Losing sight of the
         // writer's region is not a reason to drop a healthy local reader, and a driver that tore this connection
         // down would turn a remote outage into a local one.
         final String after = auroraUtil.queryInstanceId(conn);
-        LOGGER.info("With " + writerRegion + " unreachable the connection is still on " + after);
+        LOGGER.info(TestMessages.get("GdbNetworkVariationsTest.writerRegionUnreachable",
+            new Object[] {writerRegion, after}));
 
         assertTrue(home.getInstanceIdentifiers().contains(after),
             "the connection should have stayed in the reachable region " + home.getRegion()
@@ -242,7 +260,7 @@ public class GdbNetworkVariationsTest {
         cluster.getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    LOGGER.finest("Connecting to " + url);
+    LOGGER.finest(TestMessages.get("GdbNetworkVariationsTest.connecting", new Object[] {url}));
     return DriverManager.getConnection(url, props);
   }
 

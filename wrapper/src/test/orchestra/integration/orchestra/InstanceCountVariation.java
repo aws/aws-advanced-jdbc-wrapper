@@ -18,6 +18,7 @@ package integration.orchestra;
 
 import java.util.ArrayList;
 import java.util.List;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.Composition;
 import software.amazon.orchestra.Variation;
 import software.amazon.orchestra.instruments.aws.AuroraClusterConfiguration;
@@ -51,9 +52,7 @@ public class InstanceCountVariation implements Variation {
    */
   public InstanceCountVariation(final int... counts) {
     if (counts == null || counts.length == 0) {
-      throw new IllegalArgumentException(
-          "An InstanceCountVariation needs at least one count, otherwise it would produce no "
-              + "compositions at all.");
+      throw new IllegalArgumentException(TestMessages.get("InstanceCountVariation.empty"));
     }
     this.counts = counts.clone();
   }

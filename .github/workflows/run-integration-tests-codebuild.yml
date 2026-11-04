@@ -1,0 +1,74 @@
+name: Run Aurora Integration Tests Custom Service Endpoint
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: rds-integration-tests
+  queue: max
+
+jobs:
+  aurora-integration-tests:
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ["mysql", "pg"]
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}_integ
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: 'Set up JDKs'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
+        with:
+          distribution: 'corretto'
+          java-version: |
+            8
+            17
+      - name: 'Configure AWS credentials'
+        id: creds
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: run_integration_test_custom_endpoint
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      - name: Run integration tests
+        run: |
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds \
+            -Dorchestra-engines=${{ matrix.environment == 'pg' && 'postgres' || 'mysql' }} \
+            -Dorchestra-drivers=${{ matrix.environment }}
+        env:
+          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_DB_REGION: ${{ env.SERVICE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          AWS_ENDPOINT_URL_RDS: ${{ secrets.RDS_ENDPOINT }}
+          MYSQL_VERSION: ${{ env.MYSQL_ENGINE_VERSION }}
+          PG_VERSION: ${{ env.PG_ENGINE_VERSION }}
+      - name: Mask data
+        if: ${{ !cancelled() }}
+        run: ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: 'Archive junit results ${{ matrix.environment }}'
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: junit-report-custom-endpoint-${{ matrix.environment }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: 'Archive html summary report ${{ matrix.environment }}'
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: html-summary-report-custom-endpoint-${{ matrix.environment }}
+          path: ./wrapper/build/report
+          retention-days: 5

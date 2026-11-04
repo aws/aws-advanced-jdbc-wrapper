@@ -51,7 +51,7 @@ jobs:
           output-credentials: true
       - name: 'Run performance tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-suite=performance -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=3
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds -Dorchestra-suite=performance -Dorchestra-jvms=openjdk11 -Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=3
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}

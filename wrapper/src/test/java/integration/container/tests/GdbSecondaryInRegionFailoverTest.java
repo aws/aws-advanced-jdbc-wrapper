@@ -57,6 +57,7 @@ import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin;
+import software.amazon.jdbc.util.TestMessages;
 
 /**
  * Fails a connection over <em>within</em> a secondary region.
@@ -116,7 +117,8 @@ public class GdbSecondaryInRegionFailoverTest {
    * and waiting for it to come back is {@link #restoreTakenAwayInstance}'s job.
    */
   private void takeAway(final String region, final String instanceId) {
-    LOGGER.info("Rebooting " + instanceId + " in " + region);
+    LOGGER.info(TestMessages.get("GdbSecondaryInRegionFailoverTest.rebooting",
+        new Object[] {instanceId, region}));
     this.takenAwayRegion = region;
     this.takenAwayInstance = instanceId;
 
@@ -124,7 +126,8 @@ public class GdbSecondaryInRegionFailoverTest {
       auroraUtil.rebootInstanceIn(region, instanceId);
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new RuntimeException("Interrupted while rebooting " + instanceId, e);
+      throw new RuntimeException(TestMessages.get(
+          "GdbSecondaryInRegionFailoverTest.rebootInterrupted", new Object[] {instanceId}), e);
     }
   }
 
@@ -149,8 +152,8 @@ public class GdbSecondaryInRegionFailoverTest {
       try {
         auroraUtil.queryInstanceId(conn);
       } catch (final SQLException e) {
-        LOGGER.finest("The connection failed on attempt " + attempts + ": "
-            + e.getClass().getSimpleName() + ": " + e.getMessage());
+        LOGGER.finest(TestMessages.get("GdbSecondaryInRegionFailoverTest.connectionAttemptFailed",
+            new Object[] {attempts, e.getClass().getSimpleName(), e.getMessage()}));
         return e;
       }
 
@@ -158,7 +161,8 @@ public class GdbSecondaryInRegionFailoverTest {
         TimeUnit.SECONDS.sleep(2);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting for the connection to fail.", e);
+        throw new RuntimeException(TestMessages.get(
+            "GdbSecondaryInRegionFailoverTest.waitInterrupted"), e);
       }
     }
 
@@ -185,7 +189,8 @@ public class GdbSecondaryInRegionFailoverTest {
       auroraUtil.waitUntilInstanceAvailableIn(
           this.takenAwayRegion, this.takenAwayInstance, REBOOT_RECOVERY_TIMEOUT);
     } catch (final RuntimeException e) {
-      LOGGER.warning("Instance " + this.takenAwayInstance + " did not come back: " + e.getMessage());
+      LOGGER.warning(TestMessages.get("GdbSecondaryInRegionFailoverTest.instanceNotRecovered",
+          new Object[] {this.takenAwayInstance, e.getMessage()}));
     } finally {
       this.takenAwayInstance = null;
       this.takenAwayRegion = null;
@@ -218,7 +223,8 @@ public class GdbSecondaryInRegionFailoverTest {
 
     try (Connection conn = connectToInstance(home, connectedTo, props)) {
       final String before = auroraUtil.queryInstanceId(conn);
-      LOGGER.info("Connected to " + before + " in " + home.getRegion());
+      LOGGER.info(TestMessages.get(
+          "GdbSecondaryInRegionFailoverTest.connected", new Object[] {before, home.getRegion()}));
 
       takeAway(home.getRegion(), before);
 
@@ -228,7 +234,8 @@ public class GdbSecondaryInRegionFailoverTest {
               + failure.getClass().getSimpleName() + ": " + failure.getMessage());
 
       final String after = auroraUtil.queryInstanceId(conn);
-      LOGGER.info("After failover the connection is on " + after);
+      LOGGER.info(TestMessages.get(
+          "GdbSecondaryInRegionFailoverTest.connectionAfter", new Object[] {after}));
 
       assertTrue(home.getInstanceIdentifiers().contains(after),
           "strict-home-reader must keep the connection in " + home.getRegion() + ", but it moved to " + after
@@ -263,7 +270,8 @@ public class GdbSecondaryInRegionFailoverTest {
               + failure.getClass().getSimpleName() + ": " + failure.getMessage());
 
       final String after = auroraUtil.queryInstanceId(conn);
-      LOGGER.info("After failover the connection is on " + after + ", expected outside " + home.getRegion());
+      LOGGER.info(TestMessages.get("GdbSecondaryInRegionFailoverTest.connectionOutsideHome",
+          new Object[] {after, home.getRegion()}));
 
       assertTrue(!home.getInstanceIdentifiers().contains(after),
           "strict-out-of-home-reader must leave " + home.getRegion() + ", but the connection is on " + after);
@@ -304,8 +312,8 @@ public class GdbSecondaryInRegionFailoverTest {
           "failover should not have succeeded: every reader it was allowed to use is in a region it was told "
               + "it cannot reach, but it reported success");
 
-      LOGGER.finest("Failover correctly did not succeed: " + e.getClass().getSimpleName()
-          + ": " + e.getMessage());
+      LOGGER.finest(TestMessages.get("GdbSecondaryInRegionFailoverTest.failoverRejected",
+          new Object[] {e.getClass().getSimpleName(), e.getMessage()}));
     }
   }
 
@@ -326,7 +334,7 @@ public class GdbSecondaryInRegionFailoverTest {
         cluster.getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    LOGGER.finest("Connecting to " + url);
+    LOGGER.finest(TestMessages.get("GdbSecondaryInRegionFailoverTest.connecting", new Object[] {url}));
     return DriverManager.getConnection(url, props);
   }
 

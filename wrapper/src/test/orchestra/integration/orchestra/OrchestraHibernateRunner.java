@@ -94,9 +94,10 @@ public class OrchestraHibernateRunner {
         // the composition be unaware that this one carries extensions.
         .addInstrument(Database.class, new PostgisContainerInstrumentDefinition())
         .addInstrumentDefinition(new JavaTestContainerInstrumentDefinition())
+        .addVariation(new JvmVariation(JvmVariation.requested()))
         .configureExecutionPipeline(e -> e
-            // One composition, so a failure should stop the run rather than be collected.
-            .onError(OnError.FAIL)
+            // Preserve every historic JVM result instead of stopping the matrix at its first failure.
+            .onError(JvmVariation.requested().length > 1 ? OnError.CONTINUE : OnError.FAIL)
             // Not GradleTestContainerRun: the command names the database, whose hostname is only known once
             // this composition is provisioned. See HibernateSuiteRun.
             .useComposition(new HibernateSuiteRun(configuration.getGradleTask())))

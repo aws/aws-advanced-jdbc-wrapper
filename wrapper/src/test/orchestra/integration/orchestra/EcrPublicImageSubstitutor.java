@@ -19,7 +19,7 @@ package integration.orchestra;
 import integration.util.ContainerImages;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.ImageNameSubstitutor;
-import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.TestMessages;
 
 /** Redirects supported Docker Hub images to their configured ECR Public mirrors. */
 public class EcrPublicImageSubstitutor extends ImageNameSubstitutor {
@@ -31,6 +31,6 @@ public class EcrPublicImageSubstitutor extends ImageNameSubstitutor {
 
   @Override
   protected String getDescription() {
-    return Messages.get("EcrPublicImageSubstitutor.description");
+    return TestMessages.get("EcrPublicImageSubstitutor.description");
   }
 }

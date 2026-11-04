@@ -1,10 +1,6 @@
-# CodeBuild variant of run-integration-tests-codebuild.yml, the "Custom Service Endpoint"
-# workflow (that file name predates CodeBuild; it runs on GitHub-hosted runners).
-#
-# Runs the same jobs on the self-hosted CodeBuild runners instead of GitHub-hosted ones.
-# Triggers: manual dispatch only, the same as run-integration-tests-codebuild.yml.
-# Shares the rds-integration-tests-codebuild concurrency group with the other CodeBuild RDS
-# workflows - see the caution on that group in run-integration-tests-latest-codebuild.yml.
+# Manual CodeBuild workflow for exercising the integration suite through a custom RDS service endpoint.
+# It uses the same Orchestra task as the other RDS workflows and the AWS SDK's service-specific endpoint
+# environment variable, so both provisioning and in-container RDS calls use the override.
 
 name: Run Aurora Integration Tests Custom Service Endpoint (CodeBuild)
 
@@ -53,11 +49,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
-      - name: 'Set up JDK 8'
+      - name: 'Set up JDKs'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
@@ -83,16 +81,23 @@ jobs:
           retention-days: 1
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora-internal
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds \
+            -Dorchestra-engines=${{ matrix.environment == 'pg' && 'postgres' || 'mysql' }} \
+            -Dorchestra-drivers=${{ matrix.environment }}
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ env.SERVICE_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
-          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
+          # Standard AWS SDK setting, honored by Orchestra's default RDS client builders and forwarded to
+          # the in-container SDK clients by OrchestraAuroraConfig.
+          AWS_ENDPOINT_URL_RDS: ${{ secrets.RDS_ENDPOINT }}
           MYSQL_VERSION: ${{ env.MYSQL_ENGINE_VERSION }}
           PG_VERSION: ${{ env.PG_ENGINE_VERSION }}
+      - name: Mask data
+        if: ${{ !cancelled() }}
+        run: ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
 
       - name: 'Archive junit results ${{ matrix.environment }}'
         if: always()

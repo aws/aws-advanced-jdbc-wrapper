@@ -32,6 +32,7 @@ import integration.TestTelemetryInfo;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import software.amazon.jdbc.util.TestMessages;
 import software.amazon.orchestra.client.OrchestraClient;
 import software.amazon.orchestra.contract.BlueGreenDeployment;
 import software.amazon.orchestra.contract.CacheState;
@@ -159,10 +160,8 @@ public final class OrchestraEnvironmentInfo {
     final TelemetryBackendState backend = orchestra.getContext(role, TelemetryBackendState.class);
 
     if (backend.host() == null || backend.host().trim().isEmpty() || backend.port() <= 0) {
-      throw new RuntimeException(
-          "The composition declares " + purpose + " telemetry but its backend published no reachable "
-              + "endpoint, so every connection would be configured to export somewhere that does not "
-              + "resolve.");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.missingTelemetryEndpoint", new Object[] {purpose}));
     }
     return new TestTelemetryInfo(backend.host(), backend.port());
   }
@@ -232,9 +231,8 @@ public final class OrchestraEnvironmentInfo {
     final String identifier = deployment.getString("deploymentIdentifier");
 
     if (identifier == null || identifier.trim().isEmpty()) {
-      throw new RuntimeException(
-          "The composition published a blue/green deployment with no identifier, so the switchover tests "
-              + "have nothing to act on.");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.missingBlueGreenId"));
     }
     return identifier;
   }
@@ -381,9 +379,8 @@ public final class OrchestraEnvironmentInfo {
     final String url = gateway.getString("controlUrl");
 
     if (url == null || url.trim().isEmpty()) {
-      throw new RuntimeException(
-          "The composition published no gateway control URL, so network impairment cannot be driven. A "
-              + "composition declaring NETWORK_OUTAGES_ENABLED must include a network gateway.");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.missingGatewayUrl"));
     }
 
     // http://alias:8474 -> alias:8474. Deliberately not java.net.URI: Orchestra produces this value in
@@ -399,8 +396,8 @@ public final class OrchestraEnvironmentInfo {
     final String authority = gatewayControlAuthority();
     final int colon = authority.lastIndexOf(':');
     if (colon < 0) {
-      throw new RuntimeException(
-          "The gateway control URL '" + authority + "' has no port, so its API cannot be reached.");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.gatewayUrlWithoutPort", new Object[] {authority}));
     }
     return Integer.parseInt(authority.substring(colon + 1));
   }
@@ -419,10 +416,8 @@ public final class OrchestraEnvironmentInfo {
   private static String rdsEngineName(final OrchestraClient orchestra) {
     final String engineName = orchestra.getContext(Database.class).getString("engineName");
     if (engineName == null || engineName.trim().isEmpty()) {
-      throw new RuntimeException(
-          "The database in this composition published no engineName, so any RDS call naming an engine - "
-              + "adding an instance to the cluster, in particular - would be refused as \"Invalid DB "
-              + "engine\".");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.missingEngineName"));
     }
     return engineName;
   }
@@ -454,9 +449,8 @@ public final class OrchestraEnvironmentInfo {
   private static String clusterIdentifier(final OrchestraClient orchestra) {
     final String identifier = orchestra.getContext(Database.class).getString("clusterIdentifier");
     if (identifier == null || identifier.trim().isEmpty()) {
-      throw new RuntimeException(
-          "The database in this composition published no clusterIdentifier, so no RDS control-plane call "
-              + "can name it - failover, writer checks and the cluster health check all need it.");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.missingClusterIdentifier"));
     }
     return identifier;
   }
@@ -480,9 +474,8 @@ public final class OrchestraEnvironmentInfo {
         orchestra.getContext(GlobalDatabase.class, GlobalDatabaseState.class);
 
     if (published.regions() == null || published.regions().size() < 2) {
-      throw new RuntimeException(
-          "The composition declares GLOBAL_DATABASE but published " + published
-              + ", which spans fewer than two regions. Every cross-region test would have nowhere to go.");
+      throw new RuntimeException(TestMessages.get(
+          "OrchestraEnvironmentInfo.invalidGlobalDatabase", new Object[] {published}));
     }
 
     final TestGlobalDatabaseInfo info = new TestGlobalDatabaseInfo();
@@ -525,9 +518,7 @@ public final class OrchestraEnvironmentInfo {
     if (fromEnvironment != null && !fromEnvironment.trim().isEmpty()) {
       return fromEnvironment;
     }
-    throw new RuntimeException(
-        "No AWS region in the composition context or in AWS_REGION, so anything needing a signed AWS "
-            + "request - IAM authentication in particular - cannot work.");
+    throw new RuntimeException(TestMessages.get("OrchestraEnvironmentInfo.missingAwsRegion"));
   }
 
   /** Rebuilds the request the harness's conditions and ~150 call sites read. */

@@ -55,9 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # No mariadb: a MariaDB server is out of scope for the migrated tasks. The MariaDB driver is still
-        # exercised, as its own axis against a MySQL engine, which is what the Aurora workflows pin.
-        engine: [mysql, pg]
+        engine: [mysql, pg, mariadb]
         # Orchestra accepts these tokens case-insensitively; lowercase preserves existing job and artifact names.
         jvm: ${{ github.event_name == 'pull_request' && fromJSON('["openjdk8", "openjdk21"]') || fromJSON('["openjdk8", "openjdk11", "openjdk17", "openjdk21", "openjdk24", "graalvm"]') }}
     steps:
@@ -76,13 +74,18 @@ jobs:
           java-version: |
             8
             17
+      - name: 'Compute Gradle cache key'
+        id: gradle-cache-key
+        env:
+          GRADLE_CACHE_KEY: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '!**/build/**') }}
+        run: printf 'key=%s\n' "$GRADLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
       - name: 'Cache Gradle packages'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ steps.gradle-cache-key.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-gradle-
       # Orchestra provisions this environment. The axes are named directly rather than selected by switching
@@ -119,9 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # No mariadb: a MariaDB server is out of scope for the migrated tasks. The MariaDB driver is still
-        # exercised, as its own axis against a MySQL engine, which is what the Aurora workflows pin.
-        engine: [mysql, pg]
+        engine: [mysql, pg, mariadb]
         # Orchestra accepts these tokens case-insensitively; lowercase preserves existing job and artifact names.
         jvm: ${{ github.event_name == 'pull_request' && fromJSON('["openjdk8", "openjdk21"]') || fromJSON('["openjdk8", "openjdk11", "openjdk17", "openjdk21", "openjdk24", "graalvm"]') }}
     steps:
@@ -140,13 +141,18 @@ jobs:
           java-version: |
             8
             17
+      - name: 'Compute Gradle cache key'
+        id: gradle-cache-key
+        env:
+          GRADLE_CACHE_KEY: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '!**/build/**') }}
+        run: printf 'key=%s\n' "$GRADLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
       - name: 'Cache Gradle packages'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ steps.gradle-cache-key.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-gradle-
       # The same task and the same axes, with the caches added and the caching tag selected instead of

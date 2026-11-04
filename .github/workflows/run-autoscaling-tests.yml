@@ -46,10 +46,10 @@ jobs:
           output-credentials: true
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon orchestra-test-pg-aurora -Dorchestra-suite=autoscaling -Dorchestra-instances=5
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds -Dorchestra-suite=autoscaling -Dorchestra-engines=mysql,postgres -Dorchestra-instances=5
         env:
-          # RDS_DB_REGION, not AURORA_DB_REGION: TestEnvironmentConfiguration reads the former, so this job
-          # ran with no region configured at all. Every other AWS workflow already spells it this way.
+          # OrchestraAuroraConfig reads RDS_DB_REGION; the security-group rule is regional, so provisioning
+          # must use the same region where the workflow authorized this runner.
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}

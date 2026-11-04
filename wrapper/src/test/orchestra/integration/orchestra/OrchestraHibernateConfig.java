@@ -110,10 +110,9 @@ public class OrchestraHibernateConfig extends OrchestraDockerConfig implements P
    */
   @Override
   public List<String> getTestContainerBuildSteps() {
-    return List.of(
-        "RUN apk add --no-cache --upgrade bash git",
-        "RUN git clone --depth 1 --branch " + HIBERNATE_VERSION
-            + " https://github.com/hibernate/hibernate-orm.git " + HIBERNATE_DIRECTORY);
+    // The helper is in the Java 8-compatible test source set so command construction can be covered without
+    // provisioning a composition. This source set consumes the same helper at runtime.
+    return HibernateGradleRuntime.buildSteps(FILES, HIBERNATE_DIRECTORY, HIBERNATE_VERSION);
   }
 
   /**
@@ -184,14 +183,16 @@ public class OrchestraHibernateConfig extends OrchestraDockerConfig implements P
    * {@code Test} task in this build, so starting any of these tasks clears that directory whatever this one
    * binds. One Orchestra run at a time per checkout.
    *
-   * <p>The inherited binds are deliberately not kept. Two are for a suite that does not run here, and
-   * {@code /app/gradle} would bind this repository's Gradle wrapper directory next to a checkout that ships
-   * its own.
+   * <p>The inherited suite-output binds are deliberately not kept. They belong to a suite that does not run
+   * here, and {@code /app/gradle} would bind this repository's wrapper directory next to a checkout that
+   * ships its own. The host Gradle runtime binds are added explicitly because this container is just as
+   * isolated as the standard ones and runs through the same Gradle installation.
    */
   @Override
   public Map<Path, String> getTestContainerBinds() {
-    return Collections.singletonMap(
-        outputDirectory("build/test-results-hibernate"), "/app/build/test-results");
+    final Map<Path, String> binds = new LinkedHashMap<>(GradleRuntime.containerBinds());
+    binds.put(outputDirectory("build/test-results-hibernate"), "/app/build/test-results");
+    return binds;
   }
 
   /**
