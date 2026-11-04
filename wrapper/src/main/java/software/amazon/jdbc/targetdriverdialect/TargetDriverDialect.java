@@ -107,6 +107,9 @@ public interface TargetDriverDialect {
    * {@link #getSQLQueryString(PreparedStatement)}, whose result is used in cache keys and may wrap
    * the SQL in driver-specific formatting, the returned text starts with the statement itself.
    * Returns {@code null} if the SQL text cannot be determined.
+   *
+   * @param ps the prepared statement from which to obtain SQL text
+   * @return the SQL text, or {@code null} if it cannot be determined
    */
   default @Nullable String getSQLStatementText(final PreparedStatement ps) {
     return this.getSQLQueryString(ps);
@@ -115,6 +118,9 @@ public interface TargetDriverDialect {
   /**
    * Whether this dialect can acquire database session state that affects authorization and object
    * resolution.
+   *
+   * @return {@code true} if the dialect supports authorization session state; {@code false}
+   *     otherwise
    */
   default boolean supportsAuthorizationSessionState() {
     return false;
@@ -122,6 +128,10 @@ public interface TargetDriverDialect {
 
   /**
    * Reads the current authorization-affecting state from the database session.
+   *
+   * @param connection the database connection whose session state is read
+   * @return the current authorization session state, or an empty optional if unavailable
+   * @throws SQLException if the session state cannot be read
    */
   default Optional<AuthorizationSessionState> readAuthorizationSessionState(
       final @NonNull Connection connection) throws SQLException {
@@ -144,6 +154,9 @@ public interface TargetDriverDialect {
 
   /**
    * Returns how the SQL can affect or depend on authorization session state.
+   *
+   * @param sql the SQL text to classify, or {@code null} if unavailable
+   * @return the SQL statement's impact on authorization session state
    */
   default AuthorizationStateImpact getAuthorizationStateImpact(final @Nullable String sql) {
     return AuthorizationStateImpact.NONE;
