@@ -96,7 +96,14 @@ public class CustomEndpointTest {
   protected String currentWriter;
 
   private static RdsClient buildRdsClient(String region, String rdsEndpoint) {
-    RdsClientBuilder builder = RdsClient.builder().region(Region.of(region));
+    // The credentials provider is passed explicitly, which is not the same as leaving it out. A client
+    // builder with no provider creates a DefaultCredentialsProvider pinned to a static ProfileFile, so it
+    // never re-reads the credentials file; an explicitly supplied DefaultCredentialsProvider does
+    // (aws/aws-sdk-java-v2#5073). That matters here because the container reads a credentials file bound
+    // from the host, and a run outlives the one-hour session token it started with.
+    RdsClientBuilder builder = RdsClient.builder()
+        .region(Region.of(region))
+        .credentialsProvider(DefaultCredentialsProvider.create());
     if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
       try {
         builder.endpointOverride(new URI(rdsEndpoint));

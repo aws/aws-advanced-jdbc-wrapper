@@ -66,8 +66,13 @@ allprojects {
                 ?: throw GradleException("Unable to parse major.minor.patch version parts from project.version '$version'")
             val (major, minor, patch) = matchResult.destructured
 
-            val git = org.ajoberstar.grgit.Grgit.open(mapOf("currentDir" to project.rootDir))
-            val revision = git.head().id
+            // JGit cannot resolve HEAD from a linked worktree whose checkout is detached, even though the
+            // native Git client can. Use Git's plumbing command so normal checkouts and isolated worktrees
+            // report the same revision.
+            val revision = project.providers.exec {
+                workingDir(project.rootDir)
+                commandLine("git", "rev-parse", "HEAD")
+            }.standardOutput.asText.get().trim()
 
             variables.apply {
                 put("version", version)

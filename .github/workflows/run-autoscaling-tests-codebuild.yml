@@ -53,7 +53,9 @@ jobs:
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         id: creds
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
@@ -79,10 +81,11 @@ jobs:
           retention-days: 1
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-autoscaling-only
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds -Dorchestra-suite=autoscaling -Dorchestra-engines=mysql,postgres -Dorchestra-instances=5
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          # Orchestra provisions in the same region where the workflow authorized this runner.
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}

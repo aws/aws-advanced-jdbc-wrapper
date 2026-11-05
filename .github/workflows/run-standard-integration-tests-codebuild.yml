@@ -39,11 +39,6 @@ env:
   # Testcontainers images from ECR Public, which does not rate limit anonymous pulls.
   TEST_CONTAINER_REGISTRY: ecr
 
-  # The runner and its Docker daemon share one container, so Testcontainers would otherwise use
-  # the bridge gateway 172.18.0.1, where a published port with no listener (the test container's
-  # debug port 5005) is unreachable. Probe run 38786644908 reached every published port at localhost.
-  TESTCONTAINERS_HOST_OVERRIDE: localhost
-
 jobs:
   check-changes:
     name: 'Check for non-doc changes'
@@ -74,11 +69,14 @@ jobs:
             echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
           fi
 
+  # Temporarily run only the Orchestra container matrices on GitHub-hosted runners. CodeBuild's
+  # nested Docker reaches the gateway control API, but not its routed client-to-server data plane.
+  # Keep the gateway enabled because bypassing it would remove network-impairment coverage.
   docker-tests:
     name: 'Docker [${{ matrix.engine }}, ${{ matrix.jvm }}]'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -89,32 +87,32 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 50
-      - name: 'Set up JDK 8'
+      - name: 'Set up JDKs'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
+      - name: 'Compute Gradle cache key'
+        id: gradle-cache-key
+        env:
+          GRADLE_CACHE_KEY: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '!**/build/**') }}
+        run: printf 'key=%s\n' "$GRADLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
       - name: 'Cache Gradle packages'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ steps.gradle-cache-key.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-gradle-
       - name: 'Run standard integration tests'
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-docker \
-            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
-            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }} \
-            -Dtest-no-mariadb-engine=${{ matrix.engine != 'mariadb' }} \
-            -Dtest-no-openjdk8=${{ matrix.jvm != 'openjdk8' }} \
-            -Dtest-no-openjdk11=${{ matrix.jvm != 'openjdk11' }} \
-            -Dtest-no-openjdk17=${{ matrix.jvm != 'openjdk17' }} \
-            -Dtest-no-openjdk21=${{ matrix.jvm != 'openjdk21' }} \
-            -Dtest-no-openjdk24=${{ matrix.jvm != 'openjdk24' }} \
-            -Dtest-no-graalvm=${{ matrix.jvm != 'graalvm' }}
+          ./gradlew --no-parallel --no-daemon orchestra-test-docker \
+            -Dorchestra-engines=${{ matrix.engine }} \
+            -Dorchestra-jvms=${{ matrix.jvm }}
       - name: Mask data
         if: ${{ !cancelled() }}
         run: |
@@ -138,7 +136,7 @@ jobs:
     name: 'Caching [${{ matrix.engine }}, ${{ matrix.jvm }}]'
     needs: check-changes
     if: ${{ needs.check-changes.outputs.only_docs == 'false' }}
-    runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -149,32 +147,33 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 50
-      - name: 'Set up JDK 8'
+      - name: 'Set up JDKs'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
+      - name: 'Compute Gradle cache key'
+        id: gradle-cache-key
+        env:
+          GRADLE_CACHE_KEY: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '!**/build/**') }}
+        run: printf 'key=%s\n' "$GRADLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
       - name: 'Cache Gradle packages'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ steps.gradle-cache-key.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-gradle-
       - name: 'Run caching integration tests'
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-caching \
-            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
-            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }} \
-            -Dtest-no-mariadb-engine=${{ matrix.engine != 'mariadb' }} \
-            -Dtest-no-openjdk8=${{ matrix.jvm != 'openjdk8' }} \
-            -Dtest-no-openjdk11=${{ matrix.jvm != 'openjdk11' }} \
-            -Dtest-no-openjdk17=${{ matrix.jvm != 'openjdk17' }} \
-            -Dtest-no-openjdk21=${{ matrix.jvm != 'openjdk21' }} \
-            -Dtest-no-openjdk24=${{ matrix.jvm != 'openjdk24' }} \
-            -Dtest-no-graalvm=${{ matrix.jvm != 'graalvm' }}
+          ./gradlew --no-parallel --no-daemon orchestra-test-docker \
+            -Dorchestra-caching=true \
+            -Dorchestra-engines=${{ matrix.engine }} \
+            -Dorchestra-jvms=${{ matrix.jvm }}
       - name: Mask data
         if: ${{ !cancelled() }}
         run: |

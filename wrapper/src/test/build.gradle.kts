@@ -14,6 +14,7 @@
 *    limitations under the License.
 */
 
+import java.net.URLClassLoader
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.*
 import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 
@@ -24,6 +25,15 @@ plugins {
 repositories {
     mavenCentral()
 }
+
+val valkeyGlideArchitecture = System.getProperty("os.arch").let {
+    when (it) {
+        "aarch64", "arm64" -> "aarch_64"
+        else -> "x86_64"
+    }
+}
+val valkeyGlideGlibc by configurations.creating
+val valkeyGlideMusl by configurations.creating
 
 dependencies {
     testImplementation("org.junit.platform:junit-platform-commons:1.11.3")
@@ -52,7 +62,6 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.20.4")
     testImplementation("org.testcontainers:mariadb:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
-    testImplementation("org.testcontainers:toxiproxy:1.20.4")
     testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
@@ -81,12 +90,6 @@ dependencies {
     testImplementation("org.jboss.logging:jboss-logging:3.4.3.Final")
     testImplementation("com.atomikos:transactions-jta:5.0.9")
     testImplementation("com.atomikos:transactions-jdbc:5.0.9")
-    val arch = System.getProperty("os.arch").let {
-        when (it) {
-            "aarch64", "arm64" -> "aarch_64"
-            else -> "x86_64"
-        }
-    }
     val isMusl = try {
         val process = ProcessBuilder("ldd", "--version").redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()
@@ -96,8 +99,17 @@ dependencies {
         // If ldd doesn't exist, check for Alpine marker
         File("/etc/alpine-release").exists()
     }
-    val glideClassifier = if (isMusl) "linux_musl-$arch" else "linux-$arch"
+    val glideClassifier = if (isMusl) {
+        "linux_musl-$valkeyGlideArchitecture"
+    } else {
+        "linux-$valkeyGlideArchitecture"
+    }
     testImplementation("io.valkey:valkey-glide:2.3.0:$glideClassifier")
+
+    // The prepared cache is shared by Alpine and glibc-based JVM images. Keep the selected runtime
+    // dependency above, and resolve each native artifact explicitly for the final offline containers.
+    valkeyGlideGlibc("io.valkey:valkey-glide:2.3.0:linux-$valkeyGlideArchitecture")
+    valkeyGlideMusl("io.valkey:valkey-glide:2.3.0:linux_musl-$valkeyGlideArchitecture")
 }
 
 // Hibernate v7.3 requires at least Java 17
@@ -122,6 +134,19 @@ dependencies {
     // Hibernate test dependencies (Java 17+)
     add(hibernateTest.implementationConfigurationName, "org.hibernate.orm:hibernate-core:7.4.1.Final")
     add(hibernateTest.implementationConfigurationName, "jakarta.persistence:jakarta.persistence-api:3.2.0")
+}
+
+// Runs only in the cache-preparation container. Resolving these classpaths populates the exact external
+// dependency graph the copied in-container Test task can use on Java 8 and Java 17+, plus both supported
+// Valkey Linux native classifiers for the active architecture. File-based inputs under /app are copied by
+// Orchestra and therefore do not belong in Gradle's module cache.
+tasks.register("resolveOrchestraRuntime") {
+    doLast {
+        configurations.testRuntimeClasspath.get().resolve()
+        configurations[hibernateTest.runtimeClasspathConfigurationName].resolve()
+        valkeyGlideGlibc.resolve()
+        valkeyGlideMusl.resolve()
+    }
 }
 
 tasks.withType<Test> {
@@ -309,10 +334,31 @@ tasks.register<Test>("in-container") {
     val shardIndex = (System.getProperty("test-shard-index") ?: "1").toInt()
     val shardCount = (System.getProperty("test-shard-count") ?: "1").toInt()
 
+    // Explicit class selection, as an alternative to editing the filter below by hand. Takes a
+    // comma-separated list of Gradle test filter patterns, so a single class, a suffix wildcard, or a
+    // handful of classes can be selected from the command line:
+    //
+    //   -Dtest-classes=integration.container.tests.AwsIamIntegrationTest
+    //   -Dtest-classes=integration.container.tests.AwsIam*,integration.container.tests.BasicConnectivityTests
+    //
+    // Useful because a full run against a provisioned cluster takes about an hour, which is longer than a
+    // temporary AWS session token lives - so verifying one behaviour has to be able to run just that class.
+    val explicitClasses = System.getProperty("test-classes")
+
     if (shardCount <= 1) {
-        // modify below filter to select specific integration tests
-        // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
-        filter.includeTestsMatching("integration.container.tests.*")
+        if (!explicitClasses.isNullOrBlank()) {
+            explicitClasses.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .forEach { pattern ->
+                    println("Include tests matching: $pattern")
+                    filter.includeTestsMatching(pattern)
+                }
+        } else {
+            // modify below filter to select specific integration tests
+            // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
+            filter.includeTestsMatching("integration.container.tests.*")
+        }
     } else {
         require(shardIndex in 1..shardCount) {
             "test-shard-index must be between 1 and test-shard-count ($shardCount), got $shardIndex"
@@ -330,9 +376,76 @@ tasks.register<Test>("in-container") {
                 "in nonTestHelperClasses, so it is unclear whether they must be run. Rename them or " +
                 "add them to nonTestHelperClasses in wrapper/src/test/build.gradle.kts."
         }
-        val allClasses = discovered.filter { !nonTestHelperClasses.contains(it) }
+        var allClasses = discovered.filter { !nonTestHelperClasses.contains(it) }
+
+        // Sharding narrows whatever test-classes selected, rather than ignoring it.
+        //
+        // Previously the two did not compose: test-classes was only consulted when shardCount was 1, so
+        // asking for both silently ran the whole shard and dropped the selection. Silent is the problem -
+        // against a provisioned cluster that wastes most of an hour before the mistake is visible.
+        //
+        // Patterns are matched against discovered class names with '*' as a wildcard, which is the subset of
+        // Gradle's filter syntax these are written in.
+        if (!explicitClasses.isNullOrBlank()) {
+            val patterns = explicitClasses.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .map { pattern ->
+                    pattern.split('*')
+                        .joinToString(".*") { segment -> Regex.escape(segment) }
+                        .toRegex()
+                }
+
+            allClasses = allClasses.filter { className -> patterns.any { it.matches(className) } }
+            require(allClasses.isNotEmpty()) {
+                "test-classes ($explicitClasses) matched none of the discovered test classes, so this " +
+                    "shard would have nothing to run."
+            }
+            println("test-classes narrowed the shardable set to ${allClasses.size} class(es)")
+        }
+
+        val includedTags = System.getProperty("test-include-tags")
+            ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+            ?: emptySet()
+        val excludedTags = System.getProperty("test-exclude-tags")
+            ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+            ?: emptySet()
+        if (includedTags.isNotEmpty() || excludedTags.isNotEmpty()) {
+            val urls = classpath.files.map { it.toURI().toURL() }.toTypedArray()
+            URLClassLoader(urls, ClassLoader.getSystemClassLoader()).use { loader ->
+                @Suppress("UNCHECKED_CAST")
+                val tagType = loader.loadClass("org.junit.jupiter.api.Tag")
+                    as Class<out Annotation>
+                val tagValue = tagType.getMethod("value")
+                val selector = loader.loadClass(
+                    "software.amazon.jdbc.integration.orchestra.ShardSelection")
+                    .getMethod(
+                        "classSelected",
+                        Set::class.java,
+                        Collection::class.java,
+                        Set::class.java,
+                        Set::class.java)
+
+                fun tags(element: java.lang.reflect.AnnotatedElement): Set<String> =
+                    element.getAnnotationsByType(tagType)
+                        .map { tagValue.invoke(it) as String }
+                        .toSet()
+
+                allClasses = allClasses.filter { className ->
+                    val testClass = Class.forName(className, false, loader)
+                    val methodTags = testClass.declaredMethods.map { tags(it) }
+                    selector.invoke(
+                        null, tags(testClass), methodTags, includedTags, excludedTags) as Boolean
+                }
+            }
+            require(allClasses.isNotEmpty()) {
+                "The requested suite tags selected no shardable test classes."
+            }
+            println("Suite tags narrowed the shardable set to ${allClasses.size} class(es)")
+        }
+
         require(allClasses.size >= shardCount) {
-            "test-shard-count ($shardCount) exceeds the number of discovered test classes " +
+            "test-shard-count ($shardCount) exceeds the number of test classes to shard " +
                 "(${allClasses.size}); some shards would have nothing to run."
         }
         val shardClasses = selectShard(allClasses, shardIndex, shardCount)

@@ -61,6 +61,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PropertyDefinition;
@@ -144,7 +145,10 @@ public class KmsKeyRotationIntegrationTest {
         "The KMS region is unknown: pass " + KMS_KEY_ID_ENV + " as a key ARN or run on an AWS deployment");
 
     isPg = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
-    kmsClient = KmsClient.builder().region(Region.of(region)).build();
+    kmsClient = KmsClient.builder()
+        .region(Region.of(region))
+        .credentialsProvider(DefaultCredentialsProvider.create())
+        .build();
     encryptionConfig = EncryptionConfig.builder()
         .kmsRegion(region)
         .encryptionMetadataSchema(METADATA_SCHEMA)

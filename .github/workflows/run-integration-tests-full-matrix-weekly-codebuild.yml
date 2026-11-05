@@ -75,7 +75,9 @@ jobs:
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
           cache: 'gradle'
       - name: 'Configure AWS credentials'
         id: creds
@@ -102,11 +104,16 @@ jobs:
           retention-days: 1
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }} \
-            -Dtest-no-instances-1=true \
-            -Dtest-no-instances-3=true \
-            -Dtest-no-instances-5=true
+          case "$MATRIX_DB_ENGINE" in
+            mysql-aurora)                ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql" ;;
+            mysql-aurora-mariadb-driver) ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mariadb" ;;
+            pg-aurora)                   ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg" ;;
+            *) echo "Unknown dbEngine $MATRIX_DB_ENGINE"; exit 1 ;;
+          esac
+          # shellcheck disable=SC2086
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds $ARGS -Dorchestra-instances=2
         env:
+          MATRIX_DB_ENGINE: ${{ matrix.dbEngine }}
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}

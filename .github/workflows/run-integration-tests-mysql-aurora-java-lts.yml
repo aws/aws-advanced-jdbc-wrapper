@@ -53,11 +53,11 @@ jobs:
         # ~2 hours. Splitting Aurora MySQL from Aurora PG keeps the three entries roughly even.
         group:
           - name: aurora-mysql
-            envArgs: '-Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true -Dtest-no-pg-driver=true -Dtest-no-pg-engine=true'
           - name: aurora-pg
-            envArgs: '-Dtest-no-multi-az-cluster=true -Dtest-no-multi-az-instance=true -Dtest-no-mysql-driver=true -Dtest-no-mysql-engine=true'
-          - name: multi-az
-            envArgs: '-Dtest-no-aurora=true'
+          # The legacy multi-az group covered both deployment kinds and engines. Split it so each Orchestra
+          # job selects one deployment positively and stays below the workflow timeout.
+          - name: multi-az-cluster
+          - name: multi-az-instance
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -67,7 +67,9 @@ jobs:
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
       - name: 'Configure AWS credentials'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6
         id: creds
@@ -79,9 +81,18 @@ jobs:
           output-credentials: true
       - name: Run MySQL Aurora integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-mysql-aurora-java${{ matrix.javaVersion }} \
-            ${{ matrix.group.envArgs }}
+          case "$MATRIX_GROUP" in
+            aurora-mysql)      ARGS="-Dorchestra-engines=mysql -Dorchestra-drivers=mysql -Dorchestra-instances=3" ;;
+            aurora-pg)         ARGS="-Dorchestra-engines=postgres -Dorchestra-drivers=pg -Dorchestra-instances=3" ;;
+            multi-az-cluster)  ARGS="-Dorchestra-deployment=multi-az-cluster -Dorchestra-engines=mysql,postgres -Dorchestra-drivers=mysql,pg -Dorchestra-instances=3" ;;
+            multi-az-instance) ARGS="-Dorchestra-deployment=multi-az-instance -Dorchestra-engines=mysql,postgres -Dorchestra-drivers=mysql,pg -Dorchestra-instances=1" ;;
+            *) echo "Unknown group $MATRIX_GROUP"; exit 1 ;;
+          esac
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds $ARGS \
+            -Dorchestra-jvms="openjdk$MATRIX_JAVA_VERSION"
         env:
+          MATRIX_GROUP: ${{ matrix.group.name }}
+          MATRIX_JAVA_VERSION: ${{ matrix.javaVersion }}
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}

@@ -61,7 +61,9 @@ jobs:
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: |
+            8
+            17
 
       - name: 'Configure AWS credentials'
         id: creds
@@ -188,10 +190,12 @@ jobs:
 
       - name: 'Build and Test Encryption Plugin'
         run: |
-          ./gradlew --no-parallel --no-daemon test-kms-encryption
+          ./gradlew --no-parallel --no-daemon orchestra-test-rds -Dorchestra-suite=encryption -Dorchestra-engines=mysql,postgres -Dorchestra-jvms=openjdk8,openjdk21,openjdk24 -Dorchestra-instances=2
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
           AWS_REGION: ${{ inputs.aws_region || secrets.AWS_DEFAULT_REGION }}
+          # Keep the regional KMS key and Orchestra-provisioned database together.
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
