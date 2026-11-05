@@ -5,6 +5,7 @@ In this tutorial, you will set up a Spring Boot application using Hikari and the
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
 >    - AWS Advanced JDBC Wrapper 4.6.0
+>    - HikariCP 4.0.3 (managed by Spring Boot 2.7.0)
 >    - Postgresql 42.5.4
 >    - Java 8
 
@@ -59,12 +60,12 @@ In the `build.gradle.kts` file, add the following dependencies.
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
+	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.6.0")
 	implementation("org.postgresql:postgresql:42.7.10")
 }
 ```
 
-Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.6.0")` as seen above.
 
 ## Step 3: Configure the Datasource
 

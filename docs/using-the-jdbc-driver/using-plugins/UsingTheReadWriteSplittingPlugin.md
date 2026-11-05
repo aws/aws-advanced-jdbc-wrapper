@@ -145,7 +145,7 @@ If your application frequently calls `setReadOnly`, this may have a performance 
 > [!NOTE]\
 > Initial connections to a cluster URL will not be pooled. The driver does not pool cluster URLs because it can be problematic to pool a URL that resolves to different instances over time. The main benefit of internal connection pools is when setReadOnly is called. When setReadOnly is called (regardless of the initial connection URL), an internal pool will be created for the writer/reader that the plugin switches to and connections for that instance can be reused in the future.
 
-The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/HikariCP) and [c3p0](https://www.mchange.com/projects/c3p0/) to create and maintain its internal connection pools. 
+The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/HikariCP) and [c3p0](https://www.mchange.com/projects/c3p0/) to create and maintain its internal connection pools. Select the pool version based on the application's runtime as described in the [Java and connection pool compatibility table](../../GettingStarted.md#java-and-connection-pool-compatibility).
 
 ### Activate and configure with built-in configuration parameters
 

@@ -10,6 +10,25 @@ Before using the AWS Advanced JDBC Wrapper, you must install:
   - To use the wrapper with Aurora with PostgreSQL compatibility, install the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
   - To use the wrapper with Aurora with MySQL compatibility, install the [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) or [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j). See [here](../README.md#mariadb) for some limitations and caveats with the MariaDB driver.
 
+### Java and connection pool compatibility
+
+The AWS Advanced JDBC Wrapper, HikariCP, and c3p0 have independent Java requirements. The application runtime must satisfy every library's requirement, including those of the underlying JDBC driver and application framework.
+
+| Application Java runtime | AWS Advanced JDBC Wrapper 4.6.0 | Recommended HikariCP version | Recommended c3p0 version |
+|---|---|---|---|
+| Java 8–10 | Supported | `4.0.3`, the last Java 8-compatible release. HikariCP marks this release as deprecated. | `0.14.2` |
+| Java 11 or later | Supported | `7.1.0`, the current Java 11+ release. HikariCP 5.x and 6.x are also compatible with the wrapper on Java 11+. | `0.14.2` |
+
+HikariCP and c3p0 are optional. The wrapper's published metadata lists HikariCP `4.0.3` and c3p0 `0.14.2` because those versions are used to compile and test the wrapper's pool integrations. They are not added to the application's runtime classpath by the normal wrapper dependency. Add the selected pool explicitly when using it, or use the version managed by your framework or dependency-management platform. Do not override a framework-managed version solely to match the wrapper's build dependencies.
+
+The wrapper's HikariCP `4.0.3` build dependency is a Java 8-compatible baseline, not the maximum supported HikariCP version. Applications on Java 11 or later can use the current HikariCP release.
+
+The c3p0 `0.14.2` artifact targets Java 7 class files, so the wrapper's Java 8 minimum determines the minimum runtime for that combination. Do not downgrade c3p0 for Java 8 compatibility; the current release already supports that runtime, and the c3p0 project documents security hardening added across the `0.12.0` through `0.14.0` releases.
+
+On Java 8, c3p0 `0.14.2` may log warnings that `createConnectionBuilder` and `createShardingKeyBuilder` do not exist. Those methods were added after Java 8; c3p0 skips them, and the warnings do not indicate that pool initialization failed.
+
+See HikariCP's [artifact and Java requirements](https://github.com/brettwooldridge/HikariCP/tree/HikariCP-7.1.0#gear-artifacts), the [c3p0 project](https://github.com/swaldman/c3p0), the [c3p0 0.14.2 Maven Central entry](https://central.sonatype.com/artifact/com.mchange/c3p0/0.14.2), and the wrapper's [Maven Central entry](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper/4.6.0) for the corresponding release metadata.
+
 If you are using the AWS Advanced JDBC Wrapper as part of a Gradle project, include the wrapper and underlying driver as dependencies.  For example, to include the AWS Advanced JDBC Wrapper and the PostgreSQL JDBC Driver as dependencies in a Gradle project, update the ```build.gradle``` file as follows:
 
 > **Note:** Depending on which features of the AWS Advanced JDBC Wrapper you use, you may have additional package requirements. Please refer to this [table](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins) for more information.
