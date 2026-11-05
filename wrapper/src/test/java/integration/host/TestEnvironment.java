@@ -64,6 +64,7 @@ import org.testcontainers.utility.MountableFile;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment implements AutoCloseable {
@@ -143,68 +144,86 @@ public class TestEnvironment implements AutoCloseable {
     LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
-    TestEnvironment env;
+    TestEnvironment env = null;
 
-    DatabaseEngineDeployment deployment = request.getDatabaseEngineDeployment();
-    switch (deployment) {
-      case DOCKER:
-        env = new TestEnvironment(request);
-        initDatabaseParams(env);
-        if (request.getFeatures().contains(TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY)) {
-          // The KMS encryption tests call AWS KMS from the test container.
-          initAwsCredentials(env);
-        }
-        createDatabaseContainers(env);
-        createValkeyCacheContainer(env);
+    try {
+      DatabaseEngineDeployment deployment = request.getDatabaseEngineDeployment();
+      switch (deployment) {
+        case DOCKER:
+          env = new TestEnvironment(request);
+          initDatabaseParams(env);
+          if (request.getFeatures().contains(TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY)) {
+            // The KMS encryption tests call AWS KMS from the test container.
+            initAwsCredentials(env);
+          }
+          createDatabaseContainers(env);
+          createValkeyCacheContainer(env);
 
-        if (request.getFeatures().contains(TestEnvironmentFeatures.IAM)) {
-          throw new UnsupportedOperationException(TestEnvironmentFeatures.IAM.toString());
-        }
+          if (request.getFeatures().contains(TestEnvironmentFeatures.IAM)) {
+            throw new UnsupportedOperationException(TestEnvironmentFeatures.IAM.toString());
+          }
 
-        if (request.getFeatures().contains(TestEnvironmentFeatures.FAILOVER_SUPPORTED)) {
-          throw new UnsupportedOperationException(
-              TestEnvironmentFeatures.FAILOVER_SUPPORTED.toString());
-        }
+          if (request.getFeatures().contains(TestEnvironmentFeatures.FAILOVER_SUPPORTED)) {
+            throw new UnsupportedOperationException(
+                TestEnvironmentFeatures.FAILOVER_SUPPORTED.toString());
+          }
 
-        if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
-          throw new UnsupportedOperationException(
-              TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT.toString());
-        }
+          if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+            throw new UnsupportedOperationException(
+                TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT.toString());
+          }
 
-        break;
-      case AURORA:
-      case RDS_MULTI_AZ_CLUSTER:
-      case RDS_MULTI_AZ_INSTANCE:
-        env = createAuroraOrMultiAzEnvironment(request);
+          break;
+        case AURORA:
+        case RDS_MULTI_AZ_CLUSTER:
+        case RDS_MULTI_AZ_INSTANCE:
+          env = createAuroraOrMultiAzEnvironment(request);
 
-        if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
-          createBlueGreenDeployment(env);
-        }
+          if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+            createBlueGreenDeployment(env);
+          }
 
-        break;
+          break;
 
-      default:
-        throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
+        default:
+          throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
+      }
+
+      if (request.getFeatures().contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
+        createProxyContainers(env);
+      }
+
+      if (!USE_OTLP_CONTAINER_FOR_TRACES
+          && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)) {
+        createTelemetryXRayContainer(env);
+      }
+
+      if ((USE_OTLP_CONTAINER_FOR_TRACES
+          && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED))
+          || request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
+        createTelemetryOtlpContainer(env);
+      }
+
+      createTestContainer(env);
+
+      return env;
+    } catch (Exception ex) {
+      if (env != null) {
+        cleanUpAfterBuildFailure(env, ex);
+      }
+      throw ex;
     }
+  }
 
-    if (request.getFeatures().contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
-      createProxyContainers(env);
+  private static void cleanUpAfterBuildFailure(TestEnvironment env, Exception provisioningException) {
+    try {
+      env.close();
+    } catch (Exception cleanupException) {
+      provisioningException.addSuppressed(cleanupException);
+      LOGGER.warning(() -> Messages.get(
+          "TestEnvironment.buildFailureCleanupFailed",
+          new Object[] {cleanupException.getMessage()}));
     }
-
-    if (!USE_OTLP_CONTAINER_FOR_TRACES
-        && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)) {
-      createTelemetryXRayContainer(env);
-    }
-
-    if ((USE_OTLP_CONTAINER_FOR_TRACES
-        && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED))
-        || request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
-      createTelemetryOtlpContainer(env);
-    }
-
-    createTestContainer(env);
-
-    return env;
   }
 
   private static void cleanUp(TestEnvironment env) {
@@ -303,40 +322,45 @@ public class TestEnvironment implements AutoCloseable {
 
     } else {
       TestEnvironment env = new TestEnvironment(request);
-      initRandomBase(env);
-      initDatabaseParams(env);
-      initAwsCredentials(env);
+      try {
+        initRandomBase(env);
+        initDatabaseParams(env);
+        initAwsCredentials(env);
 
-      switch (request.getDatabaseEngineDeployment()) {
-        case RDS_MULTI_AZ_INSTANCE:
-          initEnv(env);
-          cleanUp(env);
-          authorizeRunnerIpAddress(env);
-          createCustomParameterGroups(env);
-          createMultiAzInstance(env);
-          configureIamAccess(env);
-          break;
-        case RDS_MULTI_AZ_CLUSTER:
-          initEnv(env);
-          cleanUp(env);
-          authorizeRunnerIpAddress(env);
-          createCustomParameterGroups(env);
-          createDbCluster(env);
-          configureIamAccess(env);
-          break;
-        case AURORA:
-          initEnv(env);
-          cleanUp(env);
-          authorizeRunnerIpAddress(env);
-          createCustomParameterGroups(env);
-          createDbCluster(env);
-          configureIamAccess(env);
-          break;
-        default:
-          throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
+        switch (request.getDatabaseEngineDeployment()) {
+          case RDS_MULTI_AZ_INSTANCE:
+            initEnv(env);
+            cleanUp(env);
+            authorizeRunnerIpAddress(env);
+            createCustomParameterGroups(env);
+            createMultiAzInstance(env);
+            configureIamAccess(env);
+            break;
+          case RDS_MULTI_AZ_CLUSTER:
+            initEnv(env);
+            cleanUp(env);
+            authorizeRunnerIpAddress(env);
+            createCustomParameterGroups(env);
+            createDbCluster(env);
+            configureIamAccess(env);
+            break;
+          case AURORA:
+            initEnv(env);
+            cleanUp(env);
+            authorizeRunnerIpAddress(env);
+            createCustomParameterGroups(env);
+            createDbCluster(env);
+            configureIamAccess(env);
+            break;
+          default:
+            throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
+        }
+
+        return env;
+      } catch (Exception ex) {
+        cleanUpAfterBuildFailure(env, ex);
+        throw ex;
       }
-
-      return env;
     }
 
   }
@@ -358,6 +382,7 @@ public class TestEnvironment implements AutoCloseable {
       final String blueGreenId = env.auroraUtil.createBlueGreenDeployment(
           env.rdsDbName, clusterInfo.dbClusterArn());
       env.info.setBlueGreenDeploymentId(blueGreenId);
+      env.auroraUtil.waitUntilBlueGreenDeploymentAvailable(blueGreenId);
 
       BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeployment(blueGreenId);
       if (bgDeployment != null) {
@@ -379,6 +404,7 @@ public class TestEnvironment implements AutoCloseable {
       final String blueGreenId = env.auroraUtil.createBlueGreenDeployment(
           env.rdsDbName, instanceInfo.dbInstanceArn());
       env.info.setBlueGreenDeploymentId(blueGreenId);
+      env.auroraUtil.waitUntilBlueGreenDeploymentAvailable(blueGreenId);
 
       BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeployment(blueGreenId);
       if (bgDeployment != null) {
@@ -2000,6 +2026,7 @@ public class TestEnvironment implements AutoCloseable {
             return env;
 
           } catch (Exception ex) {
+            cleanUpAfterBuildFailure(env, ex);
             return ex;
           } finally {
             final long duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
