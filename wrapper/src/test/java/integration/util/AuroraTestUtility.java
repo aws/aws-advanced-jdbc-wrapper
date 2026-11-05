@@ -100,6 +100,7 @@ import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.ApplyMethod;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeploymentNotFoundException;
+import software.amazon.awssdk.services.rds.model.BlueGreenDeploymentTask;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentResponse;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRequest;
@@ -156,6 +157,7 @@ import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
 import software.amazon.awssdk.utils.builder.SdkBuilder;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -174,6 +176,8 @@ public class AuroraTestUtility {
   private static final int DEFAULT_IOPS = 64000;
   private static final int DEFAULT_ALLOCATED_STORAGE = 400;
   private static final int MULTI_AZ_SIZE = 3;
+  private static final int BLUE_GREEN_CREATION_TIMEOUT_MINUTES = 240;
+  private static final int BLUE_GREEN_CREATION_POLL_INTERVAL_SECONDS = 60;
   // The RDS/EC2 control-plane APIs throttle aggressively ("Rate exceeded") when many integration
   // test jobs run against the same AWS account in parallel. The SDK default is 3 retries (4 total
   // attempts), which is exhausted within seconds and fails the whole test-environment build. Use an
@@ -2617,25 +2621,89 @@ public class AuroraTestUtility {
       LOGGER.finest("createBlueGreenDeployment request is sent");
     }
 
-    String blueGreenId = response.blueGreenDeployment().blueGreenDeploymentIdentifier();
+    return response.blueGreenDeployment().blueGreenDeploymentIdentifier();
+  }
 
+  public void waitUntilBlueGreenDeploymentAvailable(String blueGreenId) {
     BlueGreenDeployment blueGreenDeployment = getBlueGreenDeployment(blueGreenId);
-    long end = System.nanoTime() + TimeUnit.MINUTES.toNanos(240);
-    while ((blueGreenDeployment == null || !blueGreenDeployment.status().equalsIgnoreCase("available"))
-        && System.nanoTime() < end) {
+    final long end = System.nanoTime()
+        + TimeUnit.MINUTES.toNanos(BLUE_GREEN_CREATION_TIMEOUT_MINUTES);
+
+    while (isBlueGreenDeploymentProvisioning(blueGreenDeployment) && System.nanoTime() < end) {
       try {
-        TimeUnit.SECONDS.sleep(60);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
+        TimeUnit.SECONDS.sleep(BLUE_GREEN_CREATION_POLL_INTERVAL_SECONDS);
+      } catch (InterruptedException ex) {
+        throw new RuntimeException(ex);
       }
       blueGreenDeployment = getBlueGreenDeployment(blueGreenId);
     }
 
-    if (blueGreenDeployment == null || !blueGreenDeployment.status().equalsIgnoreCase("available")) {
-      throw new RuntimeException("BlueGreen Deployment " + blueGreenId + " isn't available.");
+    if (isBlueGreenDeploymentAvailable(blueGreenDeployment)) {
+      return;
     }
 
-    return blueGreenId;
+    if (!isBlueGreenDeploymentProvisioning(blueGreenDeployment)) {
+      throw new RuntimeException(Messages.get(
+          "AuroraTestUtility.blueGreenProvisioningFailed",
+          getBlueGreenDeploymentStateArguments(blueGreenId, blueGreenDeployment)));
+    }
+
+    throw new RuntimeException(Messages.get(
+        "AuroraTestUtility.blueGreenProvisioningTimeout",
+        getBlueGreenDeploymentStateArguments(blueGreenId, blueGreenDeployment)));
+  }
+
+  private boolean isBlueGreenDeploymentProvisioning(BlueGreenDeployment blueGreenDeployment) {
+    return blueGreenDeployment == null
+        || ("PROVISIONING".equalsIgnoreCase(blueGreenDeployment.status())
+            && getFailedBlueGreenDeploymentTasks(blueGreenDeployment).isEmpty());
+  }
+
+  private boolean isBlueGreenDeploymentAvailable(BlueGreenDeployment blueGreenDeployment) {
+    return blueGreenDeployment != null
+        && "AVAILABLE".equalsIgnoreCase(blueGreenDeployment.status())
+        && getFailedBlueGreenDeploymentTasks(blueGreenDeployment).isEmpty();
+  }
+
+  private List<BlueGreenDeploymentTask> getFailedBlueGreenDeploymentTasks(
+      BlueGreenDeployment blueGreenDeployment) {
+    if (blueGreenDeployment == null || !blueGreenDeployment.hasTasks()) {
+      return new ArrayList<>();
+    }
+
+    return blueGreenDeployment.tasks().stream()
+        .filter(task -> task != null && "FAILED".equalsIgnoreCase(task.status()))
+        .collect(Collectors.toList());
+  }
+
+  private Object[] getBlueGreenDeploymentStateArguments(
+      String blueGreenId, BlueGreenDeployment blueGreenDeployment) {
+    if (blueGreenDeployment == null) {
+      return new Object[] {
+          blueGreenId,
+          Messages.get("AuroraTestUtility.blueGreenStateNotObserved"),
+          Messages.get("AuroraTestUtility.blueGreenStatusDetailsNotProvided"),
+          Messages.get("AuroraTestUtility.blueGreenFailedTasksNotReported")};
+    }
+
+    final String statusDetails = StringUtils.isNullOrEmpty(blueGreenDeployment.statusDetails())
+        ? Messages.get("AuroraTestUtility.blueGreenStatusDetailsNotProvided")
+        : blueGreenDeployment.statusDetails();
+    final List<BlueGreenDeploymentTask> failedTasks =
+        getFailedBlueGreenDeploymentTasks(blueGreenDeployment);
+    final String failedTaskDetails = failedTasks.isEmpty()
+        ? Messages.get("AuroraTestUtility.blueGreenFailedTasksNotReported")
+        : failedTasks.stream()
+            .map(task -> Messages.get(
+                "AuroraTestUtility.blueGreenFailedTask",
+                new Object[] {task.name(), task.status()}))
+            .collect(Collectors.joining(", "));
+
+    return new Object[] {
+        blueGreenId,
+        blueGreenDeployment.status(),
+        statusDetails,
+        failedTaskDetails};
   }
 
   public void waitUntilBlueGreenDeploymentHasRightState(String blueGreenId, String... allowedStatuses) {
@@ -2724,7 +2792,8 @@ public class AuroraTestUtility {
       return;
     }
 
-    waitUntilBlueGreenDeploymentHasRightState(blueGreenId, "available", "switchover_completed");
+    waitUntilBlueGreenDeploymentHasRightState(
+        blueGreenId, "available", "switchover_completed", "invalid_configuration");
 
     DeleteBlueGreenDeploymentResponse response = rdsClient.deleteBlueGreenDeployment(
         DeleteBlueGreenDeploymentRequest.builder()
