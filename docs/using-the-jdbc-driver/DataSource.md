@@ -30,7 +30,7 @@ See the table below for a list of configurable properties.
 
 ## Using the AwsWrapperDataSource with Connection Pooling Frameworks
 
-The JDBC Wrapper also supports establishing a connection with a connection pooling framework. When using c3p0, see the [Java and c3p0 compatibility table](../GettingStarted.md#java-and-c3p0-compatibility) before selecting the pool version.
+The JDBC Wrapper also supports establishing a connection with a connection pooling framework. Before selecting a HikariCP or c3p0 version, see the [Java and connection pool compatibility table](../GettingStarted.md#java-and-connection-pool-compatibility).
 
 To use the AWS Advanced JDBC Wrapper with a connection pool, you must:
 
