@@ -121,6 +121,22 @@ public interface TargetDriverDialect {
   }
 
   /**
+   * Returns whether the target driver considers the session to be inside a transaction, or
+   * {@code null} when the driver cannot say, either because it exposes no transaction state or
+   * because the connection is closed. A {@code null} result leaves the caller on its own tracking.
+   *
+   * <p>An implementation must answer from state the driver already holds, and must not issue a
+   * query. This is consulted on every call that inspects transaction state, including on
+   * connections that are already broken, where a round trip would block until the socket timeout.
+   *
+   * @param connection the target driver connection to inspect.
+   * @return what the driver reports, or {@code null} if the driver cannot say.
+   */
+  default @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    return null;
+  }
+
+  /**
    * Reads the current authorization-affecting state from the database session.
    */
   default Optional<AuthorizationSessionState> readAuthorizationSessionState(
