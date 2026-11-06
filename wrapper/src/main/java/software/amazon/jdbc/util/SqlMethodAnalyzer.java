@@ -121,6 +121,9 @@ public class SqlMethodAnalyzer {
    *
    * <p>Each comment is replaced by a single space so that adjacent tokens do not merge, matching
    * the behavior of the block-comment handling this replaces.
+   *
+   * @param sql the SQL text, which may be {@code null}
+   * @return the SQL text with comments replaced by spaces, or the input when null or empty
    */
   public static String stripComments(final String sql) {
     return stripCommentsInternal(sql, false);
@@ -128,6 +131,9 @@ public class SqlMethodAnalyzer {
 
   /**
    * Removes SQL comments while supporting nested block comments, as required by PostgreSQL.
+   *
+   * @param sql the SQL text, which may be {@code null}
+   * @return the SQL text with comments replaced by spaces, or the input when null or empty
    */
   public static String stripCommentsWithNestedBlockComments(final String sql) {
     return stripCommentsInternal(sql, true);

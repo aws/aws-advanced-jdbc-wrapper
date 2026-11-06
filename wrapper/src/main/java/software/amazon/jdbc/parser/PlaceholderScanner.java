@@ -278,7 +278,11 @@ public final class PlaceholderScanner {
       this.words = Collections.unmodifiableList(words);
     }
 
-    /** Character offsets of the real placeholders, in ascending order. */
+    /**
+     * Character offsets of the real placeholders, in ascending order.
+     *
+     * @return an unmodifiable list of placeholder offsets
+     */
     public List<Integer> getPlaceholderOffsets() {
       return placeholderOffsets;
     }
@@ -286,6 +290,8 @@ public final class PlaceholderScanner {
     /**
      * Top-level block comments as {@code {start, endExclusive}} pairs, in ascending order. Comments
      * nested in another comment are not listed separately.
+     *
+     * @return an unmodifiable list of block-comment ranges
      */
     public List<int[]> getBlockComments() {
       return blockComments;
@@ -294,17 +300,28 @@ public final class PlaceholderScanner {
     /**
      * Top-level unquoted words and the inner text of quoted identifiers, in order. Text inside string
      * literals and comments is not included.
+     *
+     * @return an unmodifiable list of words and quoted-identifier contents
      */
     public List<String> getWords() {
       return words;
     }
 
-    /** Number of real placeholders. */
+    /**
+     * Number of real placeholders.
+     *
+     * @return the placeholder count
+     */
     public int getPlaceholderCount() {
       return placeholderOffsets.size();
     }
 
-    /** True when a top-level block comment starts at {@code offset}. */
+    /**
+     * True when a top-level block comment starts at {@code offset}.
+     *
+     * @param offset the character offset to test
+     * @return {@code true} if a top-level block comment starts at the offset; {@code false} otherwise
+     */
     public boolean isBlockCommentStart(final int offset) {
       int low = 0;
       int high = blockComments.size() - 1;

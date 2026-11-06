@@ -578,12 +578,18 @@ public final class ParameterColumnMapper {
     /**
      * Parameter index (1-based) to column: {@code table.column} for INSERT/UPDATE (bare table name),
      * bare column name for SELECT.
+     *
+     * @return an immutable map of parameter indexes to columns, in ascending index order
      */
     public Map<Integer, String> getColumns() {
       return columns;
     }
 
-    /** Parameter index (1-based) to bare column name. */
+    /**
+     * Parameter index (1-based) to bare column name.
+     *
+     * @return a map of parameter indexes to bare column names
+     */
     public Map<Integer, String> getBareColumns() {
       final Map<Integer, String> bare = new HashMap<>();
       for (Map.Entry<Integer, String> entry : columns.entrySet()) {
@@ -593,22 +599,38 @@ public final class ParameterColumnMapper {
       return bare;
     }
 
-    /** Number of distinct parameters found in the syntax tree. */
+    /**
+     * Number of distinct parameters found in the syntax tree.
+     *
+     * @return the number of distinct parameters
+     */
     public int getAstParameterCount() {
       return astParameterCount;
     }
 
-    /** Problems found while mapping; empty when every relevant parameter was mapped. */
+    /**
+     * Problems found while mapping; empty when every relevant parameter was mapped.
+     *
+     * @return an immutable list of mapping problems
+     */
     public List<ParameterMappingProblem> getProblems() {
       return problems;
     }
 
-    /** True for INSERT, UPDATE, MERGE, REPLACE / UPSERT (also when detected without parsing). */
+    /**
+     * True for INSERT, UPDATE, MERGE, REPLACE / UPSERT (also when detected without parsing).
+     *
+     * @return {@code true} if the SQL is a write statement; {@code false} otherwise
+     */
     public boolean isWriteStatement() {
       return writeStatement;
     }
 
-    /** Bare target table of a write statement, or null. */
+    /**
+     * Bare target table of a write statement, or null.
+     *
+     * @return the bare target table, or {@code null} if it is unknown or not applicable
+     */
     public @Nullable String getTargetTable() {
       return targetTable;
     }

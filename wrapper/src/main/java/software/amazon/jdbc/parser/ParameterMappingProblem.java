@@ -75,35 +75,69 @@ public final class ParameterMappingProblem {
     this.actualCount = actualCount;
   }
 
-  /** Parameters inside an expression assigned to {@code column}. */
+  /**
+   * Parameters inside an expression assigned to {@code column}.
+   *
+   * @param table the bare target table name, or {@code null} if unknown
+   * @param column the target column name
+   * @param parameterIndexes the 1-based indexes of parameters in the expression
+   * @return a parameter-in-expression mapping problem
+   */
   public static ParameterMappingProblem paramsInExpression(
       final @Nullable String table, final String column, final List<Integer> parameterIndexes) {
     return new ParameterMappingProblem(Type.PARAMS_IN_EXPRESSION, table,
         Collections.singletonList(column), parameterIndexes, Collections.emptyList(), null, 0, 0);
   }
 
-  /** Parameters without a resolvable target column; {@code columns} are the possible targets. */
+  /**
+   * Parameters without a resolvable target column; {@code columns} are the possible targets.
+   *
+   * @param table the bare target table name, or {@code null} if unknown
+   * @param columns the possible target columns
+   * @param parameterIndexes the 1-based indexes of parameters without a resolvable target
+   * @return an unknown-target-parameters mapping problem
+   */
   public static ParameterMappingProblem unknownTargetParams(
       final @Nullable String table, final List<String> columns, final List<Integer> parameterIndexes) {
     return new ParameterMappingProblem(Type.UNKNOWN_TARGET_PARAMS, table,
         columns, parameterIndexes, Collections.emptyList(), null, 0, 0);
   }
 
-  /** INSERT without a column list. */
+  /**
+   * INSERT without a column list.
+   *
+   * @param table the bare target table name, or {@code null} if unknown
+   * @param parameterIndexes the 1-based indexes of the statement's parameters
+   * @return a missing-column-list mapping problem
+   */
   public static ParameterMappingProblem noColumnList(
       final @Nullable String table, final List<Integer> parameterIndexes) {
     return new ParameterMappingProblem(Type.NO_COLUMN_LIST, table,
         Collections.emptyList(), parameterIndexes, Collections.emptyList(), null, 0, 0);
   }
 
-  /** Numbered parameter placeholders. */
+  /**
+   * Numbered parameter placeholders.
+   *
+   * @param table the bare target table name, or {@code null} if unknown
+   * @param parameterIndexes the 1-based indexes of the numbered parameters
+   * @return a fixed-index-parameter mapping problem
+   */
   public static ParameterMappingProblem fixedIndexParameter(
       final @Nullable String table, final List<Integer> parameterIndexes) {
     return new ParameterMappingProblem(Type.FIXED_INDEX_PARAMETER, table,
         Collections.emptyList(), parameterIndexes, Collections.emptyList(), null, 0, 0);
   }
 
-  /** Placeholder count from the lexical scan ({@code expected}) vs parsed parameters ({@code actual}). */
+  /**
+   * Placeholder count from the lexical scan ({@code expected}) vs parsed parameters ({@code actual}).
+   *
+   * @param table the bare target table name, or {@code null} if unknown
+   * @param expected the placeholder count from the lexical scan
+   * @param actual the parameter count found by the SQL parser
+   * @param parameterIndexes the 1-based indexes of the parsed parameters
+   * @return a placeholder-count-mismatch mapping problem
+   */
   public static ParameterMappingProblem placeholderCountMismatch(
       final @Nullable String table,
       final int expected,
@@ -113,14 +147,27 @@ public final class ParameterMappingProblem {
         Collections.emptyList(), parameterIndexes, Collections.emptyList(), null, expected, actual);
   }
 
-  /** Write statement the parser could not read; {@code candidateTables} are its identifiers. */
+  /**
+   * Write statement the parser could not read; {@code candidateTables} are its identifiers.
+   *
+   * @param candidateTables identifiers that may name target tables
+   * @param parameterIndexes the 1-based indexes of the statement's parameters
+   * @return an unparsed-statement mapping problem
+   */
   public static ParameterMappingProblem unparsedStatement(
       final List<String> candidateTables, final List<Integer> parameterIndexes) {
     return new ParameterMappingProblem(Type.UNPARSED_STATEMENT, null,
         Collections.emptyList(), parameterIndexes, candidateTables, null, 0, 0);
   }
 
-  /** Unsupported write statement kind, e.g. {@code MERGE} or {@code REPLACE}. */
+  /**
+   * Unsupported write statement kind, e.g. {@code MERGE} or {@code REPLACE}.
+   *
+   * @param table the bare target table name, or {@code null} if unknown
+   * @param statementKind the unsupported statement kind
+   * @param parameterIndexes the 1-based indexes of the statement's parameters
+   * @return an unsupported-statement mapping problem
+   */
   public static ParameterMappingProblem unsupportedStatement(
       final @Nullable String table, final String statementKind, final List<Integer> parameterIndexes) {
     return new ParameterMappingProblem(Type.UNSUPPORTED_STATEMENT, table,
@@ -131,37 +178,65 @@ public final class ParameterMappingProblem {
     return type;
   }
 
-  /** Bare target table name, or null when unknown. */
+  /**
+   * Bare target table name, or null when unknown.
+   *
+   * @return the bare target table name, or {@code null} if unknown
+   */
   public @Nullable String getTable() {
     return table;
   }
 
-  /** Bare column names concerned by the problem; may be empty. */
+  /**
+   * Bare column names concerned by the problem; may be empty.
+   *
+   * @return an immutable list of concerned column names
+   */
   public List<String> getColumns() {
     return columns;
   }
 
-  /** 1-based parameter indexes concerned by the problem. */
+  /**
+   * 1-based parameter indexes concerned by the problem.
+   *
+   * @return an immutable list of concerned parameter indexes
+   */
   public List<Integer> getParameterIndexes() {
     return parameterIndexes;
   }
 
-  /** Identifiers of an unparsed statement that may name tables ({@link Type#UNPARSED_STATEMENT}). */
+  /**
+   * Identifiers of an unparsed statement that may name tables ({@link Type#UNPARSED_STATEMENT}).
+   *
+   * @return an immutable list of candidate table identifiers
+   */
   public List<String> getCandidateTables() {
     return candidateTables;
   }
 
-  /** Statement kind for {@link Type#UNSUPPORTED_STATEMENT}, e.g. {@code MERGE}. */
+  /**
+   * Statement kind for {@link Type#UNSUPPORTED_STATEMENT}, e.g. {@code MERGE}.
+   *
+   * @return the unsupported statement kind, or {@code null} if not applicable
+   */
   public @Nullable String getStatementKind() {
     return statementKind;
   }
 
-  /** Placeholder count of the lexical scan ({@link Type#PLACEHOLDER_COUNT_MISMATCH}). */
+  /**
+   * Placeholder count of the lexical scan ({@link Type#PLACEHOLDER_COUNT_MISMATCH}).
+   *
+   * @return the expected placeholder count, or zero if not applicable
+   */
   public int getExpectedCount() {
     return expectedCount;
   }
 
-  /** Parameter count found by the SQL parser ({@link Type#PLACEHOLDER_COUNT_MISMATCH}). */
+  /**
+   * Parameter count found by the SQL parser ({@link Type#PLACEHOLDER_COUNT_MISMATCH}).
+   *
+   * @return the actual parsed parameter count, or zero if not applicable
+   */
   public int getActualCount() {
     return actualCount;
   }
