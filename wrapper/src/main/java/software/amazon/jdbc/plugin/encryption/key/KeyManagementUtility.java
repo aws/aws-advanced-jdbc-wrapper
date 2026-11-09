@@ -217,15 +217,6 @@ public class KeyManagementUtility {
         + " FROM " + quoteTableName(target) + " WHERE 1=0";
   }
 
-  private String getSetPostgresTriggerCacheSql() {
-    return "SELECT set_config(?, ?, false)";
-  }
-
-  /** The variable name is built from validated identifiers. */
-  private String getSetMysqlTriggerCacheSql(String variableName) {
-    return "SET @" + variableName + " = ?";
-  }
-
   /**
    * Creates a new KMS master key with proper permissions for encryption operations.
    *
@@ -476,10 +467,9 @@ public class KeyManagementUtility {
    * {@code key_storage} row it created; if that is not possible, the exception names the new key
    * id. After the switch, every exception names the previous key id.
    *
-   * <p>If the database has the HMAC trigger, the method sets the trigger's cached HMAC key for its
-   * own connection once, before the first batch: {@code hmac_key.<table>.<column>} with
-   * {@code set_config} on PostgreSQL, the user variable {@code @hmac_key_<table>_<column>} on
-   * MySQL.
+   * <p>If the database has the HMAC trigger, nothing needs priming: the trigger looks the column's
+   * HMAC key up from the metadata for every row, so it picks up the key this method stores on its
+   * own.
    *
    * @param tableName Name of the table, optionally schema-qualified ({@code schema.table}). Letters,
    *     digits and underscores only. The schema prefix is used only in the SQL against the data
@@ -656,8 +646,8 @@ public class KeyManagementUtility {
    * {@link #rotateDataKey(String, String, String)} was called on it. Run it on a plain JDBC
    * connection without the KMS encryption plugin. Old key rows and KMS keys are never deleted.
    * Before any write, the method checks that the table, the column and the primary key column
-   * exist, and it sets the HMAC trigger's cached key for its own connection once, as
-   * {@link #rotateDataKeyAndReencrypt} does.
+   * exist. Nothing primes the HMAC trigger: like {@link #rotateDataKeyAndReencrypt}, it relies on
+   * the trigger looking the column's HMAC key up from the metadata for every row.
    *
    * @param tableName Name of the table, optionally schema-qualified ({@code schema.table}). The
    *     schema prefix is used only in the SQL against the data table. {@code encryption_metadata}
@@ -755,15 +745,6 @@ public class KeyManagementUtility {
     LOGGER.info(() -> Messages.get("KeyManagementUtility.reencryptStarting",
         new Object[]{tableName, columnName, String.valueOf(targetKey.id), sourceKeyIds.toString(),
             String.valueOf(batchSize)}));
-
-    try {
-      primeTriggerHmacCache(conn, target, tableName, columnName, targetKey.hmacKey);
-    } catch (SQLException | RuntimeException e) {
-      rollbackQuietly(conn);
-      throw new KeyManagementException(Messages.get("KeyManagementUtility.reencryptFailed",
-          new Object[]{tableName, columnName, "1", "0", e.getMessage(), String.valueOf(targetKey.id),
-              sourceKeyIds.toString()}), e);
-    }
 
     long reencryptedCount = 0;
     long alreadyCurrentCount = 0;
@@ -1015,47 +996,6 @@ public class KeyManagementUtility {
     return new StoredKey(keyId, masterKeyArn, encryptedDataKey, hmacKey);
   }
 
-  /**
-   * Sets the HMAC trigger's cached key for this connection's session to the target HMAC key, once
-   * per run, before the first batch. Harmless when no trigger is installed. The value lasts for the
-   * whole session, so it stays set on a caller-supplied connection after the method returns; it
-   * then holds the column's current key.
-   *
-   * <p>PostgreSQL: {@code set_config('hmac_key.<table>.<column>', <hex>, false)}, the setting the
-   * trigger reads. The setting is session-scoped but transactional: a ROLLBACK of the transaction
-   * that made it restores the previous value. It is therefore committed on its own here, so that a
-   * later batch rollback cannot undo it. The connection must be in manual-commit mode.
-   *
-   * <p>MySQL: the user variable {@code @hmac_key_<table>_<column>} holding the raw key bytes, the
-   * name and encoding the example procedure caches. User variables are not transactional. A name
-   * longer than 64 characters cannot exist in MySQL and is skipped.
-   */
-  private void primeTriggerHmacCache(
-      Connection conn, ColumnTarget target, String tableName, String columnName, byte[] hmacKey)
-      throws SQLException {
-    if (keyManager.isPostgreSQL()) {
-      try (PreparedStatement stmt = conn.prepareStatement(getSetPostgresTriggerCacheSql())) {
-        stmt.setString(1, "hmac_key." + target.table + "." + target.column);
-        stmt.setString(2, toHex(hmacKey));
-        try (ResultSet ignored = stmt.executeQuery()) {
-          // set_config returns the new value; nothing to read.
-        }
-      }
-      conn.commit();
-      return;
-    }
-    final String variableName = "hmac_key_" + target.table + "_" + target.column;
-    if (variableName.length() > MAX_IDENTIFIER_LENGTH) {
-      LOGGER.fine(() -> Messages.get("KeyManagementUtility.triggerCacheVariableTooLong",
-          new Object[]{tableName, columnName, variableName}));
-      return;
-    }
-    try (PreparedStatement stmt = conn.prepareStatement(getSetMysqlTriggerCacheSql(variableName))) {
-      stmt.setBytes(1, hmacKey);
-      stmt.executeUpdate();
-    }
-  }
-
   private void ensurePlainConnection(Connection conn) throws SQLException {
     if (conn.isWrapperFor(KmsEncryptionConnectionPlugin.class)) {
       throw new KeyManagementException(Messages.get("KeyManagementUtility.pluginConnectionNotAllowed"));
@@ -1127,15 +1067,6 @@ public class KeyManagementUtility {
     } catch (SQLException e) {
       LOGGER.fine(() -> Messages.get("KeyManagementUtility.closeStatementFailed", new Object[]{e.getMessage()}));
     }
-  }
-
-  private static String toHex(byte[] bytes) {
-    final StringBuilder sb = new StringBuilder(bytes.length * 2);
-    for (byte b : bytes) {
-      sb.append(Character.forDigit((b >> 4) & 0xF, 16));
-      sb.append(Character.forDigit(b & 0xF, 16));
-    }
-    return sb.toString();
   }
 
   private void rollbackQuietly(@Nullable Connection conn) {

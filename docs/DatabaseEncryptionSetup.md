@@ -23,10 +23,10 @@ CREATE SCHEMA encrypt;
 
 ### 2. Install Database-Specific Extensions
 
-**PostgreSQL only** — required for HMAC verification functions:
+**PostgreSQL only** — required for HMAC verification functions. Install it into `public` so the HMAC trigger can call it as `public.hmac` under its locked `search_path`:
 
 ```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 ```
 
 MySQL does not require any extensions. The optional HMAC validation triggers (step 8) use a pure SQL HMAC-SHA256 implementation from the script [`encrypted_data_type_mysql.sql`](../wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql).
@@ -49,7 +49,7 @@ sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type.sql | psql -h host -U dbuser -
 > [!WARNING]\
 > The PostgreSQL script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`. Running it again after you created tables drops every column of type `encrypted_data`. Run it only once, before step 7.
 
-**MySQL** creates the HMAC functions and the `validate_encrypted_data_hmac_before_insert` procedure used by the triggers in step 8. The script uses `DELIMITER`, so run it with the `mysql` command-line client rather than through JDBC:
+**MySQL** creates the HMAC functions and the `validate_encrypted_data_hmac_before_insert` and `validate_encrypted_data_hmac_before_update` procedures used by the triggers in step 8. The script uses `DELIMITER`, so run it with the `mysql` command-line client rather than through JDBC:
 
 ```bash
 sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type_mysql.sql | mysql -h host -u dbuser -p database
@@ -211,22 +211,22 @@ CREATE TRIGGER validate_ssn_hmac
 **MySQL:** first install the routines. In [`encrypted_data_type_mysql.sql`](../wrapper/src/test/resources/sql/encrypted_data_type_mysql.sql), replace `SCHEMA_NAME` with your metadata schema (the procedure runs from triggers, so it cannot use dynamic SQL), then run the script with the `mysql` client in the database that holds your tables. Then create one trigger per event and column:
 ```sql
 CREATE TRIGGER users_ssn_hmac_ins BEFORE INSERT ON users FOR EACH ROW
-  CALL validate_encrypted_data_hmac('users', 'ssn', NEW.ssn, @hmac_key_users_ssn);
+  CALL validate_encrypted_data_hmac_before_insert('users', 'ssn', NEW.ssn);
 CREATE TRIGGER users_ssn_hmac_upd BEFORE UPDATE ON users FOR EACH ROW
-  CALL validate_encrypted_data_hmac('users', 'ssn', NEW.ssn, @hmac_key_users_ssn);
+  CALL validate_encrypted_data_hmac_before_update('users', 'ssn', NEW.ssn, OLD.ssn);
 ```
 
-The last argument is the per-session cache of the HMAC key. It must be the user variable `@hmac_key_<table>_<column>` (at most 64 characters), which the JDBC `KeyManagementUtility` also sets when it re-encrypts the column. With binary logging enabled, creating the routines and triggers needs the `SUPER` privilege or `log_bin_trust_function_creators=1`.
+The INSERT trigger calls `validate_encrypted_data_hmac_before_insert`; the UPDATE trigger calls `validate_encrypted_data_hmac_before_update`, which skips a value the UPDATE leaves unchanged. Neither procedure caches the HMAC key: it is looked up from the metadata for every row, so a data key rotation takes effect immediately and a session cannot preset the key to get past the check. With binary logging enabled, creating the routines and triggers needs the `SUPER` privilege or `log_bin_trust_function_creators=1`.
 
-The earlier procedure `validate_encrypted_data_hmac_before_insert` used dynamic SQL and failed when called from a trigger (MySQL error 1336). If you installed it, re-run the script (it drops the old procedure) and re-create the triggers as shown above.
+The two procedures take different arguments than the single `validate_encrypted_data_hmac` procedure of an earlier version. Re-run the script (it drops the old procedure) and drop and re-create the triggers as shown above.
 
 | Feature | PostgreSQL | MySQL |
 |---------|------------|-------|
-| Native HMAC | `hmac()` via pgcrypto | Pure SQL implementation |
-| Trigger Syntax | Single trigger for INSERT/UPDATE | Separate triggers needed |
-| Session Caching | `current_setting()` | User variables (`@var`) |
+| Native HMAC | `public.hmac()` via pgcrypto | Pure SQL implementation |
+| Trigger Syntax | Single trigger for INSERT/UPDATE | Separate INSERT and UPDATE triggers |
+| Session Caching | None — key looked up per row | None — key looked up per row |
 
-After a data key rotation, the PostgreSQL trigger function and the MySQL procedure reload their cached HMAC key from the metadata once when a value fails verification against it, and reject the value only if it also fails against the reloaded key. Routines created by an earlier version do not; see the [Data key rotation procedure](./using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#data-key-rotation-procedure).
+On both databases the trigger looks up the column's HMAC key from the metadata for every row and caches nothing, so a data key rotation takes effect immediately with no reload logic or connection recycling. An UPDATE that leaves the encrypted value unchanged is not re-checked, so rows written under a previous key keep working while a rotation is in progress. See the [Data key rotation procedure](./using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#data-key-rotation-procedure).
 
 **Recommendation:** Create the triggers in all deployments. The driver validates the HMAC when it reads and decrypts a value, but only a trigger stops an unencrypted value from being stored.
 
@@ -271,7 +271,7 @@ Even if the HMAC key is compromised, the encrypted data remains secure.
 - **IV (12 bytes)**: Initialization vector for AES-GCM
 - **Ciphertext**: AES-256-GCM encrypted data
 
-Minimum length: 61 bytes (32 + 1 + 12 + 16-byte GCM auth tag, for an empty plaintext). The driver rejects shorter values. The database-side checks (the PostgreSQL `encrypted_data` domain and the HMAC trigger functions) use a looser 45-byte minimum.
+Minimum length: 61 bytes (32 + 1 + 12 + 16-byte GCM auth tag, for an empty plaintext). The driver rejects shorter values, and the HMAC trigger functions on both PostgreSQL and MySQL reject values shorter than 61 bytes as well. The PostgreSQL `encrypted_data` domain and the `has_valid_hmac_structure()` helper use a looser 45-byte minimum.
 
 ### API Usage
 
@@ -339,7 +339,7 @@ Annotations take precedence over metadata-based encryption when present. Both ap
 | Primary key type | `SERIAL` | `INT AUTO_INCREMENT` |
 | Binary data type | `BYTEA` | `VARBINARY` |
 | Timestamp type | `TIMESTAMPTZ` | `TIMESTAMP` |
-| HMAC function | Native `hmac()` via pgcrypto | Pure SQL implementation |
+| HMAC function | Native `public.hmac()` via pgcrypto | Pure SQL implementation |
 | Custom type validation | Domain CHECK constraint | Application-level only |
 | Auto-update timestamp | Manual | `ON UPDATE CURRENT_TIMESTAMP` |
 

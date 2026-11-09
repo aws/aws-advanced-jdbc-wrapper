@@ -196,7 +196,8 @@ public final class KmsTestUtility {
       stmt.execute("CREATE SCHEMA " + metadataSchema);
 
       if (isPg) {
-        stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+        // Pin pgcrypto to public so the HMAC trigger can call it as public.hmac under a locked search_path.
+        stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public");
         EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
         stmt.execute(
             "CREATE TABLE " + metadataSchema + ".key_storage ("
