@@ -138,7 +138,8 @@ public class EncryptionService {
           .withAlgorithm(algorithm)
           .withOperation("ENCRYPT");
     } finally {
-      // A byte[] value is serialized as itself, so its buffer belongs to the caller and is left intact.
+      // A byte[] value is encrypted directly from the caller's array rather than a copy, so that
+      // array is left intact instead of being zeroized.
       if (plaintext != null && plaintext != value) {
         Arrays.fill(plaintext, (byte) 0);
       }
