@@ -129,7 +129,10 @@ public class DataKeyCache {
       }
 
       CacheEntry entry = new CacheEntry(dataKey.clone());
-      cache.put(keyId, entry);
+      final @Nullable CacheEntry replaced = cache.put(keyId, entry);
+      if (replaced != null) {
+        replaced.clear();
+      }
 
       LOGGER.finest(() -> Messages.get("DataKeyCache.cached", new Object[]{keyId}));
     } finally {

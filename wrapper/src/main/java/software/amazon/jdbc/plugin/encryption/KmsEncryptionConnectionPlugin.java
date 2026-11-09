@@ -470,15 +470,18 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     // Encrypt the value
     KeyManager keyManager = encryptionUtility.getKeyManager();
     EncryptionService encryptionService = encryptionUtility.getEncryptionService();
+    byte[] hmacKey = config.getKeyMetadata().getHmacKey();
 
     byte[] dataKey = keyManager.decryptDataKey(
         config.getKeyMetadata().getEncryptedDataKey(),
         config.getKeyMetadata().getMasterKeyArn());
 
-    byte[] hmacKey = config.getKeyMetadata().getHmacKey();
-    final byte @Nullable [] encrypted =
-        encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
-    java.util.Arrays.fill(dataKey, (byte) 0);
+    final byte @Nullable [] encrypted;
+    try {
+      encrypted = encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
+    } finally {
+      java.util.Arrays.fill(dataKey, (byte) 0);
+    }
 
     if (encrypted == null) {
       // Unreachable: encrypt() only returns null for a null value, and null values were
@@ -527,18 +530,19 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     // Decrypt
     KeyManager keyManager = encryptionUtility.getKeyManager();
     EncryptionService encryptionService = encryptionUtility.getEncryptionService();
+    byte[] hmacKey = config.getKeyMetadata().getHmacKey();
+    Class<?> targetType = getTargetType(methodName);
 
     byte[] dataKey = keyManager.decryptDataKey(
         config.getKeyMetadata().getEncryptedDataKey(),
         config.getKeyMetadata().getMasterKeyArn());
 
-    byte[] hmacKey = config.getKeyMetadata().getHmacKey();
-    Class<?> targetType = getTargetType(methodName);
-    Object decrypted = encryptionService.decrypt(
-        encryptedBytes, dataKey, hmacKey, config.getAlgorithm(), targetType);
-    java.util.Arrays.fill(dataKey, (byte) 0);
-
-    return (T) decrypted;
+    try {
+      return (T) encryptionService.decrypt(
+          encryptedBytes, dataKey, hmacKey, config.getAlgorithm(), targetType);
+    } finally {
+      java.util.Arrays.fill(dataKey, (byte) 0);
+    }
   }
 
   private byte @Nullable [] getEncryptedBytes(ResultSet rs, final @Nullable Object... args)

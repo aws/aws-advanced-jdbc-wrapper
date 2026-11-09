@@ -67,6 +67,7 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionException;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPlugin;
 import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
@@ -342,6 +343,87 @@ public class KmsEncryptionConnectionPluginTest {
         1);
 
     assertEquals("123-45-6789", result);
+  }
+
+  @Test
+  void test_setString_zeroizesDataKey_whenEncryptionFails() throws Exception {
+    when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
+    populateContext("users", java.util.Collections.singletonMap(2, "ssn"));
+    plugin.execute(
+        PreparedStatement.class, SQLException.class, mockConnection,
+        "Connection.prepareStatement", () -> mockPreparedStatement,
+        "INSERT INTO users (name, ssn) VALUES (?, ?)");
+
+    final byte[] dataKey = nonZeroKey();
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+    when(mockMetadataManager.getColumnConfig("users", "ssn")).thenReturn(createTestConfig());
+    when(mockKeyManager.decryptDataKey(anyString(), anyString())).thenReturn(dataKey);
+    final EncryptionException failure = new EncryptionException("encrypt failed");
+    when(mockEncryptionService.encrypt(any(), any(), any(), anyString())).thenThrow(failure);
+
+    final SQLException thrown = assertThrows(SQLException.class, () -> plugin.execute(
+        Void.class, SQLException.class, mockPreparedStatement,
+        "PreparedStatement.setString", () -> null,
+        2, "123-45-6789"));
+
+    assertSame(failure, thrown);
+    assertArrayEquals(new byte[dataKey.length], dataKey);
+    verify(mockPreparedStatement, never()).setBytes(anyInt(), any());
+  }
+
+  @Test
+  void test_getString_zeroizesDataKey_whenDecryptionFails() throws Exception {
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSetMetaData.getColumnName(1)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(1)).thenReturn("users");
+
+    final byte[] dataKey = nonZeroKey();
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+    when(mockMetadataManager.getColumnConfig("users", "ssn")).thenReturn(createTestConfig());
+    when(mockKeyManager.decryptDataKey(anyString(), anyString())).thenReturn(dataKey);
+    when(mockResultSet.getObject(1)).thenReturn(testEncrypted);
+    when(mockResultSet.getBytes(1)).thenReturn(testEncrypted);
+    final EncryptionException failure = new EncryptionException("decrypt failed");
+    when(mockEncryptionService.decrypt(any(), any(), any(), anyString(), eq(String.class)))
+        .thenThrow(failure);
+
+    final SQLException thrown = assertThrows(SQLException.class, () -> plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "raw-value",
+        1));
+
+    assertSame(failure, thrown);
+    assertArrayEquals(new byte[dataKey.length], dataKey);
+  }
+
+  @Test
+  void test_getString_zeroizesDataKey_afterDecryption() throws Exception {
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSetMetaData.getColumnName(1)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(1)).thenReturn("users");
+
+    final byte[] dataKey = nonZeroKey();
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+    when(mockMetadataManager.getColumnConfig("users", "ssn")).thenReturn(createTestConfig());
+    when(mockKeyManager.decryptDataKey(anyString(), anyString())).thenReturn(dataKey);
+    when(mockResultSet.getObject(1)).thenReturn(testEncrypted);
+    when(mockResultSet.getBytes(1)).thenReturn(testEncrypted);
+    when(mockEncryptionService.decrypt(any(), any(), any(), anyString(), eq(String.class)))
+        .thenReturn("123-45-6789");
+
+    final String result = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "raw-value",
+        1);
+
+    assertEquals("123-45-6789", result);
+    assertArrayEquals(new byte[dataKey.length], dataKey);
+  }
+
+  private static byte[] nonZeroKey() {
+    final byte[] key = new byte[32];
+    Arrays.fill(key, (byte) 7);
+    return key;
   }
 
   @Test

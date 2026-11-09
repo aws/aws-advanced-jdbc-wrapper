@@ -31,6 +31,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64;
 import java.util.Objects;
@@ -238,6 +239,7 @@ public class KeyManager {
 
     LOGGER.finest(() -> Messages.get("KeyManager.decryptingDataKey", new Object[]{masterKeyArn}));
 
+    byte @Nullable [] plaintextKey = null;
     try {
       byte[] encryptedKeyBytes = Base64.getDecoder().decode(encryptedDataKey);
 
@@ -248,17 +250,22 @@ public class KeyManager {
               .build();
 
       DecryptResponse response = executeWithRetry(() -> kmsClient.decrypt(request));
-      byte[] plaintextKey = response.plaintext().asByteArray();
+      final byte[] decryptedKey = response.plaintext().asByteArray();
+      plaintextKey = decryptedKey;
 
       // Cache the decrypted key if caching is enabled
       if (config.isDataKeyCacheEnabled()) {
-        dataKeyCache.put(cacheKey, plaintextKey);
+        dataKeyCache.put(cacheKey, decryptedKey);
       }
 
       LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{masterKeyArn}));
-      return plaintextKey;
+      return decryptedKey;
 
     } catch (Exception e) {
+      // The key is not handed to the caller, so nothing else will zeroize it.
+      if (plaintextKey != null) {
+        Arrays.fill(plaintextKey, (byte) 0);
+      }
       LOGGER.severe(() -> Messages.get("KeyManager.dataKeyDecryptionFailed", new Object[]{masterKeyArn, e}));
       throw new KeyManagementException(
           Messages.get("KeyManager.decryptDataKeyFailed", new Object[]{e.getMessage(), e}));

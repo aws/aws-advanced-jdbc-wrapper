@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Map;
 import java.util.logging.Logger;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -82,12 +83,13 @@ public class EncryptionService {
 
     LOGGER.finest(() -> Messages.get("EncryptionService.encrypting"));
 
+    byte @Nullable [] plaintext = null;
+    final byte[] iv = new byte[GCM_IV_LENGTH];
     try {
       // Convert value to bytes based on type
-      byte[] plaintext = serializeValue(value);
+      plaintext = serializeValue(value);
 
       // Generate random IV
-      byte[] iv = new byte[GCM_IV_LENGTH];
       secureRandom.nextBytes(iv);
 
       // Create cipher
@@ -126,10 +128,6 @@ public class EncryptionService {
       finalBuffer.put(hmacTag);
       finalBuffer.put(encryptedData);
 
-      // Clear sensitive data
-      Arrays.fill(plaintext, (byte) 0);
-      Arrays.fill(iv, (byte) 0);
-
       return finalBuffer.array();
 
     } catch (Exception e) {
@@ -139,6 +137,12 @@ public class EncryptionService {
           .withDataType(value.getClass().getSimpleName())
           .withAlgorithm(algorithm)
           .withOperation("ENCRYPT");
+    } finally {
+      // A byte[] value is serialized as itself, so its buffer belongs to the caller and is left intact.
+      if (plaintext != null && plaintext != value) {
+        Arrays.fill(plaintext, (byte) 0);
+      }
+      Arrays.fill(iv, (byte) 0);
     }
   }
 
@@ -174,6 +178,8 @@ public class EncryptionService {
           .withContext("minimumLength", 32 + 1 + 12 + 16);
     }
 
+    byte @Nullable [] plaintext = null;
+    final byte[] iv = new byte[GCM_IV_LENGTH];
     try {
       ByteBuffer buffer = ByteBuffer.wrap(encryptedValue);
 
@@ -215,7 +221,6 @@ public class EncryptionService {
       final TypeMarker typeMarker = TypeMarker.fromValue(dataBuffer.get());
 
       // Extract IV
-      byte[] iv = new byte[GCM_IV_LENGTH];
       dataBuffer.get(iv);
 
       // Extract ciphertext
@@ -229,17 +234,23 @@ public class EncryptionService {
       cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
 
       // Decrypt the data
-      byte[] plaintext = cipher.doFinal(ciphertext);
+      plaintext = cipher.doFinal(ciphertext);
 
       // Deserialize based on type marker and target type
-      Object result = deserializeValue(plaintext, typeMarker, targetType);
+      return deserialize(plaintext, typeMarker, targetType);
 
-      // Clear sensitive data
-      Arrays.fill(plaintext, (byte) 0);
-      Arrays.fill(iv, (byte) 0);
-
-      return result;
-
+    } catch (EncryptionException e) {
+      LOGGER.severe(
+          () -> Messages.get("EncryptionService.decryptionFailed"));
+      // Keep the specific failure, filling in the context every decrypt failure carries.
+      final Map<String, Object> context = e.getErrorContext();
+      if (!context.containsKey("dataType")) {
+        e.withDataType(targetType.getSimpleName());
+      }
+      if (!context.containsKey("operation")) {
+        e.withOperation("DECRYPT");
+      }
+      throw e.withAlgorithm(algorithm);
     } catch (Exception e) {
       LOGGER.severe(
           () -> Messages.get("EncryptionService.decryptionFailed"));
@@ -247,6 +258,11 @@ public class EncryptionService {
           .withDataType(targetType.getSimpleName())
           .withAlgorithm(algorithm)
           .withOperation("DECRYPT");
+    } finally {
+      if (plaintext != null) {
+        Arrays.fill(plaintext, (byte) 0);
+      }
+      Arrays.fill(iv, (byte) 0);
     }
   }
 
@@ -334,9 +350,28 @@ public class EncryptionService {
     }
   }
 
+  /**
+   * Deserializes decrypted bytes, reporting parse failures without their cause. Parser exceptions
+   * such as {@code DateTimeParseException} and {@code NumberFormatException} quote the text they
+   * failed on, which here is the decrypted value.
+   */
+  private Object deserialize(byte[] data, TypeMarker typeMarker, Class<?> targetType)
+      throws EncryptionException {
+    try {
+      return deserializeValue(data, typeMarker, targetType);
+    } catch (RuntimeException e) {
+      throw new EncryptionException(
+          Messages.get("EncryptionService.deserializeFailed", new Object[]{typeMarker}),
+          EncryptionException.TYPE_CONVERSION_FAILED_STATE,
+          null)
+          .withDataType(targetType.getSimpleName())
+          .withContext("typeMarker", typeMarker);
+    }
+  }
+
   /** Deserializes bytes to the appropriate type. */
   private Object deserializeValue(byte[] data, TypeMarker typeMarker, Class<?> targetType)
-      throws Exception {
+      throws EncryptionException {
     switch (typeMarker) {
       case STRING:
         String str = new String(data, StandardCharsets.UTF_8);
@@ -438,7 +473,10 @@ public class EncryptionService {
         return convertToTargetType(ldtVal, targetType);
 
       case BYTE_ARRAY:
-        return convertToTargetType(data, targetType);
+        // The plaintext buffer is zeroized after deserialization, so a caller that receives the
+        // array itself gets a copy.
+        final Object converted = convertToTargetType(data, targetType);
+        return converted == data ? data.clone() : converted;
 
       default:
         throw EncryptionException.decryptionFailed(
@@ -447,7 +485,10 @@ public class EncryptionService {
     }
   }
 
-  /** Converts a value to the target type if possible. */
+  /**
+   * Converts a value to the target type if possible. The value is decrypted data, so a conversion
+   * failure carries neither the value nor the parser exception, whose message quotes its input.
+   */
   private Object convertToTargetType(Object value, Class<?> targetType) throws EncryptionException {
     if (value == null || targetType == null) {
       return value;
@@ -475,12 +516,7 @@ public class EncryptionService {
         try {
           return Base64.getDecoder().decode((String) value);
         } catch (IllegalArgumentException e) {
-          throw EncryptionException.typeConversionFailed("String", "byte[]", e)
-              .withContext(
-                  "stringValue",
-                  value.toString().length() > 50
-                      ? value.toString().substring(0, 47) + "..."
-                      : value.toString());
+          throw EncryptionException.typeConversionFailed("String", "byte[]", null);
         }
       } else if (value instanceof byte[]) {
         return value;
@@ -521,8 +557,7 @@ public class EncryptionService {
           return Boolean.valueOf(str);
         }
       } catch (NumberFormatException e) {
-        throw EncryptionException.typeConversionFailed("String", targetType.getSimpleName(), e)
-            .withContext("stringValue", str.length() > 50 ? str.substring(0, 47) + "..." : str);
+        throw EncryptionException.typeConversionFailed("String", targetType.getSimpleName(), null);
       }
     }
 
