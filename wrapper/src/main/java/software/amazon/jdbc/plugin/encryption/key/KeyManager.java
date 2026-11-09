@@ -250,16 +250,15 @@ public class KeyManager {
               .build();
 
       DecryptResponse response = executeWithRetry(() -> kmsClient.decrypt(request));
-      final byte[] decryptedKey = response.plaintext().asByteArray();
-      plaintextKey = decryptedKey;
+      plaintextKey = response.plaintext().asByteArray();
 
       // Cache the decrypted key if caching is enabled
       if (config.isDataKeyCacheEnabled()) {
-        dataKeyCache.put(cacheKey, decryptedKey);
+        dataKeyCache.put(cacheKey, plaintextKey);
       }
 
       LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{masterKeyArn}));
-      return decryptedKey;
+      return plaintextKey;
 
     } catch (Exception e) {
       // The key is not handed to the caller, so nothing else will zeroize it.
