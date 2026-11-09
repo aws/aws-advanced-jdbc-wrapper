@@ -474,8 +474,8 @@ public class EncryptionService {
         return convertToTargetType(ldtVal, targetType);
 
       case BYTE_ARRAY:
-        // The plaintext buffer is zeroized after deserialization, so a caller that receives the
-        // array itself gets a copy.
+        // data is decrypt()'s plaintext buffer, which its finally block zeroizes, so a caller that
+        // receives the array itself gets a copy.
         final Object converted = convertToTargetType(data, targetType);
         return converted == data ? data.clone() : converted;
 
