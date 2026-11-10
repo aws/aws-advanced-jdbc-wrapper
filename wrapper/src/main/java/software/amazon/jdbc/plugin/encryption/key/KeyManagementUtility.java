@@ -58,6 +58,16 @@ import software.amazon.jdbc.util.Messages;
  * Utility class providing administrative functions for key management operations. This class offers
  * high-level methods for creating master keys, setting up encryption for tables/columns, rotating
  * keys, and managing the encryption lifecycle.
+ *
+ * <p>Unlike the plugin, this utility does not require {@code encryptionAllowedMasterKeyArns}, so a
+ * new master key can be created and put to use in the same program. When the allow-list is
+ * configured on the {@link KeyManager}'s {@link EncryptionConfig}, it is enforced here too, so data
+ * keys can only be generated or decrypted under listed master keys. Without it, the rotate methods
+ * must be told which master key to rotate onto, since keeping the current one would mean trusting
+ * the ARN recorded in {@code key_storage}, and {@link #reencryptRemainingRows} refuses to run,
+ * since it re-encrypts into the column's current key as recorded there. Either way, add every
+ * master key a column uses to the application's allow-list, or the plugin will refuse to read or
+ * write that column.
  */
 public class KeyManagementUtility {
 
@@ -108,6 +118,25 @@ public class KeyManagementUtility {
     this.connection = Objects.requireNonNull(connection, "Connection cannot be null");
     this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
     this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
+  }
+
+  // Keeping the current master key means reusing the ARN recorded in key_storage, which is only
+  // safe when there is an allow-list to check it against. The allow-list is read from the
+  // KeyManager's config because that is the one enforced on every KMS call.
+  private void requireTargetMasterKey(final @Nullable String newMasterKeyArn) {
+    if (newMasterKeyArn == null && !keyManager.getConfig().restrictsMasterKeys()) {
+      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.targetMasterKeyRequired",
+          new Object[]{EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}));
+    }
+  }
+
+  // A refused master key is reported as is, so callers can tell it apart from a KMS or database
+  // failure by its SQL state.
+  private static void rethrowIfUnauthorizedMasterKey(Exception e) throws KeyManagementException {
+    if (e instanceof KeyManagementException
+        && KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE.equals(((KeyManagementException) e).getSQLState())) {
+      throw (KeyManagementException) e;
+    }
   }
 
   private Connection getConnection() throws SQLException {
@@ -346,6 +375,7 @@ public class KeyManagementUtility {
 
 
     } catch (Exception e) {
+      rethrowIfUnauthorizedMasterKey(e);
       LOGGER.severe(() -> Messages.get(
           "KeyManagementUtility.dataKeyStoreFailed", new Object[]{tableName, columnName, e.getMessage()}));
       throw new KeyManagementException(
@@ -381,13 +411,16 @@ public class KeyManagementUtility {
    *
    * @param tableName       Name of the table
    * @param columnName      Name of the column
-   * @param newMasterKeyArn Optional new master key ARN. If null, uses existing master key
-   * @throws KeyManagementException if key rotation fails
+   * @param newMasterKeyArn The master key to wrap the new data key with, or null to keep the
+   *     current one (requires {@code encryptionAllowedMasterKeyArns})
+   * @throws KeyManagementException if the master key is not allowed, or key rotation fails
+   * @throws IllegalArgumentException if no master key is given and no allow-list is configured
    */
   public void rotateDataKey(String tableName, String columnName, @Nullable String newMasterKeyArn)
       throws KeyManagementException {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
+    requireTargetMasterKey(newMasterKeyArn);
 
     LOGGER.info(() -> Messages.get("KeyManagementUtility.rotatingKey", new Object[]{tableName, columnName}));
 
@@ -438,6 +471,7 @@ public class KeyManagementUtility {
           "KeyManagementUtility.keyRotated", new Object[]{tableName, columnName, currentConfig.getKeyId(), newKeyId}));
 
     } catch (Exception e) {
+      rethrowIfUnauthorizedMasterKey(e);
       LOGGER.severe(() -> Messages.get(
           "KeyManagementUtility.keyRotationFailed", new Object[]{tableName, columnName, e.getMessage()}));
       throw new KeyManagementException(
@@ -488,16 +522,20 @@ public class KeyManagementUtility {
    * @param columnName Name of the encrypted column
    * @param primaryKeyColumn Name of a single, unique, NOT NULL column used to page through the
    *     table. Rows with a NULL value in this column are not processed.
-   * @param newMasterKeyArn Optional new master key ARN. If null, uses the current master key
+   * @param newMasterKeyArn The master key to wrap the new data key with, or null to keep the
+   *     current one (requires {@code encryptionAllowedMasterKeyArns})
    * @param batchSize Rows per transaction, 1 to {@link #MAX_REENCRYPTION_BATCH_SIZE}
    * @return the counts of re-encrypted, already-current and unmatched rows
-   * @throws KeyManagementException if the pre-check, the key creation, the switch or a batch fails
-   * @throws IllegalArgumentException if an identifier or the batch size is invalid
+   * @throws KeyManagementException if the master key is not allowed, or the pre-check, the key
+   *     creation, the switch or a batch fails
+   * @throws IllegalArgumentException if an identifier or the batch size is invalid, or no master
+   *     key is given and no allow-list is configured
    */
   public DataKeyReencryptionResult rotateDataKeyAndReencrypt(
       String tableName, String columnName, String primaryKeyColumn,
       @Nullable String newMasterKeyArn, int batchSize) throws KeyManagementException {
     validateReencryptionArguments(tableName, columnName, primaryKeyColumn, batchSize);
+    requireTargetMasterKey(newMasterKeyArn);
 
     Connection conn = null;
     boolean originalAutoCommit = true;
@@ -516,6 +554,8 @@ public class KeyManagementUtility {
       final StoredKey oldKey = current.key;
       keysToClear.add(oldKey);
       oldKeyId = oldKey.id;
+      // The batches decrypt the old data key, so refuse an unlisted master key before the switch.
+      keyManager.authorizeMasterKey(oldKey.masterKeyArn);
       final ColumnTarget column = new ColumnTarget(
           schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
       target = column;
@@ -669,13 +709,21 @@ public class KeyManagementUtility {
    *     with. Must not contain the current key id.
    * @param batchSize Rows per transaction, 1 to {@link #MAX_REENCRYPTION_BATCH_SIZE}
    * @return the counts of re-encrypted, already-current and unmatched rows
-   * @throws KeyManagementException if a key cannot be loaded or a batch fails
-   * @throws IllegalArgumentException if an identifier, the key id list or the batch size is invalid
+   * @throws KeyManagementException if the master key of the current or an old key is not allowed,
+   *     a key cannot be loaded or a batch fails
+   * @throws IllegalArgumentException if an identifier, the key id list or the batch size is
+   *     invalid, or no {@code encryptionAllowedMasterKeyArns} allow-list is configured
    */
   public DataKeyReencryptionResult reencryptRemainingRows(
       String tableName, String columnName, String primaryKeyColumn,
       List<Integer> oldKeyIds, int batchSize) throws KeyManagementException {
     validateReencryptionArguments(tableName, columnName, primaryKeyColumn, batchSize);
+    // The values are re-encrypted into the column's current key, whose master key is read from
+    // key_storage. Without an allow-list to check it against, a repointed row would decide it.
+    if (!keyManager.getConfig().restrictsMasterKeys()) {
+      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.reencryptAllowListRequired",
+          new Object[]{EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}));
+    }
     Objects.requireNonNull(oldKeyIds, Messages.get("KeyManagementUtility.oldKeyIdsNull"));
     final Set<Integer> uniqueOldKeyIds = new LinkedHashSet<>();
     for (Integer oldKeyId : oldKeyIds) {
@@ -712,6 +760,11 @@ public class KeyManagementUtility {
         }
         oldKeys.add(oldKey);
         keysToClear.add(oldKey);
+      }
+      // Refuse an unlisted master key before any batch runs, rather than partway through.
+      keyManager.authorizeMasterKey(current.key.masterKeyArn);
+      for (StoredKey oldKey : oldKeys) {
+        keyManager.authorizeMasterKey(oldKey.masterKeyArn);
       }
       final ColumnTarget target = new ColumnTarget(
           schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);

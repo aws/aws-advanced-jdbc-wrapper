@@ -119,6 +119,7 @@ public class KmsKeyRotationIntegrationTest {
 
   private static String kmsKeyId;
   private static String secondKmsKeyId;
+  private static String allowedMasterKeyArns;
   private static String region;
   private static boolean isPg;
   // Typed as Object on purpose: the KMS SDK is optional and absent from the classpath of non-encryption
@@ -138,6 +139,7 @@ public class KmsKeyRotationIntegrationTest {
     assumeTrue(kmsKeyId != null,
         "A KMS key must be provided via " + KMS_KEY_ID_ENV + " or " + KMS_KEY_ARN_ENV);
     secondKmsKeyId = firstNonEmpty(System.getenv(KMS_KEY_ID_2_ENV));
+    allowedMasterKeyArns = secondKmsKeyId == null ? kmsKeyId : kmsKeyId + "," + secondKmsKeyId;
 
     region = firstNonEmpty(regionFromArn(kmsKeyId), TestEnvironment.getCurrent().getInfo().getRegion());
     assumeTrue(region != null,
@@ -148,6 +150,7 @@ public class KmsKeyRotationIntegrationTest {
     encryptionConfig = EncryptionConfig.builder()
         .kmsRegion(region)
         .encryptionMetadataSchema(METADATA_SCHEMA)
+        .allowedMasterKeyArns(allowedMasterKeyArns)
         .build();
   }
 
@@ -718,6 +721,7 @@ public class KmsKeyRotationIntegrationTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
     props.setProperty(EncryptionConfig.METADATA_CACHE_REFRESH_INTERVAL_MS.name, "3600000");
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, allowedMasterKeyArns);
     final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
     connections.add(conn);
     return conn;

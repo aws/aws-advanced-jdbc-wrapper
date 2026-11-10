@@ -36,6 +36,7 @@ public class KeyManagementException extends SQLException {
   public static final String KEY_STORAGE_FAILED_STATE = "KEY04";
   public static final String KMS_CONNECTION_FAILED_STATE = "KEY05";
   public static final String INVALID_KEY_METADATA_STATE = "KEY06";
+  public static final String UNAUTHORIZED_MASTER_KEY_STATE = "KEY07";
 
   // Context values are nullable: the sanitizing helpers below map a null input to a null entry.
   private final Map<String, @Nullable Object> errorContext = new HashMap<>();
@@ -224,6 +225,19 @@ public class KeyManagementException extends SQLException {
   }
 
   /**
+   * Creates a KeyManagementException for a master key that is not on the configured allow-list.
+   *
+   * @param message Error message
+   * @param masterKeyArn the refused master key, as recorded in key_storage
+   * @return KeyManagementException instance
+   */
+  public static KeyManagementException unauthorizedMasterKey(
+      String message, final @Nullable String masterKeyArn) {
+    return new KeyManagementException(message, UNAUTHORIZED_MASTER_KEY_STATE, (Throwable) null)
+        .withMasterKeyArn(masterKeyArn);
+  }
+
+  /**
    * Creates a KeyManagementException for key storage failures.
    *
    * @param message Error message
@@ -270,15 +284,32 @@ public class KeyManagementException extends SQLException {
     return "***";
   }
 
-  private @Nullable String sanitizeArn(final @Nullable String arn) {
+  /**
+   * Masks a master key ARN for logs and error context: keeps only the key id, and replaces control
+   * characters, since the ARN may come from a key_storage row that someone rewrote.
+   *
+   * @param arn the master key ARN, alias, or key id
+   * @return the masked value, or null for null
+   */
+  static @Nullable String sanitizeArn(final @Nullable String arn) {
     if (arn == null) {
       return null;
     }
     // Keep only the key ID part of the ARN
     int lastSlash = arn.lastIndexOf('/');
     if (lastSlash != -1 && lastSlash < arn.length() - 1) {
-      return "arn:aws:kms:***:***:key/" + arn.substring(lastSlash + 1);
+      return "arn:aws:kms:***:***:key/" + replaceControlCharacters(arn.substring(lastSlash + 1));
     }
     return "arn:aws:kms:***:***:key/***";
   }
+
+  private static String replaceControlCharacters(final String value) {
+    final StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      final char c = value.charAt(i);
+      sb.append(Character.isISOControl(c) ? '?' : c);
+    }
+    return sb.toString();
+  }
+
 }

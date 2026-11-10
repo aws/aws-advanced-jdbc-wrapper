@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
@@ -97,14 +98,18 @@ public class EncryptingDataSourceFactory {
    * Creates an EncryptingDataSource with default encryption properties.
    *
    * @param dataSource The underlying DataSource to wrap
-   * @param kmsKeyArn The KMS key ARN for encryption
+   * @param allowedMasterKeyArns Comma-separated list of the master keys the encryption may use
+   *     (see {@link EncryptionConfig#ALLOWED_MASTER_KEY_ARNS}), in the form stored in
+   *     key_storage.master_key_arn. Each column's master key is read from key_storage; this list
+   *     does not choose it. While a column is rotated onto a new master key, list both, for example
+   *     {@code "arn:aws:kms:us-east-1:123456789012:key/old,arn:aws:kms:us-east-1:123456789012:key/new"}.
    * @param region The AWS region
    * @return An EncryptingDataSource instance
    * @throws SQLException if encryption initialization fails
    */
   public static EncryptingDataSource createWithDefaults(
-      DataSource dataSource, String kmsKeyArn, String region) throws SQLException {
-    Properties encryptionProperties = createDefaultEncryptionProperties(kmsKeyArn, region);
+      DataSource dataSource, String allowedMasterKeyArns, String region) throws SQLException {
+    Properties encryptionProperties = createDefaultEncryptionProperties(allowedMasterKeyArns, region);
     return create(dataSource, encryptionProperties);
   }
 
@@ -150,15 +155,18 @@ public class EncryptingDataSourceFactory {
   /**
    * Creates default encryption properties.
    *
-   * @param kmsKeyArn The KMS key ARN
+   * @param allowedMasterKeyArns Comma-separated master keys the encryption may use
    * @param region The AWS region
    * @return Properties with default encryption settings
    */
-  private static Properties createDefaultEncryptionProperties(String kmsKeyArn, String region) {
+  private static Properties createDefaultEncryptionProperties(String allowedMasterKeyArns, String region) {
     Properties properties = new Properties();
 
     // KMS configuration
     properties.setProperty(EncryptionConfig.KMS_REGION.name, region != null ? region : "us-east-1");
+    if (allowedMasterKeyArns != null) {
+      properties.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, allowedMasterKeyArns);
+    }
 
     // Cache configuration
     properties.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "true");
@@ -173,7 +181,7 @@ public class EncryptingDataSourceFactory {
     properties.setProperty(EncryptionConfig.METADATA_CACHE_REFRESH_INTERVAL_MS.name, "300000");
 
     logger.fine(
-        Messages.get("EncryptingDataSourceFactory.createdDefaults", new Object[]{kmsKeyArn, region}));
+        Messages.get("EncryptingDataSourceFactory.createdDefaults", new Object[]{allowedMasterKeyArns, region}));
 
     return properties;
   }
@@ -206,8 +214,33 @@ public class EncryptingDataSourceFactory {
       return this;
     }
 
+    /**
+     * Sets the only master key the encryption may use. Same as {@link #allowedMasterKeyArns(String)}
+     * with a single key; whichever of the two is called last wins.
+     *
+     * @param kmsKeyArn the master key ARN, alias, or key id
+     * @return this builder
+     * @deprecated The master key of each column is read from key_storage, so this value never chose
+     *     the key used for encryption. Use {@link #allowedMasterKeyArns(String)} instead.
+     */
+    @Deprecated
     public Builder kmsKeyArn(String kmsKeyArn) {
-      encryptionProperties.setProperty("kms.keyArn", kmsKeyArn);
+      return allowedMasterKeyArns(kmsKeyArn);
+    }
+
+    /**
+     * Sets the master keys the encryption may use (see {@link EncryptionConfig#ALLOWED_MASTER_KEY_ARNS}).
+     *
+     * @param allowedMasterKeyArns comma-separated master key ARNs, aliases or key ids, or null to
+     *     clear them
+     * @return this builder
+     */
+    public Builder allowedMasterKeyArns(final @Nullable String allowedMasterKeyArns) {
+      if (allowedMasterKeyArns == null) {
+        encryptionProperties.remove(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name);
+      } else {
+        encryptionProperties.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, allowedMasterKeyArns);
+      }
       return this;
     }
 

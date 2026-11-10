@@ -66,6 +66,7 @@ public class KeyManagementUtilityReencryptionTest {
 
   private static final String ALGORITHM = EncryptionAlgorithm.AES_256_GCM;
   private static final String MASTER_KEY_ARN = "arn:aws:kms:us-east-1:123456789012:key/test-master-key";
+  private static final String NEW_MASTER_KEY_ARN = "arn:aws:kms:us-east-1:123456789012:key/new-master-key";
   private static final String TABLE = "users";
   private static final String COLUMN = "ssn";
   private static final String PK = "id";
@@ -130,11 +131,17 @@ public class KeyManagementUtilityReencryptionTest {
   }
 
   private void init(boolean postgres, String tableName, String columnName) {
+    init(postgres, tableName, columnName, MASTER_KEY_ARN + "," + NEW_MASTER_KEY_ARN);
+  }
+
+  private void init(
+      boolean postgres, String tableName, String columnName, String allowedMasterKeyArns) {
     db = new FakeReencryptionDatabase(postgres, tableName, columnName);
     final EncryptionConfig config = EncryptionConfig.builder()
         .kmsRegion("us-east-1")
         .maxRetries(0)
         .dataKeyCacheEnabled(false)
+        .allowedMasterKeyArns(allowedMasterKeyArns)
         .build();
     keyManager = new KeyManager(kmsClient, db.getConnection(), postgres, config);
     utility = new KeyManagementUtility(keyManager, metadataManager, db.getConnection(), kmsClient, config);
@@ -190,7 +197,7 @@ public class KeyManagementUtilityReencryptionTest {
     for (long pk = 1; pk <= 4; pk++) {
       db.putRow(pk, encrypt("value-" + pk, oldKey));
     }
-    final String newMasterKeyArn = "arn:aws:kms:us-east-1:123456789012:key/new-master-key";
+    final String newMasterKeyArn = NEW_MASTER_KEY_ARN;
 
     final DataKeyReencryptionResult result =
         utility.rotateDataKeyAndReencrypt("app.users", COLUMN, PK, newMasterKeyArn, 2);
@@ -345,6 +352,165 @@ public class KeyManagementUtilityReencryptionTest {
     assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("INSERT")));
     assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("UPDATE")));
     assertRowsEqual(before, db.getRows());
+  }
+
+  // ---- master key allow-list ------------------------------------------------------------------
+
+  @Test
+  void rotate_withoutAllowList_requiresTheTargetMasterKey() throws Exception {
+    init(false, TABLE, COLUMN, null);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    assertThrows(IllegalArgumentException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+    assertThrows(IllegalArgumentException.class, () -> utility.rotateDataKey(TABLE, COLUMN, null));
+
+    verifyNoInteractions(kmsClient);
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void rotate_withoutAllowList_usesTheGivenMasterKey() throws Exception {
+    init(false, TABLE, COLUMN, null);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final DataKeyReencryptionResult result =
+        utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 10);
+
+    assertTrue(result.isComplete());
+    assertEquals(NEW_MASTER_KEY_ARN, db.getKey(result.getCurrentKeyId()).masterKeyArn);
+  }
+
+  @Test
+  void rotate_refusesAnUnlistedTargetMasterKey() throws Exception {
+    init(false, TABLE, COLUMN, MASTER_KEY_ARN);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 10));
+
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
+    verify(kmsClient, never()).generateDataKey(any(GenerateDataKeyRequest.class));
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertEquals(1, db.getKeyCount());
+  }
+
+  @Test
+  void rotate_refusesTheCurrentMasterKey_whenItIsNotListed() throws Exception {
+    init(false, TABLE, COLUMN, NEW_MASTER_KEY_ARN);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
+    verify(kmsClient, never()).generateDataKey(any(GenerateDataKeyRequest.class));
+    verify(kmsClient, never()).decrypt(any(DecryptRequest.class));
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+  }
+
+  @Test
+  void rotate_refusesAnUnlistedOldMasterKey_beforeTheSwitch() throws Exception {
+    // Only the target is listed: the batches could not decrypt the old data key.
+    init(false, TABLE, COLUMN, NEW_MASTER_KEY_ARN);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 10));
+
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
+    verifyNoInteractions(kmsClient);
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertEquals(1, db.getKeyCount());
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void repair_refusesAnUnlistedMasterKey_beforeAnyBatch() throws Exception {
+    init(false, TABLE, COLUMN, NEW_MASTER_KEY_ARN);
+    final TestKey oldKey = createKey("old");
+    final TestKey currentKey = createKey("current");
+    db.setMetadataKeyId(currentKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.reencryptRemainingRows(TABLE, COLUMN, PK, Collections.singletonList(oldKey.id), 10));
+
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
+    verifyNoInteractions(kmsClient);
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void repair_withoutAllowList_isRefused() throws Exception {
+    init(false, TABLE, COLUMN, null);
+    final TestKey oldKey = createKey("old");
+    final TestKey currentKey = createKey("current");
+    db.setMetadataKeyId(currentKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    assertThrows(IllegalArgumentException.class,
+        () -> utility.reencryptRemainingRows(TABLE, COLUMN, PK, Collections.singletonList(oldKey.id), 10));
+
+    verifyNoInteractions(kmsClient);
+    assertTrue(db.getExecutedSql().isEmpty(), db.getExecutedSql().toString());
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void legacyRotateDataKey_reportsAnUnlistedMasterKey() throws Exception {
+    init(false, TABLE, COLUMN, MASTER_KEY_ARN);
+    final TestKey key = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(key.id);
+    when(metadataManager.getColumnConfig(TABLE, COLUMN)).thenReturn(ColumnEncryptionConfig.builder()
+        .tableName(TABLE)
+        .columnName(COLUMN)
+        .algorithm(ALGORITHM)
+        .keyId(key.id)
+        .keyMetadata(KeyMetadata.builder()
+            .keyId(key.id)
+            .keyName("key-users-ssn-1")
+            .masterKeyArn(MASTER_KEY_ARN)
+            .encryptedDataKey(key.encryptedDataKey)
+            .hmacKey(key.hmacKey)
+            .keySpec("AES_256")
+            .createdAt(Instant.now())
+            .lastUsedAt(Instant.now())
+            .build())
+        .build());
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKey(TABLE, COLUMN, NEW_MASTER_KEY_ARN));
+
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
+    verifyNoInteractions(kmsClient);
+    assertEquals(key.id, db.getMetadataKeyId());
+  }
+
+  @Test
+  void generateAndStoreDataKey_reportsAnUnlistedMasterKey() {
+    init(false, TABLE, COLUMN, MASTER_KEY_ARN);
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.generateAndStoreDataKey(TABLE, COLUMN, NEW_MASTER_KEY_ARN, null));
+
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
+    verifyNoInteractions(kmsClient);
   }
 
   // ---- 5. repair after the switch and after the legacy rotateDataKey -------------------------

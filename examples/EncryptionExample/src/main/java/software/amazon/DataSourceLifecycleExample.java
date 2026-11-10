@@ -67,7 +67,7 @@ public class DataSourceLifecycleExample {
             .jdbcUrl("jdbc:postgresql://localhost:5432/mydb")
             .username("myuser")
             .password("mypassword")
-            .kmsKeyArn(
+            .allowedMasterKeyArns(
                 "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012")
             .region("us-east-1")
             .cacheEnabled(true)

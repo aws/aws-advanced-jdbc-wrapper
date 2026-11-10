@@ -123,6 +123,7 @@ implementation 'com.github.jsqlparser:jsqlparser:4.9'
 | Property | Available Since Version | Description | Required | Default |
 |----------|-------------------------|-------------|----------|---------|
 | `kms.region` | 4.0.0 | AWS KMS region for encryption operations | Yes | None |
+| `encryptionAllowedMasterKeyArns` | 4.7.0 | Comma-separated list of the KMS master keys the plugin may use. The plugin refuses to start without it. Each entry must match a `key_storage.master_key_arn` value exactly (the same ARN, alias, or key id that was used to set up the column). A data key that names any other master key, or none, is refused before KMS is called. See [Restricting the KMS keys the application can use](#restricting-the-kms-keys-the-application-can-use). | Yes | None |
 | `encryptionMetadataSchema` | 4.0.0 | Schema name for encryption metadata tables | No | `encrypt` |
 | `encryptionFailOnUnmappedParameter` | 4.6.0 | When `true` (default), the plugin rejects a statement on a table with encrypted columns with an `SQLException` at prepare time if it cannot reliably map the statement's parameters to columns (see [Limitations](#limitations)). When `false`, the plugin only logs a WARNING and prepares the statement; values bound to encrypted columns may then be written unencrypted. | No | `true` |
 | `metadataCacheEnabled` | 4.0.0 | Enable/disable metadata caching | No | `true` |
@@ -144,6 +145,9 @@ props.setProperty("user", "username");
 props.setProperty("password", "password");
 props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption"); // kmsEncryption requires sqlParser
 props.setProperty("kms.region", "us-east-1");
+// The KMS master keys the plugin may use, as recorded in key_storage.master_key_arn
+props.setProperty("encryptionAllowedMasterKeyArns",
+    "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
 props.setProperty("auditLoggingEnabled", "true");
 
 Connection conn = DriverManager.getConnection(url, props);
@@ -345,6 +349,18 @@ try (PreparedStatement stmt = connection.prepareStatement(sql2)) {
 
 ## Security Considerations
 
+### Restricting the KMS keys the application can use
+
+The plugin does not take the master key for a column from its own configuration: it reads it from the column's `key_storage` row and asks KMS to decrypt the data key under it. Two independent controls keep a changed row from pointing the plugin at a key it should not use, such as a key in another AWS account.
+
+**List the permitted master keys in `encryptionAllowedMasterKeyArns`.** This property is required; the plugin refuses to start without it. Before every KMS call, including when the data key is already cached, the plugin checks the master key named by `key_storage` against the list. A key that is not listed, or a row that names no key, is refused with a `KeyManagementException` whose SQL state is `KEY07`, and KMS is never called. The refusal applies to reads and writes alike.
+
+The comparison is exact, so list each key in the same form (ARN, alias, or key id) that was passed to `KeyManagementUtility` when the column was set up. Add a new master key to the list before rotating a column onto it, or the application will refuse that column until the list is updated. Keep the old master key listed, and allowed `kms:Decrypt` in the application's IAM policy, until every application instance has picked up the new key (after `metadataCacheRefreshIntervalMs`, or a restart): until then, instances still using their cached metadata keep reading and writing the column with the old data key, which is wrapped under the old master key. The re-encryption itself also decrypts the old data key, so the old master key must stay on the allow-list given to `KeyManagementUtility`, and allowed in its IAM policy, until the re-encryption is complete.
+
+`KeyManagementUtility` does not require the list, so a program can create a master key and use it straight away, but it enforces the list when the `EncryptionConfig` passed to its `KeyManager` has one (`EncryptionConfig.builder().allowedMasterKeyArns(...)`). Without the list, `rotateDataKey()` and `rotateDataKeyAndReencrypt()` must be passed the master key to rotate onto, and throw an `IllegalArgumentException` when given `null`: keeping the current key would mean trusting whatever ARN `key_storage` holds. For the same reason, `reencryptRemainingRows()` throws an `IllegalArgumentException` without the list, because it re-encrypts into the column's current key as recorded in `key_storage`.
+
+**Scope the application's IAM permissions to the same keys.** Grant the credentials the plugin runs under only the KMS actions they need, on the specific master key ARN(s) the columns use - never `"Resource": "*"`. Use a distinct key per environment. This also blocks a key in another AWS account: using one requires permission in your own account's policy as well as in that key's policy.
+
 ### KMS Key Permissions
 
 Ensure your application has the necessary KMS permissions:
@@ -389,14 +405,16 @@ Ensure your application has the necessary KMS permissions:
 2. **Metadata Table Not Found**: Verify the encryption metadata table exists and is accessible
 3. **Region Mismatch**: Ensure the KMS region matches where your key is located
 4. **Invalid Key ID**: Verify the KMS key ID or ARN is correct and accessible
-5. **`Refusing to prepare a statement on table '...': it has encrypted columns, but the statement's parameters cannot be reliably mapped to columns (...)`**: The statement writes to a table with encrypted columns, but the plugin cannot tell which parameter belongs to which column, so it cannot guarantee that the encrypted column values get encrypted. The text in parentheses names the reason, for example `INSERT without a column list` or `column ssn receives parameter(s) 2 inside an expression`. The message never contains the SQL text or parameter values. To fix it, rewrite the statement in one of the supported shapes listed in [Limitations](#limitations):
+5. **`encryptionAllowedMasterKeyArns is required: list the KMS master key ARNs the KMS encryption plugin may use`**: The plugin was loaded without `encryptionAllowedMasterKeyArns`. Set it to the master keys your columns use; `SELECT DISTINCT master_key_arn FROM encrypt.key_storage` lists them. Check each one before you add it: the point of the list is that `key_storage` is not trusted.
+6. **`The master key is not listed in encryptionAllowedMasterKeyArns; refusing to use it`** (SQL state `KEY07`): The column's `key_storage` row names a master key that is not on the list. If the key is yours, add it to the list in exactly the form stored in `key_storage.master_key_arn`. If it is not, someone changed the row: investigate before you change anything.
+7. **`Refusing to prepare a statement on table '...': it has encrypted columns, but the statement's parameters cannot be reliably mapped to columns (...)`**: The statement writes to a table with encrypted columns, but the plugin cannot tell which parameter belongs to which column, so it cannot guarantee that the encrypted column values get encrypted. The text in parentheses names the reason, for example `INSERT without a column list` or `column ssn receives parameter(s) 2 inside an expression`. The message never contains the SQL text or parameter values. To fix it, rewrite the statement in one of the supported shapes listed in [Limitations](#limitations):
    - list the columns explicitly: `INSERT INTO users (name, ssn) VALUES (?, ?)`;
    - bind each encrypted column value with its own `?`, for example `SET ssn = ?` instead of `SET ssn = lower(?)` or `SET ssn = (SELECT ...)`;
    - do not write literals or expressions into encrypted columns;
    - use `INSERT` or `UPDATE` instead of `REPLACE` or `MERGE`, and plain `?` placeholders instead of numbered ones (`?1`).
 
    Only if you have verified that the statement never writes an unencrypted value to an encrypted column, set `encryptionFailOnUnmappedParameter=false`. The plugin then logs a WARNING and prepares the statement.
-6. **`... is not supported for encrypted columns. Use setString, setNString, setBytes or setObject.`**: A stream or LOB setter (`setCharacterStream`, `setBinaryStream`, `setClob`, `setBlob`, and similar) was called for a parameter that maps to an encrypted column. Pass the value with one of the listed setters.
+8. **`... is not supported for encrypted columns. Use setString, setNString, setBytes or setObject.`**: A stream or LOB setter (`setCharacterStream`, `setBinaryStream`, `setClob`, `setBlob`, and similar) was called for a parameter that maps to an encrypted column. Pass the value with one of the listed setters.
 
 ### Debugging
 

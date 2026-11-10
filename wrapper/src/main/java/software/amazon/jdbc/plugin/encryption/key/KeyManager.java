@@ -186,9 +186,10 @@ public class KeyManager {
    *
    * @param masterKeyArn ARN of the master key to use for data key generation
    * @return DataKeyResult containing both plaintext and encrypted data keys
-   * @throws KeyManagementException if data key generation fails
+   * @throws KeyManagementException if the master key is not allowed, or data key generation fails
    */
   public DataKeyResult generateDataKey(String masterKeyArn) throws KeyManagementException {
+    authorizeMasterKey(masterKeyArn);
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
     LOGGER.finest(() -> Messages.get("KeyManager.generatingDataKey", new Object[]{masterKeyArn}));
@@ -215,13 +216,19 @@ public class KeyManager {
   /**
    * Decrypts an encrypted data key using KMS with caching support.
    *
+   * <p>The master key ARN comes from key_storage, so it is checked against the configured
+   * allow-list before anything else, including the cache lookup: a row repointed at another master
+   * key is refused rather than decrypted. KMS is then told which key to use, so a data key wrapped
+   * under a different key fails there too.
+   *
    * @param encryptedDataKey Base64-encoded encrypted data key
-   * @param masterKeyArn ARN of the master key used for encryption
+   * @param masterKeyArn ARN of the master key the data key was wrapped with
    * @return Decrypted data key as byte array
-   * @throws KeyManagementException if decryption fails
+   * @throws KeyManagementException if the master key is not allowed, or decryption fails
    */
   public byte[] decryptDataKey(String encryptedDataKey, String masterKeyArn)
       throws KeyManagementException {
+    authorizeMasterKey(masterKeyArn);
     Objects.requireNonNull(encryptedDataKey, "Encrypted data key cannot be null");
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
@@ -450,6 +457,33 @@ public class KeyManager {
    */
   public DataKeyCache getDataKeyCache() {
     return dataKeyCache;
+  }
+
+  /** The configuration whose master key allow-list this key manager enforces. */
+  EncryptionConfig getConfig() {
+    return config;
+  }
+
+  /**
+   * Refuses a master key that is not on the configured allow-list. Called before every KMS data
+   * key call, and by {@link KeyManagementUtility} before it changes anything.
+   *
+   * @param masterKeyArn the master key, as recorded in key_storage
+   * @throws KeyManagementException with {@link KeyManagementException#UNAUTHORIZED_MASTER_KEY_STATE}
+   *     if the key is not allowed
+   */
+  void authorizeMasterKey(final @Nullable String masterKeyArn) throws KeyManagementException {
+    if (config.isMasterKeyAllowed(masterKeyArn)) {
+      return;
+    }
+    // The ARN comes from key_storage and may have been written by someone else, so it is masked.
+    LOGGER.warning(() -> Messages.get("KeyManager.masterKeyNotAllowed",
+        new Object[]{KeyManagementException.sanitizeArn(masterKeyArn),
+            EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}));
+    throw KeyManagementException.unauthorizedMasterKey(
+        Messages.get("KeyManager.masterKeyNotAllowedExc",
+            new Object[]{EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}),
+        masterKeyArn);
   }
 
   /** Clears the data key cache. */
