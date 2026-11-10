@@ -27,7 +27,6 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.awssdk.services.kms.endpoints.internal.Value.Int;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
