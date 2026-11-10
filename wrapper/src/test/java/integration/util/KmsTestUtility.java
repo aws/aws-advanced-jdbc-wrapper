@@ -16,8 +16,10 @@
 
 package integration.util;
 
+import integration.container.ConnectionStringHelper;
 import java.security.SecureRandom;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -172,6 +174,12 @@ public final class KmsTestUtility {
         .build();
   }
 
+  /** Opens a direct (non-wrapper) connection to the current test database. */
+  public static Connection openPlainConnection() throws SQLException {
+    return DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+  }
+
   /**
    * Creates the encryption metadata schema and its {@code key_storage} and {@code encryption_metadata}
    * tables from scratch, dropping any existing schema first. On PostgreSQL it also installs the
@@ -263,6 +271,22 @@ public final class KmsTestUtility {
   public static ColumnKey configureColumn(
       final Connection conn, final SchemaName metadataSchema, final boolean isPg, final String region,
       final String kmsKeyId, final String keyName, final String table, final String column) throws Exception {
+    final byte[] hmacKey = new byte[32];
+    new SecureRandom().nextBytes(hmacKey);
+    return configureColumnWithHmacKey(
+        conn, metadataSchema, isPg, region, kmsKeyId, keyName, table, column, hmacKey);
+  }
+
+  /**
+   * Same as {@link #configureColumn} but stores the given HMAC key instead of a random one, so a
+   * test can exercise a key with known byte values (for example bytes {@code >= 128} on MySQL).
+   *
+   * @param hmacKey the 32-byte HMAC key to store for the column
+   */
+  public static ColumnKey configureColumnWithHmacKey(
+      final Connection conn, final SchemaName metadataSchema, final boolean isPg, final String region,
+      final String kmsKeyId, final String keyName, final String table, final String column,
+      final byte[] hmacKey) throws Exception {
     // Generate a KMS data key. KMS accepts a key id, key ARN or alias.
     final String encryptedDataKeyBase64;
     final byte[] dataKey;
@@ -274,9 +298,6 @@ public final class KmsTestUtility {
           Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
       dataKey = dataKeyResponse.plaintext().asByteArray();
     }
-
-    final byte[] hmacKey = new byte[32];
-    new SecureRandom().nextBytes(hmacKey);
 
     final String prefix = (metadataSchema != null) ? metadataSchema.getValue() + "." : "";
     final String insertKeySql =
