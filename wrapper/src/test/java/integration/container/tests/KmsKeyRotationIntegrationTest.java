@@ -35,6 +35,7 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.KmsTestUtility;
 import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -61,7 +62,6 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin;
@@ -104,8 +104,6 @@ public class KmsKeyRotationIntegrationTest {
 
   private static final Logger LOGGER = Logger.getLogger(KmsKeyRotationIntegrationTest.class.getName());
 
-  private static final String KMS_KEY_ID_ENV = "KMS_KEY_ID";
-  private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
   private static final String KMS_KEY_ID_2_ENV = "KMS_KEY_ID_2";
   private static final String METADATA_SCHEMA = "encrypt";
   private static final String HMAC_FAILURE = "HMAC verification failed";
@@ -113,9 +111,6 @@ public class KmsKeyRotationIntegrationTest {
   private static final String SCORE = "score";
   private static final String PK = "id";
   private static final SecureRandom RANDOM = new SecureRandom();
-  // MySQL errors when the user may not create routines or triggers (binary logging without SUPER or
-  // log_bin_trust_function_creators, or a missing privilege).
-  private static final List<Integer> MYSQL_ROUTINE_PRIVILEGE_ERRORS = Arrays.asList(1419, 1227, 1142, 1370);
 
   private static String kmsKeyId;
   private static String secondKmsKeyId;
@@ -135,18 +130,20 @@ public class KmsKeyRotationIntegrationTest {
 
   @BeforeAll
   static void setUp() throws Exception {
-    kmsKeyId = firstNonEmpty(System.getenv(KMS_KEY_ID_ENV), System.getenv(KMS_KEY_ARN_ENV));
+    kmsKeyId = KmsTestUtility.resolveKmsKeyId();
     assumeTrue(kmsKeyId != null,
-        "A KMS key must be provided via " + KMS_KEY_ID_ENV + " or " + KMS_KEY_ARN_ENV);
-    secondKmsKeyId = firstNonEmpty(System.getenv(KMS_KEY_ID_2_ENV));
+        "A KMS key must be provided via " + KmsTestUtility.KMS_KEY_ID_ENV
+            + " or " + KmsTestUtility.KMS_KEY_ARN_ENV);
+    secondKmsKeyId = KmsTestUtility.firstNonEmpty(System.getenv(KMS_KEY_ID_2_ENV));
     allowedMasterKeyArns = secondKmsKeyId == null ? kmsKeyId : kmsKeyId + "," + secondKmsKeyId;
 
-    region = firstNonEmpty(regionFromArn(kmsKeyId), TestEnvironment.getCurrent().getInfo().getRegion());
+    region = KmsTestUtility.resolveRegion(kmsKeyId, TestEnvironment.getCurrent().getInfo().getRegion());
     assumeTrue(region != null,
-        "The KMS region is unknown: pass " + KMS_KEY_ID_ENV + " as a key ARN or run on an AWS deployment");
+        "The KMS region is unknown: pass " + KmsTestUtility.KMS_KEY_ID_ENV
+            + " as a key ARN or run on an AWS deployment");
 
     isPg = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
-    kmsClient = KmsClient.builder().region(Region.of(region)).build();
+    kmsClient = KmsTestUtility.kmsClient(region);
     encryptionConfig = EncryptionConfig.builder()
         .kmsRegion(region)
         .encryptionMetadataSchema(METADATA_SCHEMA)
@@ -166,60 +163,8 @@ public class KmsKeyRotationIntegrationTest {
     }
     final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
     try (Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
-         Statement stmt = conn.createStatement()) {
-      if (isPg) {
-        stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
-      } else {
-        stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema);
-      }
-      stmt.execute("CREATE SCHEMA " + metadataSchema);
-
-      if (isPg) {
-        stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-        EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".key_storage ("
-                + "id SERIAL PRIMARY KEY, "
-                + "name VARCHAR(255) NOT NULL, "
-                + "master_key_arn VARCHAR(512) NOT NULL, "
-                + "encrypted_data_key TEXT NOT NULL, "
-                + "hmac_key BYTEA NOT NULL, "
-                + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-                + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".encryption_metadata ("
-                + "table_name VARCHAR(255) NOT NULL, "
-                + "column_name VARCHAR(255) NOT NULL, "
-                + "encryption_algorithm VARCHAR(50) NOT NULL, "
-                + "key_id INTEGER NOT NULL, "
-                + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "PRIMARY KEY (table_name, column_name), "
-                + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
-      } else {
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".key_storage ("
-                + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                + "name VARCHAR(255) NOT NULL, "
-                + "master_key_arn VARCHAR(512) NOT NULL, "
-                + "encrypted_data_key TEXT NOT NULL, "
-                + "hmac_key VARBINARY(32) NOT NULL, "
-                + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-                + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-                + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".encryption_metadata ("
-                + "table_name VARCHAR(255) NOT NULL, "
-                + "column_name VARCHAR(255) NOT NULL, "
-                + "encryption_algorithm VARCHAR(50) NOT NULL, "
-                + "key_id INT NOT NULL, "
-                + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-                + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-                + "PRIMARY KEY (table_name, column_name), "
-                + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
-      }
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+      KmsTestUtility.createMetadataTables(conn, metadataSchema, isPg);
     }
     metadataSchemaReady = true;
     LOGGER.finest("Key rotation test setup completed");
@@ -650,7 +595,7 @@ public class KmsKeyRotationIntegrationTest {
       EncryptedDataTypeInstaller.installMySqlHmacValidation(conn, SchemaName.of(METADATA_SCHEMA));
       EncryptedDataTypeInstaller.createMySqlHmacTriggers(conn, table, SSN);
     } catch (SQLException e) {
-      assumeTrue(!MYSQL_ROUTINE_PRIVILEGE_ERRORS.contains(e.getErrorCode()),
+      assumeTrue(!KmsTestUtility.isRoutinePrivilegeError(e),
           "The MySQL HMAC validation triggers could not be installed: " + e.getMessage());
       throw e;
     }
@@ -970,21 +915,4 @@ public class KmsKeyRotationIntegrationTest {
     return sb.toString();
   }
 
-  private static String regionFromArn(String keyId) {
-    // arn:aws:kms:<region>:<account>:key/<id>
-    if (keyId == null || !keyId.startsWith("arn:")) {
-      return null;
-    }
-    final String[] parts = keyId.split(":");
-    return parts.length > 3 ? parts[3] : null;
-  }
-
-  private static String firstNonEmpty(String... values) {
-    for (String value : values) {
-      if (value != null && !value.trim().isEmpty()) {
-        return value.trim();
-      }
-    }
-    return null;
-  }
 }

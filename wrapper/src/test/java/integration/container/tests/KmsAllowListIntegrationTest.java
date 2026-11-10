@@ -30,14 +30,15 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.KmsTestUtility;
 import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterAll;
@@ -50,16 +51,10 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.key.KeyManagementException;
-import software.amazon.jdbc.plugin.encryption.key.KeyManagementUtility;
-import software.amazon.jdbc.plugin.encryption.key.KeyManager;
-import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /**
  * Integration tests for {@code encryptionAllowedMasterKeyArns}. The master key a column's data key
@@ -87,9 +82,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 @Order(16)
 public class KmsAllowListIntegrationTest {
 
-  private static final String KMS_KEY_ID_ENV = "KMS_KEY_ID";
-  private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
-  private static final String METADATA_SCHEMA = "encrypt";
+  private static final SchemaName METADATA_SCHEMA = SchemaName.of("encrypt");
   private static final String SSN = "ssn";
   private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -97,35 +90,25 @@ public class KmsAllowListIntegrationTest {
   private static String unlistedArn;
   private static String region;
   private static boolean isPg;
-  // Typed as Object on purpose: the KMS SDK is optional and absent from the classpath of non-encryption
-  // test runs. A field of type KmsClient makes JUnit fail while discovering this class
-  // (NoClassDefFoundError), before the class-level conditions can skip it.
-  private static Object kmsClient;
-  private static EncryptionConfig encryptionConfig;
   private static boolean metadataSchemaReady;
 
   private final List<String> tables = new ArrayList<>();
   private final List<Connection> connections = new ArrayList<>();
-  private final List<MetadataManager> metadataManagers = new ArrayList<>();
 
   @BeforeAll
   static void setUp() {
-    kmsKeyId = firstNonEmpty(System.getenv(KMS_KEY_ID_ENV), System.getenv(KMS_KEY_ARN_ENV));
+    kmsKeyId = KmsTestUtility.resolveKmsKeyId();
     assumeTrue(kmsKeyId != null,
-        "A KMS key must be provided via " + KMS_KEY_ID_ENV + " or " + KMS_KEY_ARN_ENV);
+        "A KMS key must be provided via " + KmsTestUtility.KMS_KEY_ID_ENV
+            + " or " + KmsTestUtility.KMS_KEY_ARN_ENV);
 
-    region = firstNonEmpty(regionFromArn(kmsKeyId), TestEnvironment.getCurrent().getInfo().getRegion());
+    region = KmsTestUtility.resolveRegion(kmsKeyId, TestEnvironment.getCurrent().getInfo().getRegion());
     assumeTrue(region != null,
-        "The KMS region is unknown: pass " + KMS_KEY_ID_ENV + " as a key ARN or run on an AWS deployment");
+        "The KMS region is unknown: pass " + KmsTestUtility.KMS_KEY_ID_ENV
+            + " as a key ARN or run on an AWS deployment");
     unlistedArn = "arn:aws:kms:" + region + ":000000000000:key/00000000-0000-0000-0000-000000000000";
 
     isPg = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
-    kmsClient = KmsClient.builder().region(Region.of(region)).build();
-    encryptionConfig = EncryptionConfig.builder()
-        .kmsRegion(region)
-        .encryptionMetadataSchema(METADATA_SCHEMA)
-        .allowedMasterKeyArns(kmsKeyId)
-        .build();
   }
 
   /**
@@ -138,57 +121,8 @@ public class KmsAllowListIntegrationTest {
     if (metadataSchemaReady) {
       return;
     }
-    final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
-    try (Connection conn = openPlainConnection();
-         Statement stmt = conn.createStatement()) {
-      stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + (isPg ? " CASCADE" : ""));
-      stmt.execute("CREATE SCHEMA " + metadataSchema);
-
-      if (isPg) {
-        stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-        EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".key_storage ("
-                + "id SERIAL PRIMARY KEY, "
-                + "name VARCHAR(255) NOT NULL, "
-                + "master_key_arn VARCHAR(512) NOT NULL, "
-                + "encrypted_data_key TEXT NOT NULL, "
-                + "hmac_key BYTEA NOT NULL, "
-                + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-                + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".encryption_metadata ("
-                + "table_name VARCHAR(255) NOT NULL, "
-                + "column_name VARCHAR(255) NOT NULL, "
-                + "encryption_algorithm VARCHAR(50) NOT NULL, "
-                + "key_id INTEGER NOT NULL, "
-                + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "PRIMARY KEY (table_name, column_name), "
-                + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
-      } else {
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".key_storage ("
-                + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                + "name VARCHAR(255) NOT NULL, "
-                + "master_key_arn VARCHAR(512) NOT NULL, "
-                + "encrypted_data_key TEXT NOT NULL, "
-                + "hmac_key VARBINARY(32) NOT NULL, "
-                + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-                + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-                + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        stmt.execute(
-            "CREATE TABLE " + metadataSchema + ".encryption_metadata ("
-                + "table_name VARCHAR(255) NOT NULL, "
-                + "column_name VARCHAR(255) NOT NULL, "
-                + "encryption_algorithm VARCHAR(50) NOT NULL, "
-                + "key_id INT NOT NULL, "
-                + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-                + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-                + "PRIMARY KEY (table_name, column_name), "
-                + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
-      }
+    try (Connection conn = openPlainConnection()) {
+      KmsTestUtility.createMetadataTables(conn, METADATA_SCHEMA, isPg);
     }
     metadataSchemaReady = true;
   }
@@ -196,10 +130,6 @@ public class KmsAllowListIntegrationTest {
   @AfterAll
   static void tearDown() {
     metadataSchemaReady = false;
-    if (kmsClient != null) {
-      ((KmsClient) kmsClient).close();
-      kmsClient = null;
-    }
   }
 
   @AfterEach
@@ -212,29 +142,12 @@ public class KmsAllowListIntegrationTest {
       }
     }
     connections.clear();
-    for (MetadataManager metadataManager : metadataManagers) {
-      metadataManager.shutdown();
-    }
-    metadataManagers.clear();
     if (tables.isEmpty()) {
       return;
     }
     try (Connection conn = openPlainConnection()) {
       for (String table : tables) {
-        try (Statement stmt = conn.createStatement()) {
-          stmt.execute("DROP TABLE IF EXISTS " + table);
-        }
-        try (PreparedStatement stmt = conn.prepareStatement(
-            "DELETE FROM " + METADATA_SCHEMA + ".encryption_metadata WHERE table_name = ?")) {
-          stmt.setString(1, table);
-          stmt.executeUpdate();
-        }
-        // Only the database rows are removed. The KMS keys are never touched.
-        try (PreparedStatement stmt = conn.prepareStatement(
-            "DELETE FROM " + METADATA_SCHEMA + ".key_storage WHERE name LIKE ?")) {
-          stmt.setString(1, "key-" + table + "-%");
-          stmt.executeUpdate();
-        }
+        KmsTestUtility.teardown(conn, METADATA_SCHEMA, table);
       }
     }
     tables.clear();
@@ -252,9 +165,10 @@ public class KmsAllowListIntegrationTest {
 
   @TestTemplate
   void test02RefusesToDecryptColumnWithUnlistedMasterKey() throws Exception {
-    final String table = createEncryptedTable("read");
+    final String table = "kms_allow_read_" + randomHex(6);
+    final int keyId = createEncryptedTable(table);
     insert(openPluginConnection(pluginProps()), table, "Alice", "111-11-1111");
-    repointMasterKey(table, unlistedArn);
+    repointMasterKey(keyId, unlistedArn);
 
     // A fresh connection builds its own metadata and data key caches, so it reads key_storage as it
     // stands now.
@@ -264,9 +178,10 @@ public class KmsAllowListIntegrationTest {
 
   @TestTemplate
   void test03RefusesToEncryptIntoColumnWithUnlistedMasterKey() throws Exception {
-    final String table = createEncryptedTable("write");
+    final String table = "kms_allow_write_" + randomHex(6);
+    final int keyId = createEncryptedTable(table);
     insert(openPluginConnection(pluginProps()), table, "Alice", "111-11-1111");
-    repointMasterKey(table, unlistedArn);
+    repointMasterKey(keyId, unlistedArn);
 
     final Connection conn = openPluginConnection(pluginProps());
     assertUnauthorizedMasterKey(() -> insert(conn, table, "Bob", "222-22-2222"));
@@ -286,7 +201,7 @@ public class KmsAllowListIntegrationTest {
     // kmsEncryption needs the SQL parse results that the sqlParser plugin puts in the call context.
     props.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
-    props.setProperty(EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.name, METADATA_SCHEMA);
+    props.setProperty(EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.name, METADATA_SCHEMA.getValue());
     props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, kmsKeyId);
     return props;
   }
@@ -297,34 +212,27 @@ public class KmsAllowListIntegrationTest {
     return conn;
   }
 
-  /** Creates a table with a unique name and an encrypted ssn column under the listed master key. */
-  private String createEncryptedTable(String scenario) throws Exception {
-    final String table = "kms_allow_" + scenario + "_" + randomHex(6);
+  /**
+   * Creates the table with an encrypted ssn column under the listed master key.
+   *
+   * @return the column's key_storage id
+   */
+  private int createEncryptedTable(String table) throws Exception {
     tables.add(table);
     try (Connection conn = openPlainConnection()) {
-      try (Statement stmt = conn.createStatement()) {
-        stmt.execute("CREATE TABLE " + table + " ("
-            + (isPg ? "id SERIAL PRIMARY KEY, " : "id INT AUTO_INCREMENT PRIMARY KEY, ")
-            + "name VARCHAR(100), "
-            + SSN + (isPg ? " encrypted_data" : " VARBINARY(256)") + ")");
-      }
-      final KmsClient client = (KmsClient) kmsClient;
-      final KeyManager keyManager = new KeyManager(client, conn, isPg, encryptionConfig);
-      final MetadataManager metadataManager = new MetadataManager(conn, encryptionConfig);
-      metadataManagers.add(metadataManager);
-      new KeyManagementUtility(keyManager, metadataManager, conn, client, encryptionConfig)
-          .generateAndStoreDataKey(table, SSN, kmsKeyId, null);
+      KmsTestUtility.createAppTable(conn, isPg, table, Collections.singletonList(SSN), null);
+      return KmsTestUtility.configureColumn(
+          conn, METADATA_SCHEMA, isPg, region, kmsKeyId, "key-" + table + "-" + SSN, table, SSN).keyId();
     }
-    return table;
   }
 
   /** Rewrites the column's key_storage row the way someone with write access to it could. */
-  private static void repointMasterKey(String table, String arn) throws SQLException {
+  private static void repointMasterKey(int keyId, String arn) throws SQLException {
     try (Connection conn = openPlainConnection();
          PreparedStatement stmt = conn.prepareStatement(
-             "UPDATE " + METADATA_SCHEMA + ".key_storage SET master_key_arn = ? WHERE name LIKE ?")) {
+             "UPDATE " + METADATA_SCHEMA + ".key_storage SET master_key_arn = ? WHERE id = ?")) {
       stmt.setString(1, arn);
-      stmt.setString(2, "key-" + table + "-%");
+      stmt.setInt(2, keyId);
       assertEquals(1, stmt.executeUpdate());
     }
   }
@@ -395,23 +303,5 @@ public class KmsAllowListIntegrationTest {
       sb.append(Character.forDigit(RANDOM.nextInt(16), 16));
     }
     return sb.toString();
-  }
-
-  private static String regionFromArn(String keyId) {
-    // arn:aws:kms:<region>:<account>:key/<id>
-    if (keyId == null || !keyId.startsWith("arn:")) {
-      return null;
-    }
-    final String[] parts = keyId.split(":");
-    return parts.length > 3 ? parts[3] : null;
-  }
-
-  private static String firstNonEmpty(String... values) {
-    for (String value : values) {
-      if (value != null && !value.trim().isEmpty()) {
-        return value.trim();
-      }
-    }
-    return null;
   }
 }
