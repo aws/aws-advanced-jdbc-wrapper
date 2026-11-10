@@ -52,7 +52,7 @@ public class EncryptedDataTypeInstaller {
 
       // Use DOMAIN-based implementation
       String sql = loadSqlScript(SQL_RESOURCE_PATH);
-      sql = sql.replaceFirst(SCHEMA_PLACEHOLDER, metaDataSchema.getValue());
+      sql = sql.replace(SCHEMA_PLACEHOLDER, metaDataSchema.getValue());
       stmt.execute(sql);
 
       LOGGER.info(Messages.get("EncryptedDataTypeInstaller.installed"));

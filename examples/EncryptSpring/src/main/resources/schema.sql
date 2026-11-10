@@ -82,7 +82,6 @@ RETURNS trigger
 SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
-    metadata_schema text := 'encrypt';
     col_name text := TG_ARGV[0];
     col_value bytea;
     hmac_key bytea;
@@ -106,13 +105,12 @@ BEGIN
     END IF;
 
     -- Read the column's current HMAC key from key_storage for every row. The key is never
-    -- cached in the session, so a session cannot preset it ahead of this check.
-    EXECUTE format(
-        'SELECT ks.hmac_key FROM %I.encryption_metadata em '
-        || 'JOIN %I.key_storage ks ON em.key_id = ks.id '
-        || 'WHERE em.table_name = $1 AND em.column_name = $2',
-        metadata_schema, metadata_schema
-    ) INTO hmac_key USING TG_TABLE_NAME, col_name;
+    -- cached in the session, so a session cannot preset it ahead of this check. The query is static
+    -- so PL/pgSQL caches its plan across rows.
+    SELECT ks.hmac_key INTO hmac_key
+      FROM encrypt.encryption_metadata em
+      JOIN encrypt.key_storage ks ON em.key_id = ks.id
+     WHERE em.table_name = TG_TABLE_NAME AND em.column_name = col_name;
 
     IF hmac_key IS NULL THEN
         RAISE EXCEPTION 'No HMAC key found for %.%', TG_TABLE_NAME, col_name;

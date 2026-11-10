@@ -218,7 +218,7 @@ CREATE TRIGGER users_ssn_hmac_upd BEFORE UPDATE ON users FOR EACH ROW
 
 The INSERT trigger calls `validate_encrypted_data_hmac_before_insert`; the UPDATE trigger calls `validate_encrypted_data_hmac_before_update`, which skips a value the UPDATE leaves unchanged. Neither procedure caches the HMAC key: it is looked up from the metadata for every row, so a data key rotation takes effect immediately and a session cannot preset the key to get past the check. With binary logging enabled, creating the routines and triggers needs the `SUPER` privilege or `log_bin_trust_function_creators=1`.
 
-The two procedures take different arguments than the single `validate_encrypted_data_hmac` procedure of an earlier version. Re-run the script (it drops the old procedure) and drop and re-create the triggers as shown above.
+The two procedures take different arguments than the single `validate_encrypted_data_hmac` procedure of an earlier version. Re-run the script (it drops the old procedure) and drop and re-create the triggers as shown above. Until the triggers are re-created, they still call the dropped procedure, so every INSERT and UPDATE on those tables fails. Run both steps together, in a maintenance window if the tables take live writes.
 
 | Feature | PostgreSQL | MySQL |
 |---------|------------|-------|

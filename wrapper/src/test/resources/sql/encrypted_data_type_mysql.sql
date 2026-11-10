@@ -111,7 +111,7 @@ BEGIN
 
         IF NOT verify_encrypted_data_hmac(column_value, v_hmac_key) THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Column does not carry a valid HMAC tag (plaintext or tampered value)';
+            SET MESSAGE_TEXT = 'HMAC verification failed (plaintext or tampered value)';
         END IF;
     END IF;
 END$$
