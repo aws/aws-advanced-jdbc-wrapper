@@ -33,6 +33,7 @@ import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin2Factory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
+import software.amazon.jdbc.plugin.ConnectionLifetimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
@@ -79,6 +80,7 @@ public class ConnectionPluginChainBuilder {
       new HashMap<String, ConnectionPluginFactory>() {
         {
           put("executionTime", new ExecutionTimeConnectionPluginFactory());
+          put("connectionLifetime", new ConnectionLifetimeConnectionPluginFactory());
           put("logQuery", new LogQueryConnectionPluginFactory());
           put("dataCache", new DataLocalCacheConnectionPluginFactory());
           put("remoteQueryCache", new RemoteQueryCachePluginFactory());
@@ -120,6 +122,7 @@ public class ConnectionPluginChainBuilder {
       new HashMap<String, String>() {
         {
           put("software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin", "et");
+          put("software.amazon.jdbc.plugin.ConnectionLifetimeConnectionPlugin", "cl");
           put("software.amazon.jdbc.plugin.LogQueryConnectionPlugin", "lq");
           put("software.amazon.jdbc.plugin.cache.DataLocalCacheConnectionPlugin", "dlc");
           put("software.amazon.jdbc.plugin.cache.RemoteQueryCachePlugin", "rqc");
@@ -164,6 +167,7 @@ public class ConnectionPluginChainBuilder {
   protected static final Map<Class<? extends ConnectionPluginFactory>, Integer> pluginWeightByPluginFactory =
       new HashMap<Class<? extends ConnectionPluginFactory>, Integer>() {
         {
+          put(ConnectionLifetimeConnectionPluginFactory.class, 50);
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(BlueGreenConnectionPluginFactory.class, 200);
           put(DataLocalCacheConnectionPluginFactory.class, 300);
