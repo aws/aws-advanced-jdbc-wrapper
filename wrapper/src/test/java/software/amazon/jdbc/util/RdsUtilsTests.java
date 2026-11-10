@@ -124,6 +124,11 @@ public class RdsUtilsTests {
   private static final String globalDbWriterCluster =
       "global-cluster-test-name.global-XYZ.global.rds.amazonaws.com";
 
+  private static final String usEastRegionClusterGroupWriter =
+      "group-test-name.rw-XYZ.db-cluster-group.us-east-2.rds.amazonaws.com";
+  private static final String usEastRegionClusterGroupReader =
+      "group-test-name.ro-XYZ.db-cluster-group.us-east-2.rds.amazonaws.com";
+
   @BeforeEach
   public void setupTests() {
     RdsUtils.clearCache();
@@ -443,6 +448,41 @@ public class RdsUtilsTests {
   public void testIsGlobalDbWriterClusterDns() {
     assertFalse(target.isGlobalDbWriterClusterDns(usEastRegionCluster));
     assertTrue(target.isGlobalDbWriterClusterDns(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testClusterGroupDns() {
+    assertTrue(target.isClusterGroupWriterDns(usEastRegionClusterGroupWriter));
+    assertFalse(target.isClusterGroupWriterDns(usEastRegionClusterGroupReader));
+    assertFalse(target.isClusterGroupWriterDns(usEastRegionCluster));
+    assertFalse(target.isClusterGroupWriterDns(usEastRegionInstance));
+
+    assertTrue(target.isClusterGroupReaderDns(usEastRegionClusterGroupReader));
+    assertFalse(target.isClusterGroupReaderDns(usEastRegionClusterGroupWriter));
+    assertFalse(target.isClusterGroupReaderDns(usEastRegionClusterReadOnly));
+    assertFalse(target.isClusterGroupReaderDns(usEastRegionInstance));
+
+    assertTrue(target.isRdsDns(usEastRegionClusterGroupWriter));
+    assertTrue(target.isRdsDns(usEastRegionClusterGroupReader));
+    assertFalse(target.isRdsInstance(usEastRegionClusterGroupWriter));
+    assertFalse(target.isRdsInstance(usEastRegionClusterGroupReader));
+    assertFalse(target.isRdsClusterDns(usEastRegionClusterGroupWriter));
+    assertFalse(target.isRdsClusterDns(usEastRegionClusterGroupReader));
+    assertFalse(target.isWriterClusterDns(usEastRegionClusterGroupWriter));
+    assertFalse(target.isReaderClusterDns(usEastRegionClusterGroupReader));
+
+    assertEquals("us-east-2", target.getRdsRegion(usEastRegionClusterGroupWriter));
+    assertEquals("us-east-2", target.getRdsRegion(usEastRegionClusterGroupReader));
+    assertEquals("group-test-name", target.getRdsClusterId(usEastRegionClusterGroupWriter));
+    assertEquals("group-test-name", target.getRdsClusterId(usEastRegionClusterGroupReader));
+    assertNull(target.getRdsInstanceId(usEastRegionClusterGroupWriter));
+    assertEquals("?.XYZ.db-cluster-group.us-east-2.rds.amazonaws.com",
+        target.getRdsInstanceHostPattern(usEastRegionClusterGroupWriter));
+
+    assertEquals(RdsUrlType.RDS_CLUSTER_GROUP_WRITER, target.identifyRdsType(usEastRegionClusterGroupWriter));
+    assertEquals(RdsUrlType.RDS_CLUSTER_GROUP_READER, target.identifyRdsType(usEastRegionClusterGroupReader));
+    assertEquals(RdsUrlType.RDS_CLUSTER_GROUP_WRITER,
+        target.identifyRdsType(usEastRegionClusterGroupWriter.toUpperCase()));
   }
 
   @Test
