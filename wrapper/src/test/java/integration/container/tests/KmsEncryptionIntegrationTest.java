@@ -34,6 +34,7 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.KmsTestUtility;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -42,8 +43,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterAll;
@@ -55,15 +55,10 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
-import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /**
  * Integration test for KMS encryption functionality with JSqlParser.
@@ -91,15 +86,10 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger LOGGER = Logger.getLogger(KmsEncryptionIntegrationTest.class.getName());
-  private static final String KMS_KEY_ID_ENV = "KMS_KEY_ID";
-  private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
   private static final String METADATA_SCHEMA = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
   // A test-specific table name, so that DROP TABLE never removes an unrelated table.
   private static final String TABLE = "kms_enc_users";
   private static final String KEY_NAME = "test-key-users-ssn";
-  // MySQL errors when the user may not create routines or triggers (binary logging without SUPER or
-  // log_bin_trust_function_creators, or a missing privilege).
-  private static final List<Integer> MYSQL_ROUTINE_PRIVILEGE_ERRORS = Arrays.asList(1419, 1227, 1142, 1370);
   // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) bytes, before the GCM payload.
   private static final int MIN_ENCRYPTED_LENGTH = 45;
   private static final String TEST_SSN_1 = "111-11-1111";
@@ -113,18 +103,20 @@ public class KmsEncryptionIntegrationTest {
   private static String kmsKeyId;
   private static String region;
   private static boolean isPg;
-  private static boolean mysqlTriggersInstalled;
+  private static boolean triggersInstalled;
   private static boolean schemaReady;
 
   @BeforeAll
   static void setUp() throws Exception {
-    kmsKeyId = firstNonEmpty(System.getenv(KMS_KEY_ID_ENV), System.getenv(KMS_KEY_ARN_ENV));
+    kmsKeyId = KmsTestUtility.resolveKmsKeyId();
     assumeTrue(kmsKeyId != null,
-        "A KMS key must be provided via " + KMS_KEY_ID_ENV + " or " + KMS_KEY_ARN_ENV);
+        "A KMS key must be provided via " + KmsTestUtility.KMS_KEY_ID_ENV
+            + " or " + KmsTestUtility.KMS_KEY_ARN_ENV);
 
-    region = firstNonEmpty(regionFromArn(kmsKeyId), TestEnvironment.getCurrent().getInfo().getRegion());
+    region = KmsTestUtility.resolveRegion(kmsKeyId, TestEnvironment.getCurrent().getInfo().getRegion());
     assumeTrue(region != null,
-        "The KMS region is unknown: pass " + KMS_KEY_ID_ENV + " as a key ARN or run on an AWS deployment");
+        "The KMS region is unknown: pass " + KmsTestUtility.KMS_KEY_ID_ENV
+            + " as a key ARN or run on an AWS deployment");
 
     isPg = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.PG;
   }
@@ -147,38 +139,39 @@ public class KmsEncryptionIntegrationTest {
     try (Connection directConnection = DriverManager.getConnection(
         ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
 
-      // Setup encryption metadata schema
+      // Create the metadata schema and its key_storage/encryption_metadata tables.
+      KmsTestUtility.createMetadataTables(directConnection, metadataSchema, isPg);
+
+      // The test table lives in the default schema, which the metadata schema drop does not touch.
       try (Statement stmt = directConnection.createStatement()) {
-        // PostgreSQL supports CASCADE, MySQL doesn't
-        if (isPg) {
-          stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
-        } else {
-          stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema);
-        }
-        stmt.execute("CREATE SCHEMA " + metadataSchema);
         stmt.execute("DROP TABLE IF EXISTS " + TABLE);
+      }
 
-        if (isPg) {
-          setupPostgreSQL(directConnection, stmt, metadataSchema);
-        } else {
-          setupMySQL(directConnection, stmt, metadataSchema);
-        }
+      // Insert the key_storage/encryption_metadata rows directly (not through KeyManagementUtility, so
+      // a bug in the utility cannot mask a bug in the read/write path), create the test table, and
+      // install the HMAC validation triggers.
+      KmsTestUtility.configureColumn(
+          directConnection, metadataSchema, isPg, region, kmsKeyId, KEY_NAME, TABLE, "ssn");
+      KmsTestUtility.createAppTable(
+          directConnection, isPg, TABLE,
+          Collections.singletonList("ssn"), Collections.singletonList("email"));
+      triggersInstalled =
+          KmsTestUtility.installTriggers(directConnection, metadataSchema, isPg, TABLE, "ssn");
 
-        LOGGER.finest("Test setup completed");
+      LOGGER.finest("Test setup completed");
 
-        // Final verification that metadata exists
-        try (PreparedStatement finalCheck =
-            directConnection.prepareStatement(
-                "SELECT COUNT(*) FROM " + metadataSchema + "."
-                    + "encryption_metadata WHERE table_name = ? AND column_name = 'ssn'")) {
-          finalCheck.setString(1, TABLE);
-          try (ResultSet rs = finalCheck.executeQuery()) {
-            rs.next();
-            int count = rs.getInt(1);
-            LOGGER.info("Final metadata verification: " + count + " rows found for " + TABLE + ".ssn");
-            if (count == 0) {
-              throw new RuntimeException("Encryption metadata was not properly created!");
-            }
+      // Final verification that metadata exists
+      try (PreparedStatement finalCheck =
+          directConnection.prepareStatement(
+              "SELECT COUNT(*) FROM " + metadataSchema + "."
+                  + "encryption_metadata WHERE table_name = ? AND column_name = 'ssn'")) {
+        finalCheck.setString(1, TABLE);
+        try (ResultSet rs = finalCheck.executeQuery()) {
+          rs.next();
+          int count = rs.getInt(1);
+          LOGGER.info("Final metadata verification: " + count + " rows found for " + TABLE + ".ssn");
+          if (count == 0) {
+            throw new RuntimeException("Encryption metadata was not properly created!");
           }
         }
       }
@@ -207,8 +200,17 @@ public class KmsEncryptionIntegrationTest {
       connection.close();
     }
     connection = null;
+
+    // Drop the test table and delete its metadata/key rows, leaving the metadata schema in place.
+    if (schemaReady) {
+      try (Connection directConnection = DriverManager.getConnection(
+          ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+        KmsTestUtility.teardown(directConnection, SchemaName.of(METADATA_SCHEMA), TABLE);
+      }
+    }
+
     schemaReady = false;
-    mysqlTriggersInstalled = false;
+    triggersInstalled = false;
   }
 
   /** Connection properties with the KMS encryption plugin. */
@@ -503,7 +505,7 @@ public class KmsEncryptionIntegrationTest {
   void testPlainTextFails() {
     // On PostgreSQL the encrypted_data domain rejects the value; on MySQL the HMAC trigger does.
     if (!isPg) {
-      assumeTrue(mysqlTriggersInstalled, "The MySQL HMAC validation triggers could not be installed");
+      assumeTrue(triggersInstalled, "The MySQL HMAC validation triggers could not be installed");
     }
     // make sure we cannot insert plain text into the ssn column
     assertThrows(SQLException.class, () -> {
@@ -582,183 +584,6 @@ public class KmsEncryptionIntegrationTest {
         assertEquals("DS Verify Test", rs.getString("name"));
         assertNotEquals("555-55-5555", rs.getString("ssn"));
       }
-    }
-  }
-
-
-  private static void setupPostgreSQL(Connection conn, Statement stmt, SchemaName metadataSchema)
-      throws Exception {
-    // Install encrypted_data custom type
-    LOGGER.finest("Installing encrypted_data custom type for PostgreSQL");
-    stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-    EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
-
-    // Create key_storage table
-    stmt.execute(
-        "CREATE TABLE "
-            + metadataSchema
-            + ".key_storage ("
-            + "id SERIAL PRIMARY KEY, "
-            + "name VARCHAR(255) NOT NULL, "
-            + "master_key_arn VARCHAR(512) NOT NULL, "
-            + "encrypted_data_key TEXT NOT NULL, "
-            + "hmac_key BYTEA NOT NULL, "
-            + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-            + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-            + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
-
-    // Create encryption_metadata table
-    stmt.execute(
-        "CREATE TABLE "
-            + metadataSchema
-            + ".encryption_metadata ("
-            + "table_name VARCHAR(255) NOT NULL, "
-            + "column_name VARCHAR(255) NOT NULL, "
-            + "encryption_algorithm VARCHAR(50) NOT NULL, "
-            + "key_id INTEGER NOT NULL, "
-            + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-            + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-            + "PRIMARY KEY (table_name, column_name), "
-            + "FOREIGN KEY (key_id) REFERENCES "
-            + metadataSchema
-            + ".key_storage(id))");
-
-    insertKeyAndMetadata(conn, metadataSchema.getValue());
-
-    // Create the test table with encrypted_data type
-    stmt.execute(
-        "CREATE TABLE " + TABLE + " ("
-            + "id SERIAL PRIMARY KEY, "
-            + "name VARCHAR(100), "
-            + "ssn encrypted_data, "
-            + "email VARCHAR(100))");
-
-    // Add trigger to validate HMAC
-    stmt.execute(
-        "CREATE TRIGGER validate_" + TABLE + "_ssn_hmac "
-            + "BEFORE INSERT OR UPDATE ON " + TABLE + " "
-            + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
-  }
-
-  private static void setupMySQL(Connection conn, Statement stmt, SchemaName metadataSchema)
-      throws Exception {
-    LOGGER.finest("Setting up MySQL encryption schema");
-
-    // MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
-    stmt.execute(
-        "CREATE TABLE " + metadataSchema + ".key_storage ("
-            + "id INT AUTO_INCREMENT PRIMARY KEY, "
-            + "name VARCHAR(255) NOT NULL, "
-            + "master_key_arn VARCHAR(512) NOT NULL, "
-            + "encrypted_data_key TEXT NOT NULL, "
-            + "hmac_key VARBINARY(32) NOT NULL, "
-            + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-            + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-
-    stmt.execute(
-        "CREATE TABLE " + metadataSchema + ".encryption_metadata ("
-            + "table_name VARCHAR(255) NOT NULL, "
-            + "column_name VARCHAR(255) NOT NULL, "
-            + "encryption_algorithm VARCHAR(50) NOT NULL, "
-            + "key_id INT NOT NULL, "
-            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-            + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-            + "PRIMARY KEY (table_name, column_name), "
-            + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
-
-    insertKeyAndMetadata(conn, metadataSchema.getValue());
-
-    stmt.execute(
-        "CREATE TABLE " + TABLE + " ("
-            + "id INT AUTO_INCREMENT PRIMARY KEY, "
-            + "name VARCHAR(100), "
-            + "ssn VARBINARY(256), "
-            + "email VARCHAR(100))");
-
-    // Optional HMAC validation triggers (the database user may lack the privilege to create them)
-    try {
-      EncryptedDataTypeInstaller.installMySqlHmacValidation(conn, metadataSchema);
-      EncryptedDataTypeInstaller.createMySqlHmacTriggers(conn, TABLE, "ssn");
-      mysqlTriggersInstalled = true;
-    } catch (SQLException e) {
-      if (!MYSQL_ROUTINE_PRIVILEGE_ERRORS.contains(e.getErrorCode())) {
-        throw e;
-      }
-      LOGGER.info("MySQL HMAC validation triggers not installed: " + e.getMessage());
-    }
-  }
-
-  private static void insertKeyAndMetadata(Connection conn, String metadataSchema)
-      throws Exception {
-    // Generate KMS data key. KMS accepts a key ID, key ARN or alias.
-    final String encryptedDataKeyBase64;
-    try (KmsClient kmsClient = KmsClient.builder().region(Region.of(region)).build()) {
-      GenerateDataKeyRequest dataKeyRequest =
-          GenerateDataKeyRequest.builder().keyId(kmsKeyId).keySpec("AES_256").build();
-      GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
-      encryptedDataKeyBase64 =
-          Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
-    }
-
-    // Generate HMAC key
-    byte[] hmacKey = new byte[32];
-    new java.security.SecureRandom().nextBytes(hmacKey);
-
-    // Insert key
-    String tablePrefix = (metadataSchema != null) ? metadataSchema + "." : "";
-    String insertKeySql;
-
-    if (isPg) {
-      insertKeySql =
-          "INSERT INTO "
-              + tablePrefix
-              + "key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
-              + "VALUES (?, ?, ?, ?, ?) RETURNING id";
-    } else {
-      insertKeySql =
-          "INSERT INTO "
-              + tablePrefix
-              + "key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
-              + "VALUES (?, ?, ?, ?, ?)";
-    }
-
-    int generatedKeyId;
-    try (PreparedStatement keyStmt = conn.prepareStatement(insertKeySql,
-        isPg ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
-      keyStmt.setString(1, KEY_NAME);
-      keyStmt.setString(2, kmsKeyId);
-      keyStmt.setString(3, encryptedDataKeyBase64);
-      keyStmt.setBytes(4, hmacKey);
-      keyStmt.setString(5, "AES_256");
-
-      if (isPg) {
-        try (ResultSet keyRs = keyStmt.executeQuery()) {
-          keyRs.next();
-          generatedKeyId = keyRs.getInt(1);
-        }
-      } else {
-        keyStmt.executeUpdate();
-        try (ResultSet keyRs = keyStmt.getGeneratedKeys()) {
-          keyRs.next();
-          generatedKeyId = keyRs.getInt(1);
-        }
-      }
-    }
-
-    // Insert metadata
-    try (PreparedStatement metaStmt =
-        conn.prepareStatement(
-            "INSERT INTO "
-                + tablePrefix
-                + "encryption_metadata (table_name, column_name, encryption_algorithm, key_id) "
-                + "VALUES (?, ?, ?, ?)")) {
-      metaStmt.setString(1, TABLE);
-      metaStmt.setString(2, "ssn");
-      metaStmt.setString(3, "AES-256-GCM");
-      metaStmt.setInt(4, generatedKeyId);
-      metaStmt.executeUpdate();
-      LOGGER.finest("Encryption metadata configured for key: " + generatedKeyId);
     }
   }
 
@@ -967,23 +792,5 @@ public class KmsEncryptionIntegrationTest {
         LOGGER.info("Successfully verified encryption/decryption with awsProfile property");
       }
     }
-  }
-
-  private static String regionFromArn(String keyId) {
-    // arn:aws:kms:<region>:<account>:key/<id>
-    if (keyId == null || !keyId.startsWith("arn:")) {
-      return null;
-    }
-    final String[] parts = keyId.split(":");
-    return parts.length > 3 ? parts[3] : null;
-  }
-
-  private static String firstNonEmpty(String... values) {
-    for (String value : values) {
-      if (value != null && !value.trim().isEmpty()) {
-        return value.trim();
-      }
-    }
-    return null;
   }
 }
