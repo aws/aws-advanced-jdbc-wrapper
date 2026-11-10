@@ -19,5 +19,5 @@ dependencies {
     implementation("com.mysql:mysql-connector-j:26.10.0")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("org.apache.commons:commons-dbcp2:2.14.0")
-    implementation("software.amazon.awssdk:rds:2.42.38")
+    implementation("software.amazon.awssdk:rds:2.57.11")
 }

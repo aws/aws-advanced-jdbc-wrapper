@@ -40,7 +40,7 @@ if (useJacoco) {
     apply(plugin = "org.gradle.jacoco")
 }
 
-val awsSdkVersion = "2.46.10"
+val awsSdkVersion = "2.57.11"
 val testcontainersVersion = "1.21.4"
 val junitPlatformVersion = "1.14.4"
 val junitJupiterVersion = "5.14.4"
