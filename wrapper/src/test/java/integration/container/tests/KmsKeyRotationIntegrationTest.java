@@ -72,7 +72,6 @@ import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
-import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -196,7 +195,7 @@ public class KmsKeyRotationIntegrationTest {
     if (tables.isEmpty()) {
       return;
     }
-    try (Connection conn = openPlainConnection()) {
+    try (Connection conn = KmsTestUtility.openPlainConnection()) {
       for (String table : tables) {
         try (Statement stmt = conn.createStatement()) {
           stmt.execute("DROP TABLE IF EXISTS " + table);
@@ -228,7 +227,7 @@ public class KmsKeyRotationIntegrationTest {
     final Map<Integer, byte[]> rawBefore = readRawValues(table, SSN);
     assertEquals(5, rawBefore.size());
 
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       newUtility(plain).rotateDataKey(table, SSN, null);
     }
 
@@ -272,7 +271,7 @@ public class KmsKeyRotationIntegrationTest {
       assertEquals(26, rawBefore.size());
 
       final DataKeyReencryptionResult result;
-      try (Connection plain = openPlainConnection()) {
+      try (Connection plain = KmsTestUtility.openPlainConnection()) {
         result = newUtility(plain).rotateDataKeyAndReencrypt(table, column, PK, null, 10);
       }
 
@@ -321,7 +320,7 @@ public class KmsKeyRotationIntegrationTest {
       insertRows(writer, table, 1, 12, false);
     }
     final int oldKeyId = currentKeyId(table, SSN);
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       newUtility(plain).rotateDataKey(table, SSN, null);
     }
     final int newKeyId = currentKeyId(table, SSN);
@@ -331,7 +330,7 @@ public class KmsKeyRotationIntegrationTest {
     }
 
     final DataKeyReencryptionResult result;
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       result = newUtility(plain).reencryptRemainingRows(
           table, SSN, PK, Collections.singletonList(oldKeyId), 5);
     }
@@ -354,7 +353,7 @@ public class KmsKeyRotationIntegrationTest {
     final int oldKeyId = currentKeyId(table, SSN);
 
     final DataKeyReencryptionResult rotation;
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       rotation = newUtility(plain).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
     }
     assertResult(rotation, 10, 0, 0, 3);
@@ -374,7 +373,7 @@ public class KmsKeyRotationIntegrationTest {
     }
 
     final DataKeyReencryptionResult repair;
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       repair = newUtility(plain).reencryptRemainingRows(
           table, SSN, PK, Collections.singletonList(oldKeyId), 4);
     }
@@ -395,14 +394,14 @@ public class KmsKeyRotationIntegrationTest {
       insertRows(writer, table, 1, 12, false);
     }
     final int oldKeyId = currentKeyId(table, SSN);
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       assertResult(newUtility(plain).rotateDataKeyAndReencrypt(table, SSN, PK, null, 5), 12, 0, 0, 3);
     }
     final Map<Integer, byte[]> rawAfterRotation = readRawValues(table, SSN);
 
     for (int run = 1; run <= 2; run++) {
       final DataKeyReencryptionResult result;
-      try (Connection plain = openPlainConnection()) {
+      try (Connection plain = KmsTestUtility.openPlainConnection()) {
         result = newUtility(plain).reencryptRemainingRows(
             table, SSN, PK, Collections.singletonList(oldKeyId), 5);
       }
@@ -466,18 +465,19 @@ public class KmsKeyRotationIntegrationTest {
   @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void test07PostgresTriggerLooksUpKeyPerRow() throws Exception {
     final String table = createEncryptedTable("trigger", SSN);
+    installHmacTriggers(table);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 15, false);
     }
     final int oldKeyId = currentKeyId(table, SSN);
 
     // A plain session that primes no cache and holds no HMAC key of its own.
-    final Connection session = openPlainConnection();
+    final Connection session = KmsTestUtility.openPlainConnection();
     connections.add(session);
     final int minId = minId(session, table);
 
     // Rotate and re-encrypt on a separate session; every row is now stored under the new key.
-    final Connection rotator = openPlainConnection();
+    final Connection rotator = KmsTestUtility.openPlainConnection();
     connections.add(rotator);
     final DataKeyReencryptionResult result =
         newUtility(rotator).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
@@ -536,7 +536,7 @@ public class KmsKeyRotationIntegrationTest {
     final int oldKeyId = currentKeyId(table, SSN);
 
     final DataKeyReencryptionResult result;
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       result = newUtility(plain).rotateDataKeyAndReencrypt(table, SSN, PK, secondKmsKeyId, 3);
     }
     assertResult(result, 8, 0, 0, 3);
@@ -561,7 +561,7 @@ public class KmsKeyRotationIntegrationTest {
     final int oldKeyId = currentKeyId(table, SSN);
 
     final DataKeyReencryptionResult result;
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       final String schema = isPg ? "public" : plain.getCatalog();
       result = newUtility(plain).rotateDataKeyAndReencrypt(schema + "." + table, SSN, PK, null, 4);
     }
@@ -583,7 +583,7 @@ public class KmsKeyRotationIntegrationTest {
     final int keyRowsBefore = keyRowCount(table);
     final Map<Integer, byte[]> rawBefore = readRawValues(table, SSN);
 
-    try (Connection plain = openPlainConnection()) {
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
       final KeyManagementUtility utility = newUtility(plain);
       assertThrows(KeyManagementException.class,
           () -> utility.rotateDataKeyAndReencrypt(table, SSN, "no_such_pk", null, 4));
@@ -605,26 +605,19 @@ public class KmsKeyRotationIntegrationTest {
   @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
   void test11MysqlTriggerLooksUpKeyPerRow() throws Exception {
     final String table = createEncryptedTable("mytrig", SSN);
-    try (Connection conn = openPlainConnection()) {
-      EncryptedDataTypeInstaller.installMySqlHmacValidation(conn, SchemaName.of(METADATA_SCHEMA));
-      EncryptedDataTypeInstaller.createMySqlHmacTriggers(conn, table, SSN);
-    } catch (SQLException e) {
-      assumeTrue(!KmsTestUtility.isRoutinePrivilegeError(e),
-          "The MySQL HMAC validation triggers could not be installed: " + e.getMessage());
-      throw e;
-    }
+    installHmacTriggers(table);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 15, false);
     }
     final int oldKeyId = currentKeyId(table, SSN);
 
     // A plain session that primes no cache and holds no HMAC key of its own.
-    final Connection session = openPlainConnection();
+    final Connection session = KmsTestUtility.openPlainConnection();
     connections.add(session);
     final int minId = minId(session, table);
 
     // Rotate and re-encrypt on a separate session; every row is now stored under the new key.
-    final Connection rotator = openPlainConnection();
+    final Connection rotator = KmsTestUtility.openPlainConnection();
     connections.add(rotator);
     final DataKeyReencryptionResult result =
         newUtility(rotator).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
@@ -658,12 +651,77 @@ public class KmsKeyRotationIntegrationTest {
     assertAllRowsDecrypt(table, 15, false);
   }
 
+  /**
+   * UPDATEs to rows a rotation has not converted yet. A data key rotation re-encrypts rows in
+   * batches; while it runs, rows it has not reached still carry the previous key's HMAC tag. A
+   * single-threaded test cannot interrupt {@link KeyManagementUtility#rotateDataKeyAndReencrypt}
+   * mid-batch, so the not-yet-converted state is produced with its first phase,
+   * {@link KeyManagementUtility#rotateDataKey} (the key is switched; re-encryption has not run), and
+   * {@link KeyManagementUtility#reencryptRemainingRows} finishes the rotation at the end. With the
+   * HMAC trigger installed, an UPDATE that leaves a not-yet-converted row's encrypted value unchanged
+   * is accepted, a change to a value under the current key is accepted, and a change to a value under
+   * the previous key is rejected.
+   */
+  @TestTemplate
+  void test12UpdatesToRowsNotYetConvertedDuringRotation() throws Exception {
+    final String table = createEncryptedTable("rotunconv", SSN);
+    installHmacTriggers(table);
+
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 1, 3, false);
+    }
+    final int oldKeyId = currentKeyId(table, SSN);
+    final Map<Integer, byte[]> rawUnderOldKey = readRawValues(table, SSN);
+
+    // Switch the data key without re-encrypting: rows 1..3 keep the previous key's HMAC tag.
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      newUtility(plain).rotateDataKey(table, SSN, null);
+    }
+    assertNotEquals(oldKeyId, currentKeyId(table, SSN));
+
+    // A value under the current key, written by a plugin connection with fresh metadata.
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 4, 1, false);
+    }
+    final byte[] valueUnderCurrentKey = readRawValues(table, SSN).get(4);
+    assertNotNull(valueUnderCurrentKey);
+
+    final Connection session = KmsTestUtility.openPlainConnection();
+    connections.add(session);
+
+    // An UPDATE that leaves a not-yet-converted row's encrypted value unchanged is accepted.
+    touchRow(session, table, 1);
+
+    // Changing a not-yet-converted row to a value under the current key is accepted.
+    setSsn(session, table, 2, valueUnderCurrentKey);
+
+    // Changing a not-yet-converted row to a value under the previous key is rejected.
+    assertHmacFailure(() -> setSsn(session, table, 3, rawUnderOldKey.get(1)));
+
+    // Finish the rotation: the rows still under the previous key are converted, through the trigger.
+    final DataKeyReencryptionResult result;
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      result = newUtility(plain).reencryptRemainingRows(
+          table, SSN, PK, Collections.singletonList(oldKeyId), 4);
+    }
+    assertEquals(2, result.getReencryptedCount());
+    assertTrue(result.isComplete());
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------------------------
 
-  private static Connection openPlainConnection() throws SQLException {
-    return DriverManager.getConnection(ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+  /**
+   * Installs the HMAC validation triggers for the table's {@code ssn} column on either engine. On
+   * MySQL the validation routines need the create-routine privilege; a run without it is skipped.
+   */
+  private void installHmacTriggers(final String table) throws Exception {
+    final boolean installed;
+    try (Connection conn = KmsTestUtility.openPlainConnection()) {
+      installed = KmsTestUtility.installTriggers(conn, SchemaName.of(METADATA_SCHEMA), isPg, table, SSN);
+    }
+    assumeTrue(installed, "The HMAC validation triggers could not be installed");
   }
 
   private Connection openWrapperConnection(String plugins) throws SQLException {
@@ -711,16 +769,9 @@ public class KmsKeyRotationIntegrationTest {
     }
     ddl.append(")");
 
-    try (Connection conn = openPlainConnection()) {
+    try (Connection conn = KmsTestUtility.openPlainConnection()) {
       try (Statement stmt = conn.createStatement()) {
         stmt.execute(ddl.toString());
-        if (isPg) {
-          for (String column : encryptedColumns) {
-            stmt.execute("CREATE TRIGGER " + table + "_" + column + "_hmac "
-                + "BEFORE INSERT OR UPDATE ON " + table + " "
-                + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('" + column + "')");
-          }
-        }
       }
       final KeyManagementUtility utility = newUtility(conn);
       for (String column : encryptedColumns) {
@@ -826,7 +877,7 @@ public class KmsKeyRotationIntegrationTest {
   /** Stored bytes of a column by primary key, read on a plain connection. */
   private static Map<Integer, byte[]> readRawValues(String table, String column) throws SQLException {
     final Map<Integer, byte[]> values = new LinkedHashMap<>();
-    try (Connection conn = openPlainConnection();
+    try (Connection conn = KmsTestUtility.openPlainConnection();
          Statement stmt = conn.createStatement();
          ResultSet rs = stmt.executeQuery("SELECT id, " + column + " FROM " + table + " ORDER BY id")) {
       while (rs.next()) {
@@ -837,7 +888,7 @@ public class KmsKeyRotationIntegrationTest {
   }
 
   private static int currentKeyId(String table, String column) throws SQLException {
-    try (Connection conn = openPlainConnection();
+    try (Connection conn = KmsTestUtility.openPlainConnection();
          PreparedStatement stmt = conn.prepareStatement(
              "SELECT key_id FROM " + METADATA_SCHEMA + ".encryption_metadata "
                  + "WHERE table_name = ? AND column_name = ?")) {
@@ -851,7 +902,7 @@ public class KmsKeyRotationIntegrationTest {
   }
 
   private static String masterKeyArn(int keyId) throws SQLException {
-    try (Connection conn = openPlainConnection();
+    try (Connection conn = KmsTestUtility.openPlainConnection();
          PreparedStatement stmt = conn.prepareStatement(
              "SELECT master_key_arn FROM " + METADATA_SCHEMA + ".key_storage WHERE id = ?")) {
       stmt.setInt(1, keyId);
@@ -863,7 +914,7 @@ public class KmsKeyRotationIntegrationTest {
   }
 
   private static int keyRowCount(String table) throws SQLException {
-    try (Connection conn = openPlainConnection();
+    try (Connection conn = KmsTestUtility.openPlainConnection();
          PreparedStatement stmt = conn.prepareStatement(
              "SELECT count(*) FROM " + METADATA_SCHEMA + ".key_storage WHERE name LIKE ?")) {
       stmt.setString(1, "key-" + table + "-%");
