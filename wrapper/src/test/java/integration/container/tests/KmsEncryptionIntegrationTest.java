@@ -200,6 +200,15 @@ public class KmsEncryptionIntegrationTest {
       connection.close();
     }
     connection = null;
+
+    // Drop the test table and delete its metadata/key rows, leaving the metadata schema in place.
+    if (schemaReady) {
+      try (Connection directConnection = DriverManager.getConnection(
+          ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+        KmsTestUtility.teardown(directConnection, SchemaName.of(METADATA_SCHEMA), TABLE);
+      }
+    }
+
     schemaReady = false;
     mysqlTriggersInstalled = false;
   }

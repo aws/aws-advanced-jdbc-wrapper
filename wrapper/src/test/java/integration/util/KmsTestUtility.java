@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
@@ -44,7 +45,8 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
  *
  * <ul>
  *   <li>{@link #configureColumn} — generate a KMS data key and insert the {@code key_storage} and
- *       {@code encryption_metadata} rows for one column, returning the key id, HMAC key and data key.
+ *       {@code encryption_metadata} rows for one column, returning the key id, HMAC key and plaintext
+ *       data key.
  *   <li>{@link #createAppTable} — create an application table with encrypted columns
  *       ({@code encrypted_data} on PostgreSQL, {@code VARBINARY} on MySQL).
  *   <li>{@link #installTriggers} — install the HMAC validation triggers, skipping on MySQL privilege
@@ -65,6 +67,8 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
  */
 public final class KmsTestUtility {
 
+  private static final Logger LOGGER = Logger.getLogger(KmsTestUtility.class.getName());
+
   /** Primary environment variable carrying the KMS key id or ARN. */
   public static final String KMS_KEY_ID_ENV = "KMS_KEY_ID";
 
@@ -83,16 +87,16 @@ public final class KmsTestUtility {
   private KmsTestUtility() {
   }
 
-  /** The key id, HMAC key and encrypted data key produced by {@link #configureColumn}. */
+  /** The key id, HMAC key and plaintext data key produced by {@link #configureColumn}. */
   public static final class ColumnKey {
     private final int keyId;
     private final byte[] hmacKey;
-    private final String encryptedDataKey;
+    private final byte[] dataKey;
 
-    public ColumnKey(final int keyId, final byte[] hmacKey, final String encryptedDataKey) {
+    public ColumnKey(final int keyId, final byte[] hmacKey, final byte[] dataKey) {
       this.keyId = keyId;
       this.hmacKey = hmacKey.clone();
-      this.encryptedDataKey = encryptedDataKey;
+      this.dataKey = dataKey.clone();
     }
 
     /** The generated {@code key_storage.id} of the inserted key row. */
@@ -105,9 +109,13 @@ public final class KmsTestUtility {
       return hmacKey.clone();
     }
 
-    /** The KMS-encrypted data key, base64-encoded, stored with the key row. */
-    public String encryptedDataKey() {
-      return encryptedDataKey;
+    /**
+     * The plaintext data key from the KMS {@code GenerateDataKey} response. Returned as a defensive
+     * copy because the encryption code zeroes key arrays after use, which would otherwise wipe a
+     * shared array before a later test step reads it.
+     */
+    public byte[] dataKey() {
+      return dataKey.clone();
     }
   }
 
@@ -249,19 +257,21 @@ public final class KmsTestUtility {
    * @param keyName        the {@code key_storage.name} to store the key under
    * @param table          the application table name recorded in {@code encryption_metadata}
    * @param column         the encrypted column name recorded in {@code encryption_metadata}
-   * @return the generated key id, the HMAC key and the encrypted data key
+   * @return the generated key id, the HMAC key and the plaintext data key
    */
   public static ColumnKey configureColumn(
       final Connection conn, final SchemaName metadataSchema, final boolean isPg, final String region,
       final String kmsKeyId, final String keyName, final String table, final String column) throws Exception {
     // Generate a KMS data key. KMS accepts a key id, key ARN or alias.
     final String encryptedDataKeyBase64;
+    final byte[] dataKey;
     try (KmsClient kmsClient = kmsClient(region)) {
       final GenerateDataKeyRequest dataKeyRequest =
           GenerateDataKeyRequest.builder().keyId(kmsKeyId).keySpec("AES_256").build();
       final GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
       encryptedDataKeyBase64 =
           Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
+      dataKey = dataKeyResponse.plaintext().asByteArray();
     }
 
     final byte[] hmacKey = new byte[32];
@@ -307,7 +317,7 @@ public final class KmsTestUtility {
       metaStmt.executeUpdate();
     }
 
-    return new ColumnKey(keyId, hmacKey, encryptedDataKeyBase64);
+    return new ColumnKey(keyId, hmacKey, dataKey);
   }
 
   /**
@@ -379,6 +389,7 @@ public final class KmsTestUtility {
       if (isPg || !isRoutinePrivilegeError(e)) {
         throw e;
       }
+      LOGGER.info("MySQL HMAC validation triggers not installed: " + e.getMessage());
       return false;
     }
   }
