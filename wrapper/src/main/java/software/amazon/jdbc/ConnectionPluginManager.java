@@ -36,6 +36,7 @@ import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin2;
+import software.amazon.jdbc.plugin.ConnectionLifetimeConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
@@ -82,6 +83,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
       new HashMap<Class<? extends ConnectionPlugin>, String>() {
         {
           put(LimitlessConnectionPlugin.class, "plugin:limitless");
+          put(ConnectionLifetimeConnectionPlugin.class, "plugin:connectionLifetime");
           put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
           put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");

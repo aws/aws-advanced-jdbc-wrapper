@@ -18,13 +18,15 @@ package software.amazon.jdbc.util;
 
 import com.zaxxer.hikari.SQLExceptionOverride;
 import java.sql.SQLException;
+import software.amazon.jdbc.plugin.ConnectionLifetimeSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 
 public class HikariCPSQLException implements SQLExceptionOverride {
 
   public Override adjudicate(final SQLException sqlException) {
-    if (sqlException instanceof FailoverSuccessSQLException
+    if (sqlException instanceof ConnectionLifetimeSuccessSQLException
+        || sqlException instanceof FailoverSuccessSQLException
         || sqlException instanceof TransactionStateUnknownSQLException) {
       return Override.DO_NOT_EVICT;
     } else {

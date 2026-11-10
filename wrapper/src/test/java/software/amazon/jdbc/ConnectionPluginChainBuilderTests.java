@@ -42,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin;
+import software.amazon.jdbc.plugin.ConnectionLifetimeConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.cache.CacheConnection;
@@ -94,7 +95,8 @@ public class ConnectionPluginChainBuilderTests {
   public void testSortPlugins() throws SQLException {
     ConnectionPluginChainBuilder builder = new ConnectionPluginChainBuilder();
     Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
+    props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover,connectionLifetime");
+    props.setProperty(ConnectionLifetimeConnectionPlugin.CONNECTION_LIFETIME_MS.name, "1000");
 
     List<ConnectionPlugin> result = builder.getPlugins(
         mockServicesContainer,
@@ -104,11 +106,12 @@ public class ConnectionPluginChainBuilderTests {
         null);
 
     assertNotNull(result);
-    assertEquals(4, result.size());
-    assertInstanceOf(FailoverConnectionPlugin.class, result.get(0));
-    assertInstanceOf(HostMonitoringConnectionPluginV2.class, result.get(1));
-    assertInstanceOf(IamAuthConnectionPlugin.class, result.get(2));
-    assertInstanceOf(DefaultConnectionPlugin.class, result.get(3));
+    assertEquals(5, result.size());
+    assertInstanceOf(ConnectionLifetimeConnectionPlugin.class, result.get(0));
+    assertInstanceOf(FailoverConnectionPlugin.class, result.get(1));
+    assertInstanceOf(HostMonitoringConnectionPluginV2.class, result.get(2));
+    assertInstanceOf(IamAuthConnectionPlugin.class, result.get(3));
+    assertInstanceOf(DefaultConnectionPlugin.class, result.get(4));
   }
 
   @Test
@@ -209,6 +212,7 @@ public class ConnectionPluginChainBuilderTests {
     props.setProperty(AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY.name, "test-secret");
     props.setProperty(AwsSecretsManagerConnectionPlugin.REGION_PROPERTY.name, "us-east-1");
     props.setProperty(CacheConnection.CACHE_RW_ENDPOINT_ADDR.name, "cache.example.com:6379");
+    props.setProperty(ConnectionLifetimeConnectionPlugin.CONNECTION_LIFETIME_MS.name, "1000");
 
     final Map<String, String> pluginClassByFactoryCode = new TreeMap<>();
     final Map<String, String> failures = new TreeMap<>();
