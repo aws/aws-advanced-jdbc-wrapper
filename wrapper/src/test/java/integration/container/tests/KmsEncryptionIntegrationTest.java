@@ -103,7 +103,7 @@ public class KmsEncryptionIntegrationTest {
   private static String kmsKeyId;
   private static String region;
   private static boolean isPg;
-  private static boolean mysqlTriggersInstalled;
+  private static boolean triggersInstalled;
   private static boolean schemaReady;
 
   @BeforeAll
@@ -155,7 +155,7 @@ public class KmsEncryptionIntegrationTest {
       KmsTestUtility.createAppTable(
           directConnection, isPg, TABLE,
           Collections.singletonList("ssn"), Collections.singletonList("email"));
-      mysqlTriggersInstalled =
+      triggersInstalled =
           KmsTestUtility.installTriggers(directConnection, metadataSchema, isPg, TABLE, "ssn");
 
       LOGGER.finest("Test setup completed");
@@ -210,7 +210,7 @@ public class KmsEncryptionIntegrationTest {
     }
 
     schemaReady = false;
-    mysqlTriggersInstalled = false;
+    triggersInstalled = false;
   }
 
   /** Connection properties with the KMS encryption plugin. */
@@ -505,7 +505,7 @@ public class KmsEncryptionIntegrationTest {
   void testPlainTextFails() {
     // On PostgreSQL the encrypted_data domain rejects the value; on MySQL the HMAC trigger does.
     if (!isPg) {
-      assumeTrue(mysqlTriggersInstalled, "The MySQL HMAC validation triggers could not be installed");
+      assumeTrue(triggersInstalled, "The MySQL HMAC validation triggers could not be installed");
     }
     // make sure we cannot insert plain text into the ssn column
     assertThrows(SQLException.class, () -> {
