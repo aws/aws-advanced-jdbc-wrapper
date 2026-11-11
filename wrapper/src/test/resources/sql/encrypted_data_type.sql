@@ -75,7 +75,7 @@ BEGIN
 
     -- Read the column's current HMAC key from key_storage for every row. The key is never
     -- cached in the session, so a session cannot preset it ahead of this check. The query is static
-    -- (SCHEMA_NAME is replaced at install) so PL/pgSQL caches its plan across rows.
+    -- (the metadata schema placeholder is replaced at install) so PL/pgSQL caches its plan across rows.
     SELECT ks.hmac_key INTO hmac_key
       FROM SCHEMA_NAME.encryption_metadata em
       JOIN SCHEMA_NAME.key_storage ks ON em.key_id = ks.id
