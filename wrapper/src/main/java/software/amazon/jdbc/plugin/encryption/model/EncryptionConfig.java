@@ -319,8 +319,10 @@ public class EncryptionConfig {
         + metadataRefreshInterval
         + ", failOnUnmappedParameter="
         + failOnUnmappedParameter
-        + ", allowedMasterKeyArns="
-        + allowedMasterKeyArns
+        // Only the count: the keys are not printed, so a logged config does not reveal them.
+        + ", allowedMasterKeyArns=<"
+        + allowedMasterKeyArns.size()
+        + " keys>"
         + '}';
   }
 
