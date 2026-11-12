@@ -161,10 +161,12 @@ public class MysqlConnectorJDriverHelper {
    */
   public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
     try {
-      // isWrapperFor also rejects a closed connection: ConnectionImpl keeps the status flags from
-      // the last query after close, and COM_QUIT does not clear them, so a closed connection can
-      // still claim a transaction is open.
-      if (!connection.isWrapperFor(JdbcConnection.class)) {
+      // A closed connection reports nothing. ConnectionImpl keeps the status flags from the last
+      // query after close (COM_QUIT does not clear them), and its isWrapperFor does not reject a
+      // closed connection. A pooled connection handed back to its pool (HikariCP, c3p0) is closed
+      // from the caller's view too, and must not report the state of whoever uses the physical
+      // connection next. isClosed is answered from the session's own flag, without a round trip.
+      if (connection.isClosed() || !connection.isWrapperFor(JdbcConnection.class)) {
         return null;
       }
       return connection.unwrap(JdbcConnection.class)
