@@ -26,8 +26,10 @@ import com.zaxxer.hikari.HikariConfig;
 import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
+import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.MakeSureFirstInstanceWriter;
@@ -48,6 +50,7 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectCodes;
@@ -258,10 +261,20 @@ public class TransactionStateTests {
    * the transaction boundaries in the SQL and the JDBC calls itself. This is the path a driver the
    * wrapper has no dialect for takes; none of the bundled drivers take it anymore, so it is forced
    * here.
+   *
+   * <p>A plugin is loaded on purpose. The plugin pipeline, and with it the tracking in
+   * {@code DefaultConnectionPlugin}, only runs for a JDBC method when some other plugin subscribes
+   * to it or the method always uses the pipeline. {@code logQuery} subscribes to the execute
+   * methods and changes nothing else; {@code commit} and {@code rollback} always use the pipeline.
+   *
+   * <p>Not run with the MariaDB driver: the generic dialect rebuilds the URL without the
+   * {@code permitMysqlScheme} parameter that driver needs to accept a {@code jdbc:mysql://} URL.
    */
   @TestTemplate
+  @DisableOnTestDriver({TestDriver.MARIADB})
   public void test_genericDialect_fallsBackToTrackedState() throws SQLException {
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "logQuery");
     TargetDriverDialectManager.TARGET_DRIVER_DIALECT.set(props, TargetDriverDialectCodes.GENERIC);
 
     try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
@@ -290,8 +303,7 @@ public class TransactionStateTests {
       stmt.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (2)");
       assertTrackedTransactionState(conn, true);
 
-      // According to the JDBC spec, switching autocommit from false to true commits.
-      conn.setAutoCommit(true);
+      conn.commit();
       assertTrackedTransactionState(conn, false);
     }
   }
