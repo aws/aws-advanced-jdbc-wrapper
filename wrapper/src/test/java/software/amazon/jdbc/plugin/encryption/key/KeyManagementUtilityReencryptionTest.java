@@ -182,7 +182,6 @@ public class KeyManagementUtilityReencryptionTest {
     verify(metadataManager).refreshMetadata();
     assertEquals(4, db.getCommitCount(), "1 switch commit and 3 batch commits");
     assertTrue(db.isAutoCommit(), "auto-commit must be restored");
-    assertTrue(db.getSetConfigCalls().isEmpty());
     assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("FROM `users`")
         && sql.contains("`ssn` IS NOT NULL") && sql.contains("ORDER BY `id`") && sql.endsWith("FOR UPDATE")));
     assertTrue(db.getExecutedSql().stream().anyMatch(
@@ -190,7 +189,7 @@ public class KeyManagementUtilityReencryptionTest {
   }
 
   @Test
-  void rotate_postgres_setsTriggerCacheOnceAndQuotes() throws Exception {
+  void rotate_postgres_reencryptsAndQuotesIdentifiers() throws Exception {
     init(true, "app.users");
     final TestKey oldKey = createKey("key-users-ssn-1");
     db.setMetadataKeyId(oldKey.id);
@@ -209,11 +208,6 @@ public class KeyManagementUtilityReencryptionTest {
     for (long pk = 1; pk <= 4; pk++) {
       assertDecryptsTo("value-" + pk, db.getRow(pk), newKey);
     }
-    // Three batch transactions (two full pages, one empty page); the trigger cache is set once.
-    assertEquals(1, db.getSetConfigCalls().size());
-    assertEquals("hmac_key.users.ssn", db.getSetConfigCalls().get(0)[0]);
-    assertEquals(hex(newKey.hmacKey), db.getSetConfigCalls().get(0)[1]);
-    assertEquals(hex(newKey.hmacKey), db.getSessionSetting("hmac_key.users.ssn"));
     assertTrue(db.getKey(newKey.id).name.startsWith("key-users-ssn-"), db.getKey(newKey.id).name);
     assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("FROM \"app\".\"users\"")
         && sql.contains("\"ssn\" IS NOT NULL") && sql.contains("ORDER BY \"id\"")));
@@ -832,7 +826,6 @@ public class KeyManagementUtilityReencryptionTest {
     assertArrayEquals(new String[] {"users", COLUMN}, db.getMetadataLookups().get(0));
     assertTrue(db.getExecutedSql().stream().anyMatch(
         sql -> sql.equals("UPDATE `app`.`users` SET `ssn` = ? WHERE `id` = ? AND `ssn` = ?")));
-    assertArrayEquals(currentKey.hmacKey, db.getUserVariable("@hmac_key_users_ssn"));
   }
 
   @Test
@@ -851,7 +844,6 @@ public class KeyManagementUtilityReencryptionTest {
     assertTrue(db.getExecutedSql().stream().anyMatch(
         sql -> sql.equals("UPDATE `users` SET `ssn` = ? WHERE `id` = ? AND `ssn` = ?")));
     assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("`USERS`") || sql.contains("`SSN`")));
-    assertEquals(Collections.singletonList("@hmac_key_users_ssn"), db.getUserVariableCalls());
   }
 
   @Test
@@ -909,7 +901,6 @@ public class KeyManagementUtilityReencryptionTest {
         () -> utility.reencryptRemainingRows("other.users", COLUMN, PK, Collections.singletonList(oldKey.id), 10));
 
     assertEquals(0, db.getCommitCount());
-    assertTrue(db.getUserVariableCalls().isEmpty());
     assertTrue(db.getRowUpdatePks().isEmpty());
     assertRowsEqual(before, db.getRows());
     assertTrue(db.isAutoCommit());
@@ -950,7 +941,6 @@ public class KeyManagementUtilityReencryptionTest {
     assertTrue(exception.getMessage().contains("new key id " + newKeyId), exception.getMessage());
     assertTrue(exception.getMessage().contains("was deleted"), exception.getMessage());
     assertTrue(exception.getMessage().contains("still uses key id " + oldKey.id), exception.getMessage());
-    assertTrue(db.getSetConfigCalls().isEmpty());
     assertTrue(db.isAutoCommit());
   }
 
@@ -999,13 +989,13 @@ public class KeyManagementUtilityReencryptionTest {
     final TestKey oldKey = createKey("old");
     db.setMetadataKeyId(oldKey.id);
     db.putRow(1, encrypt("a", oldKey));
-    db.failOnSetConfig();
+    db.failOnExecuteBatchNumber(1);
 
     final KeyManagementException exception = assertThrows(KeyManagementException.class,
         () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
 
     final int newKeyId = db.getMetadataKeyId();
-    assertNotEquals(oldKey.id, newKeyId, "the switch is committed before the trigger cache is set");
+    assertNotEquals(oldKey.id, newKeyId, "the switch is committed before the first batch runs");
     assertEquals(2, db.getKeyCount());
     assertTrue(exception.getMessage().contains("old key id(s) [" + oldKey.id + "]"), exception.getMessage());
     assertTrue(exception.getMessage().contains("failed in batch 1"), exception.getMessage());
@@ -1013,79 +1003,7 @@ public class KeyManagementUtilityReencryptionTest {
     assertTrue(db.isAutoCommit());
   }
 
-  // ---- 9. trigger cache and statement reuse --------------------------------------------------
-
-  @Test
-  void rotate_postgres_triggerCacheSurvivesBatchRollback() throws Exception {
-    init(true, TABLE);
-    final TestKey oldKey = createKey("old");
-    db.setMetadataKeyId(oldKey.id);
-    for (long pk = 1; pk <= 4; pk++) {
-      db.putRow(pk, encrypt("v" + pk, oldKey));
-    }
-    // The first batch fails and is rolled back; the trigger cache was committed before it.
-    db.failOnExecuteBatchNumber(1);
-
-    assertThrows(KeyManagementException.class,
-        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 2));
-
-    final TestKey newKey = keyFromDb(db.getMetadataKeyId());
-    assertTrue(db.getRollbackCount() >= 1);
-    assertEquals(1, db.getSetConfigCalls().size());
-    assertEquals(hex(newKey.hmacKey), db.getSessionSetting("hmac_key.users.ssn"));
-  }
-
-  @Test
-  void repair_postgres_setsTriggerCacheToCurrentKey() throws Exception {
-    init(true, TABLE);
-    final TestKey oldKey = createKey("old");
-    final TestKey currentKey = createKey("current");
-    db.setMetadataKeyId(currentKey.id);
-    for (long pk = 1; pk <= 5; pk++) {
-      db.putRow(pk, encrypt("v" + pk, oldKey));
-    }
-
-    final DataKeyReencryptionResult result =
-        utility.reencryptRemainingRows(TABLE, COLUMN, PK, Collections.singletonList(oldKey.id), 2);
-
-    assertEquals(5, result.getReencryptedCount());
-    assertEquals(1, db.getSetConfigCalls().size());
-    assertEquals("hmac_key.users.ssn", db.getSetConfigCalls().get(0)[0]);
-    assertEquals(hex(currentKey.hmacKey), db.getSessionSetting("hmac_key.users.ssn"));
-  }
-
-  @Test
-  void rotate_mysql_setsTriggerUserVariableOnce() throws Exception {
-    init(false, TABLE);
-    final TestKey oldKey = createKey("old");
-    db.setMetadataKeyId(oldKey.id);
-    for (long pk = 1; pk <= 7; pk++) {
-      db.putRow(pk, encrypt("v" + pk, oldKey));
-    }
-
-    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 3);
-
-    final TestKey newKey = keyFromDb(result.getCurrentKeyId());
-    assertEquals(1, db.countPrepared(sql -> sql.equals("SET @hmac_key_users_ssn = ?")));
-    assertArrayEquals(newKey.hmacKey, db.getUserVariable("@hmac_key_users_ssn"));
-    assertTrue(db.getSetConfigCalls().isEmpty());
-    assertEquals(4, db.getCommitCount(), "1 switch commit and 3 batch commits");
-  }
-
-  @Test
-  void rotate_mysql_longNames_skipTriggerVariable() throws Exception {
-    final String longTable = repeat('t', 60);
-    init(false, longTable);
-    final TestKey oldKey = createKey("old");
-    db.setMetadataKeyId(oldKey.id);
-    db.putRow(1, encrypt("a", oldKey));
-
-    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(longTable, COLUMN, PK, null, 10);
-
-    assertEquals(1, result.getReencryptedCount());
-    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("SET @")));
-    assertTrue(db.getUserVariableCalls().isEmpty());
-  }
+  // ---- 9. statement reuse --------------------------------------------------------------------
 
   @Test
   void rotate_preparesStatementsOnce() throws Exception {
@@ -1167,13 +1085,5 @@ public class KeyManagementUtilityReencryptionTest {
 
   private static String base64(byte[] bytes) {
     return Base64.getEncoder().encodeToString(bytes);
-  }
-
-  private static String hex(byte[] bytes) {
-    final StringBuilder sb = new StringBuilder();
-    for (byte b : bytes) {
-      sb.append(String.format("%02x", b));
-    }
-    return sb.toString();
   }
 }

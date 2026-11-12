@@ -359,8 +359,8 @@ public class KmsKeyRotationIntegrationTest {
     }
     assertResult(rotation, 10, 0, 0, 3);
 
-    // The stale connection's metadata cache (and, on PostgreSQL, its trigger session cache) still
-    // holds the old key, so these rows are encrypted under the old key.
+    // The stale connection's plugin metadata cache still holds the old key, so these rows are
+    // encrypted under the old key.
     insertRows(staleWriter, table, 11, 2, false);
 
     try (Connection reader = openPluginConnection()) {
@@ -457,43 +457,42 @@ public class KmsKeyRotationIntegrationTest {
   }
 
   /**
-   * The PostgreSQL HMAC trigger caches the HMAC key per session. The rotation must succeed on a
-   * session that cached the old key (the utility refreshes the cache with set_config), and a value
-   * bound as bytea must compare against the encrypted_data domain. Another session that cached the
-   * old key reloads the key from the metadata on the first mismatch, so its writes succeed.
+   * The PostgreSQL HMAC trigger caches nothing: it looks the column's key up from the metadata for
+   * every row. A session that primed no cache therefore writes successfully under a rotated key, an
+   * UPDATE that leaves the value unchanged is not re-checked, and a value bound as bytea still
+   * compares against the encrypted_data domain.
    */
   @TestTemplate
   @EnableOnDatabaseEngine(DatabaseEngine.PG)
-  void test07PostgresTriggerSessionWithCachedOldHmacKey() throws Exception {
+  void test07PostgresTriggerLooksUpKeyPerRow() throws Exception {
     final String table = createEncryptedTable("trigger", SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 15, false);
     }
     final int oldKeyId = currentKeyId(table, SSN);
-    final String settingName = "hmac_key." + table + "." + SSN;
 
-    final Connection sessionP = openPlainConnection();
-    connections.add(sessionP);
-    final Connection sessionQ = openPlainConnection();
-    connections.add(sessionQ);
-    final int minId = minId(sessionP, table);
-    touchRow(sessionP, table, minId);
-    assertEquals(hmacKeyHex(oldKeyId), currentSetting(sessionP, settingName));
-    touchRow(sessionQ, table, minId);
-    assertEquals(hmacKeyHex(oldKeyId), currentSetting(sessionQ, settingName));
+    // A plain session that primes no cache and holds no HMAC key of its own.
+    final Connection session = openPlainConnection();
+    connections.add(session);
+    final int minId = minId(session, table);
 
+    // Rotate and re-encrypt on a separate session; every row is now stored under the new key.
+    final Connection rotator = openPlainConnection();
+    connections.add(rotator);
     final DataKeyReencryptionResult result =
-        newUtility(sessionP).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
+        newUtility(rotator).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
     assertResult(result, 15, 0, 0, 4);
     final int newKeyId = currentKeyId(table, SSN);
     assertNotEquals(oldKeyId, newKeyId);
 
-    assertEquals(hmacKeyHex(newKeyId), currentSetting(sessionP, settingName));
-    touchRow(sessionP, table, minId);
+    // An UPDATE that leaves the value unchanged is not re-checked, so it passes regardless of key.
+    touchRow(session, table, minId);
 
+    // A value bound as bytea compares against the encrypted_data domain: the row's current
+    // (new-key) value matches exactly one row.
     final byte[] rawValue = readRawValues(table, SSN).get(minId);
     assertNotNull(rawValue);
-    try (PreparedStatement stmt = sessionP.prepareStatement(
+    try (PreparedStatement stmt = session.prepareStatement(
         "SELECT count(*) FROM " + table + " WHERE ssn = ?")) {
       stmt.setBytes(1, rawValue);
       try (ResultSet rs = stmt.executeQuery()) {
@@ -502,11 +501,26 @@ public class KmsKeyRotationIntegrationTest {
       }
     }
 
-    // Session Q still caches the old HMAC key. The value under the new key fails the check against
-    // it, so the trigger reloads the current key, updates the cache and accepts the write.
-    assertEquals(hmacKeyHex(oldKeyId), currentSetting(sessionQ, settingName));
-    touchRow(sessionQ, table, minId);
-    assertEquals(hmacKeyHex(newKeyId), currentSetting(sessionQ, settingName));
+    // A real change to a valid payload under the new key passes on a session that primed nothing:
+    // the trigger looks the new key up per row. The row is changed to another row's current value
+    // and then restored, so both writes exercise the trigger and the row keeps its own plaintext.
+    final Map<Integer, byte[]> raw = readRawValues(table, SSN);
+    final byte[] original = raw.get(minId);
+    final byte[] otherValue = raw.entrySet().stream()
+        .filter(e -> e.getKey() != minId)
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("expected more than one row"))
+        .getValue();
+    setSsn(session, table, minId, otherValue);
+    setSsn(session, table, minId, original);
+
+    // The per-row lookup does not hide a real mismatch: a zeroed HMAC is rejected.
+    try (PreparedStatement stmt = session.prepareStatement(
+        "UPDATE " + table + " SET ssn = decode(repeat('00', 32), 'hex') || substring(ssn::bytea from 33) "
+            + "WHERE id = ?")) {
+      stmt.setInt(1, minId);
+      assertHmacFailure(stmt::executeUpdate);
+    }
 
     assertAllRowsDecrypt(table, 15, false);
   }
@@ -582,14 +596,14 @@ public class KmsKeyRotationIntegrationTest {
   }
 
   /**
-   * The MySQL counterpart of test07. The HMAC trigger caches the key per session in the user
-   * variable {@code @hmac_key_<table>_<column>}. The rotation primes it on its own session; another
-   * session that cached the old key reloads the key from the metadata on the first mismatch, and a
-   * value with a wrong HMAC is still rejected.
+   * The MySQL counterpart of test07. The HMAC trigger caches nothing: it looks the column's key up
+   * from the metadata for every row. A session that primed no cache therefore writes successfully
+   * under a rotated key, an UPDATE that leaves the value unchanged is not re-checked, and a value
+   * with a wrong HMAC is still rejected.
    */
   @TestTemplate
   @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
-  void test11MysqlTriggerSessionWithCachedOldHmacKey() throws Exception {
+  void test11MysqlTriggerLooksUpKeyPerRow() throws Exception {
     final String table = createEncryptedTable("mytrig", SSN);
     try (Connection conn = openPlainConnection()) {
       EncryptedDataTypeInstaller.installMySqlHmacValidation(conn, SchemaName.of(METADATA_SCHEMA));
@@ -603,35 +617,39 @@ public class KmsKeyRotationIntegrationTest {
       insertRows(writer, table, 1, 15, false);
     }
     final int oldKeyId = currentKeyId(table, SSN);
-    final String variableName = "hmac_key_" + table + "_" + SSN;
 
-    final Connection sessionP = openPlainConnection();
-    connections.add(sessionP);
-    final Connection sessionQ = openPlainConnection();
-    connections.add(sessionQ);
-    final int minId = minId(sessionP, table);
-    touchRow(sessionP, table, minId);
-    assertEquals(hmacKeyHex(oldKeyId), userVariableHex(sessionP, variableName));
-    touchRow(sessionQ, table, minId);
-    assertEquals(hmacKeyHex(oldKeyId), userVariableHex(sessionQ, variableName));
+    // A plain session that primes no cache and holds no HMAC key of its own.
+    final Connection session = openPlainConnection();
+    connections.add(session);
+    final int minId = minId(session, table);
 
+    // Rotate and re-encrypt on a separate session; every row is now stored under the new key.
+    final Connection rotator = openPlainConnection();
+    connections.add(rotator);
     final DataKeyReencryptionResult result =
-        newUtility(sessionP).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
+        newUtility(rotator).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
     assertResult(result, 15, 0, 0, 4);
     final int newKeyId = currentKeyId(table, SSN);
     assertNotEquals(oldKeyId, newKeyId);
 
-    assertEquals(hmacKeyHex(newKeyId), userVariableHex(sessionP, variableName));
-    touchRow(sessionP, table, minId);
+    // An UPDATE that leaves the value unchanged is not re-checked, so it passes regardless of key.
+    touchRow(session, table, minId);
 
-    // Session Q still caches the old HMAC key. The value under the new key fails the check against
-    // it, so the trigger reloads the current key, updates the cache and accepts the write.
-    assertEquals(hmacKeyHex(oldKeyId), userVariableHex(sessionQ, variableName));
-    touchRow(sessionQ, table, minId);
-    assertEquals(hmacKeyHex(newKeyId), userVariableHex(sessionQ, variableName));
+    // A real change to a valid payload under the new key passes on a session that primed nothing:
+    // the trigger looks the new key up per row. The row is changed to another row's current value
+    // and then restored, so both writes exercise the trigger and the row keeps its own plaintext.
+    final Map<Integer, byte[]> raw = readRawValues(table, SSN);
+    final byte[] original = raw.get(minId);
+    final byte[] otherValue = raw.entrySet().stream()
+        .filter(e -> e.getKey() != minId)
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("expected more than one row"))
+        .getValue();
+    setSsn(session, table, minId, otherValue);
+    setSsn(session, table, minId, original);
 
-    // The reload does not hide a real mismatch: a zeroed HMAC is rejected.
-    try (PreparedStatement stmt = sessionQ.prepareStatement(
+    // The per-row lookup does not hide a real mismatch: a zeroed HMAC is rejected.
+    try (PreparedStatement stmt = session.prepareStatement(
         "UPDATE " + table + " SET ssn = UNHEX(CONCAT(REPEAT('00', 32), SUBSTRING(HEX(ssn), 65))) WHERE id = ?")) {
       stmt.setInt(1, minId);
       assertHmacFailure(stmt::executeUpdate);
@@ -832,22 +850,6 @@ public class KmsKeyRotationIntegrationTest {
     }
   }
 
-  private static String hmacKeyHex(int keyId) throws SQLException {
-    try (Connection conn = openPlainConnection();
-         PreparedStatement stmt = conn.prepareStatement(
-             "SELECT hmac_key FROM " + METADATA_SCHEMA + ".key_storage WHERE id = ?")) {
-      stmt.setInt(1, keyId);
-      try (ResultSet rs = stmt.executeQuery()) {
-        assertTrue(rs.next(), "Key " + keyId + " not found");
-        final StringBuilder hex = new StringBuilder();
-        for (byte b : rs.getBytes(1)) {
-          hex.append(String.format("%02x", b));
-        }
-        return hex.toString();
-      }
-    }
-  }
-
   private static String masterKeyArn(int keyId) throws SQLException {
     try (Connection conn = openPlainConnection();
          PreparedStatement stmt = conn.prepareStatement(
@@ -888,22 +890,12 @@ public class KmsKeyRotationIntegrationTest {
     }
   }
 
-  private static String currentSetting(Connection conn, String name) throws SQLException {
-    try (PreparedStatement stmt = conn.prepareStatement("SELECT current_setting(?, true)")) {
-      stmt.setString(1, name);
-      try (ResultSet rs = stmt.executeQuery()) {
-        assertTrue(rs.next());
-        return rs.getString(1);
-      }
-    }
-  }
-
-  /** Lower-case hex of a MySQL user variable; the name is built from validated identifiers. */
-  private static String userVariableHex(Connection conn, String name) throws SQLException {
-    try (Statement stmt = conn.createStatement();
-         ResultSet rs = stmt.executeQuery("SELECT LOWER(HEX(@" + name + "))")) {
-      assertTrue(rs.next());
-      return rs.getString(1);
+  /** Writes a raw value into the row's ssn column, which fires the HMAC trigger in this session. */
+  private static void setSsn(Connection conn, String table, int id, byte[] value) throws SQLException {
+    try (PreparedStatement stmt = conn.prepareStatement("UPDATE " + table + " SET ssn = ? WHERE id = ?")) {
+      stmt.setBytes(1, value);
+      stmt.setInt(2, id);
+      assertEquals(1, stmt.executeUpdate());
     }
   }
 
