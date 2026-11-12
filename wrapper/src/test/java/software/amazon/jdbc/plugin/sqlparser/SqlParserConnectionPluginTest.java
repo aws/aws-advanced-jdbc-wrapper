@@ -20,9 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +45,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.parser.ParameterColumnMapper;
 import software.amazon.jdbc.parser.ParameterMappingProblem;
 import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
@@ -334,5 +338,65 @@ public class SqlParserConnectionPluginTest {
 
     assertTrue(callContext.hasAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS));
     assertTrue(problems().isEmpty());
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<ParameterColumnMapper.UnboundColumn> unboundColumns() {
+    return callContext.getAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, List.class);
+  }
+
+  private void execute(String methodName, Object methodInvokeOn, Object... args) throws Exception {
+    JdbcCallable<Object, SQLException> callable = () -> null;
+    plugin.execute(Object.class, SQLException.class, methodInvokeOn, methodName, callable, args);
+  }
+
+  @Test
+  void test_literalWrite_setsUnboundColumns() throws Exception {
+    executeWithSql("INSERT INTO users (name, ssn) VALUES (?, '123')");
+
+    assertEquals(1, unboundColumns().size());
+    assertEquals("ssn", unboundColumns().get(0).getColumn());
+    assertEquals("users", unboundColumns().get(0).getTable());
+  }
+
+  @Test
+  void test_subscribesToAddBatch() {
+    Set<String> methods = plugin.getSubscribedMethods();
+
+    assertTrue(methods.contains("Statement.addBatch"));
+    assertTrue(methods.contains("PreparedStatement.addBatch"));
+    assertTrue(methods.contains("CallableStatement.addBatch"));
+  }
+
+  @Test
+  void test_statementMethodsWithSql_populateContext() throws Exception {
+    for (String methodName : new String[] {
+        "Statement.execute", "Statement.executeQuery", "Statement.executeUpdate", "Statement.addBatch"}) {
+      callContext.reset();
+      execute(methodName, mock(Statement.class), "UPDATE users SET ssn = 'x'");
+
+      assertEquals(QueryType.UPDATE,
+          callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class), methodName);
+      assertEquals(1, unboundColumns().size(), methodName);
+    }
+  }
+
+  @Test
+  void test_preparedStatementExecuteWithSql_parsesThatSqlNotThePreparedOne() throws Exception {
+    PreparedStatement ps = mock(PreparedStatement.class);
+    plugin.execute(PreparedStatement.class, SQLException.class, null,
+        "Connection.prepareStatement", () -> ps, new Object[] {"SELECT * FROM users WHERE id = ?"});
+    callContext.reset();
+
+    execute("PreparedStatement.executeUpdate", ps, "UPDATE users SET ssn = 'x'");
+
+    assertEquals(QueryType.UPDATE, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertEquals(1, unboundColumns().size());
+
+    callContext.reset();
+    execute("PreparedStatement.executeQuery", ps);
+
+    assertEquals(QueryType.SELECT, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertTrue(unboundColumns().isEmpty());
   }
 }

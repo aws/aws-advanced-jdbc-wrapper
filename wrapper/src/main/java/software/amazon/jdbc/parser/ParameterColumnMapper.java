@@ -31,9 +31,20 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.CastExpression;
+import net.sf.jsqlparser.expression.DateTimeLiteralExpression;
+import net.sf.jsqlparser.expression.DateValue;
+import net.sf.jsqlparser.expression.DoubleValue;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Function;
+import net.sf.jsqlparser.expression.HexValue;
 import net.sf.jsqlparser.expression.JdbcParameter;
+import net.sf.jsqlparser.expression.LongValue;
+import net.sf.jsqlparser.expression.NullValue;
 import net.sf.jsqlparser.expression.Parenthesis;
+import net.sf.jsqlparser.expression.SignedExpression;
+import net.sf.jsqlparser.expression.StringValue;
+import net.sf.jsqlparser.expression.TimeValue;
+import net.sf.jsqlparser.expression.TimestampValue;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
@@ -50,6 +61,7 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -98,7 +110,9 @@ public final class ParameterColumnMapper {
    */
   public static ParameterMapping map(
       final @Nullable Statement statement, final PlaceholderScanner.Result scan) {
-    if (statement == null) {
+    // A string holding several statements is read word by word: the parser either rejects it or
+    // reads only the first statement, and a parameter of a write in any of them has to be seen.
+    if (statement == null || scan.getStatements().size() > 1) {
       return mapUnparsed(scan);
     }
 
@@ -112,7 +126,7 @@ public final class ParameterColumnMapper {
           "ParameterColumnMapper.mappingFailed", new Object[] {e.getClass().getName()}));
       if (!write) {
         return new ParameterMapping(
-            Collections.emptyMap(), 0, Collections.emptyList(), false, table);
+            Collections.emptyMap(), 0, Collections.emptyList(), Collections.emptyList(), false, table);
       }
       // Fail closed: every parameter of a write statement is reported as unmapped.
       return new ParameterMapping(
@@ -120,24 +134,37 @@ public final class ParameterColumnMapper {
           0,
           Collections.singletonList(ParameterMappingProblem.unknownTargetParams(
               table, Collections.emptyList(), range(scan.getPlaceholderCount()))),
+          Collections.emptyList(),
           true,
           table);
     }
   }
 
+  /**
+   * A statement the parser could not read is judged by its words. Only a write with placeholders is
+   * reported, since none of its parameters can be mapped. Without placeholders there is nothing to
+   * encrypt, and whatever it writes is left to the database's own check.
+   */
   private static ParameterMapping mapUnparsed(final PlaceholderScanner.Result scan) {
-    final List<String> words = scan.getWords();
-    final boolean write = isUnparsedWrite(words);
+    boolean write = false;
+    for (List<String> statementWords : scan.getStatements()) {
+      if (isUnparsedWrite(statementWords)) {
+        write = true;
+        break;
+      }
+    }
     if (write && scan.getPlaceholderCount() > 0) {
       return new ParameterMapping(
           Collections.emptyMap(),
           0,
           Collections.singletonList(ParameterMappingProblem.unparsedStatement(
-              new ArrayList<>(new LinkedHashSet<>(words)), range(scan.getPlaceholderCount()))),
+              new ArrayList<>(new LinkedHashSet<>(scan.getWords())), range(scan.getPlaceholderCount()))),
+          Collections.emptyList(),
           true,
           null);
     }
-    return new ParameterMapping(Collections.emptyMap(), 0, Collections.emptyList(), write, null);
+    return new ParameterMapping(
+        Collections.emptyMap(), 0, Collections.emptyList(), Collections.emptyList(), write, null);
   }
 
   private static boolean isUnparsedWrite(final List<String> words) {
@@ -226,6 +253,50 @@ public final class ParameterColumnMapper {
     }
   }
 
+  /**
+   * Whether a value (without parameters) is computed by the client's SQL alone: it references no
+   * column and holds no subquery. Such a value is certain to reach the column as plaintext. A value
+   * that reads a column or a subquery, and DEFAULT, may be ciphertext the database already holds,
+   * and is left to the database's own check.
+   */
+  static boolean isClientConstant(final Expression value) {
+    if (value instanceof NullValue || isBareKeyword(value, "DEFAULT")) {
+      return false;
+    }
+    final ReferenceDetector detector = new ReferenceDetector();
+    value.accept(detector.expressionDeParser);
+    return !detector.found;
+  }
+
+  /** How a client constant is described in messages. */
+  static ValueKind kindOf(final Expression value) {
+    if (value instanceof SignedExpression) {
+      return kindOf(unwrapValue(((SignedExpression) value).getExpression()));
+    }
+    if (value instanceof StringValue
+        || value instanceof LongValue
+        || value instanceof DoubleValue
+        || value instanceof HexValue
+        || value instanceof DateValue
+        || value instanceof TimeValue
+        || value instanceof TimestampValue
+        || value instanceof DateTimeLiteralExpression
+        || isBareKeyword(value, "TRUE")
+        || isBareKeyword(value, "FALSE")) {
+      return ValueKind.LITERAL;
+    }
+    return ValueKind.EXPRESSION;
+  }
+
+  /** JSQLParser reads DEFAULT, TRUE and FALSE as unqualified columns of that name. */
+  private static boolean isBareKeyword(final Expression value, final String keyword) {
+    if (!(value instanceof Column)) {
+      return false;
+    }
+    final Column column = (Column) value;
+    return column.getTable() == null && keyword.equalsIgnoreCase(column.getColumnName());
+  }
+
   private static boolean isComparison(final Expression expression) {
     return expression instanceof EqualsTo
         || expression instanceof NotEqualsTo
@@ -243,6 +314,7 @@ public final class ParameterColumnMapper {
     private final PlaceholderScanner.Result scan;
     private final Map<Integer, String> columns = new TreeMap<>();
     private final List<ParameterMappingProblem> problems = new ArrayList<>();
+    private final List<UnboundColumn> unboundColumns = new ArrayList<>();
 
     MappingBuilder(
         final Statement statement,
@@ -263,7 +335,7 @@ public final class ParameterColumnMapper {
       if (statement instanceof Insert) {
         mapInsert((Insert) statement, astIndexes);
       } else if (statement instanceof Update) {
-        mapUpdateSets(((Update) statement).getUpdateSets());
+        mapUpdate((Update) statement);
       } else if (statement instanceof Upsert) {
         reportUnsupported(upsertKind((Upsert) statement), astIndexes);
       } else if (statement instanceof Merge) {
@@ -284,7 +356,7 @@ public final class ParameterColumnMapper {
         }
       }
 
-      return new ParameterMapping(columns, astIndexes.size(), problems, write, table);
+      return new ParameterMapping(columns, astIndexes.size(), problems, unboundColumns, write, table);
     }
 
     private boolean isOneToN(final TreeSet<Integer> indexes) {
@@ -382,11 +454,22 @@ public final class ParameterColumnMapper {
       for (Expression element : expressions) {
         if (element instanceof ExpressionList) {
           rows.add(new ArrayList<Expression>((ExpressionList<?>) element));
+        } else if (isRowConstructor(element)) {
+          // MySQL's VALUES ROW(a, b), ROW(c, d) is read as a function named ROW.
+          rows.add(new ArrayList<Expression>(((Function) element).getParameters()));
         } else {
           rows.add(Collections.singletonList(element));
         }
       }
       return rows;
+    }
+
+    private boolean isRowConstructor(final Expression element) {
+      if (!(element instanceof Function)) {
+        return false;
+      }
+      final Function function = (Function) element;
+      return "ROW".equalsIgnoreCase(function.getName()) && function.getParameters() != null;
     }
 
     private void pairRow(final List<String> targetColumns, final List<Expression> values) {
@@ -417,26 +500,134 @@ public final class ParameterColumnMapper {
             pair(setColumns.get(k), values.get(k));
           }
         } else if (values != null) {
-          final List<Integer> indexes = parameterIndexes(values);
-          if (!indexes.isEmpty()) {
-            problems.add(ParameterMappingProblem.unknownTargetParams(table, setColumns, indexes));
+          reportUnpairedSet(table, setColumns, values);
+        }
+      }
+    }
+
+    /**
+     * An UPDATE. MySQL can update several tables at once ({@code UPDATE a JOIN b ... SET b.c = ?});
+     * each assigned column is then attributed to the table its qualifier names. A column whose
+     * table cannot be told is checked against every updated table, and a parameter assigned to it
+     * is reported rather than mapped.
+     */
+    private void mapUpdate(final Update update) {
+      final Map<String, String> targets = updateTargets(update);
+      if (targets.isEmpty() || update.getUpdateSets() == null) {
+        mapUpdateSets(update.getUpdateSets());
+        return;
+      }
+      final Set<String> tables = new LinkedHashSet<>(targets.values());
+      for (UpdateSet updateSet : update.getUpdateSets()) {
+        final @Nullable ExpressionList<Column> setColumns = updateSet.getColumns();
+        final ExpressionList<?> values = updateSet.getValues();
+        if (setColumns == null || values == null) {
+          continue;
+        }
+        if (values.size() != setColumns.size()) {
+          for (String target : tables) {
+            reportUnpairedSet(target, columnNames(setColumns), values);
+          }
+          continue;
+        }
+        for (int k = 0; k < values.size(); k++) {
+          final Column column = setColumns.get(k);
+          final String name = stripQuotes(column.getColumnName());
+          final @Nullable String resolved = resolveQualifier(column, targets);
+          if (resolved != null) {
+            pairTo(resolved, name, values.get(k), true);
+          } else {
+            for (String target : tables) {
+              pairTo(target, name, values.get(k), false);
+            }
           }
         }
       }
     }
 
+    /**
+     * The tables a multi-table UPDATE writes, keyed by lower-case alias and name. Empty for an
+     * UPDATE of a single table (a PostgreSQL {@code FROM} list only supplies values).
+     */
+    private Map<String, String> updateTargets(final Update update) {
+      final Map<String, String> targets = new HashMap<>();
+      final List<Join> startJoins = update.getStartJoins();
+      if (startJoins == null || startJoins.isEmpty()) {
+        return targets;
+      }
+      addTarget(targets, update.getTable());
+      for (Join join : startJoins) {
+        if (join.getRightItem() instanceof Table) {
+          addTarget(targets, (Table) join.getRightItem());
+        }
+      }
+      return targets;
+    }
+
+    private void addTarget(final Map<String, String> targets, final @Nullable Table target) {
+      if (target == null || target.getName() == null) {
+        return;
+      }
+      final String name = stripQuotes(target.getName());
+      targets.put(name.toLowerCase(Locale.ROOT), name);
+      if (target.getAlias() != null && target.getAlias().getName() != null) {
+        targets.put(stripQuotes(target.getAlias().getName()).toLowerCase(Locale.ROOT), name);
+      }
+    }
+
+    private @Nullable String resolveQualifier(final Column column, final Map<String, String> targets) {
+      final @Nullable Table qualifier = column.getTable();
+      if (qualifier == null || qualifier.getName() == null) {
+        return null;
+      }
+      return targets.get(stripQuotes(qualifier.getName()).toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * SET columns whose values could not be paired with them one to one, such as
+     * {@code SET (a, b) = (SELECT ...)}. Parameters among those values cannot be mapped.
+     */
+    private void reportUnpairedSet(
+        final @Nullable String target, final List<String> setColumns, final ExpressionList<?> values) {
+      final List<Integer> indexes = parameterIndexes(values);
+      if (!indexes.isEmpty()) {
+        problems.add(ParameterMappingProblem.unknownTargetParams(target, setColumns, indexes));
+      }
+    }
+
+    /**
+     * Pairs a column with the value written to it. A value without parameters is recorded as an
+     * unbound column when it is a client constant (see {@link #isClientConstant}).
+     */
     private void pair(final String column, final Expression value) {
+      pairTo(table, column, value, true);
+    }
+
+    /**
+     * Pairs a column of {@code target} with its value. When {@code mapParameter} is false the
+     * column's table is uncertain, so a parameter assigned to it is reported instead of mapped.
+     */
+    private void pairTo(
+        final @Nullable String target,
+        final String column,
+        final Expression value,
+        final boolean mapParameter) {
       final Expression unwrapped = unwrapValue(value);
       if (unwrapped instanceof JdbcParameter) {
         final Integer index = ((JdbcParameter) unwrapped).getIndex();
-        if (index != null) {
-          columns.put(index, table == null ? column : table + "." + column);
+        if (index != null && mapParameter) {
+          columns.put(index, target == null ? column : target + "." + column);
+        } else if (index != null) {
+          problems.add(ParameterMappingProblem.unknownTargetParams(
+              target, Collections.singletonList(column), Collections.singletonList(index)));
         }
         return;
       }
       final List<Integer> indexes = parameterIndexes(unwrapped);
       if (!indexes.isEmpty()) {
-        problems.add(ParameterMappingProblem.paramsInExpression(table, column, indexes));
+        problems.add(ParameterMappingProblem.paramsInExpression(target, column, indexes));
+      } else if (isClientConstant(unwrapped)) {
+        unboundColumns.add(new UnboundColumn(target, column, kindOf(unwrapped)));
       }
     }
 
@@ -559,6 +750,7 @@ public final class ParameterColumnMapper {
     private final Map<Integer, String> columns;
     private final int astParameterCount;
     private final List<ParameterMappingProblem> problems;
+    private final List<UnboundColumn> unboundColumns;
     private final boolean writeStatement;
     private final @Nullable String targetTable;
 
@@ -566,11 +758,13 @@ public final class ParameterColumnMapper {
         final Map<Integer, String> columns,
         final int astParameterCount,
         final List<ParameterMappingProblem> problems,
+        final List<UnboundColumn> unboundColumns,
         final boolean writeStatement,
         final @Nullable String targetTable) {
       this.columns = Collections.unmodifiableMap(new TreeMap<>(columns));
       this.astParameterCount = astParameterCount;
       this.problems = Collections.unmodifiableList(new ArrayList<>(problems));
+      this.unboundColumns = Collections.unmodifiableList(new ArrayList<>(unboundColumns));
       this.writeStatement = writeStatement;
       this.targetTable = targetTable;
     }
@@ -618,6 +812,18 @@ public final class ParameterColumnMapper {
     }
 
     /**
+     * Columns the statement writes with a client constant: a value with no bind parameter, column
+     * reference or subquery in it, such as a literal or {@code concat('a', 'b')}. Such a value is
+     * certain to be stored as plaintext. NULL and DEFAULT are not listed, and neither are values
+     * read from a column or a subquery, which may be ciphertext the database already holds.
+     *
+     * @return an immutable list of unbound columns, in statement order
+     */
+    public List<UnboundColumn> getUnboundColumns() {
+      return unboundColumns;
+    }
+
+    /**
      * True for INSERT, UPDATE, MERGE, REPLACE / UPSERT (also when detected without parsing).
      *
      * @return {@code true} if the SQL is a write statement; {@code false} otherwise
@@ -633,6 +839,93 @@ public final class ParameterColumnMapper {
      */
     public @Nullable String getTargetTable() {
       return targetTable;
+    }
+  }
+
+  /** The kind of value an {@link UnboundColumn} is written with. */
+  public enum ValueKind {
+    /** A literal, such as {@code '123'}, {@code 42} or {@code TRUE}. */
+    LITERAL,
+    /** An expression computed without any column or subquery, such as {@code concat('a', 'b')}. */
+    EXPRESSION
+  }
+
+  /**
+   * Finds a column reference or a subquery anywhere in an expression, using the JSQLParser
+   * de-parsers, which visit every part of it.
+   */
+  private static final class ReferenceDetector {
+    private boolean found;
+    private final StringBuilder buffer = new StringBuilder();
+    private final ExpressionDeParser expressionDeParser;
+
+    ReferenceDetector() {
+      this.expressionDeParser = new ExpressionDeParser() {
+        @Override
+        public void visit(final Column column) {
+          if (!isBareKeyword(column, "TRUE") && !isBareKeyword(column, "FALSE")) {
+            found = true;
+          }
+          super.visit(column);
+        }
+      };
+      final SelectDeParser selectDeParser = new SelectDeParser(this.expressionDeParser, this.buffer) {
+        @Override
+        public void visit(final PlainSelect plainSelect) {
+          found = true;
+          super.visit(plainSelect);
+        }
+      };
+      this.expressionDeParser.setSelectVisitor(selectDeParser);
+      this.expressionDeParser.setBuffer(this.buffer);
+    }
+  }
+
+  /**
+   * A column a statement writes with a value that is not a bind parameter. Carries no SQL text,
+   * only the table, the column and the kind of value. Immutable.
+   */
+  public static final class UnboundColumn {
+    private final @Nullable String table;
+    private final String column;
+    private final ValueKind kind;
+
+    UnboundColumn(final @Nullable String table, final String column, final ValueKind kind) {
+      this.table = table;
+      this.column = column;
+      this.kind = kind;
+    }
+
+    /**
+     * Bare target table of the statement.
+     *
+     * @return the table, or {@code null} when it is unknown
+     */
+    public @Nullable String getTable() {
+      return table;
+    }
+
+    /**
+     * Bare column name.
+     *
+     * @return the column name
+     */
+    public String getColumn() {
+      return column;
+    }
+
+    /**
+     * The kind of value written to the column.
+     *
+     * @return the value kind
+     */
+    public ValueKind getKind() {
+      return kind;
+    }
+
+    @Override
+    public String toString() {
+      return "UnboundColumn{table=" + table + ", column=" + column + ", kind=" + kind + '}';
     }
   }
 }

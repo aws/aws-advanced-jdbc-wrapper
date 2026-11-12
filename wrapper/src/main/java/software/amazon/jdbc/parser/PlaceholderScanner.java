@@ -48,7 +48,8 @@ public final class PlaceholderScanner {
   }
 
   private static final Result EMPTY_RESULT = new Result(
-      Collections.<Integer>emptyList(), Collections.<int[]>emptyList(), Collections.<String>emptyList());
+      Collections.<Integer>emptyList(), Collections.<int[]>emptyList(), Collections.<String>emptyList(),
+      Collections.<Integer>emptyList());
 
   private PlaceholderScanner() {
     // Utility class
@@ -69,6 +70,7 @@ public final class PlaceholderScanner {
     final List<Integer> placeholders = new ArrayList<>();
     final List<int[]> blockComments = new ArrayList<>();
     final List<String> words = new ArrayList<>();
+    final List<Integer> statementBreaks = new ArrayList<>();
     final int len = sql.length();
     int i = 0;
 
@@ -112,6 +114,10 @@ public final class PlaceholderScanner {
         }
         words.add(sql.substring(i, end));
         i = end;
+      } else if (c == ';') {
+        // A statement separator: the words that follow belong to the next statement.
+        statementBreaks.add(words.size());
+        i++;
       } else if (Character.isDigit(c)) {
         // Skip numeric tokens (and identifier characters glued to them) as a whole.
         int end = i + 1;
@@ -124,7 +130,7 @@ public final class PlaceholderScanner {
       }
     }
 
-    return new Result(placeholders, blockComments, words);
+    return new Result(placeholders, blockComments, words, statementBreaks);
   }
 
   private static boolean isIdentifierChar(final char c) {
@@ -268,14 +274,33 @@ public final class PlaceholderScanner {
     private final List<Integer> placeholderOffsets;
     private final List<int[]> blockComments;
     private final List<String> words;
+    private final List<List<String>> statements;
 
     private Result(
         final List<Integer> placeholderOffsets,
         final List<int[]> blockComments,
-        final List<String> words) {
+        final List<String> words,
+        final List<Integer> statementBreaks) {
       this.placeholderOffsets = Collections.unmodifiableList(placeholderOffsets);
       this.blockComments = Collections.unmodifiableList(blockComments);
       this.words = Collections.unmodifiableList(words);
+      this.statements = Collections.unmodifiableList(splitStatements(this.words, statementBreaks));
+    }
+
+    private static List<List<String>> splitStatements(
+        final List<String> words, final List<Integer> statementBreaks) {
+      final List<List<String>> statements = new ArrayList<>();
+      int start = 0;
+      for (int end : statementBreaks) {
+        if (end > start) {
+          statements.add(words.subList(start, end));
+        }
+        start = end;
+      }
+      if (words.size() > start) {
+        statements.add(words.subList(start, words.size()));
+      }
+      return statements;
     }
 
     /**
@@ -306,6 +331,18 @@ public final class PlaceholderScanner {
     public List<String> getWords() {
       return words;
     }
+
+    /**
+     * The words of each statement, split at top-level semicolons. Statements without any words (an
+     * empty statement, or a trailing semicolon) are not listed, so a single statement yields one
+     * entry and blank SQL yields none.
+     *
+     * @return an unmodifiable list of the words of each statement, in order
+     */
+    public List<List<String>> getStatements() {
+      return statements;
+    }
+
 
     /**
      * Number of real placeholders.

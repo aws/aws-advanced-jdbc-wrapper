@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +36,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.parser.ParameterColumnMapper.ParameterMapping;
+import software.amazon.jdbc.parser.ParameterColumnMapper.UnboundColumn;
 import software.amazon.jdbc.parser.ParameterMappingProblem.Type;
 import software.amazon.jdbc.parser.PlaceholderScanner.Mode;
 
@@ -359,6 +361,232 @@ class ParameterColumnMapperTest {
     final String text = result.getProblems().get(0).toString();
     assertFalse(text.contains("secret-literal"));
     assertFalse(text.contains("UPDATE"));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Values that are not bind parameters
+  // ---------------------------------------------------------------------------------------------
+
+  private static List<String> unbound(final ParameterMapping mapping) {
+    final List<String> result = new ArrayList<>();
+    for (UnboundColumn column : mapping.getUnboundColumns()) {
+      result.add(column.getTable() + "." + column.getColumn() + ":" + column.getKind());
+    }
+    return result;
+  }
+
+  /** Client constants: certain to be stored as plaintext. */
+  static Stream<Arguments> unboundRows() {
+    return Stream.of(
+        Arguments.of("literal", "INSERT INTO users (name, ssn) VALUES (?, '123')",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("negativeNumber", "INSERT INTO users (name, ssn) VALUES (?, -5)",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("boolean", "INSERT INTO users (name, ssn) VALUES (?, TRUE)",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("castLiteral", "INSERT INTO users (name, ssn) VALUES (?, 'x'::bytea)",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("dateLiteral", "INSERT INTO users (name, ssn) VALUES (?, DATE '2020-01-01')",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("function", "INSERT INTO users (name, ssn) VALUES (?, now())",
+            Arrays.asList("users.ssn:EXPRESSION")),
+        Arguments.of("concat", "INSERT INTO users (name, ssn) VALUES (?, 'a' || 'b')",
+            Arrays.asList("users.ssn:EXPRESSION")),
+        Arguments.of("multiRow", "INSERT INTO users (ssn) VALUES (?), ('2')",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("bothColumns", "INSERT INTO users (name, ssn) VALUES ('n', '1')",
+            Arrays.asList("users.name:LITERAL", "users.ssn:LITERAL")),
+        Arguments.of("updateLiteral", "UPDATE users SET ssn = 'x' WHERE id = ?",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("insertSet", "INSERT INTO users SET name = ?, ssn = 'x'",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("upsertLiteral",
+            "INSERT INTO users (name, ssn) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET ssn = 'x'",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("insertSelectLiteral", "INSERT INTO users (name, ssn) SELECT ?, '123'",
+            Arrays.asList("users.ssn:LITERAL")),
+        Arguments.of("insertSelectLiteralFrom", "INSERT INTO users (name, ssn) SELECT 'n', ssn FROM staging",
+            Arrays.asList("users.name:LITERAL")),
+        Arguments.of("valuesRow", "INSERT INTO users (name, ssn) VALUES ROW('a', '1'), ROW('b', '2')",
+            Arrays.asList("users.name:LITERAL", "users.ssn:LITERAL", "users.name:LITERAL",
+                "users.ssn:LITERAL")));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("unboundRows")
+  void testUnboundColumns(final String id, final String sql, final List<String> expected) {
+    final ParameterMapping result = map(sql);
+
+    assertEquals(expected, unbound(result), id);
+    assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  /** NULL, DEFAULT, and values read from a column or a subquery: left to the database. */
+  static Stream<Arguments> databaseCheckedRows() {
+    return Stream.of(
+        Arguments.of("null", "INSERT INTO users (name, ssn) VALUES (?, NULL)"),
+        Arguments.of("updateNull", "UPDATE users SET ssn = NULL WHERE id = ?"),
+        Arguments.of("default", "INSERT INTO users (name, ssn) VALUES (?, DEFAULT)"),
+        Arguments.of("updateDefault", "UPDATE users SET ssn = DEFAULT"),
+        Arguments.of("columnReference", "UPDATE users SET ssn = other_col WHERE id = ?"),
+        Arguments.of("expressionOfColumn", "UPDATE users SET ssn = upper(name)"),
+        Arguments.of("scalarSubquery", "INSERT INTO users (name, ssn) VALUES (?, (SELECT ssn FROM staging))"),
+        Arguments.of("rowSubquery", "UPDATE users SET (name, ssn) = (SELECT a, b FROM t)"),
+        Arguments.of("conflictExcluded",
+            "INSERT INTO users (name, ssn) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET ssn = EXCLUDED.ssn"),
+        Arguments.of("conflictCoalesce",
+            "INSERT INTO users (name, ssn) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET ssn = "
+                + "COALESCE(EXCLUDED.ssn, users.ssn)"),
+        Arguments.of("duplicateValues",
+            "INSERT INTO users (id, ssn) VALUES (?, ?) ON DUPLICATE KEY UPDATE ssn = VALUES(ssn)"),
+        Arguments.of("insertSelectColumns", "INSERT INTO users (name, ssn) SELECT name, ssn FROM staging"),
+        Arguments.of("insertSelectFromCte",
+            "WITH s AS (SELECT '123' AS ssn) INSERT INTO users (ssn) SELECT ssn FROM s"),
+        Arguments.of("insertSelectUnion",
+            "INSERT INTO users (ssn) SELECT ssn FROM a UNION ALL SELECT ssn FROM b"),
+        Arguments.of("insertSelectStar", "INSERT INTO users SELECT * FROM staging"),
+        Arguments.of("unpairedRow", "INSERT INTO users (name, ssn) VALUES ('a', '1', '2')"),
+        Arguments.of("selectWithLiteral", "SELECT * FROM users WHERE ssn = 'x'"),
+        Arguments.of("delete", "DELETE FROM users WHERE ssn = 'x'"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("databaseCheckedRows")
+  void testNoUnboundColumnsOrProblems(final String id, final String sql) {
+    final ParameterMapping result = map(sql);
+
+    assertTrue(result.getUnboundColumns().isEmpty(), id + ": " + result.getUnboundColumns());
+    assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  /** Writes the plugin cannot read and that have no parameters to encrypt: left to the database. */
+  static Stream<Arguments> unreadableWritesWithoutParameters() {
+    return Stream.of(
+        Arguments.of("noColumnList", "INSERT INTO users VALUES ('n', '123')"),
+        Arguments.of("merge",
+            "MERGE INTO users u USING src s ON (u.id = s.id) WHEN MATCHED THEN UPDATE SET u.ssn = s.ssn"),
+        Arguments.of("replace", "REPLACE INTO users (name, ssn) VALUES ('n', '1')"),
+        Arguments.of("dataModifyingCte",
+            "WITH w AS (INSERT INTO users (ssn) VALUES ('1') RETURNING id) SELECT * FROM w"),
+        Arguments.of("defaultValues", "INSERT INTO users DEFAULT VALUES"),
+        Arguments.of("writeAfterSelect", "SELECT 1; INSERT INTO users (ssn) VALUES ('1')"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("unreadableWritesWithoutParameters")
+  void testUnreadableWriteWithoutParametersHasNoProblems(final String id, final String sql) {
+    final ParameterMapping result = map(sql);
+
+    assertTrue(result.isWriteStatement(), id);
+    assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  static Stream<Arguments> unreadableWritesWithParameters() {
+    return Stream.of(
+        Arguments.of("dataModifyingCte",
+            "WITH w AS (INSERT INTO users (ssn) VALUES (?) RETURNING id) SELECT * FROM w"),
+        Arguments.of("writeAfterSelect", "SELECT 1; INSERT INTO users (ssn) VALUES (?)"),
+        Arguments.of("writeBeforeSelect", "INSERT INTO users (ssn) VALUES (?); SELECT 1"),
+        Arguments.of("twoParsableWrites", "UPDATE other SET a = 1; UPDATE users SET ssn = ?"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("unreadableWritesWithParameters")
+  void testUnreadableWriteWithParametersIsReported(final String id, final String sql) {
+    final ParameterMapping result = map(sql);
+
+    assertTrue(result.isWriteStatement(), id);
+    assertEquals(1, result.getProblems().size(), id);
+    final ParameterMappingProblem problem = result.getProblems().get(0);
+    assertEquals(Type.UNPARSED_STATEMENT, problem.getType(), id);
+    assertTrue(problem.getCandidateTables().contains("users"), id + ": " + problem.getCandidateTables());
+    assertEquals(Collections.singletonList(1), problem.getParameterIndexes(), id);
+  }
+
+  static Stream<Arguments> unparsedReads() {
+    return Stream.of(
+        Arguments.of("copyFrom", "COPY users (ssn) FROM STDIN"),
+        Arguments.of("copyTo", "COPY users TO STDOUT"),
+        Arguments.of("loadData", "LOAD DATA LOCAL INFILE '/tmp/u.csv' INTO TABLE users (name, ssn)"),
+        Arguments.of("twoSelects", "SELECT * FROM users WHERE id = ?; SELECT 2"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("unparsedReads")
+  void testOtherUnparsedStatementsHaveNoProblems(final String id, final String sql) {
+    final ParameterMapping result = map(sql);
+
+    assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  @Test
+  void testTrailingSemicolonIsStillMapped() {
+    final ParameterMapping result = map("INSERT INTO users (name, ssn) VALUES (?, ?);");
+
+    assertEquals(mapping(1, "users.name", 2, "users.ssn"), result.getColumns());
+    assertTrue(result.getProblems().isEmpty());
+  }
+
+  @Test
+  void testValuesRowConstructorMapsParameters() {
+    final ParameterMapping bound = map("INSERT INTO users (name, ssn) VALUES ROW(?, ?)", Mode.MYSQL);
+
+    assertEquals(mapping(1, "users.name", 2, "users.ssn"), bound.getColumns());
+    assertTrue(bound.getUnboundColumns().isEmpty());
+    assertTrue(bound.getProblems().isEmpty(), bound.getProblems().toString());
+  }
+
+  static Stream<Arguments> multiTableUpdates() {
+    return Stream.of(
+        Arguments.of("join", "UPDATE other o JOIN users u ON o.id = u.id SET u.ssn = 'x'"),
+        Arguments.of("comma", "UPDATE other o, users u SET u.ssn = 'x' WHERE o.id = u.id"),
+        Arguments.of("tableName", "UPDATE other JOIN users ON other.id = users.id SET users.ssn = 'x'"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("multiTableUpdates")
+  void testMultiTableUpdateAttributesQualifiedColumn(final String id, final String sql) {
+    assertEquals(Arrays.asList("users.ssn:LITERAL"), unbound(map(sql, Mode.MYSQL)), id);
+  }
+
+  @Test
+  void testMultiTableUpdateMapsQualifiedParameterToItsTable() {
+    final ParameterMapping result =
+        map("UPDATE other o JOIN users u ON o.id = u.id SET o.note = ?, u.ssn = ? WHERE o.id = ?", Mode.MYSQL);
+
+    assertEquals(mapping(1, "other.note", 2, "users.ssn"), result.getColumns());
+    assertTrue(result.getProblems().isEmpty(), result.getProblems().toString());
+  }
+
+  @Test
+  void testMultiTableUpdateUnqualifiedColumnIsCheckedAgainstEveryTable() {
+    final ParameterMapping literal =
+        map("UPDATE other o JOIN users u ON o.id = u.id SET ssn = 'x'", Mode.MYSQL);
+    assertEquals(Arrays.asList("other.ssn:LITERAL", "users.ssn:LITERAL"), unbound(literal));
+
+    final ParameterMapping bound =
+        map("UPDATE other o JOIN users u ON o.id = u.id SET ssn = ?", Mode.MYSQL);
+    assertTrue(bound.getColumns().isEmpty());
+    assertEquals(2, bound.getProblems().size());
+    assertProblem(bound.getProblems().get(0), Type.UNKNOWN_TARGET_PARAMS, "other",
+        Collections.singletonList("ssn"), Collections.singletonList(1));
+    assertProblem(bound.getProblems().get(1), Type.UNKNOWN_TARGET_PARAMS, "users",
+        Collections.singletonList("ssn"), Collections.singletonList(1));
+  }
+
+  @Test
+  void testPostgresUpdateFromListIsNotATarget() {
+    final ParameterMapping result = map("UPDATE users SET ssn = 'x' FROM staging s WHERE s.id = users.id");
+
+    assertEquals(Arrays.asList("users.ssn:LITERAL"), unbound(result));
+  }
+
+  @Test
+  void testUnboundColumnToStringHasNoSqlText() {
+    final ParameterMapping result = map("INSERT INTO users (ssn) VALUES ('secret-literal')");
+
+    final String text = result.getUnboundColumns().get(0).toString();
+    assertFalse(text.contains("secret-literal"), text);
   }
 
   private static void assertProblem(
