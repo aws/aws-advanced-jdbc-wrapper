@@ -59,8 +59,9 @@ The plugin requires a dedicated schema to store encryption metadata and keys.
 -- Create metadata schema
 CREATE SCHEMA encrypt;
 
--- Install pgcrypto extension (required for HMAC functions)
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Install pgcrypto extension (required for HMAC functions).
+-- Into public, so the HMAC trigger can call it as public.hmac under its locked search_path.
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 ```
 
 **MySQL:**
@@ -152,7 +153,7 @@ On PostgreSQL this creates:
 - `has_valid_hmac_structure()` function for structure validation
 - `validate_encrypted_data_hmac()` trigger function for HMAC verification
 
-On MySQL it creates the HMAC functions and the `validate_encrypted_data_hmac_before_insert` procedure used by the HMAC validation triggers.
+On MySQL it creates the HMAC functions and the `validate_encrypted_data_hmac_before_insert` and `validate_encrypted_data_hmac_before_update` procedures used by the HMAC validation triggers.
 
 > [!WARNING]\
 > The PostgreSQL script starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`. Running it again after you created tables drops every column of type `encrypted_data`.
@@ -490,9 +491,9 @@ It never deletes the old `key_storage` row and never changes the old KMS key.
 Requirements:
 - The primary key column must be a single, unique, `NOT NULL` column. Rows with a `NULL` value in it are not processed.
 - Table and column names may contain only letters, digits and underscores, at most 64 characters. They are matched against `encrypt.encryption_metadata` as stored there, with the bare table name, the way the plugin stores it. On PostgreSQL the match is case-sensitive, and unquoted names are stored in lower case (`users`, not `Users`). The SQL against the data table uses the table and column spelling stored in the metadata.
-- A table name may have one schema prefix (`app.users`). The prefix is used only in the SQL against the data table; the metadata lookup and the HMAC trigger cache use the bare table name (`users`).
+- A table name may have one schema prefix (`app.users`). The prefix is used only in the SQL against the data table; the metadata lookup and the HMAC trigger use the bare table name (`users`).
 - Before it creates a key, the utility checks that the table, the encrypted column and the primary key column exist. A wrong name fails with nothing changed.
-- With the HMAC trigger, the utility sets the trigger's cached HMAC key for its own connection once, before the first batch: `hmac_key.<table>.<column>` with `set_config` on PostgreSQL, the user variable `@hmac_key_<table>_<column>` on MySQL.
+- The HMAC triggers on both PostgreSQL and MySQL look up the key from the metadata for every row and ignore any session setting, so nothing needs priming on either database.
 
 > [!WARNING]
 > `KeyManagementUtility.rotateDataKey()` does **not** re-encrypt existing rows. It only stores a new data key and points the column's metadata at it. After the call:
@@ -537,8 +538,8 @@ if (!repair.isComplete()) {
 3. **Run `rotateDataKeyAndReencrypt()`** on a connection without the `kmsEncryption` plugin. Record the old and new key ids from the log or from `result.getSourceKeyIds()` and `result.getCurrentKeyId()`.
 4. **If it fails**, fix the cause and run `reencryptRemainingRows()` with the old key id. Committed batches are kept.
 5. **Wait at least `metadataCacheRefreshIntervalMs`** (default 300000 ms) or restart the applications, then run `reencryptRemainingRows()` again with the old key id. This converts rows that applications wrote under the old key before their metadata cache refreshed.
-6. **With the PostgreSQL HMAC trigger**, each database session caches the column's HMAC key. The trigger function `validate_encrypted_data_hmac()` from this version reloads the key from the metadata when a value fails the check against the cached key, so pooled sessions pick up the new key on their own. If your `validate_encrypted_data_hmac()` was created by an earlier version, re-create it: run only its `CREATE OR REPLACE FUNCTION` statement from [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql), with `SCHEMA_NAME` replaced by your metadata schema. Until then, recycle pooled connections (for example, restart the applications), because an old function rejects values under the new key until the session ends. Do not re-run the whole script on a database with data: it starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of that type.
-   **With the MySQL HMAC trigger**, the cache is the session's user variable `@hmac_key_<table>_<column>`, and the procedure `validate_encrypted_data_hmac` reloads the key the same way. If your triggers call the earlier `validate_encrypted_data_hmac_before_insert`, they could not run at all (MySQL error 1336): re-install the script and re-create the triggers as described in step 8 of the [Database Encryption Setup Guide](../../DatabaseEncryptionSetup.md#8-add-hmac-validation-triggers-optional). The MySQL script only replaces routines and does not touch your tables.
+6. **With the PostgreSQL HMAC trigger**, the trigger function `validate_encrypted_data_hmac()` from this version looks up the column's HMAC key from the metadata for every row and caches nothing, so pooled sessions pick up the new key on their own with no reload logic or connection recycling. If your `validate_encrypted_data_hmac()` was created by an earlier (caching) version — `SELECT obj_description('validate_encrypted_data_hmac'::regproc, 'pg_proc')` returns NULL rather than the `...trigger v1` marker — re-create it: run its `CREATE OR REPLACE FUNCTION` statement and the `COMMENT ON FUNCTION` statement that follows it from [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql) (just those two, not the whole script), with `SCHEMA_NAME` replaced by your metadata schema. Running the function without the comment leaves the marker NULL, so the check above would still report it as un-upgraded. First make sure pgcrypto is in the `public` schema, because this version calls it as `public.hmac` under a locked `search_path`: an earlier install with a bare `CREATE EXTENSION pgcrypto` may have put it in another schema, and `CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public` is a no-op when the extension already exists elsewhere. Move it with `ALTER EXTENSION pgcrypto SET SCHEMA public` (check with `SELECT extnamespace::regnamespace FROM pg_extension WHERE extname = 'pgcrypto'`); otherwise the next write fails with `function public.hmac(bytea, bytea, text) does not exist`. Do not re-run the whole script on a database with data: it starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of that type.
+   **With the MySQL HMAC trigger**, the procedures `validate_encrypted_data_hmac_before_insert` and `validate_encrypted_data_hmac_before_update` from this version also look up the column's HMAC key from the metadata for every row and cache nothing, so pooled sessions pick up the new key on their own with no reload logic or connection recycling. These two procedures take different arguments than the single `validate_encrypted_data_hmac` procedure of an earlier version, so you must re-install the script and drop and re-create the triggers as described in step 8 of the [Database Encryption Setup Guide](../../DatabaseEncryptionSetup.md#8-add-hmac-validation-triggers-recommended). Until the triggers are re-created, they still call the dropped procedure, so every INSERT and UPDATE on those tables fails; run both steps together, in a maintenance window if the tables take live writes. The MySQL script only replaces routines and does not touch your tables.
 7. **Keep the old `key_storage` row and its KMS key** until every backup and snapshot that holds data encrypted under the old key has expired.
 
 The following example runs steps 3 and 4 for the `ssn` column of the `users` table, and step 5 as a separate, later job. It uses an AWS Advanced JDBC Wrapper connection with the `failover2` and `efm2` plugins and without `kmsEncryption`. If a failover happens during a batch, that batch is rolled back and the call fails; run `reencryptRemainingRows()` to resume.
@@ -718,7 +719,7 @@ try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 - HMAC key may have changed
 - Check `encrypt.key_storage.hmac_key` matches key used for encryption
 - The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()`), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)
-- With the PostgreSQL or MySQL HMAC trigger, a pooled session may still cache the previous HMAC key after a rotation. The current trigger function and MySQL procedure reload the key on a mismatch. With a function created by an earlier version, re-create the function (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
+- The current HMAC triggers on both PostgreSQL and MySQL cache nothing — they look up the key from the metadata per row — so pooled sessions pick up a rotated key on their own. With a routine created by an earlier (caching) version, re-create it (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
 
 **4. "Cannot insert plain text into encrypted column"**
 - This is expected behavior with PostgreSQL triggers

@@ -46,12 +46,13 @@ public class EncryptedDataTypeInstaller {
     LOGGER.info(Messages.get("EncryptedDataTypeInstaller.installing"));
 
     try (Statement stmt = connection.createStatement()) {
-      stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+      // Pin pgcrypto to public so the trigger can call it as public.hmac under a locked search_path.
+      stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public");
       LOGGER.fine(Messages.get("EncryptedDataTypeInstaller.pgcryptoEnabled"));
 
       // Use DOMAIN-based implementation
       String sql = loadSqlScript(SQL_RESOURCE_PATH);
-      sql = sql.replaceFirst(SCHEMA_PLACEHOLDER, metaDataSchema.getValue());
+      sql = sql.replace(SCHEMA_PLACEHOLDER, metaDataSchema.getValue());
       stmt.execute(sql);
 
       LOGGER.info(Messages.get("EncryptedDataTypeInstaller.installed"));
@@ -86,10 +87,11 @@ public class EncryptedDataTypeInstaller {
   }
 
   /**
-   * Creates the BEFORE INSERT and BEFORE UPDATE triggers that call {@code validate_encrypted_data_hmac}
-   * for one column. The triggers pass the user variable {@code @hmac_key_<table>_<column>} as the
-   * session cache of the HMAC key; this is the variable KeyManagementUtility sets before it
-   * re-encrypts the column.
+   * Creates the BEFORE INSERT and BEFORE UPDATE triggers for one column. The INSERT trigger calls
+   * {@code validate_encrypted_data_hmac_before_insert}; the UPDATE trigger calls
+   * {@code validate_encrypted_data_hmac_before_update}, which skips a value the UPDATE leaves
+   * unchanged. Neither procedure caches the HMAC key: it is looked up from the metadata for every
+   * row.
    */
   public static void createMySqlHmacTriggers(Connection connection, String table, String column)
       throws SQLException {
@@ -107,12 +109,15 @@ public class EncryptedDataTypeInstaller {
     validateIdentifier(table);
     validateIdentifier(column);
     final String triggerName = mysqlTriggerName(table, column, insert);
-    final String variableName = "hmac_key_" + table + "_" + column;
     validateMySqlNameLength(triggerName);
-    validateMySqlNameLength(variableName);
-    return "CREATE TRIGGER " + triggerName + " BEFORE " + (insert ? "INSERT" : "UPDATE")
-        + " ON " + table + " FOR EACH ROW CALL validate_encrypted_data_hmac('"
-        + table + "', '" + column + "', NEW." + column + ", @" + variableName + ")";
+    if (insert) {
+      return "CREATE TRIGGER " + triggerName + " BEFORE INSERT ON " + table
+          + " FOR EACH ROW CALL validate_encrypted_data_hmac_before_insert('"
+          + table + "', '" + column + "', NEW." + column + ")";
+    }
+    return "CREATE TRIGGER " + triggerName + " BEFORE UPDATE ON " + table
+        + " FOR EACH ROW CALL validate_encrypted_data_hmac_before_update('"
+        + table + "', '" + column + "', NEW." + column + ", OLD." + column + ")";
   }
 
   /**
