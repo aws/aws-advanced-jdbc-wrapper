@@ -343,7 +343,6 @@ public final class PlaceholderScanner {
       return statements;
     }
 
-
     /**
      * Number of real placeholders.
      *

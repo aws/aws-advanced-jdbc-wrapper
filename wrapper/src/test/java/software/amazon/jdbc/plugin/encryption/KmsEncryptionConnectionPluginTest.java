@@ -1048,7 +1048,7 @@ public class KmsEncryptionConnectionPluginTest {
     String sql = "INSERT INTO users (name, ssn) VALUES ('a', '1')";
 
     for (String methodName : Arrays.asList(
-        "PreparedStatement.addBatch", "CallableStatement.execute", "CallableStatement.addBatch")) {
+        "PreparedStatement.executeUpdate", "CallableStatement.execute", "CallableStatement.executeUpdate")) {
       assertThrows(SQLException.class, () -> executeChained(methodName, mockPreparedStatement, sql), methodName);
     }
   }
@@ -1101,35 +1101,26 @@ public class KmsEncryptionConnectionPluginTest {
     assertTrue(warnings.isEmpty(), id + ": " + warnings.size());
   }
 
-  /** SQL with placeholders that cannot be mapped, sent through a plain Statement. */
-  static Stream<Arguments> statementUnverifiableWrites() {
+  /**
+   * A ? in SQL passed directly to execute is not a parameter (PostgreSQL's JSONB operators use it),
+   * so the parameter-mapping checks do not apply.
+   */
+  static Stream<Arguments> statementSqlWithQuestionMarks() {
     return Stream.of(
-        Arguments.of("multiStatement", "SELECT 1; INSERT INTO users (ssn) VALUES (?)"),
-        Arguments.of("noColumnList", "INSERT INTO users VALUES (?, ?, ?)"));
+        Arguments.of("jsonbOperator", "UPDATE users SET name = 'x' WHERE tags ? 'vip'"),
+        Arguments.of("noColumnList", "INSERT INTO users VALUES (?, ?, ?)"),
+        Arguments.of("multiStatement", "SELECT 1; INSERT INTO users (ssn) VALUES (?)"));
   }
 
   @ParameterizedTest(name = "{0}")
-  @MethodSource("statementUnverifiableWrites")
-  void test_statement_unverifiableWrite_strict_throws(String id, String sql) throws Exception {
+  @MethodSource("statementSqlWithQuestionMarks")
+  void test_statement_questionMarks_reachDriverWithoutWarning(String id, String sql) throws Exception {
     stubEncryptedUsersSsn();
-
-    SQLException e = assertThrows(SQLException.class, () -> executeChained("Statement.execute", sql));
-
-    assertTrue(e.getMessage().startsWith("Refusing to execute a statement on table 'users'"), e.getMessage());
-    assertTrue(e.getMessage().contains("encryptionFailOnUnmappedParameter"), e.getMessage());
-    assertFalse(e.getMessage().contains(sql), e.getMessage());
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("statementUnverifiableWrites")
-  void test_statement_unverifiableWrite_nonStrict_warnsAndReachesDriver(String id, String sql)
-      throws Exception {
-    stubEncryptedUsersSsn();
-    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(false);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
 
     List<LogRecord> warnings = captureWarnings(() -> assertTrue(executeChained("Statement.execute", sql)));
 
-    assertEquals(1, warnings.size(), id);
+    assertTrue(warnings.isEmpty(), id + ": " + warnings.size());
   }
 
   @Test
@@ -1227,10 +1218,12 @@ public class KmsEncryptionConnectionPluginTest {
     for (String method : Arrays.asList(
         "Statement.execute", "Statement.executeQuery", "Statement.executeUpdate", "Statement.addBatch",
         "PreparedStatement.execute", "PreparedStatement.executeQuery", "PreparedStatement.executeUpdate",
-        "PreparedStatement.addBatch", "CallableStatement.execute", "CallableStatement.executeQuery",
-        "CallableStatement.executeUpdate", "CallableStatement.addBatch")) {
+        "CallableStatement.execute", "CallableStatement.executeQuery", "CallableStatement.executeUpdate")) {
       assertTrue(methods.contains(method), method);
     }
+    // addBatch() of a prepared batch shares these names; keeping it out of the pipeline keeps batches fast.
+    assertFalse(methods.contains("PreparedStatement.addBatch"));
+    assertFalse(methods.contains("CallableStatement.addBatch"));
   }
 
   @Test

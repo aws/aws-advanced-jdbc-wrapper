@@ -100,6 +100,12 @@ public class KmsWriteShapesIntegrationTest {
   private static final String SSN = "ssn";
   private static final String EMAIL = "email";
   private static final String UNENCRYPTABLE = "not bind parameters";
+  /**
+   * A plaintext longer than the PostgreSQL encrypted_data domain's minimum length, so that it is the
+   * HMAC check that rejects it rather than the domain's length check.
+   */
+  private static final String LONG_PLAINTEXT = "plaintext-that-is-long-enough-to-pass-the-length-check";
+  private static final String HMAC_FAILURE = "HMAC verification failed";
   private static final SecureRandom RANDOM = new SecureRandom();
 
   private static String kmsKeyId;
@@ -443,7 +449,7 @@ public class KmsWriteShapesIntegrationTest {
           "INSERT INTO " + table + " (name, " + SSN + ") SELECT name, " + SSN + " FROM " + staging));
       assertFalse(causeChainContains(e, "Refusing"),
           "Expected the database to reject the plaintext, not the plugin: " + e);
-      assertTrue(causeChainContains(e, "HMAC verification failed"),
+      assertTrue(causeChainContains(e, HMAC_FAILURE),
           "Expected the HMAC validation to reject the row: " + e);
     }
 
@@ -465,9 +471,10 @@ public class KmsWriteShapesIntegrationTest {
         "WITH inserted AS (INSERT INTO " + table + " (name, " + SSN + ") VALUES (?, ?) RETURNING id) "
             + "SELECT * FROM inserted"), table);
     try (Statement stmt = conn.createStatement()) {
-      assertRejectedByDatabase(() -> stmt.executeQuery(
-          "WITH inserted AS (INSERT INTO " + table + " (name, " + SSN + ") VALUES ('Cte', '777-77-7777') "
-              + "RETURNING id) SELECT * FROM inserted"));
+      final SQLException e = assertRejectedByDatabase(() -> stmt.executeQuery(
+          "WITH inserted AS (INSERT INTO " + table + " (name, " + SSN + ") VALUES ('Cte', '" + LONG_PLAINTEXT
+              + "') RETURNING id) SELECT * FROM inserted"));
+      assertTrue(causeChainContains(e, HMAC_FAILURE), "Expected the HMAC check to reject the row: " + e);
     }
 
     assertEquals(0, countRows(table, "Cte"));
@@ -498,8 +505,11 @@ public class KmsWriteShapesIntegrationTest {
     // Without parameters it reaches the server: PostgreSQL's HMAC check rejects the plaintext, and
     // MySQL rejects the multi-statement string unless allowMultiQueries is set.
     try (Statement stmt = conn.createStatement()) {
-      assertRejectedByDatabase(() -> stmt.execute(
-          "SELECT 1; INSERT INTO " + table + " (name, " + SSN + ") VALUES ('Multi', '888-88-8888')"));
+      final SQLException e = assertRejectedByDatabase(() -> stmt.execute(
+          "SELECT 1; INSERT INTO " + table + " (name, " + SSN + ") VALUES ('Multi', '" + LONG_PLAINTEXT + "')"));
+      if (isPg) {
+        assertTrue(causeChainContains(e, HMAC_FAILURE), "Expected the HMAC check to reject the row: " + e);
+      }
     }
 
     assertEquals(0, countRows(table, "Multi"));
@@ -639,9 +649,10 @@ public class KmsWriteShapesIntegrationTest {
   }
 
   /** Asserts the call failed in the database rather than being refused by the plugin. */
-  private static void assertRejectedByDatabase(Executable executable) {
+  private static SQLException assertRejectedByDatabase(Executable executable) {
     final SQLException e = assertThrows(SQLException.class, executable);
     assertFalse(causeChainContains(e, "Refusing"), "Expected the database to reject the statement, got: " + e);
+    return e;
   }
 
   private static boolean causeChainContains(Throwable error, String text) {

@@ -67,6 +67,10 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   /**
    * Methods that take the SQL to run as their first argument. The SQL of each call is parsed, rather
    * than the statement's prepared SQL, so that plugins downstream see what is actually sent.
+   *
+   * <p>{@code PreparedStatement.addBatch} and {@code CallableStatement.addBatch} are left out: they
+   * share their method name with the no-argument {@code addBatch()} called for every row of a
+   * prepared batch, and the drivers refuse {@code addBatch(String)} on a prepared statement.
    */
   public static final Set<String> SQL_EXECUTION_METHODS =
       Collections.unmodifiableSet(new HashSet<String>() {
@@ -78,11 +82,9 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
-          add(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH.methodName);
           add(JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName);
           add(JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_ADDBATCH.methodName);
         }
       });
 
@@ -96,8 +98,6 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
           add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
-          add(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_ADDBATCH.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);

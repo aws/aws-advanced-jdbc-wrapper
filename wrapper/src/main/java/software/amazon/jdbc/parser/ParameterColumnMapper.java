@@ -45,6 +45,7 @@ import net.sf.jsqlparser.expression.SignedExpression;
 import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.expression.TimeValue;
 import net.sf.jsqlparser.expression.TimestampValue;
+import net.sf.jsqlparser.expression.UserVariable;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
@@ -61,6 +62,8 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.select.AllColumns;
+import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
@@ -413,10 +416,21 @@ public final class ParameterColumnMapper {
         }
       } else if (select instanceof PlainSelect) {
         final List<Expression> items = new ArrayList<>();
+        boolean star = false;
         for (SelectItem<?> item : ((PlainSelect) select).getSelectItems()) {
-          items.add(item.getExpression());
+          final Expression expression = item.getExpression();
+          star |= expression instanceof AllColumns || expression instanceof AllTableColumns;
+          items.add(expression);
         }
-        pairRow(insertColumns, items);
+        if (star) {
+          // A * item stands for any number of columns, so items cannot be paired by position.
+          final List<Integer> indexes = parameterIndexes(select);
+          if (!indexes.isEmpty()) {
+            problems.add(ParameterMappingProblem.unknownTargetParams(table, insertColumns, indexes));
+          }
+        } else {
+          pairRow(insertColumns, items);
+        }
       } else if (select instanceof SetOperationList) {
         for (Select branch : ((SetOperationList) select).getSelects()) {
           mapInsertSource(branch, insertColumns);
@@ -867,6 +881,13 @@ public final class ParameterColumnMapper {
             found = true;
           }
           super.visit(column);
+        }
+
+        @Override
+        public void visit(final UserVariable variable) {
+          // A MySQL @variable may hold a value read from the database.
+          found = true;
+          super.visit(variable);
         }
       };
       final SelectDeParser selectDeParser = new SelectDeParser(this.expressionDeParser, this.buffer) {

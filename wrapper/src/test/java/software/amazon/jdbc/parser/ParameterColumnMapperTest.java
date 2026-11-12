@@ -445,6 +445,10 @@ class ParameterColumnMapperTest {
         Arguments.of("insertSelectUnion",
             "INSERT INTO users (ssn) SELECT ssn FROM a UNION ALL SELECT ssn FROM b"),
         Arguments.of("insertSelectStar", "INSERT INTO users SELECT * FROM staging"),
+        Arguments.of("insertListSelectStar", "INSERT INTO users (ssn) SELECT * FROM staging"),
+        Arguments.of("insertListSelectTableStar", "INSERT INTO users (ssn) SELECT s.* FROM staging s"),
+        Arguments.of("userVariable", "UPDATE users SET ssn = @s"),
+        Arguments.of("insertSelectUserVariable", "INSERT INTO users (ssn) SELECT @v"),
         Arguments.of("unpairedRow", "INSERT INTO users (name, ssn) VALUES ('a', '1', '2')"),
         Arguments.of("selectWithLiteral", "SELECT * FROM users WHERE ssn = 'x'"),
         Arguments.of("delete", "DELETE FROM users WHERE ssn = 'x'"));
@@ -517,6 +521,16 @@ class ParameterColumnMapperTest {
     final ParameterMapping result = map(sql);
 
     assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  @Test
+  void testInsertSelectStarWithParametersHasUnknownTargets() {
+    final ParameterMapping result = map("INSERT INTO users (name, ssn) SELECT ?, s.* FROM staging s");
+
+    assertTrue(result.getColumns().isEmpty());
+    assertEquals(1, result.getProblems().size());
+    assertProblem(result.getProblems().get(0), Type.UNKNOWN_TARGET_PARAMS, "users",
+        Arrays.asList("name", "ssn"), Collections.singletonList(1));
   }
 
   @Test

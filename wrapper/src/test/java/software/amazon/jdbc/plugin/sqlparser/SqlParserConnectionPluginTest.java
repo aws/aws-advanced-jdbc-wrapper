@@ -364,8 +364,8 @@ public class SqlParserConnectionPluginTest {
     Set<String> methods = plugin.getSubscribedMethods();
 
     assertTrue(methods.contains("Statement.addBatch"));
-    assertTrue(methods.contains("PreparedStatement.addBatch"));
-    assertTrue(methods.contains("CallableStatement.addBatch"));
+    assertFalse(methods.contains("PreparedStatement.addBatch"));
+    assertFalse(methods.contains("CallableStatement.addBatch"));
   }
 
   @Test

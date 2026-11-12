@@ -275,13 +275,15 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    * Fails closed on writes the plugin cannot encrypt. Messages name tables, columns, parameter
    * indexes and counts only, never SQL text.
    *
-   * <p>A column configured for encryption written with a value that is not a bind parameter is
-   * refused whatever {@code encryptionFailOnUnmappedParameter} says: that value is certain to be
-   * stored as plaintext. Parameters the SQL parser could not map to columns, and statements it could
-   * not read, are refused when they concern a table with encrypted columns and
-   * {@code encryptionFailOnUnmappedParameter} is on; otherwise one warning is logged. When the
-   * encryption metadata cannot be read, which columns are encrypted is unknown, so that setting
-   * decides between refusing and warning for every check.
+   * <p>A column configured for encryption written with a client constant is refused whatever
+   * {@code encryptionFailOnUnmappedParameter} says: that value is certain to be stored as plaintext.
+   * Parameters the SQL parser could not map to columns, and statements it could not read, are
+   * refused when they concern a table with encrypted columns and
+   * {@code encryptionFailOnUnmappedParameter} is on; otherwise one warning is logged. That check
+   * applies to prepared statements only: SQL passed directly to execute or addBatch has no bound
+   * values, and a {@code ?} in it is not a parameter (for example PostgreSQL's JSONB {@code ?}
+   * operator). When the encryption metadata cannot be read, which columns are encrypted is unknown,
+   * so that setting decides between refusing and warning for every check.
    *
    * @param ctx the parsed statement
    * @param ps the statement being prepared, closed when it is refused; null when the SQL is being
@@ -289,7 +291,8 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    */
   private void checkWrites(final StatementContext ctx, final @Nullable PreparedStatement ps)
       throws SQLException {
-    if (ctx.problems.isEmpty() && ctx.unboundColumns.isEmpty()) {
+    final List<ParameterMappingProblem> problems = ps != null ? ctx.problems : Collections.emptyList();
+    if (problems.isEmpty() && ctx.unboundColumns.isEmpty()) {
       return;
     }
     final MetadataManager metadataManager = encryptionUtility.getMetadataManager();
@@ -305,7 +308,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     try {
       collectUnencryptableValues(
           metadataManager, ctx.unboundColumns, unencryptableTables, unencryptableDetails);
-      collectRelevantProblems(metadataManager, ctx.problems, affectedTables, details);
+      collectRelevantProblems(metadataManager, problems, affectedTables, details);
     } catch (MetadataException e) {
       if (strict) {
         closeQuietly(ps, e);
@@ -333,18 +336,12 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     final String detail = String.join("; ", details);
     if (strict) {
       final SQLException exception = new SQLException(Messages.get(
-          ps != null
-              ? "KmsEncryptionConnectionPlugin.unmappedParameters"
-              : "KmsEncryptionConnectionPlugin.unverifiableStatement",
-          new Object[] {tables, detail}));
+          "KmsEncryptionConnectionPlugin.unmappedParameters", new Object[] {tables, detail}));
       closeQuietly(ps, exception);
       throw exception;
     }
     LOGGER.warning(() -> Messages.get(
-        ps != null
-            ? "KmsEncryptionConnectionPlugin.unmappedParametersWarning"
-            : "KmsEncryptionConnectionPlugin.unverifiableStatementWarning",
-        new Object[] {tables, detail}));
+        "KmsEncryptionConnectionPlugin.unmappedParametersWarning", new Object[] {tables, detail}));
   }
 
   private static void closeQuietly(final @Nullable PreparedStatement ps, final SQLException primary) {
