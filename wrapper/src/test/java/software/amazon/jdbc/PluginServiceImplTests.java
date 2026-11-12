@@ -1214,4 +1214,55 @@ public class PluginServiceImplTests {
     assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", Objects.requireNonNull(actual).getHost());
     assertEquals("instance-a-1", actual.getHostId());
   }
+
+  @Test
+  public void testIsInTransaction_prefersTargetDriverState() throws SQLException {
+    final PluginServiceImpl target = newPluginService();
+    target.currentConnection = newConnection;
+
+    // What the driver reports wins over the tracked state, in both directions.
+    target.setInTransaction(true);
+    when(mockTargetDriverDialect.isInTransaction(newConnection)).thenReturn(false);
+    assertEquals(Boolean.FALSE, target.isInTransaction());
+
+    target.setInTransaction(false);
+    when(mockTargetDriverDialect.isInTransaction(newConnection)).thenReturn(true);
+    assertEquals(Boolean.TRUE, target.isInTransaction());
+  }
+
+  @Test
+  public void testIsInTransaction_fallsBackToTrackedStateWhenDriverCannotSay() throws SQLException {
+    final PluginServiceImpl target = newPluginService();
+    target.currentConnection = newConnection;
+    when(mockTargetDriverDialect.isInTransaction(newConnection)).thenReturn(null);
+
+    target.setInTransaction(true);
+    assertEquals(Boolean.TRUE, target.isInTransaction());
+
+    target.setInTransaction(false);
+    assertEquals(Boolean.FALSE, target.isInTransaction());
+  }
+
+  @Test
+  public void testIsInTransaction_nullWithoutCurrentConnection() throws SQLException {
+    final PluginServiceImpl target = newPluginService();
+    target.currentConnection = null;
+    target.setInTransaction(true);
+
+    assertNull(target.isInTransaction());
+    verify(mockTargetDriverDialect, never()).isInTransaction(any());
+  }
+
+  private PluginServiceImpl newPluginService() throws SQLException {
+    return new PluginServiceImpl(
+        servicesContainer,
+        new ExceptionManager(),
+        PROPERTIES,
+        URL,
+        DRIVER_PROTOCOL,
+        dialectManager,
+        mockTargetDriverDialect,
+        configurationProfile,
+        sessionStateService);
+  }
 }

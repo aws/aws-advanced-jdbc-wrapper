@@ -211,7 +211,8 @@ public class ConnectionLifetimeConnectionPlugin extends AbstractConnectionPlugin
       return jdbcMethodFunc.call();
     }
 
-    if (this.pluginService.isInTransaction() || this.pluginService.isXaTransactionActive()) {
+    if (Boolean.TRUE.equals(this.pluginService.isInTransaction())
+        || this.pluginService.isXaTransactionActive()) {
       LOGGER.fine(
           () -> Messages.get(
               "ConnectionLifetimeConnectionPlugin.actionDeferred",

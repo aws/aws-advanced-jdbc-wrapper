@@ -137,9 +137,11 @@ public class PgDriverHelper {
    */
   public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
     try {
-      // isWrapperFor also rejects a closed connection, whose recorded state is the one left over
-      // from the last query on it.
-      if (!connection.isWrapperFor(BaseConnection.class)) {
+      // A closed connection reports nothing: its recorded state is the one left over from the last
+      // query on it. A pooled connection handed back to its pool (HikariCP, c3p0) is closed from the
+      // caller's view too, and must not report the state of whoever uses the physical connection
+      // next. isClosed is answered from the query executor's own flag, without a round trip.
+      if (connection.isClosed() || !connection.isWrapperFor(BaseConnection.class)) {
         return null;
       }
       // TransactionState.FAILED counts as in-transaction: the session still holds an aborted
