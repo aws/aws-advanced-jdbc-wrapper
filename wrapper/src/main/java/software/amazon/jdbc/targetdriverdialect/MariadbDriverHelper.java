@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mariadb.jdbc.MariaDbDataSource;
 import org.mariadb.jdbc.MariaDbPoolDataSource;
+import org.mariadb.jdbc.util.constants.ServerStatus;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
@@ -148,6 +150,36 @@ public class MariadbDriverHelper {
       DriverManager.registerDriver(new org.mariadb.jdbc.Driver());
     } catch (SQLException e) {
       throw new SQLException(Messages.get("MariadbDriverHelper.canNotRegister"), e);
+    }
+  }
+
+  /**
+   * Reads the transaction status the MariaDB driver recorded from the last server packet, held as
+   * the {@code IN_TRANSACTION} bit of the server status word on the connection's context. The
+   * driver answers its own {@code getAutoCommit()} from the same word. No round trip is made.
+   * Returns {@code null} if the status cannot be reached, in which case the caller keeps using its
+   * own tracking.
+   *
+   * @param connection the target driver connection to inspect.
+   * @return what the MariaDB driver reports, or {@code null} if it cannot be reached.
+   */
+  public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    try {
+      // A closed connection reports nothing: its status word is the one left over from the last
+      // query on it, and the driver's isWrapperFor does not reject a closed connection. A pooled
+      // connection handed back to its pool (HikariCP, c3p0) is closed from the caller's view too,
+      // and must not report the state of whoever uses the physical connection next.
+      if (connection.isClosed() || !connection.isWrapperFor(org.mariadb.jdbc.Connection.class)) {
+        return null;
+      }
+      final int serverStatus =
+          connection.unwrap(org.mariadb.jdbc.Connection.class).getContext().getServerStatus();
+      return (serverStatus & ServerStatus.IN_TRANSACTION) != 0;
+    } catch (final SQLException e) {
+      return null;
+    } catch (final RuntimeException e) {
+      // The context is reached through the driver's client, which a concurrent close can release.
+      return null;
     }
   }
 }

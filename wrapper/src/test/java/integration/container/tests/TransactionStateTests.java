@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,7 +26,6 @@ import com.zaxxer.hikari.HikariConfig;
 import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
-import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
@@ -35,6 +35,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,13 +48,16 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectCodes;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 
 /**
  * Verifies the transaction state the target drivers report through
  * {@link TargetDriverDialect#isInTransaction(Connection)} against a real database, and that
  * {@link PluginService#isInTransaction()} follows it. Covers the driver connection held directly,
- * the same connection held through the internal connection pool's proxy, and a driver that exposes
+ * the same connection held through the internal connection pool's proxy, and a dialect that reports
  * no transaction state, where the wrapper falls back to what it inferred from the SQL and the JDBC
  * calls.
  */
@@ -249,6 +253,49 @@ public class TransactionStateTests {
     }
   }
 
+  /**
+   * With the generic target driver dialect the driver is never asked, so the wrapper has to find
+   * the transaction boundaries in the SQL and the JDBC calls itself. This is the path a driver the
+   * wrapper has no dialect for takes; none of the bundled drivers take it anymore, so it is forced
+   * here.
+   */
+  @TestTemplate
+  public void test_genericDialect_fallsBackToTrackedState() throws SQLException {
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    TargetDriverDialectManager.TARGET_DRIVER_DIALECT.set(props, TargetDriverDialectCodes.GENERIC);
+
+    try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+        final Statement stmt = conn.createStatement()) {
+      final PluginService pluginService = conn.unwrap(PluginService.class);
+      assertInstanceOf(GenericTargetDriverDialect.class, pluginService.getTargetDriverDialect());
+
+      assertTrackedTransactionState(conn, false);
+
+      stmt.execute("BEGIN");
+      assertTrackedTransactionState(conn, true);
+
+      stmt.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (1)");
+      assertTrackedTransactionState(conn, true);
+
+      stmt.execute("COMMIT");
+      assertTrackedTransactionState(conn, false);
+
+      conn.setAutoCommit(false);
+      stmt.executeQuery("SELECT * FROM " + TABLE);
+      assertTrackedTransactionState(conn, true);
+
+      conn.rollback();
+      assertTrackedTransactionState(conn, false);
+
+      stmt.executeUpdate("INSERT INTO " + TABLE + " (id) VALUES (2)");
+      assertTrackedTransactionState(conn, true);
+
+      // According to the JDBC spec, switching autocommit from false to true commits.
+      conn.setAutoCommit(true);
+      assertTrackedTransactionState(conn, false);
+    }
+  }
+
   private static Connection openConnection() throws SQLException {
     return DriverManager.getConnection(
         ConnectionStringHelper.getWrapperUrl(),
@@ -256,19 +303,10 @@ public class TransactionStateTests {
   }
 
   /**
-   * Whether the current test driver exposes its transaction state through its
-   * {@link TargetDriverDialect}. pgjdbc and MySQL Connector/J do; the MariaDB driver does not, so
-   * the wrapper stays on its own tracking there.
-   */
-  private static boolean driverReportsTransactionState() {
-    final TestDriver driver = TestEnvironment.getCurrent().getCurrentDriver();
-    return driver == TestDriver.PG || driver == TestDriver.MYSQL;
-  }
-
-  /**
    * Asserts the transaction state the target driver reports for the wrapper's current connection,
-   * and the state {@link PluginService#isInTransaction()} derives from it. For a driver that reports
-   * nothing, the plugin service must still arrive at the expected answer from its own tracking.
+   * and that {@link PluginService#isInTransaction()} gives the same answer. Every bundled driver
+   * (pgjdbc, MySQL Connector/J, MariaDB Connector/J) exposes its transaction state through its
+   * {@link TargetDriverDialect}.
    */
   private static void assertTransactionState(final Connection conn, final boolean expected)
       throws SQLException {
@@ -276,14 +314,22 @@ public class TransactionStateTests {
     final Connection targetConnection = pluginService.getCurrentConnection();
     final Boolean driverState = pluginService.getTargetDriverDialect().isInTransaction(targetConnection);
 
-    if (driverReportsTransactionState()) {
-      assertEquals(expected, driverState,
-          "Transaction state reported by " + TestEnvironment.getCurrent().getCurrentDriver());
-    } else {
-      assertNull(driverState,
-          TestEnvironment.getCurrent().getCurrentDriver() + " is not expected to report transaction state");
-    }
+    assertEquals(expected, driverState,
+        "Transaction state reported by " + TestEnvironment.getCurrent().getCurrentDriver());
+    assertEquals(expected, pluginService.isInTransaction(), "PluginService.isInTransaction()");
+  }
 
+  /**
+   * Asserts the state {@link PluginService#isInTransaction()} tracked itself, for a dialect that
+   * reports nothing for the connection.
+   */
+  private static void assertTrackedTransactionState(final Connection conn, final boolean expected)
+      throws SQLException {
+    final PluginService pluginService = conn.unwrap(PluginService.class);
+    final Connection targetConnection = pluginService.getCurrentConnection();
+
+    assertNull(pluginService.getTargetDriverDialect().isInTransaction(targetConnection),
+        "The generic dialect must not report transaction state");
     assertEquals(expected, pluginService.isInTransaction(), "PluginService.isInTransaction()");
   }
 }
