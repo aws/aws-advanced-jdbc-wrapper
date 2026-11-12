@@ -141,6 +141,46 @@ class SqlMethodAnalyzerTest {
     assertDoesNotThrow(() -> sqlMethodAnalyzer.isStatementSettingAutoCommit(EXECUTE_METHOD, new String[]{EMPTY_SQL}));
   }
 
+  /**
+   * The cheap check must never say no to a statement the exact check says yes to, otherwise a
+   * caller that uses it to skip the analysis would miss a SET AUTOCOMMIT.
+   */
+  @ParameterizedTest
+  @MethodSource("isSettingAutoCommitQueries")
+  void testMayBeStatementSettingAutoCommit_neverMissesSetAutoCommit(
+      final String methodName, final String sql, final boolean exact) {
+    final Object[] args = sql != null ? new Object[] {sql} : new Object[] {};
+    final boolean mayBe = sqlMethodAnalyzer.mayBeStatementSettingAutoCommit(methodName, args);
+    if (exact) {
+      assertTrue(mayBe);
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("mayBeSettingAutoCommitQueries")
+  void testMayBeStatementSettingAutoCommit(final String methodName, final Object[] args,
+      final boolean expected) {
+    assertEquals(expected, sqlMethodAnalyzer.mayBeStatementSettingAutoCommit(methodName, args));
+  }
+
+  private static Stream<Arguments> mayBeSettingAutoCommitQueries() {
+    return Stream.of(
+        Arguments.of("Statement.execute", new Object[] {"SET autocommit=0"}, true),
+        Arguments.of("Statement.executeUpdate", new Object[] {"set AutoCommit to on"}, true),
+        Arguments.of("PreparedStatement.execute", new Object[] {"/* c */ SET AUTOCOMMIT = 1"}, true),
+        // A superset: the word anywhere is enough, the exact check decides.
+        Arguments.of("Statement.executeQuery", new Object[] {"SELECT autocommit FROM settings"}, true),
+        Arguments.of("Statement.executeQuery", new Object[] {"SELECT * FROM users WHERE id = 1"}, false),
+        Arguments.of("Statement.execute", new Object[] {"BEGIN"}, false),
+        Arguments.of("Statement.execute", new Object[] {"AUTOCOMMI"}, false),
+        Arguments.of("Statement.execute", new Object[] {EMPTY_SQL}, false),
+        // Not an execute method, or no SQL to look at.
+        Arguments.of("Connection.setAutoCommit", new Object[] {true}, false),
+        Arguments.of("Connection.commit", new Object[] {}, false),
+        Arguments.of("Statement.execute", null, false)
+    );
+  }
+
   @ParameterizedTest
   @MethodSource("getAutoCommitQueries")
   void testGetAutoCommit(final String sql, final Boolean expected) {

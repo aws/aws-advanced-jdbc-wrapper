@@ -53,7 +53,8 @@ public class SqlMethodAnalyzer {
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName
       )));
 
-  private static final String SET_AUTOCOMMIT_PREFIX = "SET AUTOCOMMIT";
+  private static final String AUTOCOMMIT_KEYWORD = "AUTOCOMMIT";
+  private static final String SET_AUTOCOMMIT_PREFIX = "SET " + AUTOCOMMIT_KEYWORD;
 
   private static final Set<String> CLOSE_TRANSACTION_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<>(Arrays.asList(
@@ -469,6 +470,37 @@ public class SqlMethodAnalyzer {
     return analysis.isPresent()
         && EXECUTE_SQL_METHOD_NAMES.contains(methodName)
         && analysis.isSettingAutoCommit();
+  }
+
+  /**
+   * A cheap first check of whether a call could be a {@code SET AUTOCOMMIT} statement: an execute
+   * method whose SQL contains the word {@code AUTOCOMMIT} in any letter case. The SQL is scanned once
+   * without allocating, so a caller that only needs to know about {@code SET AUTOCOMMIT} can skip
+   * {@link #analyze(Object[])} for the far more common statement that is not one.
+   *
+   * <p>This may answer {@code true} for a statement that is not one (for example a query on a
+   * column named {@code autocommit}); it never answers {@code false} for one that is.
+   * {@link #isStatementSettingAutoCommit(String, SqlStatementAnalysis)} gives the exact answer.
+   *
+   * @param methodName the JDBC method name.
+   * @param args the JDBC method arguments, whose first element is taken as the SQL.
+   * @return whether the call might be a {@code SET AUTOCOMMIT} statement.
+   */
+  public boolean mayBeStatementSettingAutoCommit(final String methodName, final @Nullable Object[] args) {
+    if (args == null || args.length < 1 || !EXECUTE_SQL_METHOD_NAMES.contains(methodName)) {
+      return false;
+    }
+    return containsIgnoreCase(String.valueOf(args[0]), AUTOCOMMIT_KEYWORD);
+  }
+
+  private static boolean containsIgnoreCase(final String text, final String word) {
+    final int last = text.length() - word.length();
+    for (int i = 0; i <= last; i++) {
+      if (text.regionMatches(true, i, word, 0, word.length())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,

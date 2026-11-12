@@ -125,11 +125,31 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
 
-    final SqlStatementAnalysis sqlAnalysis = sqlMethodAnalyzer.analyze(jdbcMethodArgs);
+    final Connection connBeforeCall = this.pluginService.getCurrentConnection();
 
-    // Check previous autocommit value before calling jdbcMethodFunc.
-    final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
-        this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs, sqlAnalysis);
+    // When the target driver reports the transaction state of the current connection,
+    // PluginService#isInTransaction answers from the driver, and inferring transaction boundaries
+    // from the SQL would be work whose result is never read. Only a SET AUTOCOMMIT statement still
+    // has to be recognized, so that the driver's own view of autocommit is kept in step with it,
+    // and the SQL is analyzed only when it might be one. Otherwise, the SQL is analyzed and the
+    // boundaries are tracked as the fallback the service relies on. The driver's answer for a
+    // connection does not change while it stays open, so it is checked once, before the call.
+    final boolean driverReportsTransactionState = connBeforeCall != null
+        && this.pluginService.getTargetDriverDialect().isInTransaction(connBeforeCall) != null;
+
+    final SqlStatementAnalysis sqlAnalysis;
+    final boolean doesSwitchAutoCommitFalseTrue;
+    if (driverReportsTransactionState) {
+      sqlAnalysis = sqlMethodAnalyzer.mayBeStatementSettingAutoCommit(methodName, jdbcMethodArgs)
+          ? sqlMethodAnalyzer.analyze(jdbcMethodArgs)
+          : SqlMethodAnalyzer.NO_STATEMENT;
+      doesSwitchAutoCommitFalseTrue = false;
+    } else {
+      sqlAnalysis = sqlMethodAnalyzer.analyze(jdbcMethodArgs);
+      // Check previous autocommit value before calling jdbcMethodFunc.
+      doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
+          connBeforeCall, methodName, jdbcMethodArgs, sqlAnalysis);
+    }
 
     T result;
     try {
@@ -155,13 +175,15 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
-    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)) {
-      this.pluginManagerService.setInTransaction(true);
-    } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)
-            // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
-            || doesSwitchAutoCommitFalseTrue) {
-      this.pluginManagerService.setInTransaction(false);
+    if (!driverReportsTransactionState) {
+      if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)) {
+        this.pluginManagerService.setInTransaction(true);
+      } else if (
+          sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)
+              // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
+              || doesSwitchAutoCommitFalseTrue) {
+        this.pluginManagerService.setInTransaction(false);
+      }
     }
 
     if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, sqlAnalysis)) {
