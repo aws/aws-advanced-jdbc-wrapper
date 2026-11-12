@@ -47,6 +47,7 @@ import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.cache.CacheConnection;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.SimpleReadWriteSplittingPlugin;
@@ -209,6 +210,7 @@ public class ConnectionPluginChainBuilderTests {
     props.setProperty(AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY.name, "test-secret");
     props.setProperty(AwsSecretsManagerConnectionPlugin.REGION_PROPERTY.name, "us-east-1");
     props.setProperty(CacheConnection.CACHE_RW_ENDPOINT_ADDR.name, "cache.example.com:6379");
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, "arn:aws:kms:us-east-1:123456789012:key/test");
 
     final Map<String, String> pluginClassByFactoryCode = new TreeMap<>();
     final Map<String, String> failures = new TreeMap<>();
