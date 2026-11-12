@@ -462,8 +462,8 @@ public class KmsWriteShapesIntegrationTest {
   // ---------------------------------------------------------------------------------------------
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void test13PgDataModifyingCte() throws Exception {
-    assumeTrue(isPg, "Data-modifying CTEs are PostgreSQL only");
     final String table = createEncryptedTable("kms_shapes_cte", SSN);
     final Connection conn = openPluginConnection();
 
@@ -481,8 +481,8 @@ public class KmsWriteShapesIntegrationTest {
   }
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void test14PgRefusesMerge() throws Exception {
-    assumeTrue(isPg, "MERGE is tested on PostgreSQL only");
     final String table = createEncryptedTable("kms_shapes_merge", SSN);
     final Connection conn = openPluginConnection();
 

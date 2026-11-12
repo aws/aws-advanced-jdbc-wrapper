@@ -19,8 +19,15 @@ package software.amazon.jdbc.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 /** Tests for JSQLParserAnalyzer. */
@@ -150,5 +157,40 @@ class JSQLParserAnalyzerTest {
 
     assertEquals(QueryType.SELECT, result.queryType);
     assertFalse(result.forUpdate);
+  }
+
+  @Test
+  void testParseFailureLogDoesNotQuoteTheSql() {
+    final Logger logger = Logger.getLogger(JSQLParserAnalyzer.class.getName());
+    final List<String> messages = new ArrayList<>();
+    final Handler handler = new Handler() {
+      @Override
+      public void publish(final LogRecord record) {
+        messages.add(record.getMessage());
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    final Level previous = logger.getLevel();
+    handler.setLevel(Level.ALL);
+    logger.addHandler(handler);
+    logger.setLevel(Level.FINE);
+    try {
+      assertNull(JSQLParserAnalyzer.parse("UPDATE users SET flag = (attrs ?? 'secret-literal'), ssn = ?"));
+    } finally {
+      logger.removeHandler(handler);
+      logger.setLevel(previous);
+    }
+
+    assertEquals(1, messages.size(), messages.toString());
+    assertTrue(messages.get(0).startsWith("Failed to parse SQL ("), messages.get(0));
+    assertFalse(messages.get(0).contains("secret-literal"), messages.get(0));
+    assertFalse(messages.get(0).contains("attrs"), messages.get(0));
   }
 }
