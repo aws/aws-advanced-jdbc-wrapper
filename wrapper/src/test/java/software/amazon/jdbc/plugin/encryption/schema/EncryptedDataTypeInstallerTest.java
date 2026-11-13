@@ -32,19 +32,16 @@ import org.junit.jupiter.api.Test;
 class EncryptedDataTypeInstallerTest {
 
   @Test
-  void triggerSqlPassesTheCacheVariableOfKeyManagementUtility() {
+  void triggerSqlCallsTheSeparateInsertAndUpdateProcedures() {
     assertEquals(
         "CREATE TRIGGER users_ssn_hmac_ins BEFORE INSERT ON users FOR EACH ROW "
-            + "CALL validate_encrypted_data_hmac('users', 'ssn', NEW.ssn, @hmac_key_users_ssn)",
+            + "CALL validate_encrypted_data_hmac_before_insert('users', 'ssn', NEW.ssn)",
         EncryptedDataTypeInstaller.mysqlHmacTriggerSql("users", "ssn", true));
-    final String updateSql = EncryptedDataTypeInstaller.mysqlHmacTriggerSql("users", "ssn", false);
+    // The UPDATE trigger passes OLD as well, so the procedure can skip an unchanged value.
     assertEquals(
         "CREATE TRIGGER users_ssn_hmac_upd BEFORE UPDATE ON users FOR EACH ROW "
-            + "CALL validate_encrypted_data_hmac('users', 'ssn', NEW.ssn, @hmac_key_users_ssn)",
-        updateSql);
-    // Must match the variable KeyManagementUtility.primeTriggerHmacCache sets:
-    // "hmac_key_" + table + "_" + column.
-    assertTrue(updateSql.contains("@hmac_key_users_ssn"));
+            + "CALL validate_encrypted_data_hmac_before_update('users', 'ssn', NEW.ssn, OLD.ssn)",
+        EncryptedDataTypeInstaller.mysqlHmacTriggerSql("users", "ssn", false));
   }
 
   @Test
@@ -68,15 +65,21 @@ class EncryptedDataTypeInstallerTest {
   @Test
   void mySqlScriptSplitsIntoStaticStatements() throws Exception {
     final List<String> statements = EncryptedDataTypeInstaller.splitMySqlScript(readScript());
-    assertEquals(7, statements.size(), String.join("\n----\n", statements));
+    assertEquals(9, statements.size(), String.join("\n----\n", statements));
     assertTrue(statements.get(0).startsWith("DROP FUNCTION IF EXISTS hmac_sha256"));
     assertTrue(statements.get(1).startsWith("CREATE FUNCTION hmac_sha256"));
     assertTrue(statements.get(2).startsWith("DROP FUNCTION IF EXISTS verify_encrypted_data_hmac"));
     assertTrue(statements.get(3).startsWith("CREATE FUNCTION verify_encrypted_data_hmac"));
-    assertTrue(statements.get(4).startsWith(
+    // The old single-procedure name is dropped so an in-place upgrade removes it.
+    assertEquals("DROP PROCEDURE IF EXISTS validate_encrypted_data_hmac", statements.get(4));
+    assertTrue(statements.get(5).startsWith(
         "DROP PROCEDURE IF EXISTS validate_encrypted_data_hmac_before_insert"));
-    assertTrue(statements.get(5).startsWith("DROP PROCEDURE IF EXISTS validate_encrypted_data_hmac"));
-    assertTrue(statements.get(6).startsWith("CREATE PROCEDURE validate_encrypted_data_hmac("));
+    assertTrue(statements.get(6).startsWith(
+        "CREATE PROCEDURE validate_encrypted_data_hmac_before_insert("));
+    assertTrue(statements.get(7).startsWith(
+        "DROP PROCEDURE IF EXISTS validate_encrypted_data_hmac_before_update"));
+    assertTrue(statements.get(8).startsWith(
+        "CREATE PROCEDURE validate_encrypted_data_hmac_before_update("));
     for (String statement : statements) {
       assertFalse(statement.contains("DELIMITER"), statement);
       assertFalse(statement.contains("$$"), statement);

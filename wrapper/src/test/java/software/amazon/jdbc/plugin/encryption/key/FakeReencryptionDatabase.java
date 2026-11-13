@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Predicate;
@@ -35,9 +34,8 @@ import java.util.function.Predicate;
 /**
  * In-memory fake of the JDBC calls made by {@link KeyManagementUtility} and {@link KeyManager}
  * during data key rotation. It answers by SQL shape: the key_storage and encryption_metadata
- * queries, the existence probe and keyset page of one data table, the conditional row update,
- * PostgreSQL set_config and MySQL user variables. Writes made with auto-commit off are staged and
- * applied on commit, discarded on rollback.
+ * queries, the existence probe and keyset page of one data table, and the conditional row update.
+ * Writes made with auto-commit off are staged and applied on commit, discarded on rollback.
  */
 final class FakeReencryptionDatabase {
 
@@ -64,12 +62,7 @@ final class FakeReencryptionDatabase {
   private final TreeMap<Long, byte[]> rows = new TreeMap<>();
   private final List<Runnable> staged = new ArrayList<>();
   private final List<String> executedSql = new ArrayList<>();
-  private final List<String[]> setConfigCalls = new ArrayList<>();
   private final List<String[]> metadataLookups = new ArrayList<>();
-  private final Map<String, String> sessionSettings = new HashMap<>();
-  private final Map<String, String> settingUndo = new HashMap<>();
-  private final Map<String, byte[]> userVariables = new HashMap<>();
-  private final List<String> userVariableCalls = new ArrayList<>();
   private final List<Long> rowUpdatePks = new ArrayList<>();
   private final Connection connection;
 
@@ -95,7 +88,6 @@ final class FakeReencryptionDatabase {
   private boolean forceSwitchConflict;
   private boolean failOnSwitchUpdate;
   private boolean failOnKeyDelete;
-  private boolean failOnSetConfig;
   private boolean pluginConnection;
 
   /**
@@ -197,25 +189,6 @@ final class FakeReencryptionDatabase {
     return executedSql.stream().filter(sqlMatcher).count();
   }
 
-  List<String[]> getSetConfigCalls() {
-    return Collections.unmodifiableList(setConfigCalls);
-  }
-
-  /** The PostgreSQL session setting as the session sees it now (committed or not). */
-  String getSessionSetting(String name) {
-    return sessionSettings.get(name);
-  }
-
-  /** The MySQL user variable, name with or without the leading {@code @}, case-insensitive. */
-  byte[] getUserVariable(String name) {
-    final byte[] value = userVariables.get(normalizeVariable(name));
-    return value == null ? null : value.clone();
-  }
-
-  List<String> getUserVariableCalls() {
-    return Collections.unmodifiableList(userVariableCalls);
-  }
-
   List<Long> getRowUpdatePks() {
     return Collections.unmodifiableList(rowUpdatePks);
   }
@@ -252,10 +225,6 @@ final class FakeReencryptionDatabase {
 
   void failOnKeyDelete() {
     this.failOnKeyDelete = true;
-  }
-
-  void failOnSetConfig() {
-    this.failOnSetConfig = true;
   }
 
   void setPluginConnection(boolean pluginConnection) {
@@ -324,19 +293,10 @@ final class FakeReencryptionDatabase {
       change.run();
     }
     staged.clear();
-    settingUndo.clear();
   }
 
   private void discardStaged() {
     staged.clear();
-    for (Map.Entry<String, String> e : settingUndo.entrySet()) {
-      if (e.getValue() == null) {
-        sessionSettings.remove(e.getKey());
-      } else {
-        sessionSettings.put(e.getKey(), e.getValue());
-      }
-    }
-    settingUndo.clear();
   }
 
   private PreparedStatement newStatement(String sql) {
@@ -405,19 +365,6 @@ final class FakeReencryptionDatabase {
   }
 
   private ResultSet executeQuery(String sql, Map<Integer, Object> params) throws SQLException {
-    if (sql.contains("set_config")) {
-      final String name = (String) params.get(1);
-      final String value = (String) params.get(2);
-      setConfigCalls.add(new String[] {name, value});
-      if (failOnSetConfig) {
-        throw new SQLException("Injected failure on set_config");
-      }
-      if (!autoCommit && !settingUndo.containsKey(name)) {
-        settingUndo.put(name, sessionSettings.get(name));
-      }
-      sessionSettings.put(name, value);
-      return resultSet(new String[] {"set_config"}, Collections.singletonList(new Object[] {value}));
-    }
     if (sql.startsWith("SELECT em.key_id")) {
       metadataLookups.add(new String[] {(String) params.get(1), (String) params.get(2)});
       if (!metadataMatches(params.get(1), params.get(2)) || metadataKeyId < 0) {
@@ -507,19 +454,7 @@ final class FakeReencryptionDatabase {
       write(() -> keys.remove(id));
       return null;
     }
-    if (sql.startsWith("SET @") && sql.endsWith(" = ?")) {
-      final String name = sql.substring("SET ".length(), sql.length() - " = ?".length());
-      userVariableCalls.add(name);
-      userVariables.put(normalizeVariable(name), ((byte[]) params.get(1)).clone());
-      result[0] = 0;
-      return null;
-    }
     throw new SQLException("Unexpected update: " + sql);
-  }
-
-  private static String normalizeVariable(String name) {
-    final String bare = name.startsWith("@") ? name.substring(1) : name;
-    return bare.toLowerCase(Locale.ROOT);
   }
 
   private int insertKey(Map<Integer, Object> params) {
