@@ -45,6 +45,7 @@ import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.v1.HostMonitoringConnectionPluginV1Factory;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2Factory;
+import software.amazon.jdbc.plugin.efm.v3.HostMonitoringConnectionPluginV3Factory;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
@@ -87,6 +88,7 @@ public class ConnectionPluginChainBuilder {
           put("customEndpoint", new CustomEndpointPluginFactory());
           put("efm", new HostMonitoringConnectionPluginV1Factory());
           put("efm2", new HostMonitoringConnectionPluginV2Factory());
+          put("efm3", new HostMonitoringConnectionPluginV3Factory());
           put("failover", new FailoverConnectionPluginFactory());
           put("failover2", new software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory());
           put("gdbFailover", new GlobalDbFailoverConnectionPluginFactory());
@@ -129,6 +131,7 @@ public class ConnectionPluginChainBuilder {
           put("software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin", "ce");
           put("software.amazon.jdbc.plugin.efm.v1.HostMonitoringConnectionPluginV1", "e");
           put("software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2", "e2");
+          put("software.amazon.jdbc.plugin.efm.v3.HostMonitoringConnectionPluginV3", "e3");
           put("software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin", "f");
           put("software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin", "f2");
           put("software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin", "gf");
@@ -190,6 +193,7 @@ public class ConnectionPluginChainBuilder {
           put(GdbAutoSimpleReadWriteSplittingPluginFactory.class, 1340);
           put(HostMonitoringConnectionPluginV1Factory.class, 1400);
           put(HostMonitoringConnectionPluginV2Factory.class, 1500);
+          put(HostMonitoringConnectionPluginV3Factory.class, 1550);
           put(FastestResponseStrategyPluginFactory.class, 1600);
           put(LimitlessConnectionPluginFactory.class, 1700);
           put(IamAuthConnectionPluginFactory.class, 1800);
