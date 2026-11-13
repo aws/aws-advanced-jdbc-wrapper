@@ -59,6 +59,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
+import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /**
  * Integration test for KMS encryption functionality with JSqlParser.
@@ -90,8 +91,8 @@ public class KmsEncryptionIntegrationTest {
   // A test-specific table name, so that DROP TABLE never removes an unrelated table.
   private static final String TABLE = "kms_enc_users";
   private static final String KEY_NAME = "test-key-users-ssn";
-  // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) bytes, before the GCM payload.
-  private static final int MIN_ENCRYPTED_LENGTH = 45;
+  // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) + GCM tag (16) bytes.
+  private static final int MIN_ENCRYPTED_LENGTH = 61;
   private static final String TEST_SSN_1 = "111-11-1111";
   private static final String TEST_NAME_1 = "Alice Test";
   private static final String TEST_EMAIL_1 = "alice@test.com";
@@ -514,6 +515,62 @@ public class KmsEncryptionIntegrationTest {
         stmt.execute("INSERT INTO " + TABLE + " (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
       }
     });
+  }
+
+  @TestTemplate
+  void testReinstallingEncryptedDataTypeKeepsData() throws Exception {
+    assumeTrue(isPg, "The encrypted_data domain exists on PostgreSQL only");
+    final String schema = "kms_enc_reinstall";
+    final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
+    try (Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+         Statement stmt = conn.createStatement()) {
+      final String originalSearchPath;
+      try (ResultSet rs = stmt.executeQuery("SHOW search_path")) {
+        rs.next();
+        originalSearchPath = rs.getString(1);
+      }
+      stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+      stmt.execute("CREATE SCHEMA " + schema);
+      try {
+        // A schema of its own, so the encrypted_data domain the other tests use is not touched.
+        stmt.execute("SET search_path TO " + schema);
+        // The domain as earlier versions of the script created it, with a 45-byte check.
+        stmt.execute("CREATE DOMAIN encrypted_data AS bytea CHECK (length(VALUE) >= 45)");
+        stmt.execute("CREATE TABLE reinstall_users (id INT PRIMARY KEY, ssn encrypted_data)");
+        stmt.execute("INSERT INTO reinstall_users VALUES "
+            + "(1, decode(repeat('ab', 61), 'hex')), (2, decode(repeat('cd', 50), 'hex'))");
+
+        // Upgrades the check in place, then a second run changes nothing.
+        EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
+        final long constraintOid = domainCheckOid(stmt);
+        EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
+
+        try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM reinstall_users")) {
+          rs.next();
+          assertEquals(2, rs.getInt(1), "Re-installing must keep the existing rows");
+        }
+        assertEquals(constraintOid, domainCheckOid(stmt), "A second run must leave the check unchanged");
+        try (ResultSet rs = stmt.executeQuery("SELECT pg_get_constraintdef(" + constraintOid + ")")) {
+          rs.next();
+          assertTrue(rs.getString(1).contains(">= 61"), rs.getString(1));
+        }
+        assertThrows(SQLException.class, () -> stmt.execute(
+            "INSERT INTO reinstall_users VALUES (3, decode(repeat('ef', 50), 'hex'))"));
+      } finally {
+        stmt.execute("SET search_path TO " + originalSearchPath);
+        stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+      }
+    }
+  }
+
+  private static long domainCheckOid(Statement stmt) throws SQLException {
+    try (ResultSet rs = stmt.executeQuery(
+        "SELECT oid FROM pg_constraint "
+            + "WHERE contypid = 'encrypted_data'::regtype AND conname = 'encrypted_data_check'")) {
+      assertTrue(rs.next(), "The encrypted_data domain has no encrypted_data_check constraint");
+      return rs.getLong(1);
+    }
   }
 
   @TestTemplate

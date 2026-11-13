@@ -64,7 +64,8 @@ class EncryptedDataTypeInstallerTest {
 
   @Test
   void mySqlScriptSplitsIntoStaticStatements() throws Exception {
-    final List<String> statements = EncryptedDataTypeInstaller.splitMySqlScript(readScript());
+    final List<String> statements =
+        EncryptedDataTypeInstaller.splitMySqlScript(readScript("/sql/encrypted_data_type_mysql.sql"));
     assertEquals(9, statements.size(), String.join("\n----\n", statements));
     assertTrue(statements.get(0).startsWith("DROP FUNCTION IF EXISTS hmac_sha256"));
     assertTrue(statements.get(1).startsWith("CREATE FUNCTION hmac_sha256"));
@@ -89,9 +90,21 @@ class EncryptedDataTypeInstallerTest {
     assertTrue(statements.get(6).contains("SCHEMA_NAME.encryption_metadata"));
   }
 
-  private static String readScript() throws Exception {
-    try (InputStream is = EncryptedDataTypeInstallerTest.class.getResourceAsStream(
-        "/sql/encrypted_data_type_mysql.sql");
+  @Test
+  void postgresScriptKeepsAnExistingDomain() throws Exception {
+    final String script = readScript("/sql/encrypted_data_type.sql");
+    // Dropping the domain would drop every column of that type, with its data, so re-running the
+    // script on a database in use must not drop it.
+    assertFalse(script.toUpperCase().contains("DROP DOMAIN"), "the script must not drop encrypted_data");
+    assertTrue(script.contains("IF to_regtype('encrypted_data') IS NULL THEN"));
+    // The minimum length covers the GCM tag: 32 (HMAC) + 1 (type) + 12 (IV) + 16 (tag) = 61.
+    assertTrue(script.contains("CHECK (length(VALUE) >= 61)"));
+    assertTrue(script.contains("RETURN length(data::bytea) >= 61;"));
+    assertFalse(script.contains(">= 45"));
+  }
+
+  private static String readScript(String resourcePath) throws Exception {
+    try (InputStream is = EncryptedDataTypeInstallerTest.class.getResourceAsStream(resourcePath);
          BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
       return reader.lines().collect(Collectors.joining("\n"));
     }

@@ -7,9 +7,29 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public^;
 
 -- PostgreSQL domain for HMAC-verified encrypted data
 -- Format: [HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
-DROP DOMAIN IF EXISTS encrypted_data CASCADE^;
-CREATE DOMAIN encrypted_data AS bytea
-CHECK (length(VALUE) >= 45)^;
+-- Minimum length: 32 (HMAC) + 1 (type) + 12 (IV) + 0 (ciphertext) + 16 (GCM tag) = 61.
+-- This script runs on every application start, so the domain is created only when it does not
+-- exist yet: dropping it would drop the encrypted columns and their data. On an existing install
+-- with an older length check, only that check is replaced, NOT VALID so existing values are not
+-- re-checked.
+-- The domain and functions are copied from wrapper/src/test/resources/sql/encrypted_data_type.sql;
+-- keep the two in sync.
+DO $$
+BEGIN
+    IF to_regtype('encrypted_data') IS NULL THEN
+        CREATE DOMAIN encrypted_data AS bytea
+            CONSTRAINT encrypted_data_check CHECK (length(VALUE) >= 61);
+    ELSIF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+         WHERE contypid = 'encrypted_data'::regtype
+           AND conname = 'encrypted_data_check'
+           AND pg_get_constraintdef(oid) LIKE 'CHECK ((length(VALUE) >= 61))%') THEN
+        ALTER DOMAIN encrypted_data DROP CONSTRAINT IF EXISTS encrypted_data_check;
+        ALTER DOMAIN encrypted_data
+            ADD CONSTRAINT encrypted_data_check CHECK (length(VALUE) >= 61) NOT VALID;
+    END IF;
+END
+$$^;
 
 -- Key storage table
 CREATE TABLE IF NOT EXISTS encrypt.key_storage (
@@ -65,7 +85,7 @@ RETURNS boolean
 SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
-    RETURN length(data::bytea) >= 45;
+    RETURN length(data::bytea) >= 61;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE STRICT^;
 
