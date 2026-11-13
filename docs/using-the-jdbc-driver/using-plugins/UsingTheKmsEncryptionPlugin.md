@@ -683,7 +683,7 @@ Requirements:
 > [!WARNING]
 > `KeyManagementUtility.rotateDataKey()` does **not** re-encrypt existing rows. It only stores a new data key and points the column's metadata at it. After the call:
 > - Every row encrypted under the previous data key fails to decrypt through the plugin with `HMAC verification failed`.
-> - Running applications keep writing new rows under the previous key until their metadata cache refreshes (`metadataCacheRefreshIntervalMs`, 5 minutes by default).
+> - Running applications keep using the previous key until their metadata cache refreshes (`metadataCacheRefreshIntervalMs`, 5 minutes by default). With the HMAC trigger, which every encrypted column requires, their writes to the column are rejected until then.
 > - The data is recoverable only while the previous `key_storage` row and its KMS key exist. Do not delete them.
 >
 > Use `rotateDataKey()` only for a column that holds no data. If you already called it on a column with data, see [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption).
@@ -693,7 +693,6 @@ Requirements:
 `KeyManagementUtility.reencryptRemainingRows(table, column, primaryKeyColumn, oldKeyIds, batchSize)` re-encrypts values that are still under one of the given old key ids into the column's current key. It uses the same batching and HMAC check as the rotation and is safe to run again: values already under the current key are skipped. It requires `allowedMasterKeyArns` on the `EncryptionConfig` and throws an `IllegalArgumentException` without it: the values are re-encrypted into the column's current data key, and the master key of that key is read from `key_storage`, so it must be checked against the list. Use it:
 
 - To resume a failed rotation. Committed batches are kept; the exception message names the old key id to pass.
-- After the rotation, once `metadataCacheRefreshIntervalMs` has passed, to convert rows that running applications wrote under the old key.
 - To recover a column after `rotateDataKey()` was called on it. Find the previous key id:
 
 ```sql
@@ -719,11 +718,11 @@ if (!repair.isComplete()) {
 
 ### Data key rotation procedure
 
-1. **Plan a maintenance window.** Stop or pause the applications that write to the column if you can. While the batches run, reads through the plugin fail with `HMAC verification failed` for rows that are not converted yet.
+1. **Plan a maintenance window.** Stop or pause the applications that write to the column if you can. While the batches run, reads through the plugin fail with `HMAC verification failed` for rows that are not converted yet. Application instances that have not refreshed their metadata yet (`metadataCacheRefreshIntervalMs`) cannot write the column either, because the HMAC trigger checks every value against the new key. Restart the applications right after step 3 if you cannot pause them.
 2. **Back up** the table and the `encrypt` schema.
 3. **Run `rotateDataKeyAndReencrypt()`** on a connection without the `kmsEncryption` plugin. Record the old and new key ids from the log or from `result.getSourceKeyIds()` and `result.getCurrentKeyId()`.
 4. **If it fails**, fix the cause and run `reencryptRemainingRows()` with the old key id. Committed batches are kept.
-5. **Wait at least `metadataCacheRefreshIntervalMs`** (default 300000 ms) or restart the applications, then run `reencryptRemainingRows()` again with the old key id. This converts rows that applications wrote under the old key before their metadata cache refreshed.
+5. **Wait at least `metadataCacheRefreshIntervalMs`** (default 300000 ms) or restart the applications, so that every instance uses the new key, then run `reencryptRemainingRows()` again with the old key id as a final check. It converts any row that is still under the old key and reports rows that match neither key.
 6. **With the PostgreSQL HMAC trigger**, the trigger function `validate_encrypted_data_hmac()` from this version looks up the column's HMAC key from the metadata for every row and caches nothing, so pooled sessions pick up the new key on their own with no reload logic or connection recycling. If your `validate_encrypted_data_hmac()` was created by an earlier (caching) version — `SELECT obj_description('validate_encrypted_data_hmac'::regproc, 'pg_proc')` returns NULL rather than the `...trigger v1` marker — re-create it: run its `CREATE OR REPLACE FUNCTION` statement and the `COMMENT ON FUNCTION` statement that follows it from [`encrypted_data_type.sql`](../../../wrapper/src/test/resources/sql/encrypted_data_type.sql) (just those two, not the whole script), with `SCHEMA_NAME` replaced by your metadata schema. Running the function without the comment leaves the marker NULL, so the check above would still report it as un-upgraded. First make sure pgcrypto is in the `public` schema, because this version calls it as `public.hmac` under a locked `search_path`: an earlier install with a bare `CREATE EXTENSION pgcrypto` may have put it in another schema, and `CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public` is a no-op when the extension already exists elsewhere. Move it with `ALTER EXTENSION pgcrypto SET SCHEMA public` (check with `SELECT extnamespace::regnamespace FROM pg_extension WHERE extname = 'pgcrypto'`); otherwise the next write fails with `function public.hmac(bytea, bytea, text) does not exist`. Do not re-run the whole script on a database with data: it starts with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of that type.
    **With the MySQL HMAC trigger**, the procedures `validate_encrypted_data_hmac_before_insert` and `validate_encrypted_data_hmac_before_update` from this version also look up the column's HMAC key from the metadata for every row and cache nothing, so pooled sessions pick up the new key on their own with no reload logic or connection recycling. These two procedures take different arguments than the single `validate_encrypted_data_hmac` procedure of an earlier version, so you must re-install the script and drop and re-create the triggers as described in [step 7 of Setup](#7-add-hmac-validation-triggers). Until the triggers are re-created, they still call the dropped procedure, so every INSERT and UPDATE on those tables fails; run both steps together, in a maintenance window if the tables take live writes. The MySQL script only replaces routines and does not touch your tables.
 7. **Keep the old `key_storage` row and its KMS key** until every backup and snapshot that holds data encrypted under the old key has expired.
@@ -794,15 +793,15 @@ try (Connection connection = DriverManager.getConnection(
 }
 ```
 
-Step 5 is a separate job. Run it after `metadataCacheRefreshIntervalMs` has passed (5 minutes by default), or after restarting the applications, so that it converts the rows they wrote under the old key in the meantime. Running it right after step 3 misses those rows. Set up the connection, `config`, `kmsClient` and `utility` as in the first block, and pass the old key id recorded there:
+Step 5 is a separate job. Run it after `metadataCacheRefreshIntervalMs` has passed (5 minutes by default), or after restarting the applications, so that every instance uses the new key. It converts any row that is still under the old key. Set up the connection, `config`, `kmsClient` and `utility` as in the first block, and pass the old key id recorded there:
 
 ```java
-// Step 5, a separate job run after metadataCacheRefreshIntervalMs: convert late rows
+// Step 5, a separate job run after metadataCacheRefreshIntervalMs: final check
 int oldKeyId = 42; // the value recorded in step 3
 DataKeyReencryptionResult repair = utility.reencryptRemainingRows(
     "users", "ssn", "id", Collections.singletonList(oldKeyId),
     KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
-System.out.println("Converted " + repair.getReencryptedCount() + " late rows");
+System.out.println("Converted " + repair.getReencryptedCount() + " remaining rows");
 if (!repair.isComplete()) {
   // These rows match neither the current key nor the old key. They are left unchanged.
   System.err.println(repair.getUnmatchedCount() + " unmatched rows, for example "
@@ -818,7 +817,7 @@ The plugin does not take the master key for a column from its own configuration:
 
 **List the permitted master keys in `encryptionAllowedMasterKeyArns`.** This property is required; the plugin refuses to start without it. Before every KMS call, including when the data key is already cached, the plugin checks the master key named by `key_storage` against the list. A key that is not listed, or a row that names no key, is refused with a `KeyManagementException` whose SQL state is `KEY07`, and KMS is never called. The refusal applies to reads and writes alike.
 
-The comparison is exact, so list each key in the same form (ARN, alias, or key id) that was passed to `KeyManagementUtility` when the column was set up. Add a new master key to the list before rotating a column onto it, or the application will refuse that column until the list is updated. Keep the old master key listed, and allowed `kms:Decrypt` in the application's IAM policy, until every application instance has picked up the new key (after `metadataCacheRefreshIntervalMs`, or a restart): until then, instances still using their cached metadata keep reading and writing the column with the old data key, which is wrapped under the old master key. The re-encryption itself also decrypts the old data key, so the old master key must stay on the allow-list given to `KeyManagementUtility`, and allowed in its IAM policy, until the re-encryption is complete.
+The comparison is exact, so list each key in the same form (ARN, alias, or key id) that was passed to `KeyManagementUtility` when the column was set up. Add a new master key to the list before rotating a column onto it, or the application will refuse that column until the list is updated. Keep the old master key listed, and allowed `kms:Decrypt` in the application's IAM policy, until every application instance has picked up the new key (after `metadataCacheRefreshIntervalMs`, or a restart): until then, instances still using their cached metadata keep decrypting the column's values with the old data key, which is wrapped under the old master key. The re-encryption itself also decrypts the old data key, so the old master key must stay on the allow-list given to `KeyManagementUtility`, and allowed in its IAM policy, until the re-encryption is complete.
 
 `KeyManagementUtility` does not require the list, so a program can create a master key and use it straight away, but it enforces the list when the `EncryptionConfig` passed to its `KeyManager` has one (`EncryptionConfig.builder().allowedMasterKeyArns(...)`). Without the list, `rotateDataKey()` and `rotateDataKeyAndReencrypt()` must be passed the master key to rotate onto, and throw an `IllegalArgumentException` when given `null`: keeping the current key would mean trusting whatever ARN `key_storage` holds. For the same reason, `reencryptRemainingRows()` throws an `IllegalArgumentException` without the list, because it re-encrypts into the column's current key as recorded in `key_storage`.
 
