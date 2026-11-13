@@ -12,6 +12,15 @@ The AWS Advanced JDBC Wrapper is a wrapper that requires an underlying driver, a
 > 
 > The `wrapperDialect` parameter is not required. When it is not provided by the user, the AWS Advanced JDBC Wrapper will attempt to determine which of the existing dialects to use based on other connection details. However, if the dialect is known by the user, it is preferable to set the `wrapperDialect` parameter because it will take time to resolve the dialect.
 
+### How the dialect is detected
+
+When `wrapperDialect` is not set, detection happens in two steps.
+
+1. Before connecting, the wrapper picks a provisional dialect from the driver protocol and the shape of the hostname. Aurora Global Database writer endpoints (`.global-`) and Aurora Limitless endpoints (`.shardgrp-`) are definitive; every other hostname only narrows the choice to an engine family. The provisional dialect supplies the default port and connection properties.
+2. On the first connection, the wrapper collects a fingerprint of the server with one catalog statement per engine family (`pg_catalog` for PostgreSQL; `SHOW VARIABLES` and `information_schema` for MySQL and MariaDB), plus at most one follow-up for Aurora Global Database (region count) or an RDS Multi-AZ DB cluster. The fingerprint, not the hostname or the protocol, decides the dialect, so an Aurora cluster behind a custom domain, an RDS Proxy, or an instance endpoint resolves to the same dialect as through its cluster endpoint. Every statement is valid on any server of its family, so detection does not raise errors on the server.
+
+The resolved dialect is cached per host for 24 hours, so later connections to the same host skip step 2. The fingerprint and the resolved dialect are logged at `FINEST` by `software.amazon.jdbc.dialect.DialectManager`.
+
 ### List of Available Dialect Codes
 Dialect codes specify what kind of database any connections will be made to.
 
