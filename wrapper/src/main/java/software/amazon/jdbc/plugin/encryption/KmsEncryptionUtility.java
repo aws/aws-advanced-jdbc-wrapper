@@ -130,6 +130,7 @@ public class KmsEncryptionUtility {
       // Load and validate configuration
       this.config = loadConfiguration(properties);
       config.validate();
+      requireMasterKeyAllowList(config);
 
       // Initialize AWS KMS client
       this.kmsClient = createKmsClient(config);
@@ -147,6 +148,15 @@ public class KmsEncryptionUtility {
       LOGGER.severe(() -> Messages.get("KmsEncryptionUtility.initFailed", new Object[]{e.getMessage()}));
       throw new SQLException(
           Messages.get("KmsEncryptionUtility.pluginInitFailed", new Object[]{e.getMessage(), e}));
+    }
+  }
+
+  // The plugin always reads the master key from key_storage, so without an allow-list anyone who
+  // can write that table would choose the KMS key. The key management utility does not require it.
+  private static void requireMasterKeyAllowList(EncryptionConfig config) {
+    if (!config.restrictsMasterKeys()) {
+      throw new IllegalArgumentException(Messages.get("KmsEncryptionUtility.allowListRequired",
+          new Object[]{EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}));
     }
   }
 

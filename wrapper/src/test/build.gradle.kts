@@ -215,6 +215,7 @@ val testClassWeightsSeconds = mapOf(
     "AutoscalingTests" to 0,
     "BlueGreenDeploymentTests" to 0,
     "DatabasePerformanceMetricTest" to 0,
+    "KmsAllowListIntegrationTest" to 0,
     "KmsEncryptionIntegrationTest" to 0,
     "KmsKeyRotationIntegrationTest" to 0,
     "PerformanceTest" to 0,

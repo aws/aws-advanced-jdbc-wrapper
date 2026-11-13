@@ -1195,6 +1195,7 @@ Encrypts/decrypts database column values transparently using AWS KMS. Universall
 | Name | Default | Description |
 |---|---|---|
 | `kms.region` | (none) | AWS KMS region. **Required.** |
+| `encryptionAllowedMasterKeyArns` | (none) | Comma-separated KMS master keys the plugin may use, matching `key_storage.master_key_arn` exactly (ARN, alias, or key id). Other keys are refused with SQL state `KEY07`. **Required.** |
 | `metadataCacheEnabled` | `true` | Enable metadata caching. |
 | `metadataCacheExpirationMinutes` | `60` | Metadata cache TTL (min). |
 | `metadataCacheRefreshIntervalMs` | `300000` | Metadata refresh interval (5 min). |

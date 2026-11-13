@@ -131,8 +131,10 @@ public class KeyManagementExample {
     LOGGER.info("Rotating column data keys with re-encryption");
 
     // Rotate the data key of users.ssn under the same master key. "id" is the primary key column.
+    // The configuration above has no allowedMasterKeyArns, so the master key must be named here.
+    String ssnMasterKeyArn = "arn:aws:kms:us-east-1:123456789012:key/existing-master-key";
     DataKeyReencryptionResult ssnResult = keyManagementUtility.rotateDataKeyAndReencrypt(
-        "users", "ssn", "id", null, KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
+        "users", "ssn", "id", ssnMasterKeyArn, KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
     LOGGER.info(() -> String.format("Rotated key for users.ssn: %s", ssnResult));
 
     // Rotate with a new master key
@@ -144,7 +146,10 @@ public class KeyManagementExample {
         KeyManagementUtility.DEFAULT_REENCRYPTION_BATCH_SIZE);
     LOGGER.info(() -> String.format("Rotated key for orders.credit_card_number: %s", cardResult));
 
-    // Keep the old key_storage rows and KMS keys while backups hold data under them.
+    // Add newMasterKeyArn to the application's encryptionAllowedMasterKeyArns, or the plugin will
+    // refuse orders.credit_card_number. Keep the old master key listed too until every application
+    // instance has refreshed its metadata cache. Keep the old key_storage rows and KMS keys while
+    // backups hold data under them.
     return ssnResult.getSourceKeyIds().get(0);
   }
 

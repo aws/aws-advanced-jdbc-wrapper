@@ -23,6 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
@@ -135,5 +138,84 @@ public class EncryptionConfigTest {
         EncryptionConfig.builder()
             .kmsRegion("us-east-1")
             .encryptionMetadataSchema("schema@host"));
+  }
+
+  @Test
+  public void testAllowedMasterKeyArns_emptyByDefault() {
+    Properties props = new Properties();
+    props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    EncryptionConfig config = EncryptionConfig.fromProperties(props);
+
+    assertTrue(config.getAllowedMasterKeyArns().isEmpty());
+    assertFalse(config.restrictsMasterKeys());
+    assertTrue(config.isMasterKeyAllowed("arn:aws:kms:us-east-1:111111111111:key/any"));
+  }
+
+  @Test
+  public void testAllowedMasterKeyArns_parsesCommaSeparatedList() {
+    Properties props = new Properties();
+    props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, " key-a , ,alias/b,key-a,  ");
+
+    EncryptionConfig config = EncryptionConfig.fromProperties(props);
+
+    assertEquals(new LinkedHashSet<>(Arrays.asList("key-a", "alias/b")), config.getAllowedMasterKeyArns());
+    assertTrue(config.restrictsMasterKeys());
+  }
+
+  @Test
+  public void testAllowedMasterKeyArns_blankListPlacesNoRestriction() {
+    assertFalse(EncryptionConfig.builder().kmsRegion("us-east-1").allowedMasterKeyArns(" , ").build()
+        .restrictsMasterKeys());
+    assertFalse(EncryptionConfig.builder().kmsRegion("us-east-1")
+        .allowedMasterKeyArns(Arrays.asList(null, " ")).build()
+        .restrictsMasterKeys());
+  }
+
+  @Test
+  public void testAllowedMasterKeyArns_isUnmodifiable() {
+    EncryptionConfig config = EncryptionConfig.builder().kmsRegion("us-east-1").allowedMasterKeyArns("key-a").build();
+
+    assertThrows(UnsupportedOperationException.class, () -> config.getAllowedMasterKeyArns().add("key-b"));
+  }
+
+  @Test
+  public void testIsMasterKeyAllowed_requiresAnExactMatch() {
+    EncryptionConfig config = EncryptionConfig.builder()
+        .kmsRegion("us-east-1")
+        .allowedMasterKeyArns(Collections.singletonList("arn:aws:kms:us-east-1:111111111111:key/abc"))
+        .build();
+
+    assertTrue(config.isMasterKeyAllowed("arn:aws:kms:us-east-1:111111111111:key/abc"));
+    // The same key in another form, or in another case, is not on the list.
+    assertFalse(config.isMasterKeyAllowed("abc"));
+    assertFalse(config.isMasterKeyAllowed("ARN:AWS:KMS:US-EAST-1:111111111111:KEY/ABC"));
+    assertFalse(config.isMasterKeyAllowed("arn:aws:kms:us-east-1:222222222222:key/abc"));
+    assertFalse(config.isMasterKeyAllowed(""));
+    assertFalse(config.isMasterKeyAllowed(null));
+  }
+
+  @Test
+  public void testToString_doesNotPrintAllowedMasterKeyArns() {
+    final String text = EncryptionConfig.builder()
+        .kmsRegion("us-east-1")
+        .allowedMasterKeyArns("arn:aws:kms:us-east-1:111111111111:key/abc,alias/b")
+        .build()
+        .toString();
+
+    assertFalse(text.contains("111111111111"), text);
+    assertFalse(text.contains("alias/b"), text);
+    assertTrue(text.contains("allowedMasterKeyArns=<2 keys>"), text);
+  }
+
+  @Test
+  public void testAllowedMasterKeyArns_partOfEquality() {
+    assertNotEquals(
+        EncryptionConfig.builder().kmsRegion("us-east-1").build(),
+        EncryptionConfig.builder().kmsRegion("us-east-1").allowedMasterKeyArns("key-a").build());
+    assertEquals(
+        EncryptionConfig.builder().kmsRegion("us-east-1").allowedMasterKeyArns("key-a,key-b").build(),
+        EncryptionConfig.builder().kmsRegion("us-east-1").allowedMasterKeyArns(Arrays.asList("key-a", "key-b"))
+            .build());
   }
 }

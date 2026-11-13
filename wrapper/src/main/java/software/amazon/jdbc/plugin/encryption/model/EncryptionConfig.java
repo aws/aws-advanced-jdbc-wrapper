@@ -17,8 +17,15 @@
 package software.amazon.jdbc.plugin.encryption.model;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
@@ -33,6 +40,14 @@ public class EncryptionConfig {
   // Property definitions using AwsWrapperProperty
   public static final AwsWrapperProperty KMS_REGION =
       new AwsWrapperProperty("kms.region", null, "AWS KMS region for encryption operations");
+
+  public static final AwsWrapperProperty ALLOWED_MASTER_KEY_ARNS =
+      new AwsWrapperProperty(
+          "encryptionAllowedMasterKeyArns",
+          null,
+          "Comma-separated list of the KMS master keys the KMS encryption plugin may use. Required by "
+              + "the plugin. Each entry must match a key_storage.master_key_arn value exactly; a stored "
+              + "data key that names any other master key (or none) is refused before KMS is called.");
 
   public static final AwsWrapperProperty METADATA_CACHE_ENABLED =
       new AwsWrapperProperty("metadataCacheEnabled", "true", "Enable/disable metadata caching");
@@ -99,6 +114,7 @@ public class EncryptionConfig {
   private final Duration metadataRefreshInterval;
   private final SchemaName encryptionMetadataSchema;
   private final boolean failOnUnmappedParameter;
+  private final Set<String> allowedMasterKeyArns;
 
   private EncryptionConfig(Builder builder) {
     this.kmsRegion = Objects.requireNonNull(builder.kmsRegion, "kmsRegion cannot be null");
@@ -115,6 +131,7 @@ public class EncryptionConfig {
         Objects.requireNonNull(
             builder.encryptionMetadataSchema, "encryptionMetadataSchema cannot be null");
     this.failOnUnmappedParameter = builder.failOnUnmappedParameter;
+    this.allowedMasterKeyArns = Collections.unmodifiableSet(new LinkedHashSet<>(builder.allowedMasterKeyArns));
   }
 
   public String getKmsRegion() {
@@ -172,6 +189,36 @@ public class EncryptionConfig {
   }
 
   /**
+   * The master keys data keys may be generated or decrypted under, in the form (ARN, alias, or key
+   * id) used when the columns were set up.
+   *
+   * @return an unmodifiable set, empty when no restriction is configured
+   */
+  public Set<String> getAllowedMasterKeyArns() {
+    return allowedMasterKeyArns;
+  }
+
+  /**
+   * Whether only the listed master keys may be used. An empty allow-list places no restriction,
+   * which is acceptable for the key management utility but refused by the plugin itself.
+   *
+   * @return true when an allow-list is configured
+   */
+  public boolean restrictsMasterKeys() {
+    return !allowedMasterKeyArns.isEmpty();
+  }
+
+  /**
+   * Whether a master key, as recorded in key_storage, may be used.
+   *
+   * @param masterKeyArn the master key ARN, alias, or key id
+   * @return true when no restriction is configured, or the key is on the allow-list
+   */
+  public boolean isMasterKeyAllowed(final @Nullable String masterKeyArn) {
+    return !restrictsMasterKeys() || (masterKeyArn != null && allowedMasterKeyArns.contains(masterKeyArn));
+  }
+
+  /**
    * Validates the configuration settings.
    *
    * @throws IllegalArgumentException if configuration is invalid
@@ -225,7 +272,8 @@ public class EncryptionConfig {
         && Objects.equals(kmsRegion, that.kmsRegion)
         && Objects.equals(retryBackoffBase, that.retryBackoffBase)
         && Objects.equals(dataKeyCacheExpiration, that.dataKeyCacheExpiration)
-        && Objects.equals(metadataRefreshInterval, that.metadataRefreshInterval);
+        && Objects.equals(metadataRefreshInterval, that.metadataRefreshInterval)
+        && Objects.equals(allowedMasterKeyArns, that.allowedMasterKeyArns);
   }
 
   @Override
@@ -241,7 +289,8 @@ public class EncryptionConfig {
         dataKeyCacheMaxSize,
         dataKeyCacheExpiration,
         metadataRefreshInterval,
-        failOnUnmappedParameter);
+        failOnUnmappedParameter,
+        allowedMasterKeyArns);
   }
 
   @Override
@@ -270,6 +319,10 @@ public class EncryptionConfig {
         + metadataRefreshInterval
         + ", failOnUnmappedParameter="
         + failOnUnmappedParameter
+        // Only the count: the keys are not printed, so a logged config does not reveal them.
+        + ", allowedMasterKeyArns=<"
+        + allowedMasterKeyArns.size()
+        + " keys>"
         + '}';
   }
 
@@ -301,6 +354,7 @@ public class EncryptionConfig {
         Duration.ofMillis(METADATA_CACHE_REFRESH_INTERVAL_MS.getLong(properties)));
     builder.encryptionMetadataSchema(ENCRYPTION_METADATA_SCHEMA.getString(properties));
     builder.failOnUnmappedParameter(FAIL_ON_UNMAPPED_PARAMETER.getBoolean(properties));
+    builder.allowedMasterKeyArns(ALLOWED_MASTER_KEY_ARNS.getString(properties));
 
     return builder.build();
   }
@@ -322,6 +376,7 @@ public class EncryptionConfig {
     private Duration metadataRefreshInterval = Duration.ofMinutes(5);
     private SchemaName encryptionMetadataSchema = SchemaName.of("encrypt"); // Default schema name
     private boolean failOnUnmappedParameter = true;
+    private List<String> allowedMasterKeyArns = new ArrayList<>();
 
     public Builder kmsRegion(String kmsRegion) {
       this.kmsRegion = kmsRegion;
@@ -383,7 +438,38 @@ public class EncryptionConfig {
       return this;
     }
 
+    /**
+     * Sets the permitted master keys from a comma-separated list. Entries are trimmed, and blank
+     * entries are dropped.
+     *
+     * @param allowedMasterKeyArns the comma-separated master keys, or null for none
+     * @return this builder
+     */
+    public Builder allowedMasterKeyArns(final @Nullable String allowedMasterKeyArns) {
+      return allowedMasterKeyArns(
+          allowedMasterKeyArns == null
+              ? Collections.emptyList()
+              : Arrays.asList(allowedMasterKeyArns.split(",")));
+    }
 
+    /**
+     * Sets the permitted master keys. Entries are trimmed, and null or blank entries are dropped.
+     *
+     * @param allowedMasterKeyArns the master keys, or null for none
+     * @return this builder
+     */
+    public Builder allowedMasterKeyArns(final @Nullable Collection<@Nullable String> allowedMasterKeyArns) {
+      final List<String> normalized = new ArrayList<>();
+      if (allowedMasterKeyArns != null) {
+        for (final @Nullable String arn : allowedMasterKeyArns) {
+          if (arn != null && !arn.trim().isEmpty()) {
+            normalized.add(arn.trim());
+          }
+        }
+      }
+      this.allowedMasterKeyArns = normalized;
+      return this;
+    }
 
     public EncryptionConfig build() {
       return new EncryptionConfig(this);

@@ -219,6 +219,7 @@ public class KmsEncryptionIntegrationTest {
     // kmsEncryption needs the SQL parse results that the sqlParser plugin puts in the call context.
     props.setProperty(PropertyDefinition.PLUGINS.name, "sqlParser,kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_REGION.name, region);
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, kmsKeyId);
     return props;
   }
 

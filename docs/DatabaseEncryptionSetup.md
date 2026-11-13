@@ -240,6 +240,8 @@ props.setProperty("user", "dbuser");
 props.setProperty("password", "password");
 props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");  // kmsEncryption requires sqlParser
 props.setProperty("kms.region", "us-east-1");  // Defaults to us-east-1 if not set
+// Required: the KMS master keys the plugin may use, as stored in key_storage.master_key_arn
+props.setProperty("encryptionAllowedMasterKeyArns", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
 props.setProperty("encryptionMetadataSchema", "encrypt");  // Optional, defaults to "encrypt"
 
 // PostgreSQL

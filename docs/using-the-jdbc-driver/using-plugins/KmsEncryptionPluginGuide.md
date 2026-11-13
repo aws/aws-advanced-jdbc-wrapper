@@ -315,6 +315,10 @@ props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption");
 // property: each column's key is chosen when encryption is initialized for that column.
 props.setProperty("kms.region", "us-east-1");
 
+// Required: the KMS master keys the plugin may use, comma-separated, in the same form (ARN, alias,
+// or key id) that is stored in key_storage.master_key_arn. Any other key is refused.
+props.setProperty("encryptionAllowedMasterKeyArns", "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
+
 // Optional: Configure metadata schema (default: "encrypt")
 props.setProperty("encryptionMetadataSchema", "encrypt");
 
@@ -329,7 +333,7 @@ Connection conn = DriverManager.getConnection(url, props);
 ### Connection URL Format
 
 ```
-jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kms.region=us-east-1
+jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kms.region=us-east-1&encryptionAllowedMasterKeyArns=arn%3Aaws%3Akms%3Aus-east-1%3A123456789012%3Akey%2F12345678-1234-1234-1234-123456789012
 ```
 
 ### AWS Credentials
@@ -457,6 +461,8 @@ import software.amazon.jdbc.plugin.encryption.model.*;
 EncryptionConfig config = EncryptionConfig.builder()
     .kmsRegion("us-east-1")
     .encryptionMetadataSchema("encrypt")
+    // Checks the KMS key recorded in key_storage; required to pass null below
+    .allowedMasterKeyArns("arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012")
     .build();
 
 KmsClient kmsClient = KmsClient.builder()
@@ -478,7 +484,7 @@ DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(
 System.out.println(result); // new key id, old key id, re-encrypted and unmatched row counts
 ```
 
-Pass a KMS key ARN instead of `null` to wrap the new data key under a different KMS key.
+Pass a KMS key ARN instead of `null` to wrap the new data key under a different KMS key. Passing `null` keeps the KMS key recorded in `key_storage`, so it is only accepted when the `EncryptionConfig` has `allowedMasterKeyArns` to check that key against; without it, the method throws an `IllegalArgumentException`. When the allow-list is set, it must contain both the current KMS key, which the re-encryption uses to decrypt the old data key, and the new one; the method refuses an unlisted key with SQL state `KEY07` before it changes anything. The application's `encryptionAllowedMasterKeyArns` must list the new KMS key too, or the plugin will refuse the column after the rotation. See [Restricting the KMS keys the application can use](./UsingTheKmsEncryptionPlugin.md#restricting-the-kms-keys-the-application-can-use).
 
 `rotateDataKeyAndReencrypt()` does the following:
 1. Checks that every value of the column verifies against the current HMAC key. If any value does not, it stops with an error and changes nothing.
@@ -505,7 +511,8 @@ Requirements:
 
 ### Finishing or repairing a re-encryption
 
-`KeyManagementUtility.reencryptRemainingRows(table, column, primaryKeyColumn, oldKeyIds, batchSize)` re-encrypts values that are still under one of the given old key ids into the column's current key. It uses the same batching and HMAC check as the rotation and is safe to run again: values already under the current key are skipped. Use it:
+`KeyManagementUtility.reencryptRemainingRows(table, column, primaryKeyColumn, oldKeyIds, batchSize)` re-encrypts values that are still under one of the given old key ids into the column's current key. It uses the same batching and HMAC check as the rotation and is safe to run again: values already under the current key are skipped. It requires `allowedMasterKeyArns` on the `EncryptionConfig` and throws an `IllegalArgumentException` without it: the values are re-encrypted into the column's current data key, and the master key of that key is read from `key_storage`, so it must be checked against the list. Use it:
+
 - To resume a failed rotation. Committed batches are kept; the exception message names the old key id to pass.
 - After the rotation, once `metadataCacheRefreshIntervalMs` has passed, to convert rows that running applications wrote under the old key.
 - To recover a column after `rotateDataKey()` was called on it. Find the previous key id:
@@ -557,6 +564,8 @@ import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 EncryptionConfig config = EncryptionConfig.builder()
     .kmsRegion("us-east-1")
     .encryptionMetadataSchema("encrypt")
+    // Checks the KMS key recorded in key_storage; required to pass null below
+    .allowedMasterKeyArns("arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012")
     .build();
 KmsClient kmsClient = KmsClient.builder().region(Region.US_EAST_1).build();
 

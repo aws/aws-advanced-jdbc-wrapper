@@ -61,7 +61,7 @@ public class AwsWrapperEncryptionExample {
             .jdbcUrl("jdbc:postgresql://localhost:5432/mydb")
             .username("<your username>")
             .password("<mypassword>")
-            .kmsKeyArn(
+            .allowedMasterKeyArns(
                 "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012")
             .region("us-east-1")
             .cacheEnabled(true)
@@ -84,6 +84,9 @@ public class AwsWrapperEncryptionExample {
 
     // KMS configuration
     encryptionProperties.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    // The KMS master keys the plugin may use, as stored in key_storage.master_key_arn
+    encryptionProperties.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name,
+        "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
 
     // Cache configuration
     encryptionProperties.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "true");
