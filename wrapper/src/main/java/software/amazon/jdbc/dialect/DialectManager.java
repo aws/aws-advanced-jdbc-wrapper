@@ -76,11 +76,12 @@ public class DialectManager implements DialectProvider {
    */
   protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.HOURS.toNanos(24);
 
-  // Keys are host names or URLs, values are dialect codes.
+  // Keys are "host" or "host:port" of the endpoint the application connects to; values are dialect codes.
   protected static final CacheMap<String, String> knownEndpointDialects = new CacheMap<>();
 
   private final RdsUtils rdsHelper = new RdsUtils();
   private final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
+  private final DialectDetector dialectDetector;
   private boolean canUpdate = false;
   private @Nullable Dialect dialect = null;
   private String dialectCode;
@@ -93,7 +94,12 @@ public class DialectManager implements DialectProvider {
   }
 
   public DialectManager(PluginService pluginService) {
+    this(pluginService, new DialectDetector());
+  }
+
+  public DialectManager(PluginService pluginService, DialectDetector dialectDetector) {
     this.pluginService = pluginService;
+    this.dialectDetector = dialectDetector;
   }
 
   public static void resetEndpointCache() {
@@ -125,21 +131,8 @@ public class DialectManager implements DialectProvider {
     }
 
     final String userDialectSetting = DIALECT.getString(props);
-    final String dialectCode = !StringUtils.isNullOrEmpty(userDialectSetting)
-        ? userDialectSetting
-        : knownEndpointDialects.get(url);
-
-    if (!StringUtils.isNullOrEmpty(dialectCode)) {
-      final Dialect userDialect = knownDialectsByCode.get(dialectCode);
-      if (userDialect != null) {
-        this.dialectCode = dialectCode;
-        this.dialect = userDialect;
-        this.confirmed = true;
-        this.logCurrentDialect();
-        return userDialect;
-      } else {
-        throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
-      }
+    if (!StringUtils.isNullOrEmpty(userDialectSetting)) {
+      return this.useKnownDialect(userDialectSetting);
     }
 
     if (StringUtils.isNullOrEmpty(driverProtocol)) {
@@ -147,10 +140,17 @@ public class DialectManager implements DialectProvider {
     }
 
     String host = url;
+    String cacheKey = url;
     final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
         url, true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
+      cacheKey = hosts.get(0).getHostAndPort();
+    }
+
+    final String cachedDialectCode = knownEndpointDialects.get(cacheKey);
+    if (!StringUtils.isNullOrEmpty(cachedDialectCode)) {
+      return this.useKnownDialect(cachedDialectCode);
     }
 
     if (driverProtocol.contains("mysql")) {
@@ -267,41 +267,47 @@ public class DialectManager implements DialectProvider {
       throw new SQLException(Messages.get("DialectManager.unknownDialect"));
     }
 
-    final @Nullable List<String> dialectCandidates = currentDialect.getDialectUpdateCandidates();
-    if (dialectCandidates != null) {
-      for (String dialectCandidateCode : dialectCandidates) {
-        Dialect dialectCandidate = knownDialectsByCode.get(dialectCandidateCode);
-        if (dialectCandidate == null) {
-          throw new SQLException(Messages.get(
-              "DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
-        }
+    // The provisional dialect only narrows the search to an engine family. The fingerprint of the
+    // connected server is the single source of truth for the deployment type.
+    final String provisionalCode = this.dialectCode;
+    final DialectFingerprint fingerprint =
+        this.dialectDetector.collect(connection, DialectDetector.familyOf(provisionalCode));
 
-        boolean isDialect = dialectCandidate.isDialect(connection);
-        if (isDialect) {
-          this.canUpdate = false;
-          this.dialectCode = dialectCandidateCode;
-          this.dialect = dialectCandidate;
+    final String fingerprintCode = fingerprint == null ? null : DialectDetector.resolve(fingerprint);
+    if (fingerprint != null) {
+      LOGGER.finest(() -> Messages.get("DialectManager.fingerprint", new Object[] {fingerprint, fingerprintCode}));
+    }
 
-          knownEndpointDialects.put(originalUrl, dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
-          knownEndpointDialects.put(hostSpec.getUrl(), dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
-
-          this.logCurrentDialect();
-          return dialectCandidate;
-        }
+    final String resolvedCode;
+    if (fingerprintCode == null || DialectCodes.UNKNOWN.equals(fingerprintCode)) {
+      if (DialectCodes.UNKNOWN.equals(provisionalCode)) {
+        throw new SQLException(Messages.get("DialectManager.unknownDialect"));
       }
+      LOGGER.fine(() -> Messages.get("DialectManager.fingerprintUnavailable", new Object[] {provisionalCode}));
+      resolvedCode = provisionalCode;
+    } else {
+      resolvedCode = fingerprintCode;
     }
 
-    if (DialectCodes.UNKNOWN.equals(this.dialectCode)) {
-      throw new SQLException(Messages.get("DialectManager.unknownDialect"));
-    }
-
+    final Dialect resolved = getDialectByCode(resolvedCode);
     this.canUpdate = false;
+    this.confirmed = true;
+    this.dialectCode = resolvedCode;
+    this.dialect = resolved;
 
-    knownEndpointDialects.put(originalUrl, this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
-    knownEndpointDialects.put(hostSpec.getUrl(), this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
+    knownEndpointDialects.put(hostSpec.getHostAndPort(), resolvedCode, ENDPOINT_CACHE_EXPIRATION);
 
     this.logCurrentDialect();
-    return currentDialect;
+    return resolved;
+  }
+
+  private Dialect useKnownDialect(final String dialectCode) throws SQLException {
+    final Dialect known = getDialectByCode(dialectCode);
+    this.dialectCode = dialectCode;
+    this.dialect = known;
+    this.confirmed = true;
+    this.logCurrentDialect();
+    return known;
   }
 
   private static @NonNull Dialect getDialectByCode(final String dialectCode) throws SQLException {
