@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -224,20 +225,25 @@ class DefaultConnectionPluginTest {
   }
 
   @Test
-  void testExecute_doesNotTrackTransactionBoundaries_whenDriverReportsState() throws SQLException {
+  void testExecute_recordsDriverStateInsteadOfAnalyzingSql_whenDriverReportsState() throws SQLException {
     when(pluginService.getCurrentConnection()).thenReturn(conn);
+    // What the SQL says is ignored: a BEGIN while the driver reports no transaction records false,
+    // and a plain SELECT while the driver reports a transaction records true.
     when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(false);
     when(conn.getAutoCommit()).thenReturn(false);
 
     execute(mockStatement, "Statement.execute", "BEGIN");
-    execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (1)");
-    execute(mockStatement, "Statement.execute", "COMMIT");
-    execute(conn, "Connection.commit");
-    execute(conn, "Connection.setAutoCommit", true);
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+    verify(pluginManagerService, never()).setInTransaction(true);
 
-    // The service answers from the driver, so the plugin neither records boundaries nor asks the
-    // connection about autocommit to work them out.
-    verify(pluginManagerService, never()).setInTransaction(anyBoolean());
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true);
+    execute(mockStatement, "Statement.executeQuery", "SELECT 1");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+
+    execute(conn, "Connection.commit");
+    verify(pluginManagerService, times(2)).setInTransaction(true);
+
+    // The plugin never asks the connection about autocommit to work out boundaries itself.
     verify(conn, never()).getAutoCommit();
   }
 
@@ -250,7 +256,25 @@ class DefaultConnectionPluginTest {
 
     // The driver's own view of autocommit is still kept in step with the SQL.
     verify(conn, times(1)).setAutoCommit(false);
-    verify(pluginManagerService, never()).setInTransaction(anyBoolean());
+  }
+
+  @Test
+  void testExecute_recordedDriverStateSurvivesConnectionBreak() throws SQLException {
+    // The driver reports a transaction after the INSERT. The next call breaks the connection: the
+    // call throws, the driver stops reporting, and nothing is recorded, so the state the service
+    // falls back to is the one from the last completed call, in a transaction.
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true);
+
+    execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (1)");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(null);
+    when(mockSqlFunction.call()).thenThrow(new SQLException("broken", "08006"));
+    assertThrows(SQLException.class,
+        () -> execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (2)"));
+
+    verify(pluginManagerService, never()).setInTransaction(false);
   }
 
   @Test
@@ -258,10 +282,10 @@ class DefaultConnectionPluginTest {
     // A driver that reports state for an open connection reports nothing once it is closed; the
     // plugin then tracks again, which only matters for the call that closes it.
     when(pluginService.getCurrentConnection()).thenReturn(conn);
-    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true, (Boolean) null);
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true, true, (Boolean) null);
 
     execute(mockStatement, "Statement.execute", "BEGIN");
-    verify(pluginManagerService, never()).setInTransaction(anyBoolean());
+    verify(pluginManagerService, times(1)).setInTransaction(true);
 
     execute(conn, "Connection.close");
     verify(pluginManagerService, times(1)).setInTransaction(false);
