@@ -126,6 +126,7 @@ public class RealPluginChainBenchmarks {
     CHAINS.put("auroraConnectionTracker", "auroraConnectionTracker");
     CHAINS.put("auroraStaleDns", "auroraStaleDns");
     CHAINS.put("efm2", "efm2");
+    CHAINS.put("efm3", "efm3");
     CHAINS.put("failover2", "failover2");
     CHAINS.put("dev", "dev");
     CHAINS.put("allObservability", "executionTime,connectTime,logQuery,driverMetaData");
@@ -254,6 +255,11 @@ public class RealPluginChainBenchmarks {
   @Benchmark
   public Integer efm2() {
     return executeThrough("efm2");
+  }
+
+  @Benchmark
+  public Integer efm3() {
+    return executeThrough("efm3");
   }
 
   @Benchmark
