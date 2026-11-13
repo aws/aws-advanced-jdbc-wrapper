@@ -316,19 +316,31 @@ public class ReadWriteSplittingTests {
     }
   }
 
+  /**
+   * The statement that implicitly opens the transaction reads a real table. With autocommit off,
+   * MySQL only starts a transaction on the first statement that touches a transactional table, so a
+   * {@code SELECT 1} leaves the server, and the driver, reporting no transaction; PostgreSQL opens
+   * one on any statement.
+   */
   @TestTemplate
   public void test_setReadOnlyFalseInTransaction_setAutocommitFalse() throws SQLException {
+    final String table = "test_readWriteSplitting_readOnlyFalseInTransaction";
     try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getProps())) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+      try (final Statement setupStmt = conn.createStatement()) {
+        setupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+        setupStmt.executeUpdate("CREATE TABLE " + table + " (id int not null primary key)");
+      }
 
       conn.setReadOnly(true);
       final String readerConnectionId = auroraUtil.queryInstanceId(conn);
       assertNotEquals(writerConnectionId, readerConnectionId);
 
       final Statement stmt = conn.createStatement();
+      waitUntilTableIsReadable(stmt, table);
       conn.setAutoCommit(false);
-      stmt.executeQuery("SELECT 1");
+      stmt.executeQuery("SELECT * FROM " + table);
 
       final SQLException exception =
           assertThrows(SQLException.class, () -> conn.setReadOnly(false));
@@ -341,6 +353,36 @@ public class ReadWriteSplittingTests {
       conn.setReadOnly(false);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerConnectionId, currentConnectionId);
+
+      conn.setAutoCommit(true);
+      // A fresh statement: the switch back to the writer rebinds the connection, so the reader-bound
+      // statement used above can no longer be used.
+      try (final Statement cleanupStmt = conn.createStatement()) {
+        cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+      }
+    }
+  }
+
+  /**
+   * Waits for a table just created on the writer to be visible through the given statement, which
+   * is bound to a reader that may lag behind the writer.
+   */
+  private static void waitUntilTableIsReadable(final Statement stmt, final String table) throws SQLException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+    while (true) {
+      try (final ResultSet rs = stmt.executeQuery("SELECT * FROM " + table)) {
+        return;
+      } catch (final SQLException e) {
+        if (System.nanoTime() > deadline) {
+          throw e;
+        }
+      }
+      try {
+        TimeUnit.MILLISECONDS.sleep(500);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new SQLException(e);
+      }
     }
   }
 
@@ -1046,10 +1088,35 @@ public class ReadWriteSplittingTests {
     final Connection newWriterConn;
 
     try {
+      // The table is created through the target driver directly, on the current writer (the class
+      // is annotated @MakeSureFirstInstanceWriter). It must not go through the pooled test
+      // connection: with autocommit on, the SQL-routing plugins send DDL through a second pooled
+      // connection and keep the first one checked out, which exhausts the size-1 pool that failover
+      // later needs to reconnect to the same instance (Multi-AZ simulates the crash with a short
+      // network outage, so the writer does not change). Nor through a second wrapper connection on
+      // the non-proxied URL: it shares the cluster's topology cache with the proxied test connection
+      // and overwrites it with non-proxied hosts, so failover then rejects the new (proxied) writer
+      // as not among the allowed hosts.
+      final String table = "test_pooledConnection_failoverInTransaction";
+      try (final Connection setupConn = DriverManager.getConnection(
+              ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
+          final Statement setupStmt = setupConn.createStatement()) {
+        setupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+        setupStmt.executeUpdate("CREATE TABLE " + table + " (id int not null primary key)");
+      }
+
       try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
         initialWriterConn1 = conn.unwrap(Connection.class);
         conn.setAutoCommit(false);
         initialWriterId = auroraUtil.queryInstanceId(conn);
+        // Open a real transaction before the crash. On MySQL the server only reports itself
+        // in-transaction once a transactional table is touched, so a bare query would leave the
+        // driver reporting no transaction and failover would succeed silently instead of raising
+        // TransactionStateUnknownSQLException. With autocommit off the connection is pinned, so the
+        // write stays on the initial connection.
+        try (final Statement txnStmt = conn.createStatement()) {
+          txnStmt.executeUpdate("INSERT INTO " + table + " VALUES (1)");
+        }
         LOGGER.finest("initialWriterId: " + initialWriterId + ", " + initialWriterConn1);
         auroraUtil.crashInstance(executor, initialWriterId);
         assertThrows(TransactionStateUnknownSQLException.class,
@@ -1059,6 +1126,19 @@ public class ReadWriteSplittingTests {
         newWriterConn = conn.unwrap(Connection.class);
         LOGGER.finest("nextWriterId: " + nextWriterId + ", " + newWriterConn);
         assertNotSame(initialWriterConn1, newWriterConn);
+      }
+
+      // Drop the table through the target driver directly, on whichever instance is the writer now.
+      final TestInstanceInfo newWriter =
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(nextWriterId);
+      try (final Connection cleanupConn = DriverManager.getConnection(
+              ConnectionStringHelper.getUrl(
+                  newWriter.getHost(),
+                  newWriter.getPort(),
+                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+              ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
+          final Statement cleanupStmt = cleanupConn.createStatement()) {
+        cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
       }
 
       // Make sure all instances up after failover.
