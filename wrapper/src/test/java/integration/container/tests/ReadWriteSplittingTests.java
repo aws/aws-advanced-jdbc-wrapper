@@ -1088,19 +1088,29 @@ public class ReadWriteSplittingTests {
     final Connection newWriterConn;
 
     try {
+      // The table is created on a separate plain connection to the current writer (the class is
+      // annotated @MakeSureFirstInstanceWriter). It must not go through the pooled test connection:
+      // with autocommit on, the SQL-routing plugins send DDL through a second pooled connection to
+      // the writer endpoint and keep the first one checked out, which exhausts the size-1 pool that
+      // failover later needs to reconnect to the same instance (Multi-AZ simulates the crash with a
+      // short network outage, so the writer does not change).
       final String table = "test_pooledConnection_failoverInTransaction";
+      try (final Connection setupConn = DriverManager.getConnection(
+              ConnectionStringHelper.getWrapperUrl(), ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
+          final Statement setupStmt = setupConn.createStatement()) {
+        setupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+        setupStmt.executeUpdate("CREATE TABLE " + table + " (id int not null primary key)");
+      }
+
       try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
         initialWriterConn1 = conn.unwrap(Connection.class);
-        try (final Statement setupStmt = conn.createStatement()) {
-          setupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
-          setupStmt.executeUpdate("CREATE TABLE " + table + " (id int not null primary key)");
-        }
         conn.setAutoCommit(false);
         initialWriterId = auroraUtil.queryInstanceId(conn);
         // Open a real transaction before the crash. On MySQL the server only reports itself
         // in-transaction once a transactional table is touched, so a bare query would leave the
         // driver reporting no transaction and failover would succeed silently instead of raising
-        // TransactionStateUnknownSQLException.
+        // TransactionStateUnknownSQLException. With autocommit off the connection is pinned, so the
+        // write stays on the initial connection.
         try (final Statement txnStmt = conn.createStatement()) {
           txnStmt.executeUpdate("INSERT INTO " + table + " VALUES (1)");
         }
@@ -1113,10 +1123,16 @@ public class ReadWriteSplittingTests {
         newWriterConn = conn.unwrap(Connection.class);
         LOGGER.finest("nextWriterId: " + nextWriterId + ", " + newWriterConn);
         assertNotSame(initialWriterConn1, newWriterConn);
-        // conn is now on the new writer with autocommit on; drop the table created above.
-        try (final Statement cleanupStmt = conn.createStatement()) {
-          cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
-        }
+      }
+
+      // Drop the table through a plain connection to whichever instance is the writer now.
+      final TestInstanceInfo newWriter =
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(nextWriterId);
+      try (final Connection cleanupConn = DriverManager.getConnection(
+              ConnectionStringHelper.getWrapperUrl(newWriter),
+              ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
+          final Statement cleanupStmt = cleanupConn.createStatement()) {
+        cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
       }
 
       // Make sure all instances up after failover.
