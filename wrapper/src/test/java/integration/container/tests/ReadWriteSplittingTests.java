@@ -1088,15 +1088,18 @@ public class ReadWriteSplittingTests {
     final Connection newWriterConn;
 
     try {
-      // The table is created on a separate plain connection to the current writer (the class is
-      // annotated @MakeSureFirstInstanceWriter). It must not go through the pooled test connection:
-      // with autocommit on, the SQL-routing plugins send DDL through a second pooled connection to
-      // the writer endpoint and keep the first one checked out, which exhausts the size-1 pool that
-      // failover later needs to reconnect to the same instance (Multi-AZ simulates the crash with a
-      // short network outage, so the writer does not change).
+      // The table is created through the target driver directly, on the current writer (the class
+      // is annotated @MakeSureFirstInstanceWriter). It must not go through the pooled test
+      // connection: with autocommit on, the SQL-routing plugins send DDL through a second pooled
+      // connection and keep the first one checked out, which exhausts the size-1 pool that failover
+      // later needs to reconnect to the same instance (Multi-AZ simulates the crash with a short
+      // network outage, so the writer does not change). Nor through a second wrapper connection on
+      // the non-proxied URL: it shares the cluster's topology cache with the proxied test connection
+      // and overwrites it with non-proxied hosts, so failover then rejects the new (proxied) writer
+      // as not among the allowed hosts.
       final String table = "test_pooledConnection_failoverInTransaction";
       try (final Connection setupConn = DriverManager.getConnection(
-              ConnectionStringHelper.getWrapperUrl(), ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
+              ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
           final Statement setupStmt = setupConn.createStatement()) {
         setupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
         setupStmt.executeUpdate("CREATE TABLE " + table + " (id int not null primary key)");
@@ -1125,11 +1128,14 @@ public class ReadWriteSplittingTests {
         assertNotSame(initialWriterConn1, newWriterConn);
       }
 
-      // Drop the table through a plain connection to whichever instance is the writer now.
+      // Drop the table through the target driver directly, on whichever instance is the writer now.
       final TestInstanceInfo newWriter =
           TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(nextWriterId);
       try (final Connection cleanupConn = DriverManager.getConnection(
-              ConnectionStringHelper.getWrapperUrl(newWriter),
+              ConnectionStringHelper.getUrl(
+                  newWriter.getHost(),
+                  newWriter.getPort(),
+                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
               ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
           final Statement cleanupStmt = cleanupConn.createStatement()) {
         cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
