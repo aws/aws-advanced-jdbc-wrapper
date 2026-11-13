@@ -268,8 +268,8 @@ public class KmsTriggerIntegrationTest {
   // -- PostgreSQL only --------------------------------------------------------------------------
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void postgresErrorMessageCarriesNoHmac() throws Exception {
-    assumeTrue(isPg, "PostgreSQL only");
     configureColumnWithTriggers(null);
     final byte[] valid = encryptedPayload(PLAINTEXT);
     final String storedHmacHex = toHex(Arrays.copyOfRange(valid, 0, 32));
@@ -294,8 +294,8 @@ public class KmsTriggerIntegrationTest {
   }
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void postgresSessionDefinedHmacDoesNotBypassTrigger() throws Exception {
-    assumeTrue(isPg, "PostgreSQL only");
     configureColumnWithTriggers(null);
     // Bytes 1-32 equal bytes 33-64, so a hijacked hmac() that returns the first 32 bytes of its
     // input would make this invalid value pass the comparison.
@@ -324,8 +324,8 @@ public class KmsTriggerIntegrationTest {
   }
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void postgresSessionDefinedOperatorDoesNotBypassTrigger() throws Exception {
-    assumeTrue(isPg, "PostgreSQL only");
     configureColumnWithTriggers(null);
     final byte[] random = new byte[80];
     RANDOM.nextBytes(random);
@@ -357,8 +357,8 @@ public class KmsTriggerIntegrationTest {
   // -- MySQL only -------------------------------------------------------------------------------
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
   void mysqlAcceptsKeyWithHighBytes() throws Exception {
-    assumeTrue(!isPg, "MySQL only");
     // Every byte of this random key is >= 128. The HMAC routine must reproduce these bytes exactly
     // (UNHEX(LPAD(HEX(...))) rather than CHAR(), which would re-encode them through the connection
     // charset and corrupt the key), otherwise a correct payload would fail verification.
@@ -376,8 +376,8 @@ public class KmsTriggerIntegrationTest {
   }
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
   void mysqlValidationRoutinesReadNoSessionVariables() throws Exception {
-    assumeTrue(!isPg, "MySQL only");
     configureColumnWithTriggers(null);
 
     // An earlier version cached the column's HMAC key in a session user variable, which a session

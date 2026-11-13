@@ -161,8 +161,7 @@ public class KmsKeyRotationIntegrationTest {
       return;
     }
     final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
-    try (Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+    try (Connection conn = KmsTestUtility.openPlainConnection()) {
       KmsTestUtility.createMetadataTables(conn, metadataSchema, isPg);
     }
     metadataSchemaReady = true;
@@ -220,6 +219,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test01LegacyRotateDataKeyLeavesOldRowsUndecryptable() throws Exception {
     final String table = createEncryptedTable("legacy", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 5, false);
     }
@@ -254,6 +254,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test02RotateAndReencryptOverSeveralBatches() throws Exception {
     final String table = createEncryptedTable("batches", SSN, SCORE);
+    installHmacTriggers(table, SSN, SCORE);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 25, true);
       try (PreparedStatement stmt = writer.prepareStatement(
@@ -316,6 +317,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test03ReencryptRemainingRowsRecoversAfterLegacyRotation() throws Exception {
     final String table = createEncryptedTable("recover", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 12, false);
     }
@@ -348,6 +350,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test04StaleWriterRowsAreRepaired() throws Exception {
     final String table = createEncryptedTable("stale", SSN);
+    installHmacTriggers(table, SSN);
     final Connection staleWriter = openPluginConnection();
     insertRows(staleWriter, table, 1, 10, false);
     final int oldKeyId = currentKeyId(table, SSN);
@@ -390,6 +393,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test05ReencryptRemainingRowsIsIdempotent() throws Exception {
     final String table = createEncryptedTable("idem", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 12, false);
     }
@@ -419,6 +423,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test06UtilityRunsOnWrapperWithoutKmsPluginAndRejectsPluginConnection() throws Exception {
     final String table = createEncryptedTable("conn", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 6, false);
     }
@@ -465,7 +470,7 @@ public class KmsKeyRotationIntegrationTest {
   @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void test07PostgresTriggerLooksUpKeyPerRow() throws Exception {
     final String table = createEncryptedTable("trigger", SSN);
-    installHmacTriggers(table);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 15, false);
     }
@@ -530,6 +535,7 @@ public class KmsKeyRotationIntegrationTest {
   void test08RotateAndReencryptUnderNewMasterKey() throws Exception {
     assumeTrue(secondKmsKeyId != null, KMS_KEY_ID_2_ENV + " is not set; skipping the new master key rotation");
     final String table = createEncryptedTable("newcmk", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 8, false);
     }
@@ -555,6 +561,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test09RotateWithSchemaQualifiedTableName() throws Exception {
     final String table = createEncryptedTable("schema", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 6, false);
     }
@@ -576,6 +583,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test10MissingPrimaryKeyColumnFailsBeforeKeyCreation() throws Exception {
     final String table = createEncryptedTable("nopk", SSN);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 3, false);
     }
@@ -605,7 +613,7 @@ public class KmsKeyRotationIntegrationTest {
   @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
   void test11MysqlTriggerLooksUpKeyPerRow() throws Exception {
     final String table = createEncryptedTable("mytrig", SSN);
-    installHmacTriggers(table);
+    installHmacTriggers(table, SSN);
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 15, false);
     }
@@ -665,7 +673,7 @@ public class KmsKeyRotationIntegrationTest {
   @TestTemplate
   void test12UpdatesToRowsNotYetConvertedDuringRotation() throws Exception {
     final String table = createEncryptedTable("rotunconv", SSN);
-    installHmacTriggers(table);
+    installHmacTriggers(table, SSN);
 
     try (Connection writer = openPluginConnection()) {
       insertRows(writer, table, 1, 3, false);
@@ -713,13 +721,15 @@ public class KmsKeyRotationIntegrationTest {
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * Installs the HMAC validation triggers for the table's {@code ssn} column on either engine. On
-   * MySQL the validation routines need the create-routine privilege; a run without it is skipped.
+   * Installs the HMAC validation triggers on the given encrypted columns of a table, on either
+   * engine, so each test runs as a deployment does. On MySQL the validation routines need the
+   * create-routine privilege; a run without it is skipped.
    */
-  private void installHmacTriggers(final String table) throws Exception {
+  private void installHmacTriggers(final String table, final String... encryptedColumns) throws Exception {
     final boolean installed;
     try (Connection conn = KmsTestUtility.openPlainConnection()) {
-      installed = KmsTestUtility.installTriggers(conn, SchemaName.of(METADATA_SCHEMA), isPg, table, SSN);
+      installed = KmsTestUtility.installTriggers(
+          conn, SchemaName.of(METADATA_SCHEMA), isPg, table, encryptedColumns);
     }
     assumeTrue(installed, "The HMAC validation triggers could not be installed");
   }
