@@ -1188,21 +1188,24 @@ Caches per-host response time and selects the fastest reader. Used in conjunctio
 
 Encrypts/decrypts database column values transparently using AWS KMS. Universally compatible.
 
-- **Required SDK deps:** AWS KMS SDK.
+- **Required SDK deps:** AWS KMS SDK, and JSqlParser 4.9 (`com.github.jsqlparser:jsqlparser:4.9`).
+- **Requires the `sqlParser` plugin**, loaded before `kmsEncryption` (e.g. `wrapperPlugins=sqlParser,kmsEncryption`). Without it, preparing a statement fails with `SQL parse results not found in call context`.
+- **Requires an HMAC validation trigger on every encrypted column.** The plugin alone cannot guarantee an encrypted column never holds plaintext. See the [KMS Encryption Plugin](./using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md#7-add-hmac-validation-triggers) doc.
 
 **Parameters:**
 
 | Name | Default | Description |
 |---|---|---|
-| `kms.region` | (none) | AWS KMS region. **Required.** |
+| `kms.region` | `us-east-1` | AWS KMS region. |
+| `encryptionFailOnUnmappedParameter` | `true` | Available since version 4.6.0. Reject, at prepare time, a statement on a table with encrypted columns whose parameters cannot be reliably mapped to columns. `false` only logs a WARNING, and values bound to encrypted columns may then be written unencrypted. |
 | `encryptionAllowedMasterKeyArns` | (none) | Comma-separated KMS master keys the plugin may use, matching `key_storage.master_key_arn` exactly (ARN, alias, or key id). Other keys are refused with SQL state `KEY07`. **Required.** |
-| `metadataCacheEnabled` | `true` | Enable metadata caching. |
+| `metadataCacheEnabled` | `true` | Enable metadata caching. Do not set to `false` in production: a metadata connection is opened per statement touching an encrypted column. |
 | `metadataCacheExpirationMinutes` | `60` | Metadata cache TTL (min). |
 | `metadataCacheRefreshIntervalMs` | `300000` | Metadata refresh interval (5 min). |
 | `keyManagementMaxRetries` | `3` | Retries for key ops. |
 | `keyManagementRetryBackoffBaseMs` | `100` | Backoff base (ms). |
 | `auditLoggingEnabled` | `false` | Audit logging. |
-| `dataKeyCacheEnabled` | `true` | Data key caching. |
+| `dataKeyCacheEnabled` | `true` | Data key caching. Do not set to `false` in production: a KMS `Decrypt` call is made per statement touching an encrypted column. |
 | `dataKeyCacheMaxSize` | `1000` | Cache size. |
 | `dataKeyCacheExpirationMs` | `3600000` | Data key TTL (1 h). |
 | `encryptionMetadataSchema` | `encrypt` | DB schema name for encryption metadata tables. |

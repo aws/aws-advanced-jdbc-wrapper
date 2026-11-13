@@ -148,5 +148,6 @@ DELIMITER ;
 -- With binary logging enabled, creating these routines and triggers needs the SUPER privilege or
 -- log_bin_trust_function_creators=1.
 --
--- Note: application-level HMAC validation by the JDBC driver is still the primary check. Database
--- triggers provide defense in depth and are optional.
+-- Note: create these triggers on every encrypted column. The driver verifies the HMAC when it reads
+-- a value, but it only sees statements sent through the KMS encryption plugin, so only the trigger
+-- guarantees that an encrypted column never holds plaintext.

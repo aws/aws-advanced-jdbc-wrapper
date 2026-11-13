@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [4.6.0] - 2026-11-03
 
 ### :magic_wand: Added
-- Added data key rotation with resumable, batched re-encryption for columns protected by the KMS Encryption Plugin ([PR #2201](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2201), [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/KmsEncryptionPluginGuide.md#key-rotation)).
+- Added data key rotation with resumable, batched re-encryption for columns protected by the KMS Encryption Plugin ([PR #2201](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2201), [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md#key-rotation)).
 - Added `rwTransferSessionStateOnSwitch` to let read/write splitting applications skip session-state application when switching to an already-open reader or writer connection ([PR #2194](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2194), [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/SessionState.md#readwrite-splitting-switches)).
 - Added the wrapper version and effective plugin codes to Aurora PostgreSQL connection metadata, and added millisecond values to connect-time and execution-time logs ([PR #1432](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1432)).
 
