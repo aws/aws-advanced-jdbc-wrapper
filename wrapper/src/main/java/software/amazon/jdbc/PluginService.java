@@ -188,10 +188,11 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    * If unknown, check the parsed state from the SQL and the JDBC calls recorded via
    * {@link #setInTransaction(boolean)}.
    *
-   * <p>The parsed state is only maintained while the driver reports nothing for the connection
-   * (see {@link software.amazon.jdbc.plugin.DefaultConnectionPlugin}). A connection the driver did
-   * report on and then stopped reporting on is closed, and its parsed state reads as not in a
-   * transaction, which is the right answer for a closed connection.
+   * <p>The SQL is only parsed while the driver reports nothing for the connection. While it does
+   * report, {@link software.amazon.jdbc.plugin.DefaultConnectionPlugin} records the driver's answer
+   * after every completed call instead, so that once the connection breaks and the driver stops
+   * reporting, the fallback is the state as of the last call that completed. That is what failover
+   * relies on to decide whether a transaction was open.
    *
    * @return whether the current connection is inside a transaction, or {@code null} if there is no
    *     current connection.

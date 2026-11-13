@@ -41,6 +41,7 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -134,8 +135,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     // and the SQL is analyzed only when it might be one. Otherwise, the SQL is analyzed and the
     // boundaries are tracked as the fallback the service relies on. The driver's answer for a
     // connection does not change while it stays open, so it is checked once, before the call.
+    final TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
     final boolean driverReportsTransactionState = connBeforeCall != null
-        && this.pluginService.getTargetDriverDialect().isInTransaction(connBeforeCall) != null;
+        && dialect.isInTransaction(connBeforeCall) != null;
 
     final SqlStatementAnalysis sqlAnalysis;
     final boolean doesSwitchAutoCommitFalseTrue;
@@ -175,15 +177,22 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
-    if (!driverReportsTransactionState) {
-      if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)) {
-        this.pluginManagerService.setInTransaction(true);
-      } else if (
-          sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)
-              // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
-              || doesSwitchAutoCommitFalseTrue) {
-        this.pluginManagerService.setInTransaction(false);
+    if (driverReportsTransactionState) {
+      // Record what the driver reports after the call. The driver stops reporting once the
+      // connection is broken, which is exactly when failover asks whether a transaction was open,
+      // and PluginService#isInTransaction then falls back to this recorded state: the state as of
+      // the last call that completed. The flag is read from memory, so this costs no round trip.
+      final Boolean driverState = dialect.isInTransaction(currentConn);
+      if (driverState != null) {
+        this.pluginManagerService.setInTransaction(driverState);
       }
+    } else if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)) {
+      this.pluginManagerService.setInTransaction(true);
+    } else if (
+        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)
+            // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
+            || doesSwitchAutoCommitFalseTrue) {
+      this.pluginManagerService.setInTransaction(false);
     }
 
     if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, sqlAnalysis)) {
