@@ -166,4 +166,34 @@ class PlaceholderScannerTest {
     assertEquals(Arrays.asList("SELECT"),
         PlaceholderScanner.scan("SELECT \"users\"", Mode.MYSQL).getWords());
   }
+
+  @Test
+  void testStatementsSplitAtTopLevelSemicolons() {
+    assertEquals(
+        Arrays.asList(Arrays.asList("SELECT"), Arrays.asList("INSERT", "INTO", "users", "VALUES")),
+        PlaceholderScanner.scan("SELECT 1; INSERT INTO users VALUES ('x')", Mode.GENERIC)
+            .getStatements());
+  }
+
+  @Test
+  void testSingleStatementAndTrailingSemicolonAreOneStatement() {
+    assertEquals(Collections.singletonList(Arrays.asList("SELECT")),
+        PlaceholderScanner.scan("SELECT 1", Mode.GENERIC).getStatements());
+    assertEquals(Collections.singletonList(Arrays.asList("SELECT")),
+        PlaceholderScanner.scan("SELECT 1; ;", Mode.GENERIC).getStatements());
+  }
+
+  @Test
+  void testBlankSqlHasNoStatements() {
+    assertTrue(PlaceholderScanner.scan("", Mode.GENERIC).getStatements().isEmpty());
+    assertTrue(PlaceholderScanner.scan(" ; -- x", Mode.GENERIC).getStatements().isEmpty());
+  }
+
+  @Test
+  void testSemicolonsInLiteralsCommentsAndDollarQuotesDoNotSplit() {
+    final String sql = "SELECT 'a;b', \"c;d\" /* ; */ -- ;\n, $$ ; $$";
+    assertEquals(1, PlaceholderScanner.scan(sql, Mode.POSTGRESQL).getStatements().size());
+    assertEquals(1,
+        PlaceholderScanner.scan("SELECT 'a;b', `c;d` # ;\n", Mode.MYSQL).getStatements().size());
+  }
 }

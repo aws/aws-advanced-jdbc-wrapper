@@ -24,6 +24,8 @@ import java.util.logging.Logger;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.parser.ParseException;
+import net.sf.jsqlparser.parser.Token;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
@@ -97,9 +99,34 @@ public final class JSQLParserAnalyzer {
     try {
       return CCJSqlParserUtil.parse(sql);
     } catch (JSQLParserException e) {
-      LOGGER.fine(() -> Messages.get("JSQLParserAnalyzer.failedToParse", new Object[]{e.getMessage()}));
+      LOGGER.fine(() -> describeParseFailure(e));
       return null;
     }
+  }
+
+  /**
+   * Describes a parse failure without the parser's message, which quotes tokens of the SQL and so
+   * can include the values it writes. Only the kind of failure and, when known, its position are
+   * given.
+   */
+  static String describeParseFailure(final JSQLParserException e) {
+    for (Throwable t = e; t != null; t = t.getCause()) {
+      if (t instanceof ParseException) {
+        final Token current = ((ParseException) t).currentToken;
+        final Token failed = current == null ? null : current.next;
+        if (failed != null) {
+          return Messages.get("JSQLParserAnalyzer.failedToParseAt",
+              new Object[]{t.getClass().getSimpleName(), String.valueOf(failed.beginLine),
+                  String.valueOf(failed.beginColumn)});
+        }
+        return Messages.get("JSQLParserAnalyzer.failedToParse", new Object[]{t.getClass().getSimpleName()});
+      }
+      if (t.getCause() == t) {
+        break;
+      }
+    }
+    final Throwable cause = e.getCause() == null ? e : e.getCause();
+    return Messages.get("JSQLParserAnalyzer.failedToParse", new Object[]{cause.getClass().getSimpleName()});
   }
 
   /**

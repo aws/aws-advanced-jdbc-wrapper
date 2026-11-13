@@ -44,6 +44,12 @@ public final class SqlContextKeys {
    */
   public static final String PARAM_MAPPING_PROBLEMS = "sql.paramMappingProblems";
 
+  /**
+   * Columns written with a value that is not a bind parameter, as
+   * {@code List<}{@link ParameterColumnMapper.UnboundColumn}{@code >}; empty when there are none.
+   */
+  public static final String UNBOUND_WRITE_COLUMNS = "sql.unboundWriteColumns";
+
   /** SQL with annotations stripped. */
   public static final String CLEAN_SQL = "sql.cleanSql";
 

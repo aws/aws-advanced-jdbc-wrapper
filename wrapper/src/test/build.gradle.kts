@@ -218,6 +218,7 @@ val testClassWeightsSeconds = mapOf(
     "KmsAllowListIntegrationTest" to 0,
     "KmsEncryptionIntegrationTest" to 0,
     "KmsKeyRotationIntegrationTest" to 0,
+    "KmsWriteShapesIntegrationTest" to 0,
     "PerformanceTest" to 0,
     "ReadWriteSplittingPerformanceTest" to 0,
     "RemoteQueryCachePluginTests" to 0,

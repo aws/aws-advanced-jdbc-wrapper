@@ -64,6 +64,30 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   private static final Pattern ROUTING_HINT_PATTERN =
       Pattern.compile("/\\*\\s*@\\s*(reader|writer|keep)\\s*\\*/", Pattern.CASE_INSENSITIVE);
 
+  /**
+   * Methods that take the SQL to run as their first argument. The SQL of each call is parsed, rather
+   * than the statement's prepared SQL, so that plugins downstream see what is actually sent.
+   *
+   * <p>{@code PreparedStatement.addBatch} and {@code CallableStatement.addBatch} are left out: they
+   * share their method name with the no-argument {@code addBatch()} called for every row of a
+   * prepared batch, and the drivers refuse {@code addBatch(String)} on a prepared statement.
+   */
+  public static final Set<String> SQL_EXECUTION_METHODS =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add(JdbcMethod.STATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName);
+        }
+      });
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -73,6 +97,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
@@ -138,6 +163,11 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
         return result;
       }
       // No SQL arg (shouldn't happen in practice) — fall through to jdbcMethodFunc.call()
+    } else if (SQL_EXECUTION_METHODS.contains(methodName) && jdbcMethodArgs != null && jdbcMethodArgs.length > 0
+        && jdbcMethodArgs[0] instanceof String) {
+      // SQL passed to execute* or addBatch(String). On a PreparedStatement this SQL is not the
+      // prepared one, so it is parsed itself rather than taken from the cache.
+      applyToContext(parseSql((String) jdbcMethodArgs[0]));
     } else if ((methodName.startsWith("PreparedStatement.execute")
         || methodName.startsWith("CallableStatement.execute"))
         && methodInvokeOn instanceof PreparedStatement) {
@@ -146,14 +176,9 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       if (cached != null) {
         applyToContext(cached);
       }
-    } else if (methodName.startsWith("Statement.execute")) {
-      // Parse SQL from args; executeBatch has no SQL arg and will be skipped,
-      // causing downstream plugins to fall back to method-name heuristics (routes to writer)
-      if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
-          && jdbcMethodArgs[0] instanceof String) {
-        applyToContext(parseSql((String) jdbcMethodArgs[0]));
-      }
     }
+    // Statement.executeBatch has no SQL arg and is skipped, causing downstream plugins to fall back
+    // to method-name heuristics (routes to writer)
 
     return jdbcMethodFunc.call();
   }
@@ -199,7 +224,8 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
 
     return new ParsedSqlResult(
         analysis.queryType, tables, paramMapping, cleanSql,
-        annotations, analysis.forUpdate, routingHint, mapping.getProblems());
+        annotations, analysis.forUpdate, routingHint, mapping.getProblems(),
+        mapping.getUnboundColumns());
   }
 
   private PlaceholderScanner.Mode resolveScannerMode() {
@@ -244,6 +270,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     ctx.setAttribute(SqlContextKeys.TABLES, parsed.tables);
     ctx.setAttribute(SqlContextKeys.PARAM_MAPPING, parsed.paramMapping);
     ctx.setAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS, parsed.problems);
+    ctx.setAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, parsed.unboundColumns);
     ctx.setAttribute(SqlContextKeys.CLEAN_SQL, parsed.cleanSql);
     ctx.setAttribute(SqlContextKeys.ANNOTATIONS, parsed.annotations);
     ctx.setAttribute(SqlContextKeys.FOR_UPDATE, parsed.forUpdate);
@@ -262,11 +289,13 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     final boolean forUpdate;
     final @Nullable RoutingHint routingHint;
     final List<ParameterMappingProblem> problems;
+    final List<ParameterColumnMapper.UnboundColumn> unboundColumns;
 
     ParsedSqlResult(QueryType queryType, Set<String> tables,
         Map<Integer, String> paramMapping, String cleanSql,
         Map<Integer, String> annotations, boolean forUpdate,
-        @Nullable RoutingHint routingHint, List<ParameterMappingProblem> problems) {
+        @Nullable RoutingHint routingHint, List<ParameterMappingProblem> problems,
+        List<ParameterColumnMapper.UnboundColumn> unboundColumns) {
       this.queryType = queryType;
       this.tables = tables;
       this.paramMapping = paramMapping;
@@ -275,6 +304,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       this.forUpdate = forUpdate;
       this.routingHint = routingHint;
       this.problems = Collections.unmodifiableList(new ArrayList<>(problems));
+      this.unboundColumns = Collections.unmodifiableList(new ArrayList<>(unboundColumns));
     }
   }
 }
