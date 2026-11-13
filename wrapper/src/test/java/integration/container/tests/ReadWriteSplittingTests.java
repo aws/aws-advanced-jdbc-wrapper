@@ -355,7 +355,11 @@ public class ReadWriteSplittingTests {
       assertEquals(writerConnectionId, currentConnectionId);
 
       conn.setAutoCommit(true);
-      stmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+      // A fresh statement: the switch back to the writer rebinds the connection, so the reader-bound
+      // statement used above can no longer be used.
+      try (final Statement cleanupStmt = conn.createStatement()) {
+        cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+      }
     }
   }
 
@@ -1084,10 +1088,22 @@ public class ReadWriteSplittingTests {
     final Connection newWriterConn;
 
     try {
+      final String table = "test_pooledConnection_failoverInTransaction";
       try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
         initialWriterConn1 = conn.unwrap(Connection.class);
+        try (final Statement setupStmt = conn.createStatement()) {
+          setupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+          setupStmt.executeUpdate("CREATE TABLE " + table + " (id int not null primary key)");
+        }
         conn.setAutoCommit(false);
         initialWriterId = auroraUtil.queryInstanceId(conn);
+        // Open a real transaction before the crash. On MySQL the server only reports itself
+        // in-transaction once a transactional table is touched, so a bare query would leave the
+        // driver reporting no transaction and failover would succeed silently instead of raising
+        // TransactionStateUnknownSQLException.
+        try (final Statement txnStmt = conn.createStatement()) {
+          txnStmt.executeUpdate("INSERT INTO " + table + " VALUES (1)");
+        }
         LOGGER.finest("initialWriterId: " + initialWriterId + ", " + initialWriterConn1);
         auroraUtil.crashInstance(executor, initialWriterId);
         assertThrows(TransactionStateUnknownSQLException.class,
@@ -1097,6 +1113,10 @@ public class ReadWriteSplittingTests {
         newWriterConn = conn.unwrap(Connection.class);
         LOGGER.finest("nextWriterId: " + nextWriterId + ", " + newWriterConn);
         assertNotSame(initialWriterConn1, newWriterConn);
+        // conn is now on the new writer with autocommit on; drop the table created above.
+        try (final Statement cleanupStmt = conn.createStatement()) {
+          cleanupStmt.executeUpdate("DROP TABLE IF EXISTS " + table);
+        }
       }
 
       // Make sure all instances up after failover.
