@@ -303,7 +303,8 @@ public class AwsWrapperXADataSource implements XADataSource, Serializable {
     final String className = this.targetDataSourceClassName;
     final Class<?> loaded;
     try {
-      loaded = Class.forName(className);
+      // initialize=false so a rejected class's static initializer never runs.
+      loaded = Class.forName(className, false, AwsWrapperXADataSource.class.getClassLoader());
     } catch (final ClassNotFoundException e) {
       throw new SQLException(
           Messages.get("AwsWrapperXADataSource.missingTarget"), SqlState.UNKNOWN_STATE.getState(), e);

@@ -25,6 +25,7 @@ import com.mysql.cj.jdbc.MysqlXADataSource;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import javax.sql.XAConnection;
 import javax.sql.XADataSource;
@@ -59,6 +60,32 @@ public class AwsWrapperXADataSourceTest {
     ds.setTargetDataSourceClassName("java.lang.String");
     final SQLException ex = assertThrows(SQLException.class, ds::getXAConnection);
     assertTrue(ex.getMessage().contains("java.lang.String"));
+  }
+
+  // Flags live in the test class so reading them never loads or initializes the probe.
+  static final AtomicBoolean NOT_XA_STATIC_INIT_RAN = new AtomicBoolean(false);
+  static final AtomicBoolean NOT_XA_CONSTRUCTED = new AtomicBoolean(false);
+
+  /** Not an {@link XADataSource}; must be rejected before any of its code runs. */
+  public static class NotAnXaDataSource {
+    static {
+      NOT_XA_STATIC_INIT_RAN.set(true);
+    }
+
+    public NotAnXaDataSource() {
+      NOT_XA_CONSTRUCTED.set(true);
+    }
+  }
+
+  @Test
+  void targetNotXaDataSource_rejectedBeforeStaticInitOrConstructor() {
+    final AwsWrapperXADataSource ds = new AwsWrapperXADataSource();
+    ds.setTargetDataSourceClassName(AwsWrapperXADataSourceTest.class.getName() + "$NotAnXaDataSource");
+
+    assertThrows(SQLException.class, ds::createTargetXADataSource);
+
+    assertFalse(NOT_XA_STATIC_INIT_RAN.get(), "static initializer must not run");
+    assertFalse(NOT_XA_CONSTRUCTED.get(), "constructor must not run");
   }
 
   @Test
