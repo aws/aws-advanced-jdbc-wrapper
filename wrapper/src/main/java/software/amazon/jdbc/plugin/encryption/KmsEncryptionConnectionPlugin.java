@@ -245,7 +245,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
       try {
         final StatementContext ctx = new StatementContext(pluginService.getCallContext());
-        checkWrites(ctx, ps);
+        checkWrites(ctx.problems, ctx.unboundColumns, ps);
         statementContexts.put(ps, ctx);
       } catch (SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
@@ -258,17 +258,43 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   /**
    * Checks SQL passed directly to an execute or addBatch method, using the analysis the SQL parser
    * put into the call context for this call.
+   *
+   * <p>Such SQL has no bound values, so the only thing to check is the columns it writes with a
+   * client constant. Almost no statement has one, so that list is read first and the call returns
+   * before any metadata is looked up.
    */
   private void checkExecutedSql(final Object statement) throws SQLException {
     if (statement instanceof Statement) {
       try {
+        // Also registers the driver's encrypted_data type, which reads on this connection need.
         ensureInitialized(((Statement) statement).getConnection());
       } catch (SQLException e) {
         LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.initWithConnectionFailed",
             new Object[]{e.getMessage()}));
       }
     }
-    checkWrites(new StatementContext(pluginService.getCallContext()), null);
+
+    final List<UnboundColumn> unboundColumns = unboundWriteColumns(pluginService.getCallContext());
+    if (unboundColumns.isEmpty()) {
+      return;
+    }
+    checkWrites(Collections.emptyList(), unboundColumns, null);
+  }
+
+  /**
+   * The columns the parsed statement writes with a client constant, from the call context.
+   *
+   * @throws SQLException when the context holds no parse results, which means the sqlParser plugin
+   *     is not loaded
+   */
+  @SuppressWarnings("unchecked")
+  private static List<UnboundColumn> unboundWriteColumns(final @Nullable PluginCallContext ctx)
+      throws SQLException {
+    if (ctx == null || !ctx.hasAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS)) {
+      throw new SQLException(Messages.get("KmsEncryptionConnectionPlugin.missingParseContext"));
+    }
+    final List<UnboundColumn> columns = ctx.getAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, List.class);
+    return columns == null ? Collections.emptyList() : columns;
   }
 
   /**
@@ -285,14 +311,16 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
    * operator). When the encryption metadata cannot be read, which columns are encrypted is unknown,
    * so that setting decides between refusing and warning for every check.
    *
-   * @param ctx the parsed statement
+   * @param problems the parameters the SQL parser could not map; empty for directly executed SQL
+   * @param unboundColumns the columns written with a client constant
    * @param ps the statement being prepared, closed when it is refused; null when the SQL is being
    *     executed directly
    */
-  private void checkWrites(final StatementContext ctx, final @Nullable PreparedStatement ps)
-      throws SQLException {
-    final List<ParameterMappingProblem> problems = ps != null ? ctx.problems : Collections.emptyList();
-    if (problems.isEmpty() && ctx.unboundColumns.isEmpty()) {
+  private void checkWrites(
+      final List<ParameterMappingProblem> problems,
+      final List<UnboundColumn> unboundColumns,
+      final @Nullable PreparedStatement ps) throws SQLException {
+    if (problems.isEmpty() && unboundColumns.isEmpty()) {
       return;
     }
     final MetadataManager metadataManager = encryptionUtility.getMetadataManager();
@@ -307,7 +335,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     final List<String> details = new ArrayList<>();
     try {
       collectUnencryptableValues(
-          metadataManager, ctx.unboundColumns, unencryptableTables, unencryptableDetails);
+          metadataManager, unboundColumns, unencryptableTables, unencryptableDetails);
       collectRelevantProblems(metadataManager, problems, affectedTables, details);
     } catch (MetadataException e) {
       if (strict) {

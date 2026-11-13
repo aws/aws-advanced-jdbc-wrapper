@@ -1124,6 +1124,17 @@ public class KmsEncryptionConnectionPluginTest {
   }
 
   @Test
+  void test_statement_withoutClientConstants_readsNoMetadata() throws Exception {
+    stubEncryptedUsersSsn();
+
+    assertTrue(executeChained("Statement.executeQuery", "SELECT ssn FROM users WHERE name = 'Alice'"));
+    assertTrue(executeChained("Statement.executeUpdate", "UPDATE users SET ssn = name"));
+
+    verify(mockMetadataManager, never()).isColumnEncrypted(anyString(), anyString());
+    verify(mockMetadataManager, never()).hasEncryptedColumns(anyString());
+  }
+
+  @Test
   void test_statement_initializesWithStatementConnection() throws Exception {
     stubEncryptedUsersSsn();
 
