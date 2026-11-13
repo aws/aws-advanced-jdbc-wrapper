@@ -161,3 +161,44 @@ When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured
 > Unlike `efm`, the `efm2` plugin does not submit a per-node `nodeUnhealthy` counter. If you rely on per-node unhealthy counts, use `efm.nodeUnhealthy.count.[NODE]` with the `efm` plugin instead.
 
 See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.
+
+# Host Monitoring Plugin v3
+
+## Plugin Availability
+
+The plugin is available since version 4.6.0.
+
+## Overview
+
+Host Monitoring Plugin v3, plugin code `efm3`, is a third implementation of Enhanced Failure Monitoring. It is a drop-in replacement for `efm` and `efm2`: it shares the [Enhanced Failure Monitoring Parameters](#enhanced-failure-monitoring-parameters) and the `monitoring-` property prefix, and it aborts a connection after `failureDetectionCount` consecutive failed probes, which matches the documented semantics and the `efm2` timing. Load it the same way, at the end of the plugin chain and after the failover plugin, for example `wrapperPlugins=failover2,efm3`. Use one of `efm`, `efm2` or `efm3` per connection, not several.
+
+`efm3` was designed to remove the overhead and the failure modes of the earlier implementations rather than patch them:
+
+- A connection is registered with its host monitor once, not on every JDBC call. The per-call cost is two atomic writes to a per-connection slot; there is no allocation, no lock and no shared data structure on the application thread, so the `efm.contextPool.*` system properties do not apply.
+- Monitor memory and CPU scale with the number of connections to a host, not with the number of calls per second.
+- One thread per monitored host, which also drives the stuck-monitor heartbeat, so a hung probe is detected and the monitor is replaced.
+- The monitoring connection's connect and socket timeouts are always bounded (see below), so a probe against an unreachable host cannot block the monitor.
+- The plugin never changes the current connection or host of the wrapper while resolving the host to monitor, and an error while identifying the host is reported as a `SQLException`.
+
+## Parameters
+
+All [Enhanced Failure Monitoring Parameters](#enhanced-failure-monitoring-parameters) apply, with one addition:
+
+| Parameter                       | Available Since Version |  Value  | Required | Description                                                                                                                                                                                        | Default Value |
+|---------------------------------|-------------------------|:-------:|:--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `abortIdleConnectionsOnFailure` | 4.6.0                   | Boolean |    No    | When the monitor decides a host is unhealthy, also abort connections to that host that have no call in flight. When `false`, only calls that have outlived `failureDetectionTime` are aborted. | `false`       |
+
+### Monitoring connection timeouts
+
+The monitoring connection takes its connect and socket timeouts from `monitoring-connectTimeout` and `monitoring-socketTimeout` when they are set. When either is not set, it defaults to `failureDetectionInterval` (in milliseconds, like every wrapper timeout). The application's own `connectTimeout` and `socketTimeout` are not inherited by the monitoring connection. All other `monitoring-` prefixed properties work as described for `efm`.
+
+## Telemetry Metrics
+
+When [telemetry](../Telemetry.md) is enabled and a metrics backend is configured through `telemetryMetricsBackend`, the `efm3` plugin submits the following metrics:
+
+| Metric name                       | Metric type | Description                                                                                                                                     |
+|-----------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `efm3.connections.aborted`        | Counter     | Number of connections aborted after a monitor determined the host was unhealthy.                                                                |
+| `efm3.hostUnhealthy.count.[NODE]` | Counter     | Number of failed probes against a specific host. `[NODE]` is replaced by the instance ID, or by the host name when no instance ID is available. |
+
+See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by other plugins.
