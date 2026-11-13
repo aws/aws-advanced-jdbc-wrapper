@@ -678,6 +678,14 @@ public class WrapperUtils {
       throw new IllegalArgumentException("resultClass");
     }
 
+    // Reject before any code of the target class (static initializer or constructor) can run.
+    if (!resultClass.isAssignableFrom(classToInstantiate)) {
+      throw new InstantiationException(
+          Messages.get(
+              "WrapperUtils.classNotAssignable",
+              new Object[] {classToInstantiate.getName(), resultClass.getName()}));
+    }
+
     try {
       if (constructorArgClasses == null
           || constructorArgClasses.length == 0
@@ -712,7 +720,10 @@ public class WrapperUtils {
 
     final Class<?> loaded;
     try {
-      loaded = Class.forName(className);
+      // initialize=false: load and link only. The static initializer must not run until the
+      // type check in the Class overload has passed. WrapperUtils' own class loader is the one
+      // the previous Class.forName(className) resolved against, so lookup semantics are unchanged.
+      loaded = Class.forName(className, false, WrapperUtils.class.getClassLoader());
     } catch (final Exception e) {
       throw new InstantiationException(
           Messages.get(

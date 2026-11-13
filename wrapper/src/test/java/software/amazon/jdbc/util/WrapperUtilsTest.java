@@ -17,8 +17,10 @@
 package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -35,6 +37,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -289,5 +293,53 @@ public class WrapperUtilsTest {
         () -> WrapperUtils.executeWithPluginsWithBoundObject(String.class, Exception.class, mockConnectionWrapper,
             mockPluginManager, arrayResultSetWrapper, arrayResultSet,
             JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
+  }
+
+  // Flags live in the test class, not in the probe class, so reading them never loads or
+  // initializes the probe.
+  static final AtomicBoolean NOT_A_DATASOURCE_STATIC_INIT_RAN = new AtomicBoolean(false);
+  static final AtomicBoolean NOT_A_DATASOURCE_CONSTRUCTED = new AtomicBoolean(false);
+
+  /**
+   * Deliberately NOT a {@link DataSource}. createInstance(..., DataSource.class) must reject it
+   * before its static initializer or constructor runs.
+   */
+  public static class NotADataSource {
+    static {
+      NOT_A_DATASOURCE_STATIC_INIT_RAN.set(true);
+    }
+
+    public NotADataSource() {
+      NOT_A_DATASOURCE_CONSTRUCTED.set(true);
+    }
+  }
+
+  @Test
+  void testCreateInstanceByNameRejectsWrongTypeBeforeRunningAnyCode() {
+    // Build the name as a string: a NotADataSource.class literal would not initialize it either,
+    // but the string form mirrors the real call path (targetDataSourceClassName).
+    final String className = WrapperUtilsTest.class.getName() + "$NotADataSource";
+
+    final InstantiationException ex = assertThrows(InstantiationException.class,
+        () -> WrapperUtils.createInstance(className, DataSource.class));
+    assertTrue(ex.getMessage().contains(className));
+    assertTrue(ex.getMessage().contains(DataSource.class.getName()));
+
+    assertFalse(NOT_A_DATASOURCE_STATIC_INIT_RAN.get(), "static initializer must not run");
+    assertFalse(NOT_A_DATASOURCE_CONSTRUCTED.get(), "constructor must not run");
+  }
+
+  @Test
+  void testCreateInstanceByClassRejectsWrongType() {
+    final InstantiationException ex = assertThrows(InstantiationException.class,
+        () -> WrapperUtils.createInstance(String.class, DataSource.class, (Class<?>[]) null));
+    assertTrue(ex.getMessage().contains(String.class.getName()));
+  }
+
+  @Test
+  void testCreateInstanceByNameAcceptsMatchingType() throws Exception {
+    final Object instance = WrapperUtils.createInstance(
+        java.util.ArrayList.class.getName(), java.util.List.class);
+    assertInstanceOf(java.util.ArrayList.class, instance);
   }
 }
