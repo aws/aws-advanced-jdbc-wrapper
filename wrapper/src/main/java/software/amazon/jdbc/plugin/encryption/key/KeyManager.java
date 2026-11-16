@@ -477,13 +477,11 @@ public class KeyManager {
       return;
     }
     // The ARN comes from key_storage and may have been written by someone else, so it is masked.
-    LOGGER.warning(() -> Messages.get("KeyManager.masterKeyNotAllowed",
+    final String message = Messages.get("KeyManager.masterKeyNotAllowed",
         new Object[]{KeyManagementException.sanitizeArn(masterKeyArn),
-            EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}));
-    throw KeyManagementException.unauthorizedMasterKey(
-        Messages.get("KeyManager.masterKeyNotAllowedExc",
-            new Object[]{EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name}),
-        masterKeyArn);
+            EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name});
+    LOGGER.warning(message);
+    throw KeyManagementException.unauthorizedMasterKey(message, masterKeyArn);
   }
 
   /** Clears the data key cache. */

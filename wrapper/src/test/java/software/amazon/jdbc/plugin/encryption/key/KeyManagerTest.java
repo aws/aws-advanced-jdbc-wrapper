@@ -95,7 +95,7 @@ public class KeyManagerTest {
   }
 
   @Test
-  void refusal_logsTheMasterKeyMasked() {
+  void refusal_logsAndThrowsTheMasterKeyMasked() {
     final String forged = "arn:aws:kms:us-east-1:222222222222:key/evil\nSEVERE: forged line";
     final Logger logger = Logger.getLogger(KeyManager.class.getName());
     final List<LogRecord> records = new CopyOnWriteArrayList<>();
@@ -114,9 +114,11 @@ public class KeyManagerTest {
       }
     };
     logger.addHandler(handler);
+    final KeyManagementException exception;
     try {
       final KeyManager keyManager = newKeyManager(mock(KmsClient.class), LISTED_ARN);
-      assertUnauthorized(() -> keyManager.decryptDataKey(ENCRYPTED_DATA_KEY, forged));
+      exception = assertThrows(KeyManagementException.class,
+          () -> keyManager.decryptDataKey(ENCRYPTED_DATA_KEY, forged));
     } finally {
       logger.removeHandler(handler);
     }
@@ -129,6 +131,9 @@ public class KeyManagerTest {
     assertFalse(logged.contains("222222222222"), logged);
     assertFalse(logged.contains("\n"), logged);
     assertTrue(logged.contains("arn:aws:kms:***:***:key/evil?SEVERE: forged line"), logged);
+    // The exception carries the same masked message as the log.
+    assertEquals(logged, exception.getMessage());
+    assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
   }
 
   @Test

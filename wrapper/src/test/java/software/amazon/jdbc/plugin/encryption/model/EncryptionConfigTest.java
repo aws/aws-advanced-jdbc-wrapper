@@ -196,6 +196,19 @@ public class EncryptionConfigTest {
   }
 
   @Test
+  public void testToString_doesNotPrintAllowedMasterKeyArns() {
+    final String text = EncryptionConfig.builder()
+        .kmsRegion("us-east-1")
+        .allowedMasterKeyArns("arn:aws:kms:us-east-1:111111111111:key/abc,alias/b")
+        .build()
+        .toString();
+
+    assertFalse(text.contains("111111111111"), text);
+    assertFalse(text.contains("alias/b"), text);
+    assertTrue(text.contains("allowedMasterKeyArns=<2 keys>"), text);
+  }
+
+  @Test
   public void testAllowedMasterKeyArns_partOfEquality() {
     assertNotEquals(
         EncryptionConfig.builder().kmsRegion("us-east-1").build(),
