@@ -1012,8 +1012,6 @@ Complete example projects:
   - [KeyManagementExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/KeyManagementExample.java) - setting up columns, rotating data keys and other `KeyManagementUtility` tasks
 - [EncryptSpring](../../../examples/EncryptSpring): a Spring Boot application with an encrypted column. See its [README](../../../examples/EncryptSpring/README.md).
 
-See [KmsEncryptionIntegrationTest.java](../../../wrapper/src/test/java/integration/container/tests/KmsEncryptionIntegrationTest.java) for an end-to-end test of the plugin. It demonstrates database schema setup, KMS key generation, metadata configuration, encryption and decryption, updates, HMAC verification and annotations.
-
 ## Additional Resources
 
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/)
