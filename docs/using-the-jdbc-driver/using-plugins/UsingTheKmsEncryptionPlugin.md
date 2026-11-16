@@ -848,13 +848,56 @@ The plugin needs only `kms:Decrypt` on the master keys its columns use:
 
 Grant the actions `KeyManagementUtility` uses (see [AWS Requirements](#aws-requirements)) only to the credentials that set up and rotate the columns.
 
+### Separating the runtime role from the admin role
+
+Run the application and the setup and rotation tooling under different credentials, so that a compromised application cannot change which keys protect a column.
+
+| | Runtime (application) | Admin (`KeyManagementUtility`, DDL) |
+|---|---|---|
+| AWS | `kms:Decrypt` only, on the specific master key ARNs the columns use | `kms:GenerateDataKey` and `kms:Decrypt` on those ARNs, plus `kms:DescribeKey` for `validateMasterKey()`. `kms:CreateKey` and `kms:CreateAlias` only if it creates master keys |
+| Database | `SELECT` on `key_storage` and `encryption_metadata`; normal DML on the application tables | Write access to `key_storage` and `encryption_metadata`; DDL and trigger creation on the application tables |
+
+The runtime role must not have `kms:GenerateDataKey`, `kms:Encrypt`, `kms:CreateKey` or `"Resource": "*"`, and must not be able to write the metadata tables. Without write access to `key_storage`, a compromised application cannot point a column at a different master key or HMAC key, and the `encryptionAllowedMasterKeyArns` list and the trigger stay meaningful. Use a separate admin credential, held by your deployment pipeline or an operator, and do not ship it with the application.
+
+**PostgreSQL:**, with `app_runtime` as the application's role and `app_admin` as the admin role (replace `encrypt` with your metadata schema):
+
+```sql
+-- Metadata: read-only for the application
+REVOKE ALL ON ALL TABLES IN SCHEMA encrypt FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA encrypt FROM app_runtime;
+GRANT USAGE ON SCHEMA encrypt TO app_runtime;
+GRANT SELECT ON encrypt.key_storage, encrypt.encryption_metadata TO app_runtime;
+
+-- Metadata: writable only by the admin role
+GRANT USAGE ON SCHEMA encrypt TO app_admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON encrypt.key_storage, encrypt.encryption_metadata TO app_admin;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA encrypt TO app_admin;
+```
+
+The trigger function runs with the privileges of the user whose statement fires it, so every role that writes an encrypted column, not only `app_runtime`, needs the `SELECT` grants above. Roles that never write encrypted columns need no access to the schema.
+
+**MySQL:**, with `'app_runtime'@'%'` and `'app_admin'@'%'` (replace `encrypt` with your metadata schema):
+
+```sql
+REVOKE ALL PRIVILEGES ON encrypt.* FROM 'app_runtime'@'%';
+GRANT SELECT ON encrypt.key_storage TO 'app_runtime'@'%';
+GRANT SELECT ON encrypt.encryption_metadata TO 'app_runtime'@'%';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON encrypt.key_storage TO 'app_admin'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE ON encrypt.encryption_metadata TO 'app_admin'@'%';
+```
+
+`REVOKE` fails on MySQL with error 1141 if the account does not hold the privilege being revoked, so skip it for an account you have not granted anything to. MySQL routines and triggers run with the privileges of their `DEFINER`, which is the account that installed them, the shipped script sets no `SQL SECURITY` clause. That account, the admin role, therefore needs `SELECT` on the metadata tables and the privileges to create routines and triggers (see step 3). Writers of an encrypted column need no privileges on the metadata schema on MySQL; only the plugin's own connection needs the `SELECT` grants above.
+
+Verify the separation by connecting as the runtime role and confirming that `INSERT INTO encrypt.key_storage ...` and `UPDATE encrypt.encryption_metadata ...` fail with a permission error, and that `aws kms generate-data-key` with the runtime credentials is denied.
+
 ### Data Protection
 
 - Encrypted data is stored as binary data in the database
 - The original data never leaves your application - encryption/decryption happens locally using data keys from KMS
 - Only encryption keys are managed by AWS KMS, not the actual data
 - Use different KMS keys for different environments (dev, staging, prod)
-- Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. The PostgreSQL trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. Only the user that runs `KeyManagementUtility` needs to write to them
+- Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. On PostgreSQL the trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. On MySQL the trigger runs as its definer, so writers need no access to the metadata tables. Only the user that runs `KeyManagementUtility` needs to write to them (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
 - Always use SSL/TLS for database connections
 - Enable CloudTrail logging for KMS operations
 
@@ -985,6 +1028,7 @@ JOIN encrypt.key_storage ks ON em.key_id = ks.id;
    - Create the HMAC validation trigger on every encrypted column (see [step 7 of Setup](#7-add-hmac-validation-triggers))
    - Use IAM roles instead of hardcoded credentials or access keys
    - Apply least-privilege IAM policies
+   - Run the application under a runtime role with only `kms:Decrypt` and `SELECT` on the metadata schema, and keep a separate admin credential for `KeyManagementUtility` (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
    - Restrict access to the metadata schema, and regularly audit the encryption metadata
 3. **Performance**
    - Use connection pooling
