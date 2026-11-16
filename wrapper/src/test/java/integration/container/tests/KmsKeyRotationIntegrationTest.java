@@ -726,7 +726,8 @@ public class KmsKeyRotationIntegrationTest {
   /**
    * Installs the HMAC validation triggers on the given encrypted columns of a table, on either
    * engine, so each test runs as a deployment does. On MySQL the validation routines need the
-   * create-routine privilege; a run without it is skipped.
+   * create-routine privilege; a run without it fails, because skipping would report green for tests
+   * that did not run against the triggers.
    */
   private void installHmacTriggers(final String table, final String... encryptedColumns) throws Exception {
     final boolean installed;
@@ -734,7 +735,8 @@ public class KmsKeyRotationIntegrationTest {
       installed = KmsTestUtility.installTriggers(
           conn, SchemaName.of(METADATA_SCHEMA), isPg, table, encryptedColumns);
     }
-    assumeTrue(installed, "The HMAC validation triggers could not be installed");
+    assertTrue(installed, "The HMAC validation triggers could not be installed. On MySQL the test"
+        + " user needs the create-routine privilege.");
   }
 
   private Connection openWrapperConnection(String plugins) throws SQLException {

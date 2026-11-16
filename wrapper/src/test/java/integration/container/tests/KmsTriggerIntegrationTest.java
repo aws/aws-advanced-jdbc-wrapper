@@ -435,9 +435,11 @@ public class KmsTriggerIntegrationTest {
       KmsTestUtility.createAppTable(conn, isPg, TABLE, Collections.singletonList(COLUMN), null);
       installed = KmsTestUtility.installTriggers(conn, metadataSchema, isPg, TABLE, COLUMN);
     }
-    // On MySQL the validation routines need the create-routine privilege; a run without it is
-    // skipped. On PostgreSQL installTriggers always succeeds or throws.
-    assumeTrue(installed, "The HMAC validation triggers could not be installed");
+    // On MySQL the validation routines need the create-routine privilege. A run without it fails
+    // rather than skips, so these tests cannot report green without exercising the triggers. On
+    // PostgreSQL installTriggers always succeeds or throws.
+    assertTrue(installed, "The HMAC validation triggers could not be installed. On MySQL the test"
+        + " user needs the create-routine privilege.");
   }
 
   private static final String SHADOW_SCHEMA = "kms_trig_shadow";
