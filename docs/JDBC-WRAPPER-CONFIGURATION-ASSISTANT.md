@@ -1189,7 +1189,7 @@ Caches per-host response time and selects the fastest reader. Used in conjunctio
 Encrypts/decrypts database column values transparently using AWS KMS. Universally compatible.
 
 - **Required SDK deps:** AWS KMS SDK, and JSqlParser 4.9 (`com.github.jsqlparser:jsqlparser:4.9`).
-- **Requires the `sqlParser` plugin**, loaded before `kmsEncryption` (e.g. `wrapperPlugins=sqlParser,kmsEncryption`). Without it, preparing a statement fails with `SQL parse results not found in call context`.
+- **Requires the `sqlParser` plugin**, loaded before `kmsEncryption` (e.g. `wrapperPlugins=sqlParser,kmsEncryption`). Without it, preparing a statement, or running SQL through a `Statement`, fails with `SQL parse results not found in call context`.
 - **Requires an HMAC validation trigger on every encrypted column.** The plugin alone cannot guarantee an encrypted column never holds plaintext. See the [KMS Encryption Plugin](./using-the-jdbc-driver/using-plugins/UsingTheKmsEncryptionPlugin.md#7-add-hmac-validation-triggers) doc.
 
 **Parameters:**
@@ -1197,7 +1197,7 @@ Encrypts/decrypts database column values transparently using AWS KMS. Universall
 | Name | Default | Description |
 |---|---|---|
 | `kms.region` | `us-east-1` | AWS KMS region. |
-| `encryptionFailOnUnmappedParameter` | `true` | Available since version 4.6.0. Reject, at prepare time, a statement on a table with encrypted columns whose parameters cannot be reliably mapped to columns. `false` only logs a WARNING, and values bound to encrypted columns may then be written unencrypted. |
+| `encryptionFailOnUnmappedParameter` | `true` | Available since version 4.6.0. Reject, at prepare time, a statement on a table with encrypted columns whose parameters cannot be reliably mapped to columns. `false` only logs a WARNING, and values bound to encrypted columns may then be written unencrypted. Writing an encrypted column with a literal or a constant expression in an `INSERT` with a column list or an `UPDATE` is refused either way while the encryption metadata can be read, in prepared and directly executed SQL. |
 | `encryptionAllowedMasterKeyArns` | (none) | Comma-separated KMS master keys the plugin may use, matching `key_storage.master_key_arn` exactly (ARN, alias, or key id). Other keys are refused with SQL state `KEY07`. **Required.** |
 | `metadataCacheEnabled` | `true` | Enable metadata caching. Do not set to `false` in production: a metadata connection is opened per statement touching an encrypted column. |
 | `metadataCacheExpirationMinutes` | `60` | Metadata cache TTL (min). |

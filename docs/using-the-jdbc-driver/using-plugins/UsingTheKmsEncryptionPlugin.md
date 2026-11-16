@@ -6,7 +6,7 @@ The plugin is available since version 4.0.0.
 The KMS Encryption Plugin provides transparent client-side, column-level encryption using AWS Key Management Service (KMS). It encrypts values bound to encrypted columns before they are sent to the database and decrypts them when they are read, based on metadata stored in the database.
 
 > [!WARNING]\
-> **A database-side HMAC validation trigger is required on every encrypted column.** On its own, the plugin cannot guarantee that an encrypted column never holds a plaintext value: it only sees `PreparedStatement` parameters sent over a connection with the plugin enabled, and it maps parameters to columns by best-effort SQL parsing. The trigger, not the SQL parser, is what guarantees an encrypted column never holds plaintext. See [Add HMAC validation triggers](#7-add-hmac-validation-triggers).
+> **A database-side HMAC validation trigger is required on every encrypted column.** On its own, the plugin cannot guarantee that an encrypted column never holds a plaintext value: it only encrypts `PreparedStatement` parameters sent over a connection with the plugin enabled, and it maps parameters to columns by best-effort SQL parsing. The trigger, not the SQL parser, is what guarantees an encrypted column never holds plaintext. See [Add HMAC validation triggers](#7-add-hmac-validation-triggers).
 
 ## Contents
 
@@ -89,7 +89,7 @@ Because the IV is random, encrypting the same value twice gives different bytes.
 - Java 8 or higher
 - AWS SDK for Java 2.x (KMS)
 - **JSqlParser 4.9 dependency** - Required for SQL parsing and analysis
-- **The `sqlParser` plugin** - Must be loaded together with `kmsEncryption` (for example `wrapperPlugins=sqlParser,kmsEncryption`). It parses each statement and maps its parameters to columns; without it, `kmsEncryption` refuses to prepare statements
+- **The `sqlParser` plugin** - Must be loaded together with `kmsEncryption` (for example `wrapperPlugins=sqlParser,kmsEncryption`). It parses each statement and maps its parameters to columns; without it, `kmsEncryption` refuses to prepare statements and to run SQL passed to `execute`, `executeQuery`, `executeUpdate` or `addBatch`
 
 The KMS Encryption Plugin requires JSqlParser 4.9 for SQL statement analysis. Add this dependency to your project:
 
@@ -368,7 +368,7 @@ CREATE TABLE users (
 
 ### 7. Add HMAC Validation Triggers
 
-A database-side HMAC validation trigger is required on every encrypted column. The trigger checks on every insert and update that the value written to the column carries a valid HMAC for the column's key, and rejects plaintext and tampered values. The plugin alone cannot guarantee that an encrypted column never holds plaintext: it does not see a value written by a client that does not use the plugin, through a plain `Statement` or a `CallableStatement`, or by a statement the plugin was configured not to reject (`encryptionFailOnUnmappedParameter=false`). It also finds encrypted columns by best-effort SQL parsing, so a statement it parses but does not map to an encrypted column, such as a literal written to one or a value copied from another column (see [Limitations](#limitations)), is not encrypted. The trigger is what provides that guarantee. The driver also verifies the HMAC when it reads and decrypts a value, but only the trigger stops an unencrypted value from being stored.
+A database-side HMAC validation trigger is required on every encrypted column. The trigger checks on every insert and update that the value written to the column carries a valid HMAC for the column's key, and rejects plaintext and tampered values. The plugin alone cannot guarantee that an encrypted column never holds plaintext: it does not encrypt a value written by a client that does not use the plugin, through a plain `Statement` or a `CallableStatement`, or by a statement the plugin was configured not to reject (`encryptionFailOnUnmappedParameter=false`). It also finds encrypted columns by best-effort SQL parsing, so a value it does not map to an encrypted column, such as a value copied from another column (see [Limitations](#limitations)), is not encrypted. The trigger is what provides that guarantee. The driver also verifies the HMAC when it reads and decrypts a value, but only the trigger stops an unencrypted value from being stored.
 
 On PostgreSQL the `encrypted_data` domain only checks the minimum length. On MySQL there is no domain-level type check at all, so the trigger is the only database-side guard.
 
@@ -422,7 +422,7 @@ FROM users;
 | `kms.region` | 4.0.0 | AWS KMS region for encryption operations | No | `us-east-1` |
 | `encryptionAllowedMasterKeyArns` | 4.7.0 | Comma-separated list of the KMS master keys the plugin may use. The plugin refuses to start without it. Each entry must match a `key_storage.master_key_arn` value exactly (the same ARN, alias, or key id that was used to set up the column). A data key that names any other master key, or none, is refused before KMS is called. See [Restricting the KMS keys the application can use](#restricting-the-kms-keys-the-application-can-use). | Yes | None |
 | `encryptionMetadataSchema` | 4.0.0 | Schema name for encryption metadata tables | No | `encrypt` |
-| `encryptionFailOnUnmappedParameter` | 4.6.0 | When `true` (default), the plugin rejects a statement on a table with encrypted columns with a `SQLException` at prepare time if it cannot reliably map the statement's parameters to columns (see [Limitations](#limitations)). When `false`, the plugin only logs a WARNING and prepares the statement; values bound to encrypted columns may then be written unencrypted. | No | `true` |
+| `encryptionFailOnUnmappedParameter` | 4.6.0 | When `true` (default), the plugin rejects a statement on a table with encrypted columns with a `SQLException` at prepare time if it cannot reliably map the statement's parameters to columns (see [Limitations](#limitations)). When `false`, the plugin only logs a WARNING and prepares the statement; values bound to encrypted columns may then be written unencrypted, and only the HMAC trigger rejects them. While the encryption metadata can be read, it does not affect the writes in [Statements always refused](#statements-always-refused). | No | `true` |
 | `metadataCacheEnabled` | 4.0.0 | Enable/disable metadata caching. Do not set this to `false` in production: the plugin then opens a short-lived metadata connection for every statement that touches an encrypted column. | No | `true` |
 | `metadataCacheExpirationMinutes` | 4.0.0 | Metadata cache expiration time in minutes | No | `60` |
 | `metadataCacheRefreshIntervalMs` | 4.0.0 | Metadata cache refresh interval in milliseconds | No | `300000` |
@@ -465,7 +465,7 @@ The same configuration as a connection URL:
 jdbc:aws-wrapper:postgresql://host:port/database?wrapperPlugins=sqlParser,kmsEncryption&kms.region=us-east-1&encryptionAllowedMasterKeyArns=arn%3Aaws%3Akms%3Aus-east-1%3A123456789012%3Akey%2F12345678-1234-1234-1234-123456789012
 ```
 
-The `sqlParser` plugin is required and must run before `kmsEncryption`. List it first; with `autoSortWrapperPluginOrder` enabled (the default) the driver also sorts it ahead of `kmsEncryption`. If `sqlParser` is missing, preparing a statement fails with `SQL parse results not found in call context`.
+The `sqlParser` plugin is required and must run before `kmsEncryption`. List it first; with `autoSortWrapperPluginOrder` enabled (the default) the driver also sorts it ahead of `kmsEncryption`. If `sqlParser` is missing, preparing a statement, or running SQL through a `Statement`, fails with `SQL parse results not found in call context`.
 
 ### AWS Credentials
 
@@ -881,7 +881,13 @@ Automatic encryption works for `PreparedStatement` parameters in these statement
 - `UPDATE ... SET`, including row assignments such as `SET (name, ssn) = (?, ?)`
 - PostgreSQL `INSERT ... ON CONFLICT ... DO UPDATE SET` and MySQL `INSERT ... ON DUPLICATE KEY UPDATE`
 
-A value is encrypted only when it is bound by its own `?` placeholder directly to the encrypted column. A cast around the placeholder and parentheses are allowed, for example `CAST(? AS bytea)`, `?::bytea` or `(?)`. String literals and other expressions are never encrypted: in `SET ssn = '123-45-6789'` or `SET ssn = lower(?)` the plugin cannot encrypt the value. Literals and expressions in other columns of the same statement are fine and do not shift the parameter numbering.
+A value is encrypted only when it is bound by its own `?` placeholder directly to the encrypted column. A cast around the placeholder and parentheses are allowed, for example `CAST(? AS bytea)`, `?::bytea` or `(?)`. String literals and other expressions are never encrypted: a literal written to an encrypted column, as in `SET ssn = '123-45-6789'`, is refused (see [Statements always refused](#statements-always-refused)), and a parameter inside an expression, as in `SET ssn = lower(?)`, is rejected by default. Literals and expressions in other columns of the same statement are fine and do not shift the parameter numbering.
+
+### Statements always refused
+
+On a table with encrypted columns, the plugin refuses with a `SQLException` a statement that writes an encrypted column with a value that is not a bind parameter: a literal, as in `SET ssn = '123-45-6789'`, or an expression that reads no column and holds no subquery. Such a value is certain to be stored as plaintext. A prepared statement is refused when it is prepared. SQL passed directly to `execute`, `executeQuery` or `executeUpdate`, or to `addBatch` on a plain `Statement`, is refused by that call, before it is sent. As long as the encryption metadata can be read, `encryptionFailOnUnmappedParameter` does not change this.
+
+The check covers `INSERT` with a column list (including `INSERT ... SELECT` and MySQL `INSERT ... SET`), `UPDATE ... SET`, and the assignments of PostgreSQL `ON CONFLICT ... DO UPDATE SET` and MySQL `ON DUPLICATE KEY UPDATE`. It does not cover `REPLACE`, `MERGE`, `INSERT` without a column list, a `VALUES` row whose number of values differs from the column list, data-modifying CTEs, a string with several statements, or SQL the parser cannot read. Those are left to the HMAC trigger; a prepared statement of one of these shapes that has parameters is also subject to [Statements rejected by default](#statements-rejected-by-default). A value read from another column or a subquery, a MySQL user variable, `DEFAULT` and `NULL` are not refused either: they may be ciphertext the database already holds, and the HMAC trigger checks every value except `NULL`.
 
 ### Statements rejected by default
 
@@ -895,6 +901,8 @@ On a table with encrypted columns, the plugin rejects the following statements w
 - numbered placeholders such as `?1`
 - statements where the number of parameters found by the parser differs from the number of placeholders the driver sends
 
+This check applies to prepared statements only: SQL passed directly to `execute`, `executeQuery`, `executeUpdate` or `addBatch` has no bound values, and a `?` in it is not a parameter. When the encryption metadata cannot be read, the plugin cannot tell which columns are encrypted, so `encryptionFailOnUnmappedParameter` decides whether every check, including the one in [Statements always refused](#statements-always-refused), refuses the statement or only logs a WARNING.
+
 Statements on tables without encrypted columns are never rejected. If you encounter a `SQLException` because your statement falls into one of the categories above, see the [Troubleshooting](#troubleshooting) section for how to fix it.
 
 ### Other limitations
@@ -902,7 +910,7 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 - Encrypted columns cannot be searched or compared. Each value is encrypted with a random IV, so the same plaintext is stored as different bytes every time: a condition such as `WHERE ssn = ?`, or a join on an encrypted column, never matches. Filter and join on columns that are not encrypted.
 - Values are encrypted from these `PreparedStatement` setters: `setString`, `setNString`, `setInt`, `setLong`, `setShort`, `setByte`, `setDouble`, `setFloat`, `setBoolean`, `setBigDecimal`, `setDate`, `setTime`, `setTimestamp`, `setBytes` and `setObject`. The type byte of the [encrypted data format](#encrypted-data-format) records the value's Java type.
 - Stream and LOB setters (`setCharacterStream`, `setNCharacterStream`, `setAsciiStream`, `setBinaryStream`, `setUnicodeStream`, `setClob`, `setNClob`, `setBlob`) throw a `SQLException` when the parameter maps to an encrypted column. Use `setString`, `setNString`, `setBytes` or `setObject`.
-- Statements run through a plain `Statement` are not inspected; their values are sent as written.
+- SQL run through a plain `Statement` is not encrypted. The plugin checks it only for the writes described in [Statements always refused](#statements-always-refused); any other value is sent as written.
 - `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
 - Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.
 - Table names are matched against the metadata case-sensitively. Use the same spelling in statements as in `encryption_metadata`.
@@ -922,13 +930,13 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 7. **`HMAC verification failed for column ...` or `Invalid encrypted data length for column ...`** (PostgreSQL trigger), **`HMAC verification failed (plaintext or tampered value)`** (MySQL trigger): The trigger rejected a plaintext or tampered value. This is expected when a value reaches the database unencrypted. Write the column through a plugin connection with a statement the plugin maps (see [Limitations](#limitations)), or use an annotation: `/*@encrypt:table.column*/`. Annotations do not bypass the parameter-mapping check described in entry 9.
    - The current HMAC triggers on both PostgreSQL and MySQL cache nothing — they look up the key from the metadata per row — so pooled sessions pick up a rotated key on their own. With a routine created by an earlier (caching) version, re-create it (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
 8. **`No HMAC key found for ...`** (PostgreSQL trigger), **`No HMAC key is configured for the encrypted column`** (MySQL trigger): The trigger found no row for the column in `encryption_metadata`. Check that the column is registered, and that the metadata schema written into the script in [step 3](#3-install-the-encrypted-data-type-and-hmac-functions) is the one that holds the metadata.
-9. **`Refusing to prepare a statement on table '...': it has encrypted columns, but the statement's parameters cannot be reliably mapped to columns (...)`**: The statement writes to a table with encrypted columns, but the plugin cannot tell which parameter belongs to which column, so it cannot guarantee that the encrypted column values get encrypted. The text in parentheses names the reason, for example `INSERT without a column list` or `column ssn receives parameter(s) 2 inside an expression`. The message never contains the SQL text or parameter values. To fix it, rewrite the statement in one of the supported shapes listed in [Limitations](#limitations):
+9. **`Refusing to prepare a statement on table '...': it has encrypted columns, but the statement's parameters cannot be reliably mapped to columns (...), so a value bound for an encrypted column would not be encrypted`**: The statement writes to a table with encrypted columns, but the plugin cannot tell which parameter belongs to which column, so it cannot guarantee that the encrypted column values get encrypted. The text in parentheses names the reason, for example `INSERT without a column list` or `column ssn receives parameter(s) 2 inside an expression`. The message never contains the SQL text or parameter values. To fix it, rewrite the statement in one of the supported shapes listed in [Limitations](#limitations):
    - list the columns explicitly: `INSERT INTO users (name, ssn) VALUES (?, ?)`;
    - bind each encrypted column value with its own `?`, for example `SET ssn = ?` instead of `SET ssn = lower(?)` or `SET ssn = (SELECT ...)`;
-   - do not write literals or expressions into encrypted columns;
    - use `INSERT` or `UPDATE` instead of `REPLACE` or `MERGE`, and plain `?` placeholders instead of numbered ones (`?1`).
-10. **`... is not supported for encrypted columns. Use setString, setNString, setBytes or setObject.`**: A stream or LOB setter (`setCharacterStream`, `setBinaryStream`, `setClob`, `setBlob`, and similar) was called for a parameter that maps to an encrypted column. Pass the value with one of the listed setters.
-11. **Type `encrypted_data` not found (PostgreSQL)**: Run the `encrypted_data_type.sql` script as described in [step 3](#3-install-the-encrypted-data-type-and-hmac-functions), in the schema where your application tables live, and verify that the `pgcrypto` extension is installed.
+10. **`Refusing a statement on table '...': it writes encrypted columns with values that are not bind parameters, which cannot be encrypted (...)`**: The statement writes a literal, or an expression that reads no column, into an encrypted column, for example `UPDATE users SET ssn = '123-45-6789'`. Only bind parameters can be encrypted, so the value would be stored as plaintext. The text in parentheses names each column and what it is written with, for example `column ssn is written with a literal`. Pass the value as a parameter instead: a `?` placeholder in JDBC, a `?` or named parameter with Spring's `JdbcTemplate`, or `setParameter` and entity properties with JPA and Hibernate. While the encryption metadata can be read, `encryptionFailOnUnmappedParameter` does not affect this check (see [Statements always refused](#statements-always-refused)).
+11. **`... is not supported for encrypted columns. Use setString, setNString, setBytes or setObject.`**: A stream or LOB setter (`setCharacterStream`, `setBinaryStream`, `setClob`, `setBlob`, and similar) was called for a parameter that maps to an encrypted column. Pass the value with one of the listed setters.
+12. **Type `encrypted_data` not found (PostgreSQL)**: Run the `encrypted_data_type.sql` script as described in [step 3](#3-install-the-encrypted-data-type-and-hmac-functions), in the schema where your application tables live, and verify that the `pgcrypto` extension is installed.
 
 ### Debugging
 
