@@ -65,11 +65,21 @@ public class DialectDetector {
   /**
    * Single statement that reports the presence of each deployment-specific object. Valid on any
    * PostgreSQL-compatible server because it only reads {@code pg_catalog}.
+   *
+   * <p>Aurora PostgreSQL's {@code aurora_*} functions are engine built-ins resolved by Aurora's own
+   * name lookup and are NOT rows in {@code pg_proc}, so a catalog scan cannot see them (verified in
+   * CI: an Aurora PG 18 cluster reported no {@code aurora_version} in {@code pg_proc}). The Aurora
+   * marker therefore reads the {@code rds.extensions} allow-list, which names
+   * {@code aurora_stat_utils} only on Aurora, and additionally asks the name resolver through
+   * {@code to_regproc}, which returns NULL rather than raising when the name is unknown.
+   * {@code rds_tools} is an ordinary extension and does appear in {@code pg_proc}.
    */
   protected static final String PG_FINGERPRINT_QUERY = "SELECT "
-      + pgProcExists("pg_catalog", "aurora_version", "aurora_replica_status") + " AS aurora, "
-      + pgProcExists("pg_catalog", "aurora_limitless_router_endpoints") + " AS limitless, "
-      + pgProcExists("pg_catalog", "aurora_global_db_status") + " AS global_db_capable, "
+      + "(EXISTS (SELECT 1 FROM pg_catalog.pg_settings"
+      + " WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'"
+      + " AND setting OPERATOR(pg_catalog.~~) '%aurora_stat_utils%')"
+      + " OR pg_catalog.to_regproc('pg_catalog.aurora_version') IS NOT NULL) AS aurora, "
+      + "(pg_catalog.to_regproc('pg_catalog.aurora_limitless_router_endpoints') IS NOT NULL) AS limitless, "
       + pgProcExists("rds_tools", "multi_az_db_cluster_source_dbi_resource_id") + " AS multi_az_capable, "
       + "EXISTS (SELECT 1 FROM pg_catalog.pg_settings WHERE name OPERATOR(pg_catalog.=) 'rds.extensions') AS rds, "
       + "pg_catalog.current_setting('server_version') AS server_version";
@@ -207,7 +217,6 @@ public class DialectDetector {
     final DialectFingerprint.Builder b = DialectFingerprint.builder(Family.PG);
     final boolean aurora;
     final boolean rds;
-    final boolean globalDbCapable;
     final boolean multiAzCapable;
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(PG_FINGERPRINT_QUERY)) {
@@ -216,11 +225,11 @@ public class DialectDetector {
       }
       aurora = rs.getBoolean("aurora");
       rds = rs.getBoolean("rds");
-      globalDbCapable = rs.getBoolean("global_db_capable");
       multiAzCapable = rs.getBoolean("multi_az_capable");
+      // The global database status function is an Aurora built-in as well, so its presence cannot be
+      // read from the catalog; every supported Aurora PostgreSQL version has it.
       b.aurora(aurora)
-          .limitless(rs.getBoolean("limitless"))
-          .globalDbCapable(globalDbCapable)
+          .globalDbCapable(aurora)
           .multiAzClusterCapable(multiAzCapable)
           .rds(rds)
           .serverVersion(rs.getString("server_version"));
@@ -229,7 +238,7 @@ public class DialectDetector {
       return null;
     }
 
-    if (aurora && globalDbCapable) {
+    if (aurora) {
       b.globalDbRegionCount(this.queryInt(connection, GlobalAuroraPgDialect.REGION_COUNT_QUERY));
     }
     if (!aurora && rds && multiAzCapable) {

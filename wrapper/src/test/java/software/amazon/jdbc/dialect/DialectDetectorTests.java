@@ -167,7 +167,7 @@ public class DialectDetectorTests {
 
   @Test
   void testCollectPgCommunityRunsSingleStatement() throws SQLException {
-    stubPgFingerprint(false, false, false, false, false, "16.2");
+    stubPgFingerprint(false, false, false, false, "16.2");
 
     final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
 
@@ -183,7 +183,7 @@ public class DialectDetectorTests {
 
   @Test
   void testCollectPgAuroraQueriesRegionCountOnly() throws SQLException {
-    stubPgFingerprint(true, false, true, true, true, "15.4");
+    stubPgFingerprint(true, false, true, true, "15.4");
     stubCount(GlobalAuroraPgDialect.REGION_COUNT_QUERY, 1);
 
     final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
@@ -199,7 +199,7 @@ public class DialectDetectorTests {
 
   @Test
   void testCollectPgGlobalAurora() throws SQLException {
-    stubPgFingerprint(true, false, true, true, true, "15.4");
+    stubPgFingerprint(true, false, true, true, "15.4");
     stubCount(GlobalAuroraPgDialect.REGION_COUNT_QUERY, 2);
 
     final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
@@ -210,7 +210,7 @@ public class DialectDetectorTests {
 
   @Test
   void testCollectPgMultiAzClusterQueriesResourceIdOnly() throws SQLException {
-    stubPgFingerprint(false, false, false, true, true, "15.4");
+    stubPgFingerprint(false, false, true, true, "15.4");
     stubString(MultiAzClusterPgDialect.IS_RDS_CLUSTER_QUERY, "db-ABCDEF123456");
 
     final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
@@ -225,7 +225,7 @@ public class DialectDetectorTests {
 
   @Test
   void testCollectPgRdsSingleInstanceWithNullResourceId() throws SQLException {
-    stubPgFingerprint(false, false, false, true, true, "15.4");
+    stubPgFingerprint(false, false, true, true, "15.4");
     stubString(MultiAzClusterPgDialect.IS_RDS_CLUSTER_QUERY, null);
 
     final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
@@ -237,7 +237,7 @@ public class DialectDetectorTests {
 
   @Test
   void testCollectPgRdsWithoutMultiAzFunctionRunsSingleStatement() throws SQLException {
-    stubPgFingerprint(false, false, false, false, true, "15.4");
+    stubPgFingerprint(false, false, false, true, "15.4");
 
     final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
 
@@ -471,7 +471,6 @@ public class DialectDetectorTests {
   private void stubPgFingerprint(
       final boolean aurora,
       final boolean limitless,
-      final boolean globalDbCapable,
       final boolean multiAzCapable,
       final boolean rds,
       final String version) throws SQLException {
@@ -480,7 +479,6 @@ public class DialectDetectorTests {
       when(rs.next()).thenReturn(true, false);
       when(rs.getBoolean("aurora")).thenReturn(aurora);
       when(rs.getBoolean("limitless")).thenReturn(limitless);
-      when(rs.getBoolean("global_db_capable")).thenReturn(globalDbCapable);
       when(rs.getBoolean("multi_az_capable")).thenReturn(multiAzCapable);
       when(rs.getBoolean("rds")).thenReturn(rds);
       when(rs.getString("server_version")).thenReturn(version);

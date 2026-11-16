@@ -395,7 +395,6 @@ public class DialectDetectionTests {
         final ResultSet rs = singleRow();
         when(rs.getBoolean("aurora")).thenReturn(aurora);
         when(rs.getBoolean("limitless")).thenReturn(false);
-        when(rs.getBoolean("global_db_capable")).thenReturn(aurora);
         when(rs.getBoolean("multi_az_capable")).thenReturn(multiAzCapable);
         when(rs.getBoolean("rds")).thenReturn(rds);
         when(rs.getString("server_version")).thenReturn("15.4");
