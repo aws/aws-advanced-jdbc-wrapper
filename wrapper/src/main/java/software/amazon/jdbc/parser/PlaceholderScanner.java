@@ -28,6 +28,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>A {@code ?} inside a string literal, a quoted identifier, a comment or a dollar-quoted string is
  * not a placeholder. The quoting and comment rules depend on the target driver, see {@link Mode}.
  * The rules mirror {@code org.postgresql.core.Parser} (PgJDBC) and MySQL Connector/J.
+ *
+ * <p>MySQL and MariaDB run the contents of an executable comment ({@code /*! ... *}{@code /}, with
+ * an optional version after the {@code !}, and MariaDB's {@code /*M! ... *}{@code /}). Drivers do not
+ * agree on whether a {@code ?} inside one is a placeholder, and the server runs a versioned one only
+ * when it is at least that version. Such comments are skipped like other comments, and the result
+ * reports when one holds text that could change which placeholder is which (see
+ * {@link Result#hasPlaceholderSensitiveExecutableComment()}).
  */
 public final class PlaceholderScanner {
 
@@ -49,7 +56,7 @@ public final class PlaceholderScanner {
 
   private static final Result EMPTY_RESULT = new Result(
       Collections.<Integer>emptyList(), Collections.<int[]>emptyList(), Collections.<String>emptyList(),
-      Collections.<Integer>emptyList());
+      Collections.<Integer>emptyList(), false);
 
   private PlaceholderScanner() {
     // Utility class
@@ -72,6 +79,7 @@ public final class PlaceholderScanner {
     final List<String> words = new ArrayList<>();
     final List<Integer> statementBreaks = new ArrayList<>();
     final int len = sql.length();
+    boolean sensitiveExecutableComment = false;
     int i = 0;
 
     while (i < len) {
@@ -96,6 +104,9 @@ public final class PlaceholderScanner {
       } else if (c == '/' && next == '*') {
         final int end = skipBlockComment(sql, i, mode == Mode.POSTGRESQL);
         blockComments.add(new int[] {i, end});
+        if (mode != Mode.POSTGRESQL && isPlaceholderSensitiveExecutableComment(sql, i, end)) {
+          sensitiveExecutableComment = true;
+        }
         i = end;
       } else if (c == '$' && mode != Mode.MYSQL) {
         i = skipDollarQuote(sql, i);
@@ -130,7 +141,35 @@ public final class PlaceholderScanner {
       }
     }
 
-    return new Result(placeholders, blockComments, words, statementBreaks);
+    return new Result(placeholders, blockComments, words, statementBreaks, sensitiveExecutableComment);
+  }
+
+  /**
+   * True when the block comment {@code [start, end)} is a MySQL or MariaDB executable comment that
+   * holds a {@code ?}, a quote, a line comment or a nested block comment. Read as code, any of these
+   * changes which placeholders follow the comment, or how many there are.
+   */
+  private static boolean isPlaceholderSensitiveExecutableComment(
+      final String sql, final int start, final int end) {
+    int contentStart = start + 2;
+    if (contentStart < end && (sql.charAt(contentStart) == 'M' || sql.charAt(contentStart) == 'm')) {
+      contentStart++;
+    }
+    if (contentStart >= end || sql.charAt(contentStart) != '!') {
+      return false;
+    }
+    final int contentEnd = sql.startsWith("*/", end - 2) && end - 2 > contentStart ? end - 2 : end;
+    for (int j = contentStart + 1; j < contentEnd; j++) {
+      final char ch = sql.charAt(j);
+      if (ch == '?' || ch == '\'' || ch == '"' || ch == '`' || ch == '#') {
+        return true;
+      }
+      final char after = j + 1 < contentEnd ? sql.charAt(j + 1) : '\0';
+      if ((ch == '-' && after == '-') || (ch == '/' && after == '*')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static boolean isIdentifierChar(final char c) {
@@ -275,12 +314,15 @@ public final class PlaceholderScanner {
     private final List<int[]> blockComments;
     private final List<String> words;
     private final List<List<String>> statements;
+    private final boolean sensitiveExecutableComment;
 
     private Result(
         final List<Integer> placeholderOffsets,
         final List<int[]> blockComments,
         final List<String> words,
-        final List<Integer> statementBreaks) {
+        final List<Integer> statementBreaks,
+        final boolean sensitiveExecutableComment) {
+      this.sensitiveExecutableComment = sensitiveExecutableComment;
       this.placeholderOffsets = Collections.unmodifiableList(placeholderOffsets);
       this.blockComments = Collections.unmodifiableList(blockComments);
       this.words = Collections.unmodifiableList(words);
@@ -341,6 +383,19 @@ public final class PlaceholderScanner {
      */
     public List<List<String>> getStatements() {
       return statements;
+    }
+
+    /**
+     * True when the statement has a MySQL or MariaDB executable comment ({@code /*!}, {@code /*M!})
+     * holding a {@code ?}, a quote, a line comment or a nested block comment. The placeholders of
+     * such a statement are numbered differently by different drivers and servers, so no parameter
+     * index of it can be matched to a column. Never true in {@link Mode#POSTGRESQL}, where these are
+     * ordinary comments.
+     *
+     * @return {@code true} if such a comment was found; {@code false} otherwise
+     */
+    public boolean hasPlaceholderSensitiveExecutableComment() {
+      return sensitiveExecutableComment;
     }
 
     /**

@@ -21,7 +21,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -30,6 +32,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -204,27 +207,52 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     final @Nullable Statement statement = JSQLParserAnalyzer.parse(cleanSql);
     JSQLParserAnalyzer.QueryAnalysis analysis = JSQLParserAnalyzer.analyze(statement, cleanSql);
 
-    Set<String> tables = new HashSet<>();
+    final ParameterColumnMapper.ParameterMapping mapping = ParameterColumnMapper.map(statement, scan);
+
+    // The tables a write statement writes come first, in statement order, then every other table
+    // the statement names, subqueries included.
+    final Set<String> tables = new LinkedHashSet<>(mapping.getTargetTables());
     for (String table : analysis.tables) {
       tables.add(table.replace("`", "").replace("\"", ""));
     }
+    final boolean allTablesListed = addAllTables(statement, tables);
+    final @Nullable String onlyTable = allTablesListed ? onlyTable(tables) : null;
 
     // Build parameter mapping; annotations take precedence
-    final ParameterColumnMapper.ParameterMapping mapping = ParameterColumnMapper.map(statement, scan);
     Map<Integer, String> paramMapping = new HashMap<>(mapping.getColumns());
+    final List<ParameterMappingProblem> problems = new ArrayList<>(mapping.getProblems());
     for (Map.Entry<Integer, String> annotation : annotations.entrySet()) {
       final String mapped = paramMapping.get(annotation.getKey());
-      if (mapped != null && conflicts(annotation.getValue(), mapped)) {
+      final String resolved =
+          resolveAnnotation(annotation.getValue(), mapped, mapping.getTableAliases(), onlyTable);
+      if (mapped != null && conflicts(resolved, mapped)) {
         LOGGER.warning(() -> Messages.get(
             "SqlParserConnectionPlugin.annotationConflictsWithMapping",
             new Object[] {String.valueOf(annotation.getKey()), annotation.getValue(), mapped}));
+        final int mappedDot = mapped.lastIndexOf('.');
+        if (mapping.isWriteStatement() && mappedDot > 0) {
+          // The annotation takes the parameter away from the column the statement assigns it to, so
+          // if that column is encrypted its value would not be: reported like an unmapped parameter.
+          problems.add(ParameterMappingProblem.unknownTargetParams(
+              mapped.substring(0, mappedDot),
+              Collections.singletonList(mapped.substring(mappedDot + 1)),
+              Collections.singletonList(annotation.getKey())));
+        }
       }
-      paramMapping.put(annotation.getKey(), annotation.getValue());
+      paramMapping.put(annotation.getKey(), resolved);
+      if (resolved.indexOf('.') < 0 && mapping.isWriteStatement()) {
+        // The table of the annotated column is not certain, so the value is not encrypted; for a
+        // write that is reported like any other parameter that cannot be mapped.
+        for (String target : mapping.getTargetTables()) {
+          problems.add(ParameterMappingProblem.unknownTargetParams(
+              target, Collections.singletonList(resolved), Collections.singletonList(annotation.getKey())));
+        }
+      }
     }
 
     return new ParsedSqlResult(
         analysis.queryType, tables, paramMapping, cleanSql,
-        annotations, analysis.forUpdate, routingHint, mapping.getProblems(),
+        annotations, analysis.forUpdate, routingHint, problems,
         mapping.getUnboundColumns());
   }
 
@@ -238,6 +266,81 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       return PlaceholderScanner.Mode.MYSQL;
     }
     return PlaceholderScanner.Mode.GENERIC;
+  }
+
+  /**
+   * The bare name of the only table in {@code tables}, or null when there are several. A table
+   * listed both with and without its schema ({@code public.users} and {@code users}) is one table.
+   */
+  private static @Nullable String onlyTable(final Set<String> tables) {
+    @Nullable String only = null;
+    for (String table : tables) {
+      final String name = lastSegment(table);
+      if (only == null) {
+        only = name;
+      } else if (!only.equalsIgnoreCase(name)) {
+        return null;
+      }
+    }
+    return only;
+  }
+
+  /**
+   * Adds every table the statement names, subqueries included, to {@code tables}.
+   *
+   * @return true when they could all be listed
+   */
+  private static boolean addAllTables(final @Nullable Statement statement, final Set<String> tables) {
+    if (statement == null) {
+      return false;
+    }
+    try {
+      for (String table : new TablesNamesFinder().getTables(statement)) {
+        tables.add(table.replace("`", "").replace("\"", ""));
+      }
+      return true;
+    } catch (RuntimeException e) {
+      LOGGER.finest(() -> Messages.get(
+          "SqlParserConnectionPlugin.tableListFailed", new Object[] {e.getClass().getName()}));
+      return false;
+    }
+  }
+
+  /**
+   * Resolves the table of an annotation against the statement, only where it is certain. A bare
+   * column takes the table of the automatic mapping of the same parameter when both name the same
+   * column, or else the statement's only table. A one-part qualifier that is an alias (or a
+   * differently quoted name) of one of the statement's tables is replaced by that table. Anything
+   * else is kept as written, so a bare column whose table is not certain stays bare.
+   *
+   * @param annotation the annotated column, {@code column} or {@code qualifier.column}
+   * @param mapped the automatic mapping of the same parameter, or null
+   * @param aliases the statement's tables keyed by lower-case alias, or name when not aliased
+   * @param onlyTable the only table the statement names, or null
+   * @return the column the annotation names, qualified with its table where that is certain
+   */
+  static String resolveAnnotation(
+      final String annotation,
+      final @Nullable String mapped,
+      final Map<String, String> aliases,
+      final @Nullable String onlyTable) {
+    final int dot = annotation.lastIndexOf('.');
+    final String column = annotation.substring(dot + 1);
+    if (dot < 0) {
+      if (mapped != null) {
+        final int mappedDot = mapped.lastIndexOf('.');
+        if (mappedDot > 0 && mapped.substring(mappedDot + 1).equalsIgnoreCase(column)) {
+          return mapped;
+        }
+      }
+      return onlyTable != null ? onlyTable + "." + column : annotation;
+    }
+    final String qualifier = annotation.substring(0, dot);
+    if (qualifier.indexOf('.') >= 0) {
+      return annotation;
+    }
+    final @Nullable String table = aliases.get(qualifier.toLowerCase(Locale.ROOT));
+    return table == null ? annotation : table + "." + column;
   }
 
   /**

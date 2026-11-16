@@ -106,7 +106,7 @@ class ParameterColumnMapperTest {
         Arguments.of("A22", "INSERT INTO public.users (name, ssn) VALUES ('n', ?)",
             mapping(1, "users.ssn")),
         Arguments.of("A23", "SELECT * FROM users WHERE name = 'x' AND ssn = ?",
-            mapping(1, "ssn")),
+            mapping(1, "users.ssn")),
         Arguments.of("cast", "INSERT INTO users (name, ssn) VALUES (?, CAST(? AS bytea))",
             mapping(1, "users.name", 2, "users.ssn")),
         Arguments.of("pgCast", "INSERT INTO users (name, ssn) VALUES (?, ?::bytea)",
@@ -141,7 +141,7 @@ class ParameterColumnMapperTest {
             mapping(1, "users.name", 2, "users.ssn")),
         Arguments.of("delete", "DELETE FROM users WHERE ssn = ?", mapping()),
         Arguments.of("selectReversed", "SELECT * FROM users WHERE ? = ssn AND id IN (?, ?)",
-            mapping(1, "ssn")),
+            mapping(1, "users.ssn")),
         Arguments.of("comments",
             "/* why? */ UPDATE users SET note = 'really?', ssn = ? WHERE id = ? -- what?",
             mapping(1, "users.ssn")));
@@ -586,6 +586,15 @@ class ParameterColumnMapperTest {
         Collections.singletonList("ssn"), Collections.singletonList(1));
     assertProblem(bound.getProblems().get(1), Type.UNKNOWN_TARGET_PARAMS, "users",
         Collections.singletonList("ssn"), Collections.singletonList(1));
+
+    final ParameterMapping expression =
+        map("UPDATE other o JOIN users u ON o.id = u.id SET ssn = lower(?)", Mode.MYSQL);
+    assertTrue(expression.getColumns().isEmpty());
+    assertEquals(2, expression.getProblems().size());
+    assertProblem(expression.getProblems().get(0), Type.PARAMS_IN_EXPRESSION, "other",
+        Collections.singletonList("ssn"), Collections.singletonList(1));
+    assertProblem(expression.getProblems().get(1), Type.PARAMS_IN_EXPRESSION, "users",
+        Collections.singletonList("ssn"), Collections.singletonList(1));
   }
 
   @Test
@@ -593,6 +602,323 @@ class ParameterColumnMapperTest {
     final ParameterMapping result = map("UPDATE users SET ssn = 'x' FROM staging s WHERE s.id = users.id");
 
     assertEquals(Arrays.asList("users.ssn:LITERAL"), unbound(result));
+  }
+
+  static Stream<Arguments> multiTableParameterMappings() {
+    return Stream.of(
+        Arguments.of("join", "UPDATE t1 JOIN t2 ON t1.id = t2.id SET t2.ssn = ?", Mode.MYSQL,
+            mapping(1, "t2.ssn")),
+        Arguments.of("joinAliases",
+            "UPDATE t1 a JOIN t2 b ON a.id = b.id SET b.ssn = ? WHERE a.id = ?", Mode.MYSQL,
+            mapping(1, "t2.ssn")),
+        Arguments.of("innerJoinBothTables",
+            "UPDATE t1 a INNER JOIN t2 b ON a.id = b.id SET a.note = ?, b.ssn = ?", Mode.MYSQL,
+            mapping(1, "t1.note", 2, "t2.ssn")),
+        Arguments.of("leftJoin", "UPDATE t1 a LEFT JOIN t2 b ON a.id = b.id SET b.ssn = ?",
+            Mode.MYSQL, mapping(1, "t2.ssn")),
+        Arguments.of("straightJoin",
+            "UPDATE t1 a STRAIGHT_JOIN t2 b ON a.id = b.id SET b.ssn = ?", Mode.MYSQL,
+            mapping(1, "t2.ssn")),
+        Arguments.of("comma", "UPDATE t1, t2 SET t2.ssn = ? WHERE t1.id = t2.id", Mode.MYSQL,
+            mapping(1, "t2.ssn")),
+        Arguments.of("commaAliases",
+            "UPDATE t1 a, t2 b SET b.ssn = ?, a.note = ? WHERE a.id = b.id", Mode.MYSQL,
+            mapping(1, "t2.ssn", 2, "t1.note")),
+        Arguments.of("schemaQualified",
+            "UPDATE db.t1 JOIN db.t2 ON t1.id = t2.id SET db.t2.ssn = ?", Mode.MYSQL,
+            mapping(1, "t2.ssn")),
+        Arguments.of("backticks",
+            "UPDATE `t1` `a` JOIN `t2` `b` ON a.id = b.id SET `b`.`ssn` = ?", Mode.MYSQL,
+            mapping(1, "t2.ssn")),
+        Arguments.of("parenthesizedJoin",
+            "UPDATE t1 a JOIN (t2 b JOIN t3 c ON b.id = c.id) ON a.id = b.id SET b.ssn = ?, c.note = ?",
+            Mode.MYSQL, mapping(1, "t2.ssn", 2, "t3.note")),
+        Arguments.of("parenthesizedComma", "UPDATE t1 a, (t2 b) SET b.ssn = ? WHERE a.id = b.id",
+            Mode.MYSQL, mapping(1, "t2.ssn")),
+        Arguments.of("withCte",
+            "WITH c AS (SELECT 1 AS id) UPDATE t1 JOIN c ON t1.id = c.id SET t1.ssn = ?", Mode.MYSQL,
+            mapping(1, "t1.ssn")),
+        Arguments.of("pgFrom", "UPDATE t1 SET ssn = ? FROM t2 WHERE t1.id = t2.id",
+            Mode.POSTGRESQL, mapping(1, "t1.ssn")),
+        Arguments.of("pgFromAliases",
+            "UPDATE t1 a SET ssn = ? FROM t2 b WHERE a.id = b.id AND b.k = ?", Mode.POSTGRESQL,
+            mapping(1, "t1.ssn")));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("multiTableParameterMappings")
+  void testMultiTableUpdateMapsEachParameterToItsTable(
+      final String id, final String sql, final Mode mode, final Map<Integer, String> expected) {
+    final ParameterMapping result = map(sql, mode);
+
+    assertEquals(expected, result.getColumns(), id);
+    assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  @Test
+  void testTargetTables() {
+    assertEquals(Arrays.asList("t1", "t2"),
+        map("UPDATE t1 a JOIN t2 b ON a.id = b.id SET b.ssn = ?", Mode.MYSQL).getTargetTables());
+    assertEquals(Arrays.asList("t1", "t2"),
+        map("UPDATE t1, t2 SET t2.ssn = ?", Mode.MYSQL).getTargetTables());
+    assertEquals(Collections.singletonList("t1"),
+        map("UPDATE t1 SET ssn = ? FROM t2 WHERE t1.id = t2.id").getTargetTables());
+    assertEquals(Collections.singletonList("users"),
+        map("INSERT INTO users (ssn) VALUES (?)").getTargetTables());
+    assertEquals(Arrays.asList("t1", "t2", "t3"), map(
+        "UPDATE t1 a JOIN (t2 b JOIN t3 c ON b.id = c.id) ON a.id = b.id SET b.ssn = ?", Mode.MYSQL)
+        .getTargetTables());
+    assertEquals(Collections.singletonList("t1"), map(
+        "WITH c AS (SELECT 1 AS id) UPDATE t1 JOIN c ON t1.id = c.id SET t1.ssn = ?", Mode.MYSQL)
+        .getTargetTables());
+    assertTrue(map("SELECT * FROM users WHERE ssn = ?").getTargetTables().isEmpty());
+  }
+
+  @Test
+  void testTableAliases() {
+    final Map<String, String> update = map(
+        "UPDATE t1 a JOIN t2 b ON a.id = b.id SET b.ssn = ?", Mode.MYSQL).getTableAliases();
+    assertEquals("t1", update.get("a"));
+    assertEquals("t2", update.get("b"));
+    // A table given an alias can only be referred to by that alias.
+    assertNull(update.get("t1"));
+    assertNull(update.get("t2"));
+
+    final Map<String, String> pgFrom =
+        map("UPDATE users u SET ssn = ? FROM staging s WHERE s.id = u.id").getTableAliases();
+    assertEquals("users", pgFrom.get("u"));
+    assertEquals("staging", pgFrom.get("s"));
+
+    final Map<String, String> insert = map("INSERT INTO users (ssn) VALUES (?)").getTableAliases();
+    assertEquals("users", insert.get("users"));
+
+    final Map<String, String> select = map(
+        "SELECT * FROM other o JOIN users U ON o.id = U.id WHERE U.ssn = ?").getTableAliases();
+    assertEquals("other", select.get("o"));
+    assertEquals("users", select.get("u"));
+
+    final Map<String, String> cte = map(
+        "WITH d AS (SELECT * FROM users) SELECT * FROM d JOIN other ON d.id = other.id").getTableAliases();
+    assertNull(cte.get("d"));
+    assertEquals("other", cte.get("other"));
+  }
+
+  @Test
+  void testAliasHidesTableName() {
+    // users is aliased "other", so the qualifier "other" is the alias, not the table named other.
+    final ParameterMapping result =
+        map("SELECT * FROM users other JOIN things t ON other.id = t.id WHERE other.ssn = ?");
+
+    assertEquals(mapping(1, "users.ssn"), result.getColumns());
+  }
+
+  static Stream<Arguments> selectColumnTables() {
+    return Stream.of(
+        Arguments.of("qualifiedByAlias",
+            "SELECT * FROM other o JOIN users u ON o.id = u.id WHERE u.ssn = ?", mapping(1, "users.ssn")),
+        Arguments.of("qualifiedByOtherAlias",
+            "SELECT * FROM users u JOIN other o ON o.id = u.id WHERE o.ssn = ?", mapping(1, "other.ssn")),
+        Arguments.of("qualifiedByName",
+            "SELECT * FROM other JOIN users ON other.id = users.id WHERE users.ssn = ?",
+            mapping(1, "users.ssn")),
+        Arguments.of("unqualifiedSingleTable", "SELECT * FROM users u WHERE ssn = ?",
+            mapping(1, "users.ssn")),
+        Arguments.of("unqualifiedWithSubquery",
+            "SELECT * FROM users WHERE ssn = ? AND id IN (SELECT id FROM other)",
+            mapping(1, "users.ssn")),
+        // Not certain which table the column belongs to: not mapped.
+        Arguments.of("unqualifiedSeveralTables",
+            "SELECT * FROM other o JOIN users u ON o.id = u.id WHERE ssn = ?", mapping()),
+        Arguments.of("derivedTable", "SELECT * FROM (SELECT * FROM users) d WHERE d.ssn = ?",
+            mapping()),
+        Arguments.of("commonTableExpression",
+            "WITH d AS (SELECT * FROM users) SELECT * FROM d WHERE ssn = ?", mapping()),
+        Arguments.of("commonTableExpressionQualified",
+            "WITH d AS (SELECT * FROM users) SELECT * FROM d WHERE d.ssn = ?", mapping()),
+        Arguments.of("unqualifiedNextToDerivedTable",
+            "SELECT * FROM users u JOIN (SELECT id, ssn FROM accounts) d ON d.id = u.id WHERE ssn = ?",
+            mapping()),
+        Arguments.of("qualifiedNextToDerivedTable",
+            "SELECT * FROM users u JOIN (SELECT id, ssn FROM accounts) d ON d.id = u.id WHERE u.ssn = ?",
+            mapping(1, "users.ssn")),
+        Arguments.of("unqualifiedNextToTableFunction",
+            "SELECT * FROM users CROSS JOIN generate_series(1, 2) g WHERE ssn = ?", mapping()),
+        Arguments.of("parenthesizedTables",
+            "SELECT * FROM users u JOIN (other o JOIN things t ON o.id = t.id) ON u.id = o.id WHERE o.ssn = ?",
+            mapping(1, "other.ssn")),
+        Arguments.of("aliasesDifferingInCase",
+            "SELECT * FROM t1 a JOIN t2 \"A\" ON a.id = \"A\".id WHERE a.ssn = ?", mapping()));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("selectColumnTables")
+  void testSelectColumnIsQualifiedWithItsTable(
+      final String id, final String sql, final Map<Integer, String> expected) {
+    assertEquals(expected, map(sql).getColumns(), id);
+  }
+
+  static Stream<Arguments> aliasesDifferingInCase() {
+    return Stream.of(
+        Arguments.of("twoAliases", "UPDATE t1 a JOIN t2 A ON a.id = A.id SET a.ssn = ?"),
+        Arguments.of("aliasMatchingOtherTableName",
+            "UPDATE t1 JOIN t2 T1 ON t1.id = T1.id SET t1.ssn = ?"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("aliasesDifferingInCase")
+  void testMultiTableUpdateAliasesDifferingInCaseAreNotResolved(final String id, final String sql) {
+    final ParameterMapping result = map(sql, Mode.MYSQL);
+
+    assertTrue(result.getColumns().isEmpty(), id + ": " + result.getColumns());
+    assertEquals(2, result.getProblems().size(), id + ": " + result.getProblems());
+    assertProblem(result.getProblems().get(0), Type.UNKNOWN_TARGET_PARAMS, "t1",
+        Collections.singletonList("ssn"), Collections.singletonList(1));
+    assertProblem(result.getProblems().get(1), Type.UNKNOWN_TARGET_PARAMS, "t2",
+        Collections.singletonList("ssn"), Collections.singletonList(1));
+  }
+
+  @Test
+  void testMultiTableStatementWideProblemNamesEveryWrittenTable() {
+    final ParameterMapping result =
+        map("UPDATE other o JOIN users u ON o.id = u.id SET u.ssn = ?1", Mode.MYSQL);
+
+    assertEquals(2, result.getProblems().size(), result.getProblems().toString());
+    assertProblem(result.getProblems().get(0), Type.FIXED_INDEX_PARAMETER, "other",
+        Collections.emptyList(), Collections.singletonList(1));
+    assertProblem(result.getProblems().get(1), Type.FIXED_INDEX_PARAMETER, "users",
+        Collections.emptyList(), Collections.singletonList(1));
+  }
+
+  static Stream<Arguments> executableComments() {
+    return Stream.of(
+        Arguments.of("versioned", "UPDATE users SET /*!50000 name = ?, */ ssn = ? WHERE id = ?", 2),
+        Arguments.of("unversioned", "UPDATE users SET /*! name = ?, */ ssn = ? WHERE id = ?", 2),
+        Arguments.of("sixDigitVersion",
+            "UPDATE users SET /*!800100 name = ?, */ ssn = ? WHERE id = ?", 2),
+        Arguments.of("mariadb", "UPDATE users SET /*M!100100 name = ?, */ ssn = ? WHERE id = ?", 2),
+        Arguments.of("afterParameter", "INSERT INTO users (id, ssn) VALUES (? /*!50000 + ? */, ?)", 2),
+        Arguments.of("quote", "UPDATE users SET note = /*!50000 'x */ ? WHERE id = ?", 2),
+        Arguments.of("doubleQuote", "UPDATE users SET note = /*!50000 \"x */ ? WHERE id = ?", 2),
+        Arguments.of("backtick", "UPDATE users SET note = /*!50000 `x */ ? WHERE id = ?", 2),
+        Arguments.of("dashComment", "UPDATE users SET ssn = ? /*!50000 -- x */ WHERE id = ?", 2),
+        Arguments.of("hashComment", "UPDATE users SET ssn = ? /*!50000 # x */ WHERE id = ?", 2),
+        Arguments.of("nestedComment", "UPDATE users SET ssn = ? /*!50000 /* x */ WHERE id = ?", 2));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("executableComments")
+  void testExecutableCommentChangingPlaceholdersIsReportedAndNothingIsMapped(
+      final String id, final String sql, final int placeholders) {
+    for (Mode mode : Arrays.asList(Mode.MYSQL, Mode.GENERIC)) {
+      final ParameterMapping result = map(sql, mode);
+
+      assertTrue(result.getColumns().isEmpty(), id + " " + mode + ": " + result.getColumns());
+      final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+      assertEquals(1, problems.size(), id + " " + mode + ": " + result.getProblems());
+      assertProblem(problems.get(0), Type.EXECUTABLE_COMMENT, "users", Collections.emptyList(),
+          range(placeholders));
+    }
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("executableComments")
+  void testExecutableCommentIsAnOrdinaryCommentForPostgres(
+      final String id, final String sql, final int placeholders) {
+    assertTrue(problemsOfType(map(sql, Mode.POSTGRESQL), Type.EXECUTABLE_COMMENT).isEmpty(), id);
+  }
+
+  @Test
+  void testExecutableCommentInMultiTableUpdateNamesEveryWrittenTable() {
+    final ParameterMapping result = map(
+        "UPDATE other o JOIN users u ON o.id = u.id SET /*!50000 o.note = ?, */ u.ssn = ?", Mode.MYSQL);
+
+    assertTrue(result.getColumns().isEmpty(), result.getColumns().toString());
+    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    assertEquals(2, problems.size(), result.getProblems().toString());
+    assertEquals("other", problems.get(0).getTable());
+    assertEquals("users", problems.get(1).getTable());
+  }
+
+  @Test
+  void testExecutableCommentInUnparsedWriteNamesItsIdentifiers() {
+    final ParameterMapping result =
+        map("UPDATE users SET ssn = /*!50000 ? */ WHERE id = ?", Mode.MYSQL);
+
+    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    assertEquals(1, problems.size(), result.getProblems().toString());
+    assertNull(problems.get(0).getTable());
+    assertTrue(problems.get(0).getCandidateTables().contains("users"));
+    assertEquals(range(1), problems.get(0).getParameterIndexes());
+  }
+
+  @Test
+  void testExecutableCommentInSelectIsReportedForItsTables() {
+    final ParameterMapping result = map(
+        "SELECT * FROM users u JOIN other o ON u.id = o.id WHERE /*!50000 o.note = ? AND */ u.ssn = ?",
+        Mode.MYSQL);
+
+    assertTrue(result.getColumns().isEmpty(), result.getColumns().toString());
+    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    assertEquals(2, problems.size(), result.getProblems().toString());
+    assertEquals(Arrays.asList("users", "other"),
+        Arrays.asList(problems.get(0).getTable(), problems.get(1).getTable()));
+  }
+
+  @Test
+  void testExecutableCommentHoldingTheOnlyPlaceholderIsReported() {
+    final ParameterMapping result =
+        map("UPDATE users SET ssn = COALESCE(/*!?,*/ ssn) WHERE id = 1", Mode.MYSQL);
+
+    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    assertEquals(1, problems.size(), result.getProblems().toString());
+    assertProblem(problems.get(0), Type.EXECUTABLE_COMMENT, "users", Collections.emptyList(),
+        Collections.emptyList());
+  }
+
+  @Test
+  void testExecutableCommentInUnparsedStatementWithoutOuterPlaceholderIsReported() {
+    final ParameterMapping result = map("UPDATE users SET ssn = /*!50000 ? */ WHERE", Mode.MYSQL);
+
+    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    assertEquals(1, problems.size(), result.getProblems().toString());
+    assertTrue(problems.get(0).getCandidateTables().contains("users"));
+    assertTrue(problemsOfType(result, Type.UNPARSED_STATEMENT).isEmpty());
+  }
+
+  static Stream<Arguments> harmlessExecutableComments() {
+    return Stream.of(
+        Arguments.of("modifier", "UPDATE /*!50000 LOW_PRIORITY */ users SET ssn = ? WHERE id = ?"),
+        Arguments.of("expression", "UPDATE users SET ssn = ? WHERE id = ? /*!50000 AND 1 = 1 */"),
+        Arguments.of("optimizerHint", "UPDATE /*+ NO_MERGE() */ users SET ssn = ? WHERE id = ?"),
+        Arguments.of("ordinaryComment", "UPDATE users SET /* why? 'x */ ssn = ? WHERE id = ?"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("harmlessExecutableComments")
+  void testCommentWithoutPlaceholderSensitiveTextIsMapped(final String id, final String sql) {
+    final ParameterMapping result = map(sql, Mode.MYSQL);
+
+    assertEquals(mapping(1, "users.ssn"), result.getColumns(), id);
+    assertTrue(result.getProblems().isEmpty(), id + ": " + result.getProblems());
+  }
+
+  private static List<ParameterMappingProblem> problemsOfType(
+      final ParameterMapping mapping, final Type type) {
+    final List<ParameterMappingProblem> problems = new ArrayList<>();
+    for (ParameterMappingProblem problem : mapping.getProblems()) {
+      if (problem.getType() == type) {
+        problems.add(problem);
+      }
+    }
+    return problems;
+  }
+
+  private static List<Integer> range(final int count) {
+    final List<Integer> result = new ArrayList<>();
+    for (int i = 1; i <= count; i++) {
+      result.add(i);
+    }
+    return result;
   }
 
   @Test

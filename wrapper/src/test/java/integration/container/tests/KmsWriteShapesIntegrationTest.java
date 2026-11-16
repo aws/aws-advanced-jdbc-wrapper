@@ -76,6 +76,11 @@ import software.amazon.jdbc.plugin.encryption.model.SchemaName;
  * parameters) is passed through to the database, whose HMAC validation accepts ciphertext and
  * rejects plaintext.
  *
+ * <p>A multi-table UPDATE encrypts each bound value with the key of the table its column belongs
+ * to. A MySQL statement with an executable comment ({@code /*! ... *}{@code /}) holding a placeholder
+ * is refused on a table with encrypted columns, since which parameter is which depends on the driver
+ * and the server.
+ *
  * <p>Requires {@code KMS_KEY_ID} (preferably a key ARN; {@code AWS_KMS_KEY_ARN} is used as a
  * fallback) and AWS credentials in the test container. Each test uses its own tables and key rows
  * and removes them afterward. KMS keys are never created or deleted.
@@ -513,6 +518,140 @@ public class KmsWriteShapesIntegrationTest {
     }
 
     assertEquals(0, countRows(table, "Multi"));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Multi-table statements and executable comments
+  // ---------------------------------------------------------------------------------------------
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  void test18MultiTableUpdateEncryptsColumnOfSecondTable() throws Exception {
+    final String table = createEncryptedTable("kms_shapes_join", SSN);
+    final String other = createStagingTable(table + "_other");
+    final Connection conn = openPluginConnection();
+    insert(conn, table, "Joined", "111-11-1111");
+    insert(conn, table, "Comma", "111-11-1111");
+    try (Statement stmt = conn.createStatement()) {
+      stmt.executeUpdate("INSERT INTO " + other + " (name) VALUES ('Joined'), ('Comma')");
+    }
+
+    // The encrypted table is the second one, and the first one has an ssn column of its own.
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE " + other + " o JOIN " + table + " t ON o.name = t.name"
+            + " SET o." + SSN + " = ?, t." + SSN + " = ? WHERE o.name = ?")) {
+      stmt.setString(1, "plain-other-value");
+      stmt.setString(2, "222-22-2222");
+      stmt.setString(3, "Joined");
+      assertEquals(2, stmt.executeUpdate());
+    }
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE " + other + " o, " + table + " t SET t." + SSN + " = ? WHERE o.name = t.name AND o.name = ?")) {
+      stmt.setString(1, "333-33-3333");
+      stmt.setString(2, "Comma");
+      assertEquals(1, stmt.executeUpdate());
+    }
+
+    assertEquals("222-22-2222", readColumn(conn, table, SSN, "Joined"));
+    assertStoredAsCiphertext(table, SSN, "Joined", "222-22-2222");
+    assertEquals("333-33-3333", readColumn(conn, table, SSN, "Comma"));
+    assertStoredAsCiphertext(table, SSN, "Comma", "333-33-3333");
+    // The other table's column is not encrypted, so its value is stored as it was bound.
+    assertArrayEquals("plain-other-value".getBytes(StandardCharsets.UTF_8), readRaw(other, SSN, "Joined"));
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  void test22MultiTableUpdateEncryptsEachTableWithItsOwnKey() throws Exception {
+    final String first = createEncryptedTable("kms_shapes_join_a", SSN);
+    final String second = createEncryptedTable("kms_shapes_join_b", SSN);
+    final Connection conn = openPluginConnection();
+    insert(conn, first, "Both", "111-11-1111");
+    insert(conn, second, "Both", "111-11-1111");
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE " + first + " a JOIN " + second + " b ON a.name = b.name"
+            + " SET a." + SSN + " = ?, b." + SSN + " = ? WHERE a.name = ?")) {
+      stmt.setString(1, "666-66-6666");
+      stmt.setString(2, "777-77-7777");
+      stmt.setString(3, "Both");
+      assertEquals(2, stmt.executeUpdate());
+    }
+
+    // Each value reads back only with the key of the table it was written to.
+    assertEquals("666-66-6666", readColumn(conn, first, SSN, "Both"));
+    assertEquals("777-77-7777", readColumn(conn, second, SSN, "Both"));
+    assertStoredAsCiphertext(first, SSN, "Both", "666-66-6666");
+    assertStoredAsCiphertext(second, SSN, "Both", "777-77-7777");
+
+    // An unqualified column of a multi-table UPDATE cannot be given a table, so the plugin refuses
+    // it when it is prepared; nothing is written.
+    assertRefused(() -> conn.prepareStatement(
+        "UPDATE " + first + " a JOIN " + second + " b ON a.name = b.name SET " + SSN + " = ?"),
+        "encryptionFailOnUnmappedParameter");
+    assertEquals("666-66-6666", readColumn(conn, first, SSN, "Both"));
+    assertEquals("777-77-7777", readColumn(conn, second, SSN, "Both"));
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void test19PgUpdateFromEncryptsTargetColumn() throws Exception {
+    final String table = createEncryptedTable("kms_shapes_from", SSN);
+    final String other = createStagingTable(table + "_other");
+    final Connection conn = openPluginConnection();
+    insert(conn, table, "From", "111-11-1111");
+    try (Statement stmt = conn.createStatement()) {
+      stmt.executeUpdate("INSERT INTO " + other + " (name) VALUES ('From')");
+    }
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE " + table + " t SET " + SSN + " = ? FROM " + other + " o"
+            + " WHERE o.name = t.name AND o.name = ?")) {
+      stmt.setString(1, "444-44-4444");
+      stmt.setString(2, "From");
+      assertEquals(1, stmt.executeUpdate());
+    }
+
+    assertEquals("444-44-4444", readColumn(conn, table, SSN, "From"));
+    assertStoredAsCiphertext(table, SSN, "From", "444-44-4444");
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  void test20RefusesExecutableCommentHoldingPlaceholder() throws Exception {
+    final String table = createEncryptedTable("kms_shapes_versioned", SSN);
+    final Connection conn = openPluginConnection();
+    insert(conn, table, "Versioned", "111-11-1111");
+    final String sql = "UPDATE " + table + " SET /*!50000 name = ?, */ " + SSN + " = ? WHERE name = ?";
+
+    assertRefused(() -> conn.prepareStatement(sql), "executable comment");
+
+    // Refused whatever encryptionFailOnUnmappedParameter says.
+    final Properties lenient = pluginProps();
+    lenient.setProperty(EncryptionConfig.FAIL_ON_UNMAPPED_PARAMETER.name, "false");
+    try (Connection lenientConn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), lenient)) {
+      assertRefused(() -> lenientConn.prepareStatement(sql), "executable comment");
+    }
+
+    assertEquals("111-11-1111", readColumn(conn, table, SSN, "Versioned"));
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  void test21EncryptsWithExecutableCommentWithoutPlaceholder() throws Exception {
+    final String table = createEncryptedTable("kms_shapes_lowprio", SSN);
+    final Connection conn = openPluginConnection();
+    insert(conn, table, "LowPriority", "111-11-1111");
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE /*!50000 LOW_PRIORITY */ " + table + " SET " + SSN + " = ? WHERE name = ?")) {
+      stmt.setString(1, "555-55-5555");
+      stmt.setString(2, "LowPriority");
+      assertEquals(1, stmt.executeUpdate());
+    }
+
+    assertEquals("555-55-5555", readColumn(conn, table, SSN, "LowPriority"));
+    assertStoredAsCiphertext(table, SSN, "LowPriority", "555-55-5555");
   }
 
   // ---------------------------------------------------------------------------------------------
