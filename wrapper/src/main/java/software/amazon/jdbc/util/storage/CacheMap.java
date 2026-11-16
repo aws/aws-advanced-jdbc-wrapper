@@ -34,8 +34,18 @@ public class CacheMap<K extends @NonNull Object, V extends @NonNull Object> {
   }
 
   public @Nullable V get(final K key) {
-    final CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
-    return cacheItem == null ? null : cacheItem.item;
+    final CacheItem<V> cacheItem = cache.get(key);
+    if (cacheItem == null) {
+      return null;
+    }
+    if (!cacheItem.isExpired()) {
+      return cacheItem.item;
+    }
+    // Items in a CacheMap never have their expiration extended, so an item seen as expired stays expired until it is
+    // replaced. Only that case needs the bin lock: re-check the current value before removing it, so an entry
+    // refreshed by another thread in the meantime is kept.
+    final CacheItem<V> current = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
+    return current == null ? null : current.item;
   }
 
   public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
