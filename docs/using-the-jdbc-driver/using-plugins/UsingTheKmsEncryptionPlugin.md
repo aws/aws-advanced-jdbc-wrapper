@@ -243,6 +243,8 @@ CREATE TABLE encrypt.encryption_metadata (
 
 ### 5. Configure Column Encryption
 
+For a complete program, see [KeyManagementExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/KeyManagementExample.java).
+
 **Recommended: use `KeyManagementUtility`.** `initializeEncryptionForColumn()` generates a data key under the given KMS key and a random HMAC key, stores them in `key_storage`, and registers the column in `encryption_metadata`:
 
 ```java
@@ -611,6 +613,8 @@ try (PreparedStatement stmt = connection.prepareStatement(sql2)) {
 ## Key Rotation
 
 The plugin uses two levels of keys. A KMS key (master key) wraps each data key. Each encrypted column has one data key and one HMAC key, stored in `encrypt.key_storage`. Encrypted values do not record which data key encrypted them, so the plugin can only read a column whose values are all encrypted under the column's current data key.
+
+For a complete program that rotates data keys with `KeyManagementUtility`, see [KeyManagementExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/KeyManagementExample.java).
 
 ### Rotating the KMS key (recommended)
 
@@ -999,7 +1003,16 @@ JOIN encrypt.key_storage ks ON em.key_id = ks.id;
 
 ## Example Application
 
-See [KmsEncryptionIntegrationTest.java](../../../wrapper/src/test/java/integration/container/tests/KmsEncryptionIntegrationTest.java) for a complete working example. It demonstrates database schema setup, KMS key generation, metadata configuration, encryption and decryption, updates, HMAC verification and annotations.
+Complete example projects:
+
+- [EncryptionExample](../../../examples/EncryptionExample): plain JDBC examples.
+  - [AwsWrapperEncryptionExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/AwsWrapperEncryptionExample.java) - configuring and using encrypted connections
+  - [PropertiesFileExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/PropertiesFileExample.java) - configuring the plugin from a properties file
+  - [DataSourceLifecycleExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/DataSourceLifecycleExample.java) - managing a `DataSource` that uses the plugin
+  - [KeyManagementExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/KeyManagementExample.java) - setting up columns, rotating data keys and other `KeyManagementUtility` tasks
+- [EncryptSpring](../../../examples/EncryptSpring): a Spring Boot application with an encrypted column. See its [README](../../../examples/EncryptSpring/README.md).
+
+See [KmsEncryptionIntegrationTest.java](../../../wrapper/src/test/java/integration/container/tests/KmsEncryptionIntegrationTest.java) for an end-to-end test of the plugin. It demonstrates database schema setup, KMS key generation, metadata configuration, encryption and decryption, updates, HMAC verification and annotations.
 
 ## Additional Resources
 
