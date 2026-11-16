@@ -684,6 +684,78 @@ class BlueGreenStatusProviderTest {
   }
 
   // ---------------------------------------------------------------------------------------------
+  // A context that joins a switchover late. resetContextWhenCompleted() starts fresh monitors right
+  // after a switchover, and they can still read the finished deployment's POST or COMPLETED status.
+  // Such a context never collected the start-of-switchover IP addresses and topology, so the DNS
+  // flags that COMPLETED waits for can never be set. The switchover timer is its only exit.
+  // ---------------------------------------------------------------------------------------------
+
+  private static final long SWITCHOVER_TIMEOUT_MS =
+      Long.parseLong(BlueGreenStatusProvider.BG_SWITCHOVER_TIMEOUT_MS.defaultValue);
+
+  /**
+   * The regression this guards, observed on Aurora MySQL with 4.6.0: pods whose fresh context first
+   * read a lingering POST status reported POST forever, never logged a warning, and ignored both the
+   * deletion of the old deployment and the creation of a new one. The status read by such a context
+   * stops changing, so the reset has to happen on the unchanged-status path too.
+   */
+  @Test
+  void contextThatFirstSeesPostIsResetAfterSwitchoverTimeout() {
+    final TestableProvider provider = newTestableProvider();
+    final BlueGreenInterimStatus postStatus = interimStatus(BlueGreenPhase.POST);
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, postStatus);
+    assertEquals(BlueGreenPhase.POST, provider.summaryStatus.getCurrentPhase());
+
+    provider.advanceMs(SWITCHOVER_TIMEOUT_MS - 1);
+    provider.prepareStatus(BlueGreenRole.SOURCE, postStatus);
+    assertEquals(0, provider.initMonitoringCount, "The context must be kept until the timeout.");
+
+    provider.advanceMs(2);
+    provider.prepareStatus(BlueGreenRole.SOURCE, postStatus);
+
+    assertEquals(1, provider.initMonitoringCount,
+        "A context stuck in POST must be reset once the switchover timeout expires.");
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+  }
+
+  /**
+   * Same as above when the first status read is COMPLETED: getStatusOfCompleted() reports POST while
+   * the DNS flags are unset, and checkDeploymentRemoved() ignores COMPLETED, so the removal of the
+   * status rows alone must not leave the context in place once the timeout has expired.
+   */
+  @Test
+  void contextThatFirstSeesCompletedIsResetAfterSwitchoverTimeout() {
+    final TestableProvider provider = newTestableProvider();
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.COMPLETED));
+    assertEquals(BlueGreenPhase.POST, provider.summaryStatus.getCurrentPhase(),
+        "COMPLETED is reported as POST while the DNS updates have not been observed.");
+
+    provider.advanceMs(SWITCHOVER_TIMEOUT_MS + 1);
+    // The deployment's status rows are removed.
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(null));
+
+    assertEquals(1, provider.initMonitoringCount);
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+  }
+
+  /** A switchover observed from PREPARATION keeps the deadline that PREPARATION set. */
+  @Test
+  void switchoverTimerStartedInPreparationIsNotRestartedByLaterPhases() {
+    final TestableProvider provider = newTestableProvider();
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.PREPARATION));
+    final long deadline = provider.postStatusEndTimeNano;
+    assertTrue(deadline > 0);
+
+    provider.advanceMs(10_000);
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.POST));
+
+    assertEquals(deadline, provider.postStatusEndTimeNano);
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Green environment unreachable. A green environment the driver cannot reach blocks a switchover,
   // because the blue to green mapping needed to route traffic is never built.
   // ---------------------------------------------------------------------------------------------

@@ -594,6 +594,16 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updateSummaryStatus(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
+    // Start the switchover timer in every phase from PREPARATION onwards, not only in PREPARATION.
+    // A context does not necessarily observe PREPARATION: one created by resetContextWhenCompleted(),
+    // or by an application that starts mid-switchover, can first read a lingering POST or COMPLETED
+    // status. Such a context never collected the start-of-switchover IP addresses and topology, so the
+    // DNS flags that getStatusOfCompleted() waits for can never be set, and without a running timer it
+    // would report POST forever. The call is a no-op when the timer is already running.
+    if (this.latestStatusPhase.isActiveSwitchoverOrCompleted()) {
+      this.startSwitchoverTimer();
+    }
+
     switch (this.latestStatusPhase) {
       case NOT_CREATED:
         this.summaryStatus = new BlueGreenStatus(this.bgdId, BlueGreenPhase.NOT_CREATED);
@@ -603,7 +613,6 @@ public class BlueGreenStatusProvider {
         this.summaryStatus = this.getStatusOfCreated();
         break;
       case PREPARATION:
-        this.startSwitchoverTimer();
         this.updateDnsFlags(role, interimStatus);
         this.summaryStatus = this.getStatusOfPreparation();
         break;
@@ -1566,19 +1575,18 @@ public class BlueGreenStatusProvider {
 
   /**
    * Checks if the switchover timer has expired while the plugin is still in an active switchover
-   * phase (IN_PROGRESS or POST). If expired, forces a transition to COMPLETED (or CREATED on
-   * rollback) and updates the status cache. This ensures the plugin does not remain stuck
-   * indefinitely when the monitor cannot detect the phase change from RDS.
+   * phase (PREPARATION, IN_PROGRESS or POST), or in COMPLETED while still waiting for the DNS
+   * updates. If expired, forces a transition to COMPLETED (or CREATED on rollback), updates the
+   * status cache and resets the context, exactly as the change path in {@link #prepareStatus} does.
+   * This ensures the plugin does not remain stuck indefinitely when the monitor cannot detect the
+   * phase change from RDS, including when the status stops changing altogether.
    */
   protected void checkSwitchoverTimerExpiry() {
     if (!this.isSwitchoverTimerExpired()) {
       return;
     }
 
-    BlueGreenPhase currentPhase = this.latestStatusPhase;
-    if (currentPhase != BlueGreenPhase.IN_PROGRESS
-        && currentPhase != BlueGreenPhase.POST
-        && currentPhase != BlueGreenPhase.PREPARATION) {
+    if (!this.latestStatusPhase.isActiveSwitchoverOrCompleted()) {
       return;
     }
 
@@ -1593,6 +1601,11 @@ public class BlueGreenStatusProvider {
     this.updateMonitors();
     this.updateStatusCache();
     this.logCurrentContext();
+
+    // Without this the forced status is only applied, and the timeout warning repeats on every
+    // unchanged tick, until some later status change reaches resetContextWhenCompleted().
+    this.logSwitchoverFinalSummary();
+    this.resetContextWhenCompleted();
   }
 
   protected void logCurrentContext() {
