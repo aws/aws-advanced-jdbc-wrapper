@@ -217,7 +217,12 @@ class PlaceholderScannerTest {
         Arguments.of("UPDATE /*+ BKA(t) ? */ t SET b = ?", false),
         Arguments.of("UPDATE t SET b = '/*! ? */' WHERE c = ?", false),
         Arguments.of("UPDATE t SET b = ? -- /*! ? */", false),
-        Arguments.of("UPDATE t SET /*M a = ? */ b = ?", false));
+        Arguments.of("UPDATE t SET /*M a = ? */ b = ?", false),
+        // Structure changes which column a placeholder is assigned to, when there is one.
+        Arguments.of("UPDATE t SET a /*!12345 = a, b */ = ? WHERE id = 1", true),
+        Arguments.of("INSERT INTO t (a /*!, b */) VALUES (?, ?)", true),
+        Arguments.of("UPDATE t SET a = 1 /*!50000 , b = 2 */", false),
+        Arguments.of("UPDATE t SET b = ? WHERE id = ? /*!50000 AND TRUE */", false));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -239,5 +244,13 @@ class PlaceholderScannerTest {
 
     assertEquals(1, result.getPlaceholderCount());
     assertEquals(1, result.getBlockComments().size());
+  }
+
+  @Test
+  void testExecutableCommentWords() {
+    assertEquals(Arrays.asList("users", "ssn"), PlaceholderScanner.scan(
+        "UPDATE plain SET a = ? /*!50000 , users.ssn = ? */", Mode.MYSQL).getExecutableCommentWords());
+    assertTrue(PlaceholderScanner.scan("UPDATE /*!50000 LOW_PRIORITY */ t SET b = ?", Mode.MYSQL)
+        .getExecutableCommentWords().isEmpty());
   }
 }

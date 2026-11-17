@@ -813,7 +813,7 @@ class ParameterColumnMapperTest {
       final ParameterMapping result = map(sql, mode);
 
       assertTrue(result.getColumns().isEmpty(), id + " " + mode + ": " + result.getColumns());
-      final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+      final List<ParameterMappingProblem> problems = tableProblems(result);
       assertEquals(1, problems.size(), id + " " + mode + ": " + result.getProblems());
       assertProblem(problems.get(0), Type.EXECUTABLE_COMMENT, "users", Collections.emptyList(),
           range(placeholders));
@@ -833,7 +833,7 @@ class ParameterColumnMapperTest {
         "UPDATE other o JOIN users u ON o.id = u.id SET /*!50000 o.note = ?, */ u.ssn = ?", Mode.MYSQL);
 
     assertTrue(result.getColumns().isEmpty(), result.getColumns().toString());
-    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    final List<ParameterMappingProblem> problems = tableProblems(result);
     assertEquals(2, problems.size(), result.getProblems().toString());
     assertEquals("other", problems.get(0).getTable());
     assertEquals("users", problems.get(1).getTable());
@@ -858,7 +858,7 @@ class ParameterColumnMapperTest {
         Mode.MYSQL);
 
     assertTrue(result.getColumns().isEmpty(), result.getColumns().toString());
-    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    final List<ParameterMappingProblem> problems = tableProblems(result);
     assertEquals(2, problems.size(), result.getProblems().toString());
     assertEquals(Arrays.asList("users", "other"),
         Arrays.asList(problems.get(0).getTable(), problems.get(1).getTable()));
@@ -869,7 +869,7 @@ class ParameterColumnMapperTest {
     final ParameterMapping result =
         map("UPDATE users SET ssn = COALESCE(/*!?,*/ ssn) WHERE id = 1", Mode.MYSQL);
 
-    final List<ParameterMappingProblem> problems = problemsOfType(result, Type.EXECUTABLE_COMMENT);
+    final List<ParameterMappingProblem> problems = tableProblems(result);
     assertEquals(1, problems.size(), result.getProblems().toString());
     assertProblem(problems.get(0), Type.EXECUTABLE_COMMENT, "users", Collections.emptyList(),
         Collections.emptyList());
@@ -888,7 +888,7 @@ class ParameterColumnMapperTest {
   static Stream<Arguments> harmlessExecutableComments() {
     return Stream.of(
         Arguments.of("modifier", "UPDATE /*!50000 LOW_PRIORITY */ users SET ssn = ? WHERE id = ?"),
-        Arguments.of("expression", "UPDATE users SET ssn = ? WHERE id = ? /*!50000 AND 1 = 1 */"),
+        Arguments.of("keywords", "UPDATE users SET ssn = ? WHERE id = ? /*!50000 AND TRUE */"),
         Arguments.of("optimizerHint", "UPDATE /*+ NO_MERGE() */ users SET ssn = ? WHERE id = ?"),
         Arguments.of("ordinaryComment", "UPDATE users SET /* why? 'x */ ssn = ? WHERE id = ?"));
   }
@@ -907,6 +907,17 @@ class ParameterColumnMapperTest {
     final List<ParameterMappingProblem> problems = new ArrayList<>();
     for (ParameterMappingProblem problem : mapping.getProblems()) {
       if (problem.getType() == type) {
+        problems.add(problem);
+      }
+    }
+    return problems;
+  }
+
+  /** The executable-comment problems reported for a parsed table, not for the statement's words. */
+  private static List<ParameterMappingProblem> tableProblems(final ParameterMapping mapping) {
+    final List<ParameterMappingProblem> problems = new ArrayList<>();
+    for (ParameterMappingProblem problem : problemsOfType(mapping, Type.EXECUTABLE_COMMENT)) {
+      if (problem.getTable() != null) {
         problems.add(problem);
       }
     }
@@ -939,5 +950,40 @@ class ParameterColumnMapperTest {
     assertEquals(table, problem.getTable(), problem.toString());
     assertEquals(columns, problem.getColumns(), problem.toString());
     assertEquals(indexes, problem.getParameterIndexes(), problem.toString());
+  }
+
+  static Stream<Arguments> tablesOnlyInExecutableComment() {
+    return Stream.of(
+        Arguments.of("write", "UPDATE plain SET a = ? /*!50000 , users.ssn = ? */"),
+        Arguments.of("unparsedWrite", "UPDATE plain /*!, users SET users.ssn = ? */"),
+        Arguments.of("select", "SELECT 1 /*! FROM users WHERE ssn = ? */"),
+        Arguments.of("subquery",
+            "SELECT * FROM plain WHERE uid IN (SELECT id FROM users WHERE ssn = ?) /*! AND x = ? */"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("tablesOnlyInExecutableComment")
+  void testExecutableCommentProblemNamesEveryWordOfTheStatement(final String id, final String sql) {
+    boolean named = false;
+    for (ParameterMappingProblem problem
+        : problemsOfType(map(sql, Mode.MYSQL), Type.EXECUTABLE_COMMENT)) {
+      named |= problem.getTable() == null && problem.getCandidateTables().contains("users");
+    }
+    assertTrue(named, id);
+  }
+
+  @Test
+  void testStructureInExecutableCommentIsReported() {
+    final ParameterMapping result =
+        map("UPDATE users SET nickname /*!12345 = nickname, ssn */ = ? WHERE id = 1", Mode.MYSQL);
+
+    assertTrue(result.getColumns().isEmpty(), result.getColumns().toString());
+    assertEquals("users", problemsOfType(result, Type.EXECUTABLE_COMMENT).get(0).getTable());
+  }
+
+  @Test
+  void testTableNamesDifferingInCaseAreDifferentTables() {
+    assertTrue(map("SELECT * FROM \"Users\" JOIN users ON 1 = 1 WHERE ssn = ?", Mode.POSTGRESQL)
+        .getColumns().isEmpty());
   }
 }

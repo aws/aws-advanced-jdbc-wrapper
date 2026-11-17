@@ -329,7 +329,8 @@ public class SqlParserConnectionPluginTest {
       logger.removeHandler(handler);
     }
 
-    assertEquals("public.users.ssn", paramMapping().get(2));
+    // The annotation agrees with the automatic mapping, whose table name the metadata uses.
+    assertEquals("users.ssn", paramMapping().get(2));
     assertTrue(warnings.isEmpty());
   }
 
@@ -541,5 +542,12 @@ public class SqlParserConnectionPluginTest {
           && problem.getParameterIndexes().equals(Collections.singletonList(1));
     }
     assertTrue(reported, problems().toString());
+  }
+
+  @Test
+  void test_schemaQualifiedAnnotationWithoutMapping_isKeptAsWritten() throws Exception {
+    executeWithSql("SELECT * FROM public.users WHERE lower(ssn) = /*@encrypt:public.users.ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "public.users.ssn"), paramMapping());
   }
 }

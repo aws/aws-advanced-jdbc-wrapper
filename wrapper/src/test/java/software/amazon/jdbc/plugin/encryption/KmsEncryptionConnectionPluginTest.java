@@ -1377,7 +1377,13 @@ public class KmsEncryptionConnectionPluginTest {
             "SELECT * FROM users WHERE /*!50000 id = ? AND */ ssn = /*@encrypt:users.ssn*/ ?"),
         Arguments.of("bareAnnotation",
             "INSERT INTO other (a, b) SELECT /*!50000 ?, */ id, name FROM users"
-                + " WHERE ssn = /*@encrypt:ssn*/ ?"));
+                + " WHERE ssn = /*@encrypt:ssn*/ ?"),
+        Arguments.of("structureOnly",
+            "UPDATE users SET nickname /*!12345 = nickname, ssn */ = ? WHERE id = 1"),
+        Arguments.of("columnListStructure", "INSERT INTO users (name /*!, ssn */) VALUES (?, ?)"),
+        Arguments.of("tableOnlyInComment", "UPDATE other SET a = ? /*!50000 , users.ssn = ? */"),
+        Arguments.of("tableInSubquery",
+            "SELECT * FROM other WHERE uid IN (SELECT id FROM users WHERE ssn = ?) /*! AND x = ? */"));
   }
 
   @ParameterizedTest(name = "{0}")

@@ -249,9 +249,16 @@ public final class ParameterColumnMapper {
         ? stripQuotes(table.getAlias().getName()).toLowerCase(Locale.ROOT)
         : name.toLowerCase(Locale.ROOT);
     final @Nullable String previous = byAlias.put(key, name);
-    if (previous != null && !previous.equalsIgnoreCase(name)) {
+    if (previous != null && !previous.equals(name)) {
       ambiguous.add(key);
     }
+  }
+
+  /** Every distinct word of a statement, those inside its executable comments included. */
+  private static List<String> statementWords(final PlaceholderScanner.Result scan) {
+    final Set<String> words = new LinkedHashSet<>(scan.getWords());
+    words.addAll(scan.getExecutableCommentWords());
+    return new ArrayList<>(words);
   }
 
   /** The tables to report a statement-wide problem for; a single null entry when none is known. */
@@ -283,7 +290,7 @@ public final class ParameterColumnMapper {
     }
     if (scan.hasPlaceholderSensitiveExecutableComment()) {
       // Reported even without placeholders outside the comment: a driver may count one inside it.
-      problems.add(ParameterMappingProblem.executableComment(null, candidates, indexes));
+      problems.add(ParameterMappingProblem.executableComment(null, statementWords(scan), indexes));
     }
     if (!problems.isEmpty()) {
       return new ParameterMapping(Collections.emptyMap(), 0, problems, Collections.emptyList(), write,
@@ -443,7 +450,7 @@ public final class ParameterColumnMapper {
     private final List<ParameterMappingProblem> problems = new ArrayList<>();
     private final List<UnboundColumn> unboundColumns = new ArrayList<>();
     private final Map<String, String> aliases = new HashMap<>();
-    /** The tables the statement reads directly, keyed by lower-case name. */
+    /** The tables the statement reads directly, by name; names differing in case are kept apart. */
     private final Map<String, String> readTables = new LinkedHashMap<>();
     /** Whether a FROM or JOIN item is something other than a table, such as a subquery. */
     private boolean otherSources;
@@ -510,7 +517,7 @@ public final class ParameterColumnMapper {
       final Set<String> ambiguous = new HashSet<>();
       for (Table found : tables) {
         final String name = stripQuotes(found.getName());
-        readTables.put(name.toLowerCase(Locale.ROOT), name);
+        readTables.put(name, name);
         addAliased(aliases, ambiguous, found);
       }
       ambiguousAliases.addAll(ambiguous);
@@ -556,14 +563,13 @@ public final class ParameterColumnMapper {
         final List<String> concerned = write
             ? targetTables : new ArrayList<>(readTables.values());
         final List<Integer> indexes = range(scan.getPlaceholderCount());
-        if (concerned.isEmpty()) {
-          problems.add(ParameterMappingProblem.executableComment(
-              null, new ArrayList<>(new LinkedHashSet<>(scan.getWords())), indexes));
-        }
         for (String target : concerned) {
           problems.add(ParameterMappingProblem.executableComment(
               target, Collections.emptyList(), indexes));
         }
+        // Also every word of the statement, its comments' included, since a table named in a
+        // subquery or only inside an executable comment may be touched as well.
+        problems.add(ParameterMappingProblem.executableComment(null, statementWords(scan), indexes));
       }
 
       return new ParameterMapping(columns, astIndexes.size(), problems, unboundColumns, write, table,

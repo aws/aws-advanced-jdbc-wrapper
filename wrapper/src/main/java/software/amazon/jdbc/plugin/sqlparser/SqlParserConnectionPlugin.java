@@ -223,8 +223,11 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     final List<ParameterMappingProblem> problems = new ArrayList<>(mapping.getProblems());
     for (Map.Entry<Integer, String> annotation : annotations.entrySet()) {
       final String mapped = paramMapping.get(annotation.getKey());
-      final String resolved =
+      final String annotated =
           resolveAnnotation(annotation.getValue(), mapped, mapping.getTableAliases(), onlyTable);
+      // An annotation that agrees with the automatic mapping (public.users.ssn and users.ssn) keeps
+      // the mapping's table name, which is how the encryption metadata names the table.
+      final String resolved = mapped != null && !conflicts(annotated, mapped) ? mapped : annotated;
       if (mapped != null && conflicts(resolved, mapped)) {
         LOGGER.warning(() -> Messages.get(
             "SqlParserConnectionPlugin.annotationConflictsWithMapping",
