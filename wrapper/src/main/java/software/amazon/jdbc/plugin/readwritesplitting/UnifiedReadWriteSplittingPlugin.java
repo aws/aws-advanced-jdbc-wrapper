@@ -475,7 +475,7 @@ public abstract class UnifiedReadWriteSplittingPlugin extends AbstractConnection
     } else if (desired == TargetRole.WRITER) {
       if (!this.helpers.roleClassifier.isWriter(currentHost)) {
         if (JdbcMethod.CONNECTION_SETREADONLY.methodName.equals(methodName)
-            && this.pluginService.isInTransaction()) {
+            && Boolean.TRUE.equals(this.pluginService.isInTransaction())) {
           this.logAndThrow(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
               SqlState.ACTIVE_SQL_TRANSACTION);
         }

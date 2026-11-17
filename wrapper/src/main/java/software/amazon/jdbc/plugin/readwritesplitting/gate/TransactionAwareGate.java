@@ -93,7 +93,7 @@ public class TransactionAwareGate implements SwitchGate {
       return false;
     }
 
-    if (ctx.pluginService().isInTransaction()) {
+    if (Boolean.TRUE.equals(ctx.pluginService().isInTransaction())) {
       return false;
     }
 

@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -52,6 +53,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -80,6 +82,8 @@ class DefaultConnectionPluginTest {
   @Mock TelemetryGauge mockTelemetryGauge;
   @Mock ConnectionProviderManager mockConnectionProviderManager;
   @Mock HostSpec mockHostSpec;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+  @Mock Statement mockStatement;
 
 
   private AutoCloseable closeable;
@@ -100,6 +104,9 @@ class DefaultConnectionPluginTest {
         .thenReturn(new ConnectionInfo(conn, false));
     when(servicesContainer.getPluginService()).thenReturn(pluginService);
     when(servicesContainer.getImportantEventService()).thenReturn(mockImportantEventService);
+    // A dialect that reports nothing, so the plugin tracks transaction boundaries itself.
+    when(pluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.isInTransaction(any())).thenReturn(null);
 
     plugin = new DefaultConnectionPlugin(
         servicesContainer, connectionProvider, pluginManagerService, mockConnectionProviderManager);
@@ -153,6 +160,140 @@ class DefaultConnectionPluginTest {
 
     verify(statement, never()).getConnection();
     verify(statement, never()).isClosed();
+  }
+
+  @Test
+  void testExecute_tracksExplicitTransactionStatements_whenDriverReportsNothing() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(conn.getAutoCommit()).thenReturn(true);
+
+    execute(mockStatement, "Statement.execute", "BEGIN");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+    verify(pluginManagerService, never()).setInTransaction(false);
+
+    execute(mockStatement, "Statement.execute", "COMMIT");
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+
+    execute(mockStatement, "Statement.executeUpdate", "START TRANSACTION");
+    verify(pluginManagerService, times(2)).setInTransaction(true);
+
+    execute(mockStatement, "Statement.execute", "ROLLBACK");
+    verify(pluginManagerService, times(2)).setInTransaction(false);
+  }
+
+  @Test
+  void testExecute_tracksDmlWithAutoCommitOff_whenDriverReportsNothing() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(conn.getAutoCommit()).thenReturn(false);
+
+    execute(mockStatement, "Statement.executeQuery", "SELECT * FROM t");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+
+    execute(conn, "Connection.commit");
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+
+    execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (1)");
+    verify(pluginManagerService, times(2)).setInTransaction(true);
+
+    execute(conn, "Connection.rollback");
+    verify(pluginManagerService, times(2)).setInTransaction(false);
+  }
+
+  @Test
+  void testExecute_dmlWithAutoCommitOnOpensNoTransaction_whenDriverReportsNothing() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(conn.getAutoCommit()).thenReturn(true);
+
+    execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (1)");
+    execute(mockStatement, "Statement.executeQuery", "SELECT * FROM t");
+
+    verify(pluginManagerService, never()).setInTransaction(anyBoolean());
+  }
+
+  @Test
+  void testExecute_autoCommitFalseToTrueEndsTransaction_whenDriverReportsNothing() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(conn.getAutoCommit()).thenReturn(false);
+
+    // According to the JDBC spec, switching autocommit from false to true commits.
+    execute(conn, "Connection.setAutoCommit", true);
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+
+    execute(mockStatement, "Statement.execute", "SET autocommit = 1");
+    verify(pluginManagerService, times(2)).setInTransaction(false);
+    verify(conn, times(1)).setAutoCommit(true);
+  }
+
+  @Test
+  void testExecute_recordsDriverStateInsteadOfAnalyzingSql_whenDriverReportsState() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    // What the SQL says is ignored: a BEGIN while the driver reports no transaction records false,
+    // and a plain SELECT while the driver reports a transaction records true.
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(false);
+    when(conn.getAutoCommit()).thenReturn(false);
+
+    execute(mockStatement, "Statement.execute", "BEGIN");
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+    verify(pluginManagerService, never()).setInTransaction(true);
+
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true);
+    execute(mockStatement, "Statement.executeQuery", "SELECT 1");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+
+    execute(conn, "Connection.commit");
+    verify(pluginManagerService, times(2)).setInTransaction(true);
+
+    // The plugin never asks the connection about autocommit to work out boundaries itself.
+    verify(conn, never()).getAutoCommit();
+  }
+
+  @Test
+  void testExecute_setAutoCommitStatementStillSyncsDriver_whenDriverReportsState() throws SQLException {
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true);
+
+    execute(mockStatement, "Statement.execute", "SET autocommit = 0");
+
+    // The driver's own view of autocommit is still kept in step with the SQL.
+    verify(conn, times(1)).setAutoCommit(false);
+  }
+
+  @Test
+  void testExecute_recordedDriverStateSurvivesConnectionBreak() throws SQLException {
+    // The driver reports a transaction after the INSERT. The next call breaks the connection: the
+    // call throws, the driver stops reporting, and nothing is recorded, so the state the service
+    // falls back to is the one from the last completed call, in a transaction.
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true);
+
+    execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (1)");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(null);
+    when(mockSqlFunction.call()).thenThrow(new SQLException("broken", "08006"));
+    assertThrows(SQLException.class,
+        () -> execute(mockStatement, "Statement.executeUpdate", "INSERT INTO t VALUES (2)"));
+
+    verify(pluginManagerService, never()).setInTransaction(false);
+  }
+
+  @Test
+  void testExecute_closedConnectionReportsNothing_fallsBackToTracking() throws SQLException {
+    // A driver that reports state for an open connection reports nothing once it is closed; the
+    // plugin then tracks again, which only matters for the call that closes it.
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
+    when(mockTargetDriverDialect.isInTransaction(conn)).thenReturn(true, true, (Boolean) null);
+
+    execute(mockStatement, "Statement.execute", "BEGIN");
+    verify(pluginManagerService, times(1)).setInTransaction(true);
+
+    execute(conn, "Connection.close");
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+  }
+
+  private void execute(final Object methodInvokeOn, final String methodName, final Object... args)
+      throws SQLException {
+    plugin.execute(Void.class, SQLException.class, methodInvokeOn, methodName, mockSqlFunction, args);
   }
 
   @Test

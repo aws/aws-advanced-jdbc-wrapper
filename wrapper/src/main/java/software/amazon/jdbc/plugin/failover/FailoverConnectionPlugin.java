@@ -705,7 +705,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
   }
 
   protected void throwFailoverSuccessException() throws SQLException {
-    if (isInTransaction || this.pluginService.isInTransaction()) {
+    if (isInTransaction || Boolean.TRUE.equals(this.pluginService.isInTransaction())) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
       }
@@ -863,8 +863,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       return;
     }
 
-    if (this.pluginService.isInTransaction()) {
-      isInTransaction = this.pluginService.isInTransaction();
+    if (Boolean.TRUE.equals(this.pluginService.isInTransaction())) {
+      isInTransaction = true;
       try {
         conn.rollback();
       } catch (final SQLException e) {

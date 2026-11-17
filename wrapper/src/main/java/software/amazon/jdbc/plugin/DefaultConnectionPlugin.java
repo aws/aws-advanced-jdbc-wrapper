@@ -41,10 +41,12 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.SqlMethodAnalyzer.SqlStatementAnalysis;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -124,9 +126,32 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
 
-    // Check previous autocommit value before calling jdbcMethodFunc.
-    final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
-        this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
+    final Connection connBeforeCall = this.pluginService.getCurrentConnection();
+
+    // When the target driver reports the transaction state of the current connection,
+    // PluginService#isInTransaction answers from the driver, and inferring transaction boundaries
+    // from the SQL would be work whose result is never read. Only a SET AUTOCOMMIT statement still
+    // has to be recognized, so that the driver's own view of autocommit is kept in step with it,
+    // and the SQL is analyzed only when it might be one. Otherwise, the SQL is analyzed and the
+    // boundaries are tracked as the fallback the service relies on. The driver's answer for a
+    // connection does not change while it stays open, so it is checked once, before the call.
+    final TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
+    final boolean driverReportsTransactionState = connBeforeCall != null
+        && dialect.isInTransaction(connBeforeCall) != null;
+
+    final SqlStatementAnalysis sqlAnalysis;
+    final boolean doesSwitchAutoCommitFalseTrue;
+    if (driverReportsTransactionState) {
+      sqlAnalysis = sqlMethodAnalyzer.mayBeStatementSettingAutoCommit(methodName, jdbcMethodArgs)
+          ? sqlMethodAnalyzer.analyze(jdbcMethodArgs)
+          : SqlMethodAnalyzer.NO_STATEMENT;
+      doesSwitchAutoCommitFalseTrue = false;
+    } else {
+      sqlAnalysis = sqlMethodAnalyzer.analyze(jdbcMethodArgs);
+      // Check previous autocommit value before calling jdbcMethodFunc.
+      doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
+          connBeforeCall, methodName, jdbcMethodArgs, sqlAnalysis);
+    }
 
     T result;
     try {
@@ -152,17 +177,26 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
-    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
+    if (driverReportsTransactionState) {
+      // Record what the driver reports after the call. The driver stops reporting once the
+      // connection is broken, which is exactly when failover asks whether a transaction was open,
+      // and PluginService#isInTransaction then falls back to this recorded state: the state as of
+      // the last call that completed. The flag is read from memory, so this costs no round trip.
+      final Boolean driverState = dialect.isInTransaction(currentConn);
+      if (driverState != null) {
+        this.pluginManagerService.setInTransaction(driverState);
+      }
+    } else if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)) {
       this.pluginManagerService.setInTransaction(true);
     } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs, sqlAnalysis)
             // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
             || doesSwitchAutoCommitFalseTrue) {
       this.pluginManagerService.setInTransaction(false);
     }
 
-    if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
-      final Boolean autocommit = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+    if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, sqlAnalysis)) {
+      final Boolean autocommit = sqlAnalysis.getAutoCommitValue();
       if (autocommit != null) {
         try {
           currentConn.setAutoCommit(autocommit);

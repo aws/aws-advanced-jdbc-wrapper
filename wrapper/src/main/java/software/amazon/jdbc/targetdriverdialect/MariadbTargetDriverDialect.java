@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
+import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -257,6 +258,12 @@ public class MariadbTargetDriverDialect extends MysqlCompatibleTargetDriverDiale
   public void registerDriver() throws SQLException {
     final MariadbDriverHelper helper = new MariadbDriverHelper();
     helper.registerDriver();
+  }
+
+  @Override
+  public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
+    return helper.isInTransaction(connection);
   }
 
   @Override

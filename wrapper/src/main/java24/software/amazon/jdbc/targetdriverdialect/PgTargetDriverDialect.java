@@ -318,6 +318,12 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   // PgTargetDriverDialectVariantTest guards against renewed drift.
 
   @Override
+  public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    final PgDriverHelper helper = new PgDriverHelper();
+    return helper.isInTransaction(connection);
+  }
+
+  @Override
   public boolean supportsAuthorizationSessionState() {
     return true;
   }

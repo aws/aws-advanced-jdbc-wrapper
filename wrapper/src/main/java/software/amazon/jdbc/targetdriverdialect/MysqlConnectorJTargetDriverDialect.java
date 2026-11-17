@@ -177,4 +177,10 @@ public class MysqlConnectorJTargetDriverDialect extends MysqlCompatibleTargetDri
     final Matcher matcher = PREPARED_STATEMENT_HEADER_PATTERN.matcher(rawStatementStr);
     return matcher.lookingAt() ? rawStatementStr.substring(matcher.end()) : null;
   }
+
+  @Override
+  public @Nullable Boolean isInTransaction(final @NonNull Connection connection) {
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    return helper.isInTransaction(connection);
+  }
 }
