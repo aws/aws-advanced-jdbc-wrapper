@@ -182,6 +182,17 @@ public class PropertyDefinition {
               "true", "false"
           });
 
+  public static final AwsWrapperProperty ENABLE_CONNECTION_METADATA =
+      new AwsWrapperProperty(
+          "enableConnectionMetadata",
+          null,
+          "Enables sending the wrapper name, version and plugin codes to the database as connection metadata."
+            + " If not set, it's enabled for all hosts except RDS Proxy endpoints.",
+          false,
+          new String[] {
+              "true", "false"
+          });
+
   public static final AwsWrapperProperty ASSUME_FETCH_ENTIRE_RESULT_SET = new AwsWrapperProperty(
       "wrapperAssumeFetchEntireResultSet", "true",
       "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"

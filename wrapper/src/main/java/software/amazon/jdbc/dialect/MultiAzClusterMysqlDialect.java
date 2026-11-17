@@ -95,6 +95,9 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   @Override
   public void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
+    if (!this.dialectUtils.isConnectionMetadataEnabled(connectProperties, hostSpec)) {
+      return;
+    }
     final String connectionAttributes =
         "_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:" + DriverInfo.DRIVER_VERSION;
     connectProperties.setProperty("connectionAttributes",

@@ -36,6 +36,8 @@ import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
@@ -400,5 +402,100 @@ public class DialectTests {
     assertEquals("_d:aws_jdbc_wrapper,_v:" + DriverInfo.DRIVER_VERSION + ",_p:a+b",
         props.getProperty("connectionAttributes"));
     assertFalse(props.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+  }
+
+  // CONNECTION METADATA AND RDS PROXY
+  private static final String MYSQL_CONNECTION_ATTRIBUTES =
+      "_d:aws_jdbc_wrapper,_v:" + DriverInfo.DRIVER_VERSION + ",_p:a+b";
+
+  private static HostSpec host(final String host) {
+    return new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(host).build();
+  }
+
+  private Properties getMetadataProps(final String options, final Object enableConnectionMetadata) {
+    final Properties props = getPluginCodesProps(options);
+    props.put(PropertyDefinition.ENABLE_CONNECTION_METADATA.name, enableConnectionMetadata);
+    return props;
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+      "proxy-test-name.proxy-XYZ.us-east-2.rds.amazonaws.com",
+      "endpoint-test-name.endpoint.proxy-XYZ.us-east-2.rds.amazonaws.com"})
+  void testConnectionMetadataSkippedByDefaultForRdsProxy(final String proxyHost) {
+    final Properties pgProps = getPluginCodesProps(PG_USER_OPTIONS);
+    auroraPgDialect.prepareConnectProperties(pgProps, "jdbc:postgresql://", host(proxyHost));
+    assertEquals(PG_USER_OPTIONS, pgProps.getProperty("options"));
+    assertFalse(pgProps.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties pgPropsInUrl = getPluginCodesProps(null);
+    auroraPgDialect.prepareConnectProperties(pgPropsInUrl, "jdbc:postgresql://", host(proxyHost), true);
+    assertFalse(pgPropsInUrl.containsKey("options"));
+    assertFalse(pgPropsInUrl.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties mysqlProps = getPluginCodesProps(null);
+    mysqlDialect.prepareConnectProperties(mysqlProps, "jdbc:mysql://", host(proxyHost));
+    assertFalse(mysqlProps.containsKey("connectionAttributes"));
+    assertFalse(mysqlProps.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties mariaDbProps = getPluginCodesProps(null);
+    mariaDbDialect.prepareConnectProperties(mariaDbProps, "jdbc:mariadb://", host(proxyHost));
+    assertFalse(mariaDbProps.containsKey("connectionAttributes"));
+    assertFalse(mariaDbProps.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties multiAzProps = new Properties();
+    new MultiAzClusterMysqlDialect().prepareConnectProperties(multiAzProps, "jdbc:mysql://", host(proxyHost));
+    assertFalse(multiAzProps.containsKey("connectionAttributes"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"true", "TRUE"})
+  void testConnectionMetadataSentForRdsProxyWhenEnabled(final String enabled) {
+    final HostSpec proxyHostSpec = host("proxy-test-name.proxy-XYZ.us-east-2.rds.amazonaws.com");
+
+    final Properties pgProps = getMetadataProps(PG_USER_OPTIONS, enabled);
+    auroraPgDialect.prepareConnectProperties(pgProps, "jdbc:postgresql://", proxyHostSpec);
+    assertEquals(PG_USER_OPTIONS + " " + PG_DRIVER_INFO_OPTION, pgProps.getProperty("options"));
+
+    final Properties mysqlProps = getMetadataProps(null, enabled);
+    mysqlDialect.prepareConnectProperties(mysqlProps, "jdbc:mysql://", proxyHostSpec);
+    assertEquals(MYSQL_CONNECTION_ATTRIBUTES, mysqlProps.getProperty("connectionAttributes"));
+
+    final Properties mariaDbProps = getMetadataProps(null, enabled);
+    mariaDbDialect.prepareConnectProperties(mariaDbProps, "jdbc:mariadb://", proxyHostSpec);
+    assertEquals(MYSQL_CONNECTION_ATTRIBUTES, mariaDbProps.getProperty("connectionAttributes"));
+  }
+
+  @Test
+  void testConnectionMetadataSkippedWhenDisabled() {
+    final HostSpec clusterHostSpec = host("test-cluster.cluster-XYZ.us-east-2.rds.amazonaws.com");
+
+    final Properties pgProps = getMetadataProps(PG_USER_OPTIONS, "false");
+    auroraPgDialect.prepareConnectProperties(pgProps, "jdbc:postgresql://", clusterHostSpec);
+    assertEquals(PG_USER_OPTIONS, pgProps.getProperty("options"));
+    assertFalse(pgProps.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties mysqlProps = getMetadataProps(null, Boolean.FALSE);
+    mysqlDialect.prepareConnectProperties(mysqlProps, "jdbc:mysql://", clusterHostSpec);
+    assertFalse(mysqlProps.containsKey("connectionAttributes"));
+    assertFalse(mysqlProps.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+
+    final Properties mariaDbProps = getMetadataProps(null, "false");
+    mariaDbDialect.prepareConnectProperties(mariaDbProps, "jdbc:mariadb://", clusterHostSpec);
+    assertFalse(mariaDbProps.containsKey("connectionAttributes"));
+    assertFalse(mariaDbProps.containsKey(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+  }
+
+  @Test
+  void testConnectionMetadataSentByDefaultForNonProxyHost() {
+    final HostSpec clusterHostSpec = host("test-cluster.cluster-XYZ.us-east-2.rds.amazonaws.com");
+
+    final Properties pgProps = getPluginCodesProps(null);
+    auroraPgDialect.prepareConnectProperties(pgProps, "jdbc:postgresql://", clusterHostSpec);
+    assertEquals(PG_DRIVER_INFO_OPTION, pgProps.getProperty("options"));
+
+    final Properties mariaDbProps = getPluginCodesProps(null);
+    mariaDbDialect.prepareConnectProperties(mariaDbProps, "jdbc:mariadb://", clusterHostSpec);
+    assertEquals(MYSQL_CONNECTION_ATTRIBUTES, mariaDbProps.getProperty("connectionAttributes"));
   }
 }

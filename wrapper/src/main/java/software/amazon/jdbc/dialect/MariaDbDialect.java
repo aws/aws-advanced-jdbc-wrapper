@@ -103,16 +103,20 @@ public class MariaDbDialect implements Dialect {
   @Override
   public void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
-
+    final @Nullable String pluginCodes =
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
+    if (!this.dialectUtils.isConnectionMetadataEnabled(connectProperties, hostSpec)) {
+      return;
+    }
     final String connectionAttributes = String.format(
         "_d:aws_jdbc_wrapper,_v:%s,_p:%s",
         DriverInfo.DRIVER_VERSION,
-        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+        pluginCodes);
     connectProperties.setProperty("connectionAttributes",
         connectProperties.getProperty("connectionAttributes") == null
             ? connectionAttributes
             : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
-    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 
   @Override
