@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -33,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -42,6 +47,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 
 class BlueGreenStatusProviderTest {
@@ -52,6 +58,7 @@ class BlueGreenStatusProviderTest {
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private StorageService mockStorageService;
+  @Mock private EventPublisher mockEventPublisher;
 
   /**
    * A plain dialect that does NOT implement {@link software.amazon.jdbc.dialect.BlueGreenDialect}. The
@@ -69,6 +76,7 @@ class BlueGreenStatusProviderTest {
     props = new Properties();
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
+    when(mockServicesContainer.getEventPublisher()).thenReturn(mockEventPublisher);
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
   }
 
@@ -681,6 +689,221 @@ class BlueGreenStatusProviderTest {
     assertEquals(1, provider.initMonitoringCount,
         "The deletion check must keep running once the interim status stops changing.");
     assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // A context that joins a switchover late. resetContextWhenCompleted() starts fresh monitors right
+  // after a switchover, and they can still read the finished deployment's POST or COMPLETED status.
+  // Such a context never collected the start-of-switchover IP addresses and topology, so it treats
+  // that status as already finished. The switchover timer bounds the remaining cases.
+  // ---------------------------------------------------------------------------------------------
+
+  private static final long SWITCHOVER_TIMEOUT_MS =
+      Long.parseLong(BlueGreenStatusProvider.BG_SWITCHOVER_TIMEOUT_MS.defaultValue);
+
+  /**
+   * The regression this guards, observed on Aurora MySQL with 4.6.0: pods whose fresh context first
+   * read a lingering POST status reported POST forever, never logged a warning, and ignored both the
+   * deletion of the old deployment and the creation of a new one. Such a status must be ignored
+   * without arming the switchover timer, and without leaving data behind that would affect the next
+   * deployment.
+   */
+  @Test
+  void finishedSwitchoverStatusIsIgnoredByContextThatNeverSawTheDeployment() {
+    for (final BlueGreenPhase phase : new BlueGreenPhase[] {
+        BlueGreenPhase.POST, BlueGreenPhase.COMPLETED}) {
+
+      final TestableProvider provider = newTestableProvider();
+      final BlueGreenInterimStatus sourceStatus = collectedInterimStatus(phase, "old-blue-node", false);
+      final BlueGreenInterimStatus targetStatus = collectedInterimStatus(phase, "old-green-node", false);
+
+      provider.prepareStatus(BlueGreenRole.SOURCE, sourceStatus);
+      provider.prepareStatus(BlueGreenRole.TARGET, targetStatus);
+
+      assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase, phase.name());
+      assertNull(provider.summaryStatus, phase.name());
+      assertEquals(0, provider.postStatusEndTimeNano, "The switchover timer must not be armed.");
+      assertNull(provider.interimStatuses[BlueGreenRole.SOURCE.getValue()]);
+      assertNull(provider.interimStatuses[BlueGreenRole.TARGET.getValue()]);
+      assertTrue(provider.roleByHost.isEmpty(), "Hosts of a finished deployment must not be kept.");
+
+      // The status stays readable for longer than the switchover timeout.
+      provider.advanceMs(SWITCHOVER_TIMEOUT_MS * 2);
+      provider.prepareStatus(BlueGreenRole.SOURCE, sourceStatus);
+      provider.prepareStatus(BlueGreenRole.TARGET, targetStatus);
+      assertEquals(0, provider.initMonitoringCount, "Ignoring the status must not cycle the context.");
+
+      // A new deployment is created. Had the TARGET POST been stored, this would look like a rollback.
+      provider.prepareStatus(BlueGreenRole.TARGET, interimStatus(BlueGreenPhase.CREATED));
+      provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.CREATED));
+
+      assertFalse(provider.rollback, phase.name());
+      assertEquals(BlueGreenPhase.CREATED, provider.latestStatusPhase, phase.name());
+      assertEquals(BlueGreenPhase.CREATED, provider.summaryStatus.getCurrentPhase(), phase.name());
+    }
+  }
+
+  /**
+   * A context that saw CREATED has the start-of-switchover data that POST routing needs, so it keeps
+   * adopting POST, including when a fast switchover hides PREPARATION and IN_PROGRESS from it.
+   */
+  @Test
+  void contextThatSawCreatedAdoptsPost() {
+    final TestableProvider provider = newTestableProvider();
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.CREATED));
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.POST));
+
+    assertEquals(BlueGreenPhase.POST, provider.latestStatusPhase);
+    assertEquals(BlueGreenPhase.POST, provider.summaryStatus.getCurrentPhase());
+    assertTrue(provider.postStatusEndTimeNano > 0,
+        "The switchover timer must be armed even though PREPARATION was not observed.");
+  }
+
+  /**
+   * The case the switchover timer exists for: a switchover observed from PREPARATION that stalls in
+   * IN_PROGRESS, with a status that stops changing. On expiry the forced COMPLETED status is published,
+   * which releases the held traffic, and the context is reset as it would be on the next status change.
+   */
+  @Test
+  void switchoverStalledInProgressIsCompletedAndResetOnTimeout() {
+    final TestableProvider provider = newTestableProvider();
+    final BlueGreenInterimStatus inProgressStatus = interimStatus(BlueGreenPhase.IN_PROGRESS);
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.PREPARATION));
+    provider.prepareStatus(BlueGreenRole.SOURCE, inProgressStatus);
+    assertEquals(BlueGreenPhase.IN_PROGRESS, provider.summaryStatus.getCurrentPhase());
+
+    provider.advanceMs(SWITCHOVER_TIMEOUT_MS - 1);
+    provider.prepareStatus(BlueGreenRole.SOURCE, inProgressStatus);
+    assertEquals(0, provider.initMonitoringCount, "The context must be kept until the timeout.");
+
+    provider.advanceMs(2);
+    provider.prepareStatus(BlueGreenRole.SOURCE, inProgressStatus);
+
+    verify(mockStorageService).set(eq(BGD_ID),
+        argThat((BlueGreenStatus status) -> status.getCurrentPhase() == BlueGreenPhase.COMPLETED));
+    assertEquals(1, provider.initMonitoringCount);
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+  }
+
+  /**
+   * The COMPLETED branch of checkSwitchoverTimerExpiry(): the deployment reports COMPLETED but the DNS
+   * updates are never observed, so getStatusOfCompleted() keeps reporting POST. If the status stops
+   * changing, only the timer ends it.
+   */
+  @Test
+  void completedWaitingForDnsUpdatesIsCompletedAndResetOnTimeout() {
+    final TestableProvider provider = newTestableProvider();
+    final BlueGreenInterimStatus completedStatus = interimStatus(BlueGreenPhase.COMPLETED);
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.CREATED));
+    provider.prepareStatus(BlueGreenRole.SOURCE, completedStatus);
+    assertEquals(BlueGreenPhase.POST, provider.summaryStatus.getCurrentPhase(),
+        "COMPLETED is reported as POST while the DNS updates have not been observed.");
+
+    provider.advanceMs(SWITCHOVER_TIMEOUT_MS + 1);
+    provider.prepareStatus(BlueGreenRole.SOURCE, completedStatus);
+
+    verify(mockStorageService).set(eq(BGD_ID),
+        argThat((BlueGreenStatus status) -> status.getCurrentPhase() == BlueGreenPhase.COMPLETED));
+    assertEquals(1, provider.initMonitoringCount);
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+  }
+
+  private BlueGreenInterimStatus switchoverStatus(
+      final BlueGreenPhase phase,
+      final boolean allStartTopologyIpChanged,
+      final boolean allStartTopologyEndpointsRemoved) {
+    return new BlueGreenInterimStatus(
+        phase,
+        "1.0",
+        5432,
+        new ArrayList<>(),
+        new ArrayList<>(),
+        new HashMap<>(),
+        new HashMap<>(),
+        new HashSet<>(),
+        allStartTopologyIpChanged,
+        allStartTopologyEndpointsRemoved,
+        false,
+        false);
+  }
+
+  /**
+   * Replays the whole lifecycle seen in the 4.6.0 case, with the finished deployment's status staying
+   * readable for a varying time after the switchover. In that case it decided which pods got stuck:
+   * pods whose fresh monitors read before the status disappeared stayed in POST, the rest recovered.
+   * The outcome must not depend on it, including when the status outlives the switchover timeout.
+   *
+   * @param lingerMs how long the fresh context keeps reading the finished deployment's POST status.
+   *     240000 is longer than the 180000 default of bgSwitchoverTimeoutMs.
+   */
+  @ParameterizedTest
+  @ValueSource(longs = {0, 3_000, 240_000})
+  void finishedSwitchoverStatusLingeringAfterResetDoesNotAffectTheNextDeployment(final long lingerMs) {
+    final TestableProvider provider = newTestableProvider();
+
+    // The switchover, observed from the start by the original context.
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.CREATED));
+    provider.prepareStatus(BlueGreenRole.TARGET, interimStatus(BlueGreenPhase.CREATED));
+    provider.advanceMs(1_000);
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.PREPARATION));
+    provider.advanceMs(3_500);
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.IN_PROGRESS));
+    provider.advanceMs(4_500);
+    provider.prepareStatus(BlueGreenRole.SOURCE, switchoverStatus(BlueGreenPhase.POST, false, false));
+    provider.advanceMs(20_000);
+    provider.prepareStatus(BlueGreenRole.SOURCE, switchoverStatus(BlueGreenPhase.POST, true, false));
+    provider.advanceMs(15_000);
+    provider.prepareStatus(BlueGreenRole.TARGET, switchoverStatus(BlueGreenPhase.POST, false, true));
+    provider.prepareStatus(BlueGreenRole.SOURCE, switchoverStatus(BlueGreenPhase.COMPLETED, true, false));
+
+    assertEquals(1, provider.initMonitoringCount, "The completed switchover must reset the context.");
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+
+    // The fresh context. Its monitors keep reading the finished deployment's status for lingerMs.
+    final BlueGreenInterimStatus lingeringStatus = interimStatus(BlueGreenPhase.POST);
+    for (long elapsedMs = 0; elapsedMs < lingerMs; elapsedMs += 1_000) {
+      provider.prepareStatus(BlueGreenRole.SOURCE, lingeringStatus);
+      provider.prepareStatus(BlueGreenRole.TARGET, lingeringStatus);
+      provider.advanceMs(1_000);
+    }
+
+    // The status rows disappear, and the deployment is deleted some time later.
+    final BlueGreenInterimStatus absentStatus = interimStatus(null);
+    for (int i = 0; i < 60; i++) {
+      provider.prepareStatus(BlueGreenRole.SOURCE, absentStatus);
+      provider.prepareStatus(BlueGreenRole.TARGET, absentStatus);
+      provider.advanceMs(10_000);
+    }
+
+    assertEquals(0, provider.postStatusEndTimeNano, "The switchover timer must not be armed.");
+    assertEquals(1, provider.initMonitoringCount, "The fresh context must not be reset.");
+    assertEquals(BlueGreenPhase.NOT_CREATED, provider.latestStatusPhase);
+
+    // A new deployment is created.
+    provider.prepareStatus(BlueGreenRole.TARGET, interimStatus(BlueGreenPhase.CREATED));
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.CREATED));
+
+    assertFalse(provider.rollback);
+    assertEquals(BlueGreenPhase.CREATED, provider.latestStatusPhase);
+    assertEquals(BlueGreenPhase.CREATED, provider.summaryStatus.getCurrentPhase());
+  }
+
+  /** A switchover observed from PREPARATION keeps the deadline that PREPARATION set. */
+  @Test
+  void switchoverTimerStartedInPreparationIsNotRestartedByLaterPhases() {
+    final TestableProvider provider = newTestableProvider();
+
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.PREPARATION));
+    final long deadline = provider.postStatusEndTimeNano;
+    assertTrue(deadline > 0);
+
+    provider.advanceMs(10_000);
+    provider.prepareStatus(BlueGreenRole.SOURCE, interimStatus(BlueGreenPhase.POST));
+
+    assertEquals(deadline, provider.postStatusEndTimeNano);
   }
 
   // ---------------------------------------------------------------------------------------------
