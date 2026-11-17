@@ -106,10 +106,13 @@ public class KmsWriteShapesIntegrationTest {
   private static final String EMAIL = "email";
   private static final String UNENCRYPTABLE = "not bind parameters";
   /**
-   * A plaintext longer than the PostgreSQL encrypted_data domain's minimum length, so that it is the
-   * HMAC check that rejects it rather than the domain's length check.
+   * A plaintext at least 61 bytes long, the minimum length of a valid payload (32 HMAC + 1 type + 12 IV
+   * + 16 GCM tag). A shorter one is rejected by the PostgreSQL domain's 45-byte check or by the
+   * trigger's length check ("Invalid encrypted data length") before the HMAC is compared, so it would
+   * not prove that the HMAC check is what rejects it.
    */
-  private static final String LONG_PLAINTEXT = "plaintext-that-is-long-enough-to-pass-the-length-check";
+  private static final String LONG_PLAINTEXT =
+      "plaintext-that-is-long-enough-to-pass-both-the-domain-and-trigger-length-checks";
   private static final String HMAC_FAILURE = "HMAC verification failed";
   private static final SecureRandom RANDOM = new SecureRandom();
 
