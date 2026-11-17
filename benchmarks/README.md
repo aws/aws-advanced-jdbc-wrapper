@@ -11,6 +11,7 @@ nor the failover process.
 |---|---|---|
 | `WrapperOverheadBenchmarks` | **Wrapper cost versus the target driver.** Paired `raw*`/`wrapped*` benchmarks per statement, per parameter and per row | No |
 | `RealPluginChainBenchmarks` | Per-call cost of real plugins through `ConnectionPluginManager.execute` | No |
+| `EfmContentionBenchmarks` | Per-call cost of `efm2` vs `efm3` with one connection per thread, all on one host; run at several `-t` values | No |
 | `PluginServiceBenchmarks` | The real `PluginServiceImpl` and `SessionStateServiceImpl` | No |
 | `SqlMethodAnalyzerBenchmarks` | SQL inspection run on every statement execution | No |
 | `RdsUtilsBenchmarks` | RDS endpoint classification, cached and uncached | No |
@@ -84,6 +85,27 @@ subscribes, the whole pipeline is bypassed. So the interesting quantity in
 which is the default plugin's SQL analysis rather than the plugin itself. Adding further plugins on
 top costs comparatively little.
 
+**Host monitoring has three questions, and JMH answers one.** `RealPluginChainBenchmarks` prices one
+connection on one thread. `EfmContentionBenchmarks` gives every thread its own connection to the same
+host and should be run at `-t 1`, `-t 8`, `-t 32` and `-t 128`: `efm2` registers a context in a JVM-wide
+pool and touches the shared host-monitor cache on every call, so its score should grow with threads
+while `efm3`, which writes only to a per-connection slot, should stay flat next to the `executionTime`
+pipeline floor. Neither benchmark says anything about what the monitors keep *between* calls. For that
+run the soak harness, which is a plain `main`, not a JMH benchmark:
+
+```shell
+java -Xmx1g -cp build/libs/benchmarks-<version>-jmh.jar software.amazon.jdbc.benchmarks.EfmSoakHarness \
+    efm2 64 120 1000 10        # plugin, connections, seconds, calls/s per connection, report interval
+java -Xmx1g -cp build/libs/benchmarks-<version>-jmh.jar software.amazon.jdbc.benchmarks.EfmSoakHarness \
+    efm3 64 120 1000 10 20000  # last argument: replace a connection every 20000 calls, leaking half of them
+```
+
+It prints, every report interval, the heap after a forced GC, the number of monitoring threads, and the
+monitors' own bookkeeping sizes (`newContexts`/`activeContexts` for `efm2`, `registeredSlots` for `efm3`).
+Expect `efm2` to hold about `connections x rate x failureDetectionTime` live context references and
+`efm3` one slot per connection; with churn, expect leaked `efm3` slots to be swept after
+`monitorDisposalTime`. Detection *timing* on a real cluster is covered by the container
+`PerformanceTest`, not here.
 **Contended benchmarks are separate on purpose.** Several driver caches take a write path on read,
 and the round-robin host selector holds a lock across its whole selection. Those costs are invisible
 single-threaded, so the affected classes carry explicit `contended*` variants annotated with

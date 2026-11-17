@@ -65,6 +65,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.efm.v1.HostMonitorServiceV1Impl;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitorServiceV2Impl;
+import software.amazon.jdbc.plugin.efm.v3.HostMonitorServiceV3Impl;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -144,6 +145,7 @@ public class PerformanceTest {
   public void test_FailureDetectionTime_EnhancedMonitoringEnabled() throws IOException {
     test_FailureDetectionTime_EnhancedMonitoringEnabled("efm");
     test_FailureDetectionTime_EnhancedMonitoringEnabled("efm2");
+    test_FailureDetectionTime_EnhancedMonitoringEnabled("efm3");
   }
 
   public void test_FailureDetectionTime_EnhancedMonitoringEnabled(final String efmPlugin)
@@ -152,6 +154,7 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorServiceV1Impl.closeAllMonitors();
     HostMonitorServiceV2Impl.closeAllMonitors();
+    HostMonitorServiceV3Impl.closeAllMonitors();
 
     enhancedFailureMonitoringPerfDataList.clear();
 
@@ -224,6 +227,7 @@ public class PerformanceTest {
     test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover,efm2");
     test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover2,efm");
     test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover2,efm2");
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover2,efm3");
   }
 
   public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(final String plugins)
@@ -232,6 +236,7 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorServiceV1Impl.closeAllMonitors();
     HostMonitorServiceV2Impl.closeAllMonitors();
+    HostMonitorServiceV3Impl.closeAllMonitors();
 
     failoverWithEfmPerfDataList.clear();
 
@@ -318,6 +323,7 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorServiceV1Impl.closeAllMonitors();
     HostMonitorServiceV2Impl.closeAllMonitors();
+    HostMonitorServiceV3Impl.closeAllMonitors();
 
     failoverWithSocketTimeoutPerfDataList.clear();
 
