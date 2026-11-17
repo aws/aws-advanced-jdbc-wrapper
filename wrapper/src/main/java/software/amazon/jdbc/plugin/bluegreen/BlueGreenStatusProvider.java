@@ -355,7 +355,20 @@ public class BlueGreenStatusProvider {
         return;
       }
 
-      // There are some changes detected. Let's update summary status.
+      // There are some changes detected.
+
+      if (this.isFinishedSwitchoverStatus(interimStatus)) {
+        // Record the hash so that identical reads take the unchanged path above, but keep the status
+        // itself out of the context: storing it would let a later CREATED from the TARGET monitor be
+        // mistaken for a rollback, and its hosts and IP addresses belong to a deployment that is gone.
+        this.interimStatusHashes[role.getValue()] = statusHash;
+        this.lastContextHash = contextHash;
+        LOGGER.fine(() -> Messages.get("bgd.ignoringFinishedSwitchoverStatus",
+            new Object[] {this.bgdId, role, interimStatus.blueGreenPhase}));
+        return;
+      }
+
+      // Let's update summary status.
 
       LOGGER.finest(() -> Messages.get("bgd.interimStatus",
           new Object[] {this.bgdId, role, interimStatus}));
@@ -404,6 +417,26 @@ public class BlueGreenStatusProvider {
       this.checkDeploymentRemoved();
 
     }
+  }
+
+  /**
+   * Whether a status reports a switchover that finished before this context discovered the
+   * deployment. resetContextWhenCompleted() starts fresh monitors right after a switchover, and they
+   * can still read the deployment's POST or COMPLETED status for a few seconds. A context that never
+   * saw CREATED has not collected the start-of-switchover IP addresses, topology or corresponding
+   * nodes, so POST routing has nothing to offer it and the DNS updates that end POST can never be
+   * observed. Such a status is treated as already finished and ignored, which keeps the context in
+   * idle monitoring until a new deployment is created. A context that saw CREATED keeps adopting
+   * POST, including when it missed PREPARATION and IN_PROGRESS during a fast switchover.
+   *
+   * @param interimStatus the status reported by a monitor.
+   * @return true if the status should be ignored.
+   */
+  protected boolean isFinishedSwitchoverStatus(final BlueGreenInterimStatus interimStatus) {
+    return !this.rollback
+        && this.latestStatusPhase == BlueGreenPhase.NOT_CREATED
+        && (interimStatus.blueGreenPhase == BlueGreenPhase.POST
+        || interimStatus.blueGreenPhase == BlueGreenPhase.COMPLETED);
   }
 
   protected void updatePhase(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
@@ -595,11 +628,10 @@ public class BlueGreenStatusProvider {
 
   protected void updateSummaryStatus(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
     // Start the switchover timer in every phase from PREPARATION onwards, not only in PREPARATION.
-    // A context does not necessarily observe PREPARATION: one created by resetContextWhenCompleted(),
-    // or by an application that starts mid-switchover, can first read a lingering POST or COMPLETED
-    // status. Such a context never collected the start-of-switchover IP addresses and topology, so the
-    // DNS flags that getStatusOfCompleted() waits for can never be set, and without a running timer it
-    // would report POST forever. The call is a no-op when the timer is already running.
+    // A context does not necessarily observe PREPARATION: a fast switchover can go from CREATED
+    // straight to a later phase, and a context created mid-switchover (for example after a timeout
+    // reset) can first read IN_PROGRESS, which suspends traffic. Without a running timer nothing would
+    // end such a switchover if the status stops changing. The call is a no-op once the timer runs.
     if (this.latestStatusPhase.isActiveSwitchoverOrCompleted()) {
       this.startSwitchoverTimer();
     }
