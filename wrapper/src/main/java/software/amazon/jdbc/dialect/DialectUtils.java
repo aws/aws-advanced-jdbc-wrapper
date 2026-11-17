@@ -20,12 +20,41 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
 
 public class DialectUtils {
+
+  private final RdsUtils rdsUtils = new RdsUtils();
+
+  /**
+   * Checks whether the wrapper should send connection metadata (wrapper name, version and plugin codes) to the
+   * database. An explicit {@link PropertyDefinition#ENABLE_CONNECTION_METADATA} value always wins. If the property
+   * isn't set, metadata is sent to every host except RDS Proxy endpoints, which refuse it.
+   *
+   * @param props    the connection properties.
+   * @param hostSpec the host to connect to.
+   * @return true if connection metadata should be sent, false otherwise.
+   */
+  public boolean isConnectionMetadataEnabled(final Properties props, final HostSpec hostSpec) {
+    final Object value = props.get(PropertyDefinition.ENABLE_CONNECTION_METADATA.name);
+    if (value instanceof Boolean) {
+      return (Boolean) value;
+    }
+    if (value != null) {
+      return Boolean.parseBoolean(value.toString());
+    }
+    final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
+    return urlType != RdsUrlType.RDS_PROXY && urlType != RdsUrlType.RDS_PROXY_ENDPOINT;
+  }
+
   /**
    * Given a series of existence queries, returns true if they all execute successfully and contain at least one record.
    * Otherwise, returns false.

@@ -153,16 +153,20 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       final @NonNull Properties connectProperties,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec) {
-
+    final @Nullable String pluginCodes =
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
+    if (!this.dialectUtils.isConnectionMetadataEnabled(connectProperties, hostSpec)) {
+      return;
+    }
     final String driverInfoOption = String.format(
         "-c aurora.connection_str=_d:aws_jdbc_wrapper,_v:%s,_p:%s",
         DriverInfo.DRIVER_VERSION,
-        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+        pluginCodes);
     connectProperties.setProperty("options",
         connectProperties.getProperty("options") == null
             ? driverInfoOption
             : connectProperties.getProperty("options") + " " + driverInfoOption);
-    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 
   @Override
