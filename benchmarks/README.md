@@ -100,7 +100,7 @@ java -Xmx1g -cp build/libs/benchmarks-<version>-jmh.jar software.amazon.jdbc.ben
     efm3 64 120 1000 10 20000  # last argument: replace a connection every 20000 calls, leaking half of them
 ```
 
-It prints, every report interval, the heap after a forced GC, the number of monitoring threads, and the
+It prints every report interval, the heap after a forced GC, the number of monitoring threads, and the
 monitors' own bookkeeping sizes (`newContexts`/`activeContexts` for `efm2`, `registeredSlots` for `efm3`).
 Expect `efm2` to hold about `connections x rate x failureDetectionTime` live context references and
 `efm3` one slot per connection; with churn, expect leaked `efm3` slots to be swept after
