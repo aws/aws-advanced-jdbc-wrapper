@@ -229,6 +229,7 @@ public class DialectDetector {
       // The global database status function is an Aurora built-in as well, so its presence cannot be
       // read from the catalog; every supported Aurora PostgreSQL version has it.
       b.aurora(aurora)
+          .limitless(rs.getBoolean("limitless"))
           .globalDbCapable(aurora)
           .multiAzClusterCapable(multiAzCapable)
           .rds(rds)

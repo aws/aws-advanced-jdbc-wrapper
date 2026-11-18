@@ -36,21 +36,26 @@ public interface Dialect {
    * Checks whether the connected server matches this dialect by running probe queries.
    *
    * @deprecated Dialect detection no longer probes candidates one by one; it collects a
-   *     {@link DialectFingerprint} and resolves it with {@link DialectDetector#resolve}. Kept so
-   *     that existing custom dialects keep compiling; the wrapper does not call it.
+   *     {@link DialectFingerprint} and resolves it with {@link DialectDetector#resolve}. The wrapper
+   *     does not call this method, and custom dialects no longer need to implement it.
    */
   @Deprecated
-  boolean isDialect(Connection connection);
+  default boolean isDialect(Connection connection) {
+    return false;
+  }
 
   int getDefaultPort();
 
   /**
    * Lists the dialects that detection should try after this one.
    *
-   * @deprecated See {@link #isDialect(Connection)}; the wrapper does not call it.
+   * @deprecated See {@link #isDialect(Connection)}; the wrapper does not call this method, and custom
+   *     dialects no longer need to implement it.
    */
   @Deprecated
-  @Nullable List</* dialect code */ String> getDialectUpdateCandidates();
+  default @Nullable List</* dialect code */ String> getDialectUpdateCandidates() {
+    return null;
+  }
 
   ExceptionHandler getExceptionHandler();
 

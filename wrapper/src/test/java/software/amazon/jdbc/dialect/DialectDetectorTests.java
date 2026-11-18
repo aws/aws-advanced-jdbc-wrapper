@@ -209,6 +209,18 @@ public class DialectDetectorTests {
   }
 
   @Test
+  void testCollectPgLimitlessIsRecorded() throws SQLException {
+    stubPgFingerprint(true, true, false, true, "16.4");
+    stubCount(GlobalAuroraPgDialect.REGION_COUNT_QUERY, 1);
+
+    final DialectFingerprint fp = detector.collect(mockConnection, Family.PG);
+
+    assertNotNull(fp);
+    assertTrue(fp.isLimitless());
+    assertEquals(DialectCodes.AURORA_PG, DialectDetector.resolve(fp));
+  }
+
+  @Test
   void testCollectPgMultiAzClusterQueriesResourceIdOnly() throws SQLException {
     stubPgFingerprint(false, false, true, true, "15.4");
     stubString(MultiAzClusterPgDialect.IS_RDS_CLUSTER_QUERY, "db-ABCDEF123456");

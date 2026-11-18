@@ -50,9 +50,13 @@ To create a custom dialect, implement the [`Dialect`](../../wrapper/src/main/jav
 - [AuroraPgDialect](../../wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraPgDialect.java)
   - This dialect is an extension of PgDialect, but also implements the `AuroraLimitlessDialect` interface.
 
-Once the custom dialect class has been created, tell the AWS Advanced JDBC Wrapper to use it with the `setCustomDialect` method in the `DialectManager` class. It is not necessary to set the `wrawpperDialect` parameter. See below for an example:
+A custom dialect is used as-is: the wrapper does not run [dialect detection](#how-the-dialect-is-detected) against it and does not try to replace it with one of the built-in dialects. The `isDialect(Connection)` and `getDialectUpdateCandidates()` methods of the `Dialect` interface belonged to the old probe-based detection; they are deprecated, have default implementations, and do not need to be overridden. The methods that matter are the ones the wrapper calls at runtime: `getDefaultPort`, `getExceptionHandler`, `getHostListProviderSupplier`, `getHostAliasQuery`, `getServerVersionQuery`, `getHostRole`, `getHostId`, `getFailoverRestrictions` and `prepareConnectProperties`.
+
+Once the custom dialect class has been created, tell the AWS Advanced JDBC Wrapper to use it with the `setCustomDialect` method of the `software.amazon.jdbc.Driver` class. It is not necessary to set the `wrapperDialect` parameter. A custom dialect is registered once per JVM and applies to every connection the wrapper opens. See below for an example:
 
 ```java
 Dialect myDialect = new CustomDialect();
-DialectManager.setCustomDialect(myDialect);
+software.amazon.jdbc.Driver.setCustomDialect(myDialect);
 ```
+
+To go back to automatic detection, call `software.amazon.jdbc.Driver.resetCustomDialect()`.
