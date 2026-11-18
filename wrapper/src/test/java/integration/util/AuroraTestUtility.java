@@ -34,6 +34,7 @@ import integration.container.ProxyHelper;
 import integration.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -52,7 +53,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -133,6 +133,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRespons
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbParameterGroupsResponse;
+import software.amazon.awssdk.services.rds.model.DescribeOrderableDbInstanceOptionsRequest;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.InvalidDbClusterStateException;
@@ -813,6 +814,45 @@ public class AuroraTestUtility {
     if (!response2.sdkHttpResponse().isSuccessful()) {
       throw new RuntimeException(
           "Error setting max_prepared_transactions. " + response2.sdkHttpResponse());
+    }
+  }
+
+  /**
+   * Creates a DB parameter group for an RDS MySQL instance (the multi-az instance deployment) that
+   * disables require_secure_transport. RDS for MySQL 9.7 enables it by default, which rejects the
+   * MariaDB driver's non-TLS test connections. This is the instance-level counterpart of
+   * {@link #createMysqlClusterParameterGroup}.
+   *
+   * @param groupName     the name of the parameter group to create
+   * @param engine        the database engine the group is created for
+   * @param engineVersion the database engine version the group is created for
+   */
+  public void createMysqlDbParameterGroup(String groupName, String engine, String engineVersion) {
+    CreateDbParameterGroupResponse response = rdsClient.createDBParameterGroup(
+        CreateDbParameterGroupRequest.builder()
+            .dbParameterGroupName(groupName)
+            .description("Test DB parameter group with require_secure_transport disabled.")
+            .dbParameterGroupFamily(this.getParameterGroupFamily(engine, engineVersion))
+            .tags(this.getTag())
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException("Error creating MySQL DB parameter group. " + response.sdkHttpResponse());
+    }
+
+    ModifyDbParameterGroupResponse response2 = rdsClient.modifyDBParameterGroup(
+        ModifyDbParameterGroupRequest.builder()
+            .dbParameterGroupName(groupName)
+            .parameters(Parameter.builder()
+                .parameterName("require_secure_transport")
+                .parameterValue("0")
+                .applyMethod(ApplyMethod.IMMEDIATE)
+                .build())
+            .build());
+
+    if (!response2.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException(
+          "Error setting require_secure_transport=0. " + response2.sdkHttpResponse());
     }
   }
 
@@ -2528,8 +2568,63 @@ public class AuroraTestUtility {
   public String getLatestVersion(String engine) {
     return getEngineVersions(engine).stream()
         .filter(version -> !version.contains("limitless"))
-        .max(Comparator.naturalOrder())
+        .max(AuroraTestUtility::compareEngineVersions)
         .orElse(null);
+  }
+
+  /**
+   * Returns the latest engine version that can be used to create an RDS Multi-AZ DB cluster with the
+   * given instance class. RDS lists engine versions that Multi-AZ DB clusters don't support yet (for
+   * example MySQL 9.7), and {@code CreateDBCluster} rejects them.
+   *
+   * @param engine        the database engine, for example {@code mysql}
+   * @param instanceClass the instance class the cluster is created with
+   * @return the latest supported engine version, or null if there is none
+   */
+  public String getLatestMultiAzClusterVersion(String engine, String instanceClass) {
+    final List<String> versions = getEngineVersions(engine).stream()
+        .filter(version -> !version.contains("limitless"))
+        .sorted((a, b) -> compareEngineVersions(b, a))
+        .collect(Collectors.toList());
+    for (String version : versions) {
+      if (supportsMultiAzCluster(engine, version, instanceClass)) {
+        return version;
+      }
+      LOGGER.finest(String.format(
+          "Skipping %s %s: it can't be used for a Multi-AZ DB cluster with instance class %s.",
+          engine, version, instanceClass));
+    }
+    return null;
+  }
+
+  private boolean supportsMultiAzCluster(String engine, String engineVersion, String instanceClass) {
+    return rdsClient.describeOrderableDBInstanceOptionsPaginator(
+            DescribeOrderableDbInstanceOptionsRequest.builder()
+                .engine(engine)
+                .engineVersion(engineVersion)
+                .dbInstanceClass(instanceClass)
+                .build())
+        .orderableDBInstanceOptions()
+        .stream()
+        .anyMatch(option -> Boolean.TRUE.equals(option.supportsClusters()));
+  }
+
+  /**
+   * Compares engine versions part by part, numerically where both parts are numbers, so that
+   * {@code 8.4.13} is newer than {@code 8.4.9}. A plain string comparison gets this wrong.
+   */
+  static int compareEngineVersions(String a, String b) {
+    final String[] partsA = a.split("[._-]");
+    final String[] partsB = b.split("[._-]");
+    for (int i = 0; i < Math.min(partsA.length, partsB.length); i++) {
+      final int result = partsA[i].matches("\\d+") && partsB[i].matches("\\d+")
+          ? new BigInteger(partsA[i]).compareTo(new BigInteger(partsB[i]))
+          : partsA[i].compareTo(partsB[i]);
+      if (result != 0) {
+        return result;
+      }
+    }
+    return Integer.compare(partsA.length, partsB.length);
   }
 
   public String getDefaultVersion(String engine) {

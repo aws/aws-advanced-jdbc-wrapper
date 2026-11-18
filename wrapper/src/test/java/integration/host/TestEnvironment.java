@@ -507,6 +507,8 @@ public class TestEnvironment implements AutoCloseable {
       case RDS_MULTI_AZ_INSTANCE:
         if (request.getDatabaseEngine() == DatabaseEngine.PG) {
           createPgDbParameterGroup(env);
+        } else if (request.getDatabaseEngine() == DatabaseEngine.MYSQL) {
+          createMysqlDbParameterGroup(env);
         }
         break;
       default:
@@ -529,6 +531,14 @@ public class TestEnvironment implements AutoCloseable {
     String engineVersion = getDbEngineVersion(engine, env);
     env.auroraUtil.createMysqlClusterParameterGroup(groupName, engine, engineVersion);
     env.info.setClusterParameterGroupName(groupName);
+  }
+
+  private static void createMysqlDbParameterGroup(TestEnvironment env) {
+    String groupName = String.format("test-mysql-dpg-%s", env.info.getRandomBase());
+    String engine = getDbEngine(env.info.getRequest());
+    String engineVersion = getDbEngineVersion(engine, env);
+    env.info.setDbParameterGroupName(groupName);
+    env.auroraUtil.createMysqlDbParameterGroup(groupName, engine, engineVersion);
   }
 
   /**
@@ -1287,6 +1297,11 @@ public class TestEnvironment implements AutoCloseable {
       case "default":
         return env.auroraUtil.getDefaultVersion(engineName);
       case "latest":
+        final TestEnvironmentRequest request = env.info.getRequest();
+        if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+          return env.auroraUtil.getLatestMultiAzClusterVersion(
+              engineName, env.auroraUtil.getDbInstanceClass(request));
+        }
         return env.auroraUtil.getLatestVersion(engineName);
       default:
         return systemPropertyVersion;
