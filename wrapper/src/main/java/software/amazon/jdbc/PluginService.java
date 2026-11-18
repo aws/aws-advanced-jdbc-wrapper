@@ -186,7 +186,7 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    * <p>Calls the target driver dialect to check if the target connection is inside a transaction,
    * {@link software.amazon.jdbc.targetdriverdialect.TargetDriverDialect#isInTransaction(Connection)}.
    * If unknown, check the parsed state from the SQL and the JDBC calls recorded via
-   * {@link #setInTransaction(boolean)}.
+   * {@link PluginManagerService#setInTransaction(boolean)}.
    *
    * <p>The SQL is only parsed while the driver reports nothing for the connection. While it does
    * report, {@link software.amazon.jdbc.plugin.DefaultConnectionPlugin} records the driver's answer
