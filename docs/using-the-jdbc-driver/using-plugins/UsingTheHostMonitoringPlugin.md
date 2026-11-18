@@ -186,7 +186,7 @@ All [Enhanced Failure Monitoring Parameters](#enhanced-failure-monitoring-parame
 
 | Parameter                       | Available Since Version |  Value  | Required | Description                                                                                                                                                                                        | Default Value |
 |---------------------------------|-------------------------|:-------:|:--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `abortIdleConnectionsOnFailure` | 4.6.0                   | Boolean |    No    | When the monitor decides a host is unhealthy, also abort connections to that host that have no call in flight. When `false`, only calls that have outlived `failureDetectionTime` are aborted. | `false`       |
+| `abortIdleConnectionsOnFailure` | 4.7.0                   | Boolean |    No    | When the monitor decides a host is unhealthy, also abort connections to that host that have no call in flight. When `false`, only calls that have outlived `failureDetectionTime` are aborted. | `false`       |
 
 ### Monitoring connection timeouts
 
