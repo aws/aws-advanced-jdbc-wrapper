@@ -105,6 +105,7 @@ class HostMonitorServiceV3ImplTest {
 
     verify(healthyMonitor).register(slot);
     verify(coreMonitorService, never()).stopAndRemove(any(), any());
+    verify(coreMonitorService, never()).stopAndRemove(any(), any(), any());
   }
 
   @Test
@@ -114,7 +115,8 @@ class HostMonitorServiceV3ImplTest {
 
     assertSame(healthyMonitor, service.register(slot));
 
-    verify(coreMonitorService).stopAndRemove(HostMonitorV3Impl.class, EXPECTED_KEY);
+    verify(coreMonitorService).stopAndRemove(HostMonitorV3Impl.class, EXPECTED_KEY, stoppedMonitor);
+    verify(coreMonitorService, never()).stopAndRemove(HostMonitorV3Impl.class, EXPECTED_KEY);
     verify(coreMonitorService, times(2))
         .runIfAbsent(eq(HostMonitorV3Impl.class), eq(EXPECTED_KEY), any(), any(), any());
     verify(healthyMonitor).register(slot);
@@ -126,7 +128,7 @@ class HostMonitorServiceV3ImplTest {
         .thenReturn(stoppedMonitor);
 
     assertThrows(SQLException.class, () -> service.register(slot));
-    verify(coreMonitorService, times(1)).stopAndRemove(HostMonitorV3Impl.class, EXPECTED_KEY);
+    verify(coreMonitorService, times(1)).stopAndRemove(HostMonitorV3Impl.class, EXPECTED_KEY, stoppedMonitor);
   }
 
   @Test

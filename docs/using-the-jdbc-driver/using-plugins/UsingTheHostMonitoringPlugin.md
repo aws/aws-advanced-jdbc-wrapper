@@ -45,7 +45,7 @@ To determine the health of a database node:
 3. If the probe is not acknowledged by the database node, a counter is incremented. 
 4. If the counter reaches the `failureDetectionCount`, the database node will be deemed unhealthy and the connection will be aborted.
 
-The exact moment step 4 fires is not the same in `efm` and `efm2` — see [Detection Deadline in efm and efm2](#detection-deadline-in-efm-and-efm2) below.
+The exact moment step 4 fires is not the same in `efm` and `efm2` (`efm3` matches `efm2`) — see [Detection Deadline in efm and efm2](#detection-deadline-in-efm-and-efm2) below.
 
 If a more aggressive approach to failure checking is necessary, all of these parameters can be reduced to reflect that. However, increased failure checking may also lead to an increase in false positives. For example, if the `failureDetectionInterval` was shortened, the plugin may complete several connection checks that all fail. The database node would then be considered unhealthy, but it may have been about to recover and the connection checks were completed before that could happen.
 
@@ -83,7 +83,7 @@ properties.setProperty("monitoring-socketTimeout", "10000");
 
 `efm` and `efm2` differ in when step 4 above fires, so the two are not interchangeable to the millisecond. Both measure how long the node has been failing since the first unacknowledged probe, but `efm` aborts once that duration reaches `failureDetectionInterval × failureDetectionCount`, while `efm2` aborts at `failureDetectionInterval × (failureDetectionCount - 1)`.
 
-Because the timer starts on the *first* failed probe, `efm2` is the one that aborts after exactly `failureDetectionCount` probes as step 4 describes; `efm` waits one extra interval. On the default settings (`failureDetectionInterval=5000`, `failureDetectionCount=3`) the abort deadline after the grace period is therefore 15,000 ms for `efm` and 10,000 ms for `efm2`.
+Because the timer starts on the *first* failed probe, `efm2` is the one that aborts after exactly `failureDetectionCount` probes as step 4 describes; `efm` waits one extra interval. On the default settings (`failureDetectionInterval=5000`, `failureDetectionCount=3`) the abort deadline after the grace period is therefore 15,000 ms for `efm` and 10,000 ms for `efm2`. `efm3` aborts on the `failureDetectionCount`-th consecutive failed probe, which gives the same deadline as `efm2`.
 
 If your application depends on a specific detection deadline, tune `failureDetectionCount` per plugin rather than assuming both behave identically.
 
@@ -112,7 +112,7 @@ Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementatio
 The `efm2` plugin can be used in any scenario where the `efm` plugin is mentioned. This plugin is enabled by default since [version 2.3.3](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.3) of the driver. The original EFM plugin can still be used by specifying `efm` in the `wrapperPlugins` parameter.
 
 > [!NOTE]\
-> Since these two plugins are separate plugins, users may decide to use them together with a single connection. While this should not have any negative side effects, it is not recommended. It is recommended to use either the `efm` plugin, or the `efm2` plugin where it's needed.
+> `efm`, `efm2` and `efm3` are separate plugins, so users may decide to use more than one of them with a single connection. While this should not have any negative side effects, it is not recommended. It is recommended to use only one of `efm`, `efm2` or `efm3` where it's needed.
  
 
 The `efm2` plugin is designed to address [some of the issues](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/675) that have been reported by multiple users. The following changes have been made:
@@ -186,7 +186,7 @@ All [Enhanced Failure Monitoring Parameters](#enhanced-failure-monitoring-parame
 
 | Parameter                       | Available Since Version |  Value  | Required | Description                                                                                                                                                                                        | Default Value |
 |---------------------------------|-------------------------|:-------:|:--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `abortIdleConnectionsOnFailure` | 4.7.0                   | Boolean |    No    | When the monitor decides a host is unhealthy, also abort connections to that host that have no call in flight. When `false`, only calls that have outlived `failureDetectionTime` are aborted. | `false`       |
+| `abortIdleConnectionsOnFailure` | 4.7.0                   | Boolean |    No    | When the monitor decides a host is unhealthy, also abort connections to that host that have no call in flight. When `false`, only calls that have outlived `failureDetectionTime` are aborted. When `true`, idle connections stay registered with the monitor for as long as the application holds them, regardless of `monitorDisposalTime`. | `false`       |
 
 ### Monitoring connection timeouts
 

@@ -18,10 +18,12 @@ package software.amazon.jdbc.util.monitoring;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doNothing;
@@ -124,6 +126,59 @@ class MonitorServiceImplTest {
     // need to wait to give time for the monitor executor to start the monitor thread.
     TimeUnit.MILLISECONDS.sleep(250);
     assertEquals(MonitorState.RUNNING, newMonitor.getState());
+  }
+
+  @Test
+  public void testStopAndRemove_withExpectedMonitor_removesOnlyThatInstance()
+      throws SQLException, InterruptedException {
+    spyMonitorService.registerMonitorTypeIfAbsent(
+        NoOpMonitor.class,
+        TimeUnit.MINUTES.toNanos(1),
+        TimeUnit.MINUTES.toNanos(1),
+        EnumSet.noneOf(MonitorErrorResponse.class),
+        null
+    );
+    String key = "testMonitor";
+    NoOpMonitor first = spyMonitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
+        mockStorageService,
+        mockEventPublisher,
+        mockTelemetryFactory,
+        mockConnectionProvider,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        mockTargetDriverDialect,
+        mockDbDialect,
+        new Properties(),
+        null,
+        (serviceContainer) -> new NoOpMonitor(30)
+    );
+
+    // A caller holding a stale reference must not remove a replacement installed by someone else.
+    assertTrue(spyMonitorService.stopAndRemove(NoOpMonitor.class, key, first));
+    NoOpMonitor replacement = spyMonitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
+        mockStorageService,
+        mockEventPublisher,
+        mockTelemetryFactory,
+        mockConnectionProvider,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        mockTargetDriverDialect,
+        mockDbDialect,
+        new Properties(),
+        null,
+        (serviceContainer) -> new NoOpMonitor(30)
+    );
+    assertNotEquals(first, replacement);
+
+    assertFalse(spyMonitorService.stopAndRemove(NoOpMonitor.class, key, first));
+    assertEquals(replacement, spyMonitorService.get(NoOpMonitor.class, key));
+    assertEquals(MonitorState.STOPPED, first.getState());
+    TimeUnit.MILLISECONDS.sleep(250);
+    assertEquals(MonitorState.RUNNING, replacement.getState());
   }
 
   @Test

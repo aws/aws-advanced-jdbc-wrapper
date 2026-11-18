@@ -183,10 +183,24 @@ class HostMonitoringConnectionPluginV3Test {
     execute();
     verify(pluginService, never()).setAvailability(any(), any());
 
+    when(monitor.isHostUnhealthy()).thenReturn(true);
     assertTrue(plugin.slot.claim(MonitoredConnectionSlot.IDLE));
     execute();
 
     verify(pluginService, times(1)).setAvailability(hostSpec, HostAvailability.NOT_AVAILABLE);
+    assertEquals(MonitoredConnectionSlot.IDLE, plugin.slot.getInFlightSinceNanos());
+  }
+
+  @Test
+  void execute_doesNotMarkHostUnavailable_forAStaleIdleAbortAfterTheHostRecovered() throws SQLException {
+    execute();
+
+    // Aborted while idle during a failure the monitor has since recovered from.
+    when(monitor.isHostUnhealthy()).thenReturn(false);
+    assertTrue(plugin.slot.claim(MonitoredConnectionSlot.IDLE));
+    execute();
+
+    verify(pluginService, never()).setAvailability(any(), any());
     assertEquals(MonitoredConnectionSlot.IDLE, plugin.slot.getInFlightSinceNanos());
   }
 
@@ -215,7 +229,7 @@ class HostMonitoringConnectionPluginV3Test {
   }
 
   @Test
-  void execute_identificationError_surfacesAsSqlException() throws SQLException {
+  void execute_identificationError_failsThatCall_thenMonitorsTheEndpointWithoutRetrying() throws SQLException {
     when(rdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_WRITER_CLUSTER);
     final SQLException cause = new SQLException("identify failed");
     when(pluginService.identifyConnection(connection, hostSpec)).thenThrow(cause);
@@ -225,7 +239,15 @@ class HostMonitoringConnectionPluginV3Test {
     assertSame(cause, thrown);
     verify(sqlFunction, never()).call();
     verify(monitorService, never()).register(any());
-    assertNull(plugin.slot);
+    assertNotNull(plugin.slot, "the slot is kept so identification is not retried on every call");
+    assertSame(hostSpec, plugin.slot.getHostSpec(), "the connection falls back to its endpoint");
+
+    assertSame(resultSet, execute());
+    execute();
+
+    verify(pluginService, times(1)).identifyConnection(connection, hostSpec);
+    verify(monitorService, times(1)).register(plugin.slot);
+    verify(sqlFunction, times(2)).call();
   }
 
   @Test

@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.efm.v3;
 import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_COUNT;
 import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_INTERVAL;
 import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin.MONITOR_DISPOSAL_TIME_MS;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -50,11 +51,6 @@ public class HostMonitorServiceV3Impl implements StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorServiceV3Impl.class.getName());
 
-  public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
-      new AwsWrapperProperty(
-          "monitorDisposalTime",
-          "600000", // 10min
-          "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
 
   public static final AwsWrapperProperty ABORT_IDLE_CONNECTIONS_ON_FAILURE =
       new AwsWrapperProperty(
@@ -124,7 +120,9 @@ public class HostMonitorServiceV3Impl implements StateSnapshotProvider {
     if (!monitor.register(slot)) {
       LOGGER.fine(() -> Messages.get(
           "HostMonitorServiceV3Impl.replacingStoppedMonitor", new Object[] {hostSpec.getHost()}));
-      this.coreMonitorService.stopAndRemove(HostMonitorV3Impl.class, key);
+      // Remove only the stopped instance observed here. Another thread may already have replaced it, and an
+      // unconditional removal would stop that fresh monitor and strand the slots registered with it.
+      this.coreMonitorService.stopAndRemove(HostMonitorV3Impl.class, key, monitor);
       monitor = this.getMonitor(hostSpec, key);
       if (!monitor.register(slot)) {
         throw new SQLException(
@@ -152,6 +150,16 @@ public class HostMonitorServiceV3Impl implements StateSnapshotProvider {
 
   protected HostMonitorV3Impl getMonitor(final @NonNull HostSpec hostSpec, final @NonNull String key)
       throws SQLException {
+    // The monitor service keeps the initializer for as long as the monitor lives, to be able to recreate it. Copy what
+    // it needs into locals so the lambda does not capture 'this', which would keep the first connection's plugin
+    // service, services container and connection reachable after that connection is gone.
+    final Properties props = this.properties;
+    final int detectionTime = this.failureDetectionTimeMillis;
+    final int detectionInterval = this.failureDetectionIntervalMillis;
+    final int detectionCount = this.failureDetectionCount;
+    final long disposalTime = this.monitorDisposalTimeMillis;
+    final boolean abortIdle = this.abortIdleConnections;
+    final @Nullable TelemetryCounter counter = this.abortedConnectionsCounter;
     return this.coreMonitorService.runIfAbsent(
         HostMonitorV3Impl.class,
         key,
@@ -160,13 +168,13 @@ public class HostMonitorServiceV3Impl implements StateSnapshotProvider {
         (monitorServicesContainer) -> new HostMonitorV3Impl(
             monitorServicesContainer,
             hostSpec,
-            this.properties,
-            this.failureDetectionTimeMillis,
-            this.failureDetectionIntervalMillis,
-            this.failureDetectionCount,
-            this.monitorDisposalTimeMillis,
-            this.abortIdleConnections,
-            this.abortedConnectionsCounter));
+            props,
+            detectionTime,
+            detectionInterval,
+            detectionCount,
+            disposalTime,
+            abortIdle,
+            counter));
   }
 
   @Override

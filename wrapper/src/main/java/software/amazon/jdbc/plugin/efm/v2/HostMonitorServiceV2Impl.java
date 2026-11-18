@@ -39,6 +39,7 @@ import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorService;
+import software.amazon.jdbc.plugin.efm.base.HostMonitoringConnectionBasePlugin;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -57,10 +58,7 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorServiceV2Impl.class.getName());
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
-      new AwsWrapperProperty(
-          "monitorDisposalTime",
-          "600000", // 10min
-          "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
+      HostMonitoringConnectionBasePlugin.MONITOR_DISPOSAL_TIME_MS;
   protected static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
 

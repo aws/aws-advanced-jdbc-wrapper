@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.efm.v3;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -296,6 +297,20 @@ class HostMonitorV3ImplTest {
   }
 
   @Test
+  void sweep_keepsIdleSlotsPastDisposalTime_whenIdleConnectionsAreAbortedOnFailure() throws Exception {
+    newMonitor(true);
+    final MonitoredConnectionSlot slot = registeredSlot(appConnection);
+    slot.enter(clock.get());
+    slot.exit(clock.get());
+
+    advance(TimeUnit.MILLISECONDS.toNanos(DISPOSAL_TIME_MILLIS) * 3);
+    monitor.monitorIteration();
+
+    assertEquals(1, monitor.getRegisteredSlotCount(), "a long-idle pooled connection must stay abortable");
+    assertSame(monitor, slot.getMonitor());
+  }
+
+  @Test
   void sweep_keepsSlotWithACallInFlight() throws Exception {
     newMonitor(false);
     doReturn(true).when(monitor).checkConnectionStatus();
@@ -307,6 +322,60 @@ class HostMonitorV3ImplTest {
 
     assertEquals(1, monitor.getRegisteredSlotCount());
     assertSame(monitor, slot.getMonitor());
+  }
+
+  @Test
+  void consecutiveFailures_doNotCarryOverIntoALaterProbingEpisode() throws Exception {
+    newMonitor(false);
+    doReturn(false).when(monitor).checkConnectionStatus();
+    final MonitoredConnectionSlot first = registeredSlot(appConnection);
+    first.enter(clock.get());
+    advance(GRACE_NANOS);
+
+    // Two failed probes, then the call completes and probing stops.
+    monitor.monitorIteration();
+    monitor.monitorIteration();
+    first.exit(clock.get());
+    monitor.monitorIteration();
+    verify(monitor, times(2)).checkConnectionStatus();
+
+    // Much later another call becomes due; its first failed probe must not complete the old run.
+    advance(TimeUnit.HOURS.toNanos(1));
+    final MonitoredConnectionSlot second = registeredSlot(otherAppConnection);
+    second.enter(clock.get());
+    advance(GRACE_NANOS);
+    monitor.monitorIteration();
+
+    assertFalse(monitor.isHostUnhealthy());
+    verify(targetDriverDialect, never()).abortConnection(any(Connection.class), any(Executor.class));
+
+    monitor.monitorIteration();
+    monitor.monitorIteration();
+    assertTrue(monitor.isHostUnhealthy(), "three consecutive failures within one episode still mark the host");
+  }
+
+  @Test
+  void checkConnectionStatus_countsARuntimeExceptionAsAFailedProbe() throws Exception {
+    newMonitor(false);
+    when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class)))
+        .thenThrow(new IllegalStateException("driver bug"));
+    assertFalse(monitor.checkConnectionStatus());
+  }
+
+  @Test
+  void abortExecutor_isRecreatedAfterRelease() throws Exception {
+    final Executor first = HostMonitorV3Impl.getAbortExecutor();
+    assertSame(first, HostMonitorV3Impl.getAbortExecutor());
+
+    HostMonitorV3Impl.releaseAbortExecutor();
+    assertTrue(((java.util.concurrent.ExecutorService) first).isShutdown());
+
+    final Executor second = HostMonitorV3Impl.getAbortExecutor();
+    assertNotSame(first, second);
+    final java.util.concurrent.CountDownLatch ran = new java.util.concurrent.CountDownLatch(1);
+    second.execute(ran::countDown);
+    assertTrue(ran.await(5, TimeUnit.SECONDS));
+    HostMonitorV3Impl.releaseAbortExecutor();
   }
 
   @Test

@@ -126,9 +126,10 @@ public class HostMonitoringConnectionPluginV3 extends AbstractConnectionPlugin
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 
-    if (slot.enter(System.nanoTime())) {
-      // The monitor aborted this connection while it was idle. The call below fails on the dead connection; make sure
-      // the host is reported unavailable before that happens.
+    if (slot.enter(System.nanoTime()) && isHostStillUnhealthy(slot)) {
+      // The monitor aborted this connection while it was idle and still considers the host down. The call below fails
+      // on the dead connection either way; the availability signal is published only while the verdict is current, so
+      // a connection aborted during a blip the host has since recovered from does not mark a healthy host unavailable.
       this.pluginService.setAvailability(slot.getHostSpec(), HostAvailability.NOT_AVAILABLE);
     }
 
@@ -151,10 +152,19 @@ public class HostMonitoringConnectionPluginV3 extends AbstractConnectionPlugin
     }
   }
 
+  private static boolean isHostStillUnhealthy(final MonitoredConnectionSlot slot) {
+    final HostMonitorV3Impl monitor = slot.getMonitor();
+    return monitor != null && monitor.isHostUnhealthy();
+  }
+
   /**
    * Returns the slot for the current physical connection, creating it when the connection is new or has changed. The
    * host is resolved once per connection: an instance endpoint is used as is, anything else is identified through the
    * connection and falls back to the endpoint itself when the host cannot be identified (RDS Proxy, for example).
+   *
+   * <p>If identification throws, the call that triggered it fails with that exception, as in {@code efm} and
+   * {@code efm2}, and the slot is still created for the endpoint, so later calls are monitored through the endpoint
+   * and identification is not retried on every call.
    */
   protected MonitoredConnectionSlot getSlot() throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
@@ -167,10 +177,20 @@ public class HostMonitoringConnectionPluginV3 extends AbstractConnectionPlugin
       this.getMonitorService().unregister(existing);
     }
 
-    final HostSpec monitoringHostSpec = this.resolveMonitoringHostSpec(currentConnection);
+    HostSpec monitoringHostSpec;
+    SQLException identificationError = null;
+    try {
+      monitoringHostSpec = this.resolveMonitoringHostSpec(currentConnection);
+    } catch (final SQLException e) {
+      monitoringHostSpec = this.pluginService.getCurrentHostSpec();
+      identificationError = e;
+    }
     final MonitoredConnectionSlot created =
         new MonitoredConnectionSlot(currentConnection, monitoringHostSpec, System.nanoTime());
     this.slot = created;
+    if (identificationError != null) {
+      throw identificationError;
+    }
     return created;
   }
 

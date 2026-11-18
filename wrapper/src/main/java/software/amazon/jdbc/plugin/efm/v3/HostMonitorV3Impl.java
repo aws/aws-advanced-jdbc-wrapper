@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,8 +34,10 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.base.HostMonitoringProperties;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -65,15 +68,19 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorV3Impl.class.getName());
   private static final String MONITORING_THREAD_NAME = "efm3-monitor";
-  private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
+
   private static final long MIN_SLEEP_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
   private static final long MAX_SCAN_TICK_NANOS = TimeUnit.SECONDS.toNanos(1);
   private static final int MIN_VALIDITY_CHECK_TIMEOUT_SEC = 1;
   private static final long MIN_TERMINATION_TIMEOUT_SEC = 1;
 
-  // Aborting a connection may touch a dead socket. A shared cached pool keeps those calls off the monitor thread of
-  // the host, and its idle threads expire on their own, so no thread outlives the monitors that used it.
-  protected static final Executor ABORT_EXECUTOR = ExecutorFactory.newCachedThreadPool("efm3-abort");
+  // Aborting a connection may touch a dead socket, so aborts run off the monitor thread. One small pool is shared by
+  // all hosts: its size bounds the thread burst when a host with thousands of connections fails (further aborts
+  // queue), its threads expire when idle, and Driver.releaseResources() shuts it down.
+  private static final int ABORT_THREAD_COUNT = 4;
+  private static final long ABORT_THREAD_KEEP_ALIVE_SEC = 60;
+  private static final Object ABORT_EXECUTOR_LOCK = new Object();
+  private static @Nullable ExecutorService abortExecutor;
 
   protected final FullServicesContainer servicesContainer;
   protected final TelemetryFactory telemetryFactory;
@@ -163,25 +170,15 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
       final int failureDetectionIntervalMillis,
       final @Nullable TargetDriverDialect targetDriverDialect,
       final String host) {
-    final Properties monitoringProps = PropertyUtils.copyProperties(properties);
+    final Properties monitoringProps = HostMonitoringProperties.create(properties, targetDriverDialect);
 
-    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
-    // 'monitoring-' value below still takes effect. This monitor watches one specific node, which may be
-    // a reader, so a target driver setting that rejects read-only servers would stop it connecting.
-    PropertyUtils.removeHostSelectionProperties(monitoringProps, targetDriverDialect);
-
+    // The application's own timeouts are not inherited: without an explicit 'monitoring-' value, both default to
+    // failureDetectionInterval.
     final String intervalMillis = String.valueOf(failureDetectionIntervalMillis);
-    PropertyDefinition.CONNECT_TIMEOUT.set(monitoringProps, intervalMillis);
-    PropertyDefinition.SOCKET_TIMEOUT.set(monitoringProps, intervalMillis);
-
-    for (final String name : properties.stringPropertyNames()) {
-      if (!name.startsWith(MONITORING_PROPERTY_PREFIX)) {
-        continue;
-      }
-      final String value = properties.getProperty(name);
-      monitoringProps.remove(name);
-      if (value != null) {
-        monitoringProps.put(name.substring(MONITORING_PROPERTY_PREFIX.length()), value);
+    for (final AwsWrapperProperty timeout
+        : new AwsWrapperProperty[] {PropertyDefinition.CONNECT_TIMEOUT, PropertyDefinition.SOCKET_TIMEOUT}) {
+      if (properties.getProperty(HostMonitoringProperties.MONITORING_PROPERTY_PREFIX + timeout.name) == null) {
+        timeout.set(monitoringProps, intervalMillis);
       }
     }
 
@@ -192,6 +189,35 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
             PropertyDefinition.CONNECT_TIMEOUT.getString(monitoringProps),
             PropertyDefinition.SOCKET_TIMEOUT.getString(monitoringProps)}));
     return monitoringProps;
+  }
+
+  /**
+   * Returns the abort pool shared by all efm3 monitors, starting a new one if it has not been started yet or has been
+   * released.
+   */
+  protected static Executor getAbortExecutor() {
+    synchronized (ABORT_EXECUTOR_LOCK) {
+      ExecutorService executor = abortExecutor;
+      if (executor == null || executor.isShutdown()) {
+        executor = ExecutorFactory.newFixedThreadPoolWithIdleTimeout(
+            ABORT_THREAD_COUNT, ABORT_THREAD_KEEP_ALIVE_SEC, TimeUnit.SECONDS, "efm3-abort");
+        abortExecutor = executor;
+      }
+      return executor;
+    }
+  }
+
+  /**
+   * Shuts down the shared abort pool. Aborts already queued still run; a later abort starts a new pool.
+   */
+  public static void releaseAbortExecutor() {
+    synchronized (ABORT_EXECUTOR_LOCK) {
+      final ExecutorService executor = abortExecutor;
+      if (executor != null) {
+        executor.shutdown();
+        abortExecutor = null;
+      }
+    }
   }
 
   /**
@@ -281,7 +307,9 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
 
     if (!this.hostUnhealthy.get() && !this.hasDueSlot(now)) {
       // Nothing has been in flight long enough to justify a probe. Scan again shortly; a probe is not needed until the
-      // grace period of some call has elapsed, so a coarse tick does not delay detection.
+      // grace period of some call has elapsed, so a coarse tick does not delay detection. Probing has stopped, so
+      // earlier failed probes no longer form a consecutive run with the next ones.
+      this.consecutiveFailures.set(0);
       this.sleepNanos(this.scanTickNanos);
       return;
     }
@@ -302,6 +330,8 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
 
   /**
    * Drops slots whose connection has been garbage collected or which have been idle longer than the disposal time.
+   * When idle connections are to be aborted on failure, idle slots are kept for as long as their connection is
+   * reachable, since long-idle pooled connections are the ones that option exists for.
    * A slot that starts a call concurrently with its eviction is put back: the application thread publishes its
    * in-flight timestamp before it checks its registration, and this method clears the registration before it
    * re-reads the timestamp, so at least one side notices the other.
@@ -312,8 +342,10 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
       final long inFlightSince = slot.getInFlightSinceNanos();
       final boolean idle = inFlightSince == MonitoredConnectionSlot.IDLE
           || inFlightSince == MonitoredConnectionSlot.ABORTED;
-      if (connection == null
-          || (idle && now - slot.getLastActivityNanos() >= this.slotDisposalTimeNanos)) {
+      final boolean idleExpired = !this.abortIdleConnections
+          && idle
+          && now - slot.getLastActivityNanos() >= this.slotDisposalTimeNanos;
+      if (connection == null || idleExpired) {
         this.unregister(slot);
         if (connection != null && slot.getInFlightSinceNanos() > MonitoredConnectionSlot.IDLE) {
           this.register(slot);
@@ -388,13 +420,14 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
   protected void abortConnection(final @NonNull Connection connectionToAbort) {
     try {
       this.servicesContainer.getPluginService().getTargetDriverDialect()
-          .abortConnection(connectionToAbort, ABORT_EXECUTOR);
+          .abortConnection(connectionToAbort, getAbortExecutor());
       if (this.abortedConnectionsCounter != null) {
         this.abortedConnectionsCounter.inc();
       }
-    } catch (final SQLException sqlEx) {
+    } catch (final Exception ex) {
+      // Includes RejectedExecutionException when the pool is released concurrently with a driver shutdown.
       LOGGER.finest(() -> Messages.get(
-          "HostMonitorConnectionContext.exceptionAbortingConnection", new Object[] {sqlEx.getMessage()}));
+          "HostMonitorConnectionContext.exceptionAbortingConnection", new Object[] {ex.getMessage()}));
     }
   }
 
@@ -424,7 +457,12 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
       // Some drivers, like MySQL Connector/J, take up to twice the requested isValid() timeout.
       final int validTimeoutSec = (int) TimeUnit.NANOSECONDS.toSeconds(this.failureDetectionIntervalNanos) / 2;
       return current.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeoutSec));
-    } catch (final SQLException sqlEx) {
+    } catch (final Exception ex) {
+      // A probe that throws, for any reason, has not shown the host to be alive. Counting only SQLException would let
+      // a runtime exception from the target driver end every iteration without a verdict, so the host could never be
+      // declared unhealthy.
+      LOGGER.finest(() -> Messages.get(
+          "HostMonitorV3Impl.probeFailed", new Object[] {this.hostSpec.getHost(), ex}));
       return false;
     } finally {
       if (connectContext != null) {
