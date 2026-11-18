@@ -355,4 +355,15 @@ public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotP
    *        false if it was newly created, null if the information is not available
   */
   @Nullable Boolean isPooledConnection();
+
+  /**
+   * Evicts a connection from the internal connection pool that issued it, so that the physical
+   * connection is closed instead of being handed out again. Call it right after closing or aborting
+   * a connection that must not be reused. Does nothing for connections that don't come from an
+   * internal connection pool.
+   *
+   * @param connection the connection to evict
+   * @return true if the connection was evicted from an internal connection pool, otherwise false
+   */
+  boolean evictConnection(Connection connection);
 }

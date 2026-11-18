@@ -701,6 +701,11 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean evictConnection(final Connection connection) {
+    return this.connectionProviderManager.evictConnection(connection);
+  }
+
+  @Override
   public Boolean isPooledConnection() {
     // This service implementation doesn't support call context.
     throw new UnsupportedOperationException(

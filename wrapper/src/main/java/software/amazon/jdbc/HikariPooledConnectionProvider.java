@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -74,6 +75,12 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   protected static final RdsUtils rdsUtils = new RdsUtils();
   protected static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
+
+  // Maps each issued Hikari proxy connection to the pool that issued it, so that the connection can
+  // be evicted from the right pool. Hikari proxies use identity equality, and entries disappear once
+  // the application drops the proxy. Static because the pools themselves are shared by all instances.
+  private static final Map<Connection, HikariDataSource> pooledConnections =
+      Collections.synchronizedMap(new WeakHashMap<>());
   protected final HikariPoolConfigurator poolConfigurator;
   protected final @Nullable HikariPoolMapping poolMapping;
   protected final @Nullable AcceptsUrlFunc acceptsUrlFunc;
@@ -340,7 +347,31 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
-    return new ConnectionInfo(ds.getConnection(), true);
+    final Connection connection = ds.getConnection();
+    pooledConnections.put(connection, ds);
+    return new ConnectionInfo(connection, true);
+  }
+
+  /**
+   * Evicts a connection from the Hikari pool that issued it. Hikari closes the physical connection
+   * instead of returning it to the pool. If the connection is still open, Hikari closes the physical
+   * connection right away; if it has already been returned to the pool, Hikari closes it as soon as
+   * it is not in use. Call this right after closing or aborting the connection.
+   *
+   * @param connection a connection previously returned by {@link #connect}
+   * @return true if the connection was issued by one of this provider's pools and was evicted
+   */
+  @Override
+  public boolean evictConnection(final @NonNull Connection connection) {
+    final HikariDataSource ds = pooledConnections.remove(connection);
+    if (ds == null) {
+      return false;
+    }
+
+    ds.evictConnection(connection);
+    LOGGER.finest(() -> Messages.get(
+        "HikariPooledConnectionProvider.connectionEvicted", new Object[] {ds.getPoolName()}));
+    return true;
   }
 
   // The pool key should always be retrieved using this method, because the username
@@ -358,6 +389,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   @Override
   public void releaseResources() {
     HikariPoolsHolder.closeAllPools();
+    pooledConnections.clear();
   }
 
   /**

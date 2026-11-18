@@ -916,6 +916,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean evictConnection(final Connection connection) {
+    return this.connectionProviderManager.evictConnection(connection);
+  }
+
+  @Override
   public void setIsPooledConnection(@Nullable Boolean isPooledConnection) {
     this.pooledConnection = isPooledConnection;
   }

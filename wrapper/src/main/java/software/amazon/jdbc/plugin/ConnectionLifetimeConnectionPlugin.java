@@ -266,6 +266,10 @@ public class ConnectionLifetimeConnectionPlugin extends AbstractConnectionPlugin
               new Object[] {exception.getMessage()}));
     }
 
+    // Closing a connection from an internal pool only returns it to the pool. Evict it so that the
+    // expired physical connection is closed rather than handed out again.
+    this.pluginService.evictConnection(currentConnection);
+
     return newConnectionClosedException(closeFailure);
   }
 
@@ -300,7 +304,7 @@ public class ConnectionLifetimeConnectionPlugin extends AbstractConnectionPlugin
       final long replacementCreationTime = this.nanoTimeSupplier.getAsLong();
 
       this.pluginService.setCurrentConnection(replacementConnection, reconnectHostSpec, this);
-      removeClosedConnectionCreationTime(previousConnection);
+      retireSupersededConnection(previousConnection);
       this.connectionCreationTimes.put(replacementConnection, replacementCreationTime);
       this.timedConnection = replacementConnection;
       this.connectionCreationTimeNanos = replacementCreationTime;
@@ -312,7 +316,7 @@ public class ConnectionLifetimeConnectionPlugin extends AbstractConnectionPlugin
     return new ConnectionLifetimeSuccessSQLException();
   }
 
-  private void removeClosedConnectionCreationTime(final @Nullable Connection connection) {
+  private void retireSupersededConnection(final @Nullable Connection connection) {
     if (connection == null) {
       return;
     }
@@ -325,8 +329,12 @@ public class ConnectionLifetimeConnectionPlugin extends AbstractConnectionPlugin
       closed = true;
     }
 
+    // A connection another plugin preserved is still open and stays usable; leave it alone.
     if (closed) {
       this.connectionCreationTimes.remove(connection);
+      // The plugin service closed the expired connection, which returns a pooled connection to its
+      // pool. Evict it so that the expired physical connection is not handed out again.
+      this.pluginService.evictConnection(connection);
     }
   }
 
@@ -340,6 +348,10 @@ public class ConnectionLifetimeConnectionPlugin extends AbstractConnectionPlugin
       this.terminal = true;
       closeConnectionAfterFailedInstallation(replacementConnection, reconnectFailure);
       closeConnectionAfterFailedInstallation(previousConnection, reconnectFailure);
+      if (previousConnection != null) {
+        // The previous connection has expired; keep its pooled physical connection out of reuse.
+        this.pluginService.evictConnection(previousConnection);
+      }
       return;
     }
 

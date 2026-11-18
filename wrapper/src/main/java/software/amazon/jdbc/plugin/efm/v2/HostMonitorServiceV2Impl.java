@@ -137,6 +137,8 @@ public class HostMonitorServiceV2Impl implements HostMonitorService, StateSnapsh
                   "HostMonitorConnectionContext.exceptionAbortingConnection",
                   new Object[] {sqlEx.getMessage()}));
         }
+        // Keep an aborted connection from an internal pool from being handed out again.
+        this.pluginService.evictConnection(connectionToAbort);
       }
     } else {
       this.connectionContextService.release(context);

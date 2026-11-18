@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InOrder;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -214,8 +216,23 @@ class ConnectionLifetimeConnectionPluginTest {
     assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), firstException.getSQLState());
     assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), secondException.getSQLState());
     verify(connection, times(1)).close();
+    verify(this.pluginService, times(1)).evictConnection(connection);
     verify(this.targetDriverDialect, never()).abortConnection(any(), any());
     verifyNoInteractions(pendingCall);
+  }
+
+  @Test
+  void closeActionEvictsAfterClosing() throws SQLException {
+    final Connection connection = mock(Connection.class);
+    final ConnectionLifetimeConnectionPlugin plugin = newPlugin(100, "close");
+    initializeConnection(plugin, connection, 0);
+    this.clock.setMillis(100);
+
+    assertThrows(SQLException.class, () -> execute(plugin, NETWORK_METHOD, mockCallable()));
+
+    final InOrder inOrder = inOrder(connection, this.pluginService);
+    inOrder.verify(connection).close();
+    inOrder.verify(this.pluginService).evictConnection(connection);
   }
 
   @Test
@@ -381,6 +398,10 @@ class ConnectionLifetimeConnectionPluginTest {
     verify(initialConnection).isClosed();
     verify(firstReplacement).isClosed();
     verify(secondReplacement).isClosed();
+    verify(this.pluginService).evictConnection(initialConnection);
+    verify(this.pluginService).evictConnection(firstReplacement);
+    verify(this.pluginService).evictConnection(secondReplacement);
+    verify(this.pluginService, never()).evictConnection(thirdReplacement);
   }
 
   @Test
@@ -417,6 +438,8 @@ class ConnectionLifetimeConnectionPluginTest {
     assertThrows(SQLException.class, () -> execute(plugin, NETWORK_METHOD, mockCallable()));
 
     assertEquals(2, trackedConnectionCount(plugin));
+    // Another plugin kept the connection open for reuse, so it must stay in its pool.
+    verify(this.pluginService, never()).evictConnection(any());
   }
 
   @Test
@@ -512,6 +535,8 @@ class ConnectionLifetimeConnectionPluginTest {
     assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), terminalFailure.getSQLState());
     verify(replacementConnection).close();
     verify(oldConnection).close();
+    verify(this.pluginService).evictConnection(oldConnection);
+    verify(this.pluginService, never()).evictConnection(replacementConnection);
     verify(this.pluginService, times(1)).connect(eq(this.originalHost), any(), same(plugin));
     verifyNoInteractions(laterCall);
   }
