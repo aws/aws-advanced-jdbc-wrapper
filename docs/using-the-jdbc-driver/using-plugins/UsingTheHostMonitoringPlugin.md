@@ -166,7 +166,7 @@ See [Monitoring](../Telemetry.md#list-of-metrics) for the metrics submitted by o
 
 ## Plugin Availability
 
-The plugin is available since version 4.6.0.
+The plugin is available since version 4.7.0.
 
 ## Overview
 
