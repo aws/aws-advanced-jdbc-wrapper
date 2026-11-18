@@ -12,6 +12,15 @@ The AWS Advanced JDBC Wrapper is a wrapper that requires an underlying driver, a
 > 
 > The `wrapperDialect` parameter is not required. When it is not provided by the user, the AWS Advanced JDBC Wrapper will attempt to determine which of the existing dialects to use based on other connection details. However, if the dialect is known by the user, it is preferable to set the `wrapperDialect` parameter because it will take time to resolve the dialect.
 
+### How the dialect is detected
+
+When `wrapperDialect` is not set, detection happens in two steps.
+
+1. Before connecting, the wrapper picks a provisional dialect from the driver protocol and the shape of the hostname. Aurora Global Database writer endpoints (`.global-`) and Aurora Limitless endpoints (`.shardgrp-`) are definitive; every other hostname only narrows the choice to an engine family. The provisional dialect supplies the default port and connection properties.
+2. On the first connection, the wrapper collects a fingerprint of the server with one catalog statement per engine family (`pg_catalog` for PostgreSQL; `SHOW VARIABLES` and `information_schema` for MySQL and MariaDB), plus at most one follow-up for Aurora Global Database (region count) or an RDS Multi-AZ DB cluster. The fingerprint, not the hostname or the protocol, decides the dialect, so an Aurora cluster behind a custom domain, an RDS Proxy, or an instance endpoint resolves to the same dialect as through its cluster endpoint. Every statement is valid on any server of its family, so detection does not raise errors on the server.
+
+The resolved dialect is cached per host for 24 hours, so later connections to the same host skip step 2. The fingerprint and the resolved dialect are logged at `FINEST` by `software.amazon.jdbc.dialect.DialectManager`.
+
 ### List of Available Dialect Codes
 Dialect codes specify what kind of database any connections will be made to.
 
@@ -41,9 +50,13 @@ To create a custom dialect, implement the [`Dialect`](../../wrapper/src/main/jav
 - [AuroraPgDialect](../../wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraPgDialect.java)
   - This dialect is an extension of PgDialect, but also implements the `AuroraLimitlessDialect` interface.
 
-Once the custom dialect class has been created, tell the AWS Advanced JDBC Wrapper to use it with the `setCustomDialect` method in the `DialectManager` class. It is not necessary to set the `wrawpperDialect` parameter. See below for an example:
+A custom dialect is used as-is: the wrapper does not run [dialect detection](#how-the-dialect-is-detected) against it and does not try to replace it with one of the built-in dialects. The `isDialect(Connection)` and `getDialectUpdateCandidates()` methods of the `Dialect` interface belonged to the old probe-based detection; they are deprecated, have default implementations, and do not need to be overridden. The methods that matter are the ones the wrapper calls at runtime: `getDefaultPort`, `getExceptionHandler`, `getHostListProviderSupplier`, `getHostAliasQuery`, `getServerVersionQuery`, `getHostRole`, `getHostId`, `getFailoverRestrictions` and `prepareConnectProperties`.
+
+Once the custom dialect class has been created, tell the AWS Advanced JDBC Wrapper to use it with the `setCustomDialect` method of the `software.amazon.jdbc.Driver` class. It is not necessary to set the `wrapperDialect` parameter. A custom dialect is registered once per JVM and applies to every connection the wrapper opens. See below for an example:
 
 ```java
 Dialect myDialect = new CustomDialect();
-DialectManager.setCustomDialect(myDialect);
+software.amazon.jdbc.Driver.setCustomDialect(myDialect);
 ```
+
+To go back to automatic detection, call `software.amazon.jdbc.Driver.resetCustomDialect()`.

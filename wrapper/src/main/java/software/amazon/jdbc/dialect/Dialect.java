@@ -32,11 +32,30 @@ import software.amazon.jdbc.util.Pair;
 
 public interface Dialect {
 
-  boolean isDialect(Connection connection);
+  /**
+   * Checks whether the connected server matches this dialect by running probe queries.
+   *
+   * @deprecated Dialect detection no longer probes candidates one by one; it collects a
+   *     {@link DialectFingerprint} and resolves it with {@link DialectDetector#resolve}. The wrapper
+   *     does not call this method, and custom dialects no longer need to implement it.
+   */
+  @Deprecated
+  default boolean isDialect(Connection connection) {
+    return false;
+  }
 
   int getDefaultPort();
 
-  @Nullable List</* dialect code */ String> getDialectUpdateCandidates();
+  /**
+   * Lists the dialects that detection should try after this one.
+   *
+   * @deprecated See {@link #isDialect(Connection)}; the wrapper does not call this method, and custom
+   *     dialects no longer need to implement it.
+   */
+  @Deprecated
+  default @Nullable List</* dialect code */ String> getDialectUpdateCandidates() {
+    return null;
+  }
 
   ExceptionHandler getExceptionHandler();
 
