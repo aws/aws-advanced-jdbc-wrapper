@@ -871,6 +871,7 @@ ALTER TABLE encrypt.encryption_metadata OWNER TO app_admin;
 -- The admin role owns the application table so that the runtime role cannot drop its triggers.
 -- Also make sure app_runtime does not own the table's schema (on PostgreSQL 15 and later, public is owned
 -- by the database owner) or the database; if it does, transfer them with ALTER SCHEMA ... OWNER TO app_admin
+-- and ALTER DATABASE ... OWNER TO app_admin
 ALTER TABLE users OWNER TO app_admin;
 
 -- Metadata: read-only for the application
@@ -893,7 +894,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON users TO app_runtime;
 GRANT USAGE ON SEQUENCE users_id_seq TO app_runtime;
 ```
 
-The simplest way to avoid ownership problems is to create the metadata schema and tables (steps 2 to 4) and the application tables (step 6) as `app_admin` in the first place, and to run this block as `app_admin`; the `ALTER ... OWNER` statements then change nothing. To run it later against objects that another role owns, connect as a role that may take over their ownership: the RDS master user (`rds_superuser`), or a role that is a member of both the current owner and `app_admin`. A role that is neither fails with `must be owner of table key_storage`, and its `GRANT` and `REVOKE` statements on those tables then fail with `permission denied for table key_storage`. A member-of-both role can run `ALTER TABLE ... OWNER TO app_admin` only if `app_admin` has `CREATE` on the table's schema, which is why the block transfers the schema first.
+The simplest way to avoid ownership problems is to create the metadata schema and tables (steps 2 to 4) and the application tables (step 6) as `app_admin` in the first place, and to run this block as `app_admin`; the `ALTER ... OWNER` statements then change nothing. To run it later against objects that another role owns, connect as a role that may take over their ownership: the RDS master user (`rds_superuser`), or a role that is a member of both the current owner and `app_admin`. A role that is neither fails with `must be owner of schema encrypt` on the first statement (or `must be owner of table key_storage` if the schema is already transferred), and its `GRANT` and `REVOKE` statements on those tables then fail with `permission denied for table key_storage`. A member-of-both role can run `ALTER TABLE ... OWNER TO app_admin` only if `app_admin` has `CREATE` on the table's schema, which is why the block transfers the schema first.
 
 Once `app_admin` owns the application tables, migrations that alter them (Flyway, Liquibase, Rails and similar) can no longer run as `app_runtime`. Run migrations that touch tables with encrypted columns as the admin role.
 
