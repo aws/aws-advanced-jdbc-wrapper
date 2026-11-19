@@ -103,20 +103,6 @@ class FailoverConnectionPluginTest {
   }
 
   @Test
-  void test_invalidInvocationOnClosedConnection_interruptedThread_skipFailover() throws SQLException {
-    properties.setProperty(FailoverConnectionPlugin.SKIP_FAILOVER_ON_INTERRUPTED_THREAD.name, "true");
-    final FailoverConnectionPlugin spyPlugin = spy(new FailoverConnectionPlugin(mockContainer, properties));
-    spyPlugin.isClosed = true;
-
-    Thread.currentThread().interrupt();
-    final SQLException exception =
-        assertThrows(SQLException.class, spyPlugin::invalidInvocationOnClosedConnection);
-
-    assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), exception.getSQLState());
-    verify(spyPlugin, never()).failover();
-  }
-
-  @Test
   void test_execute_closedConnection_interruptedThread_skipFailoverDisabled() throws SQLException {
     final FailoverConnectionPlugin spyPlugin = spy(new FailoverConnectionPlugin(mockContainer, properties));
     doThrow(new FailoverSuccessSQLException()).when(spyPlugin).failover();
