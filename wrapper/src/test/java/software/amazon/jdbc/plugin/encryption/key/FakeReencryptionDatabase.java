@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Predicate;
 import software.amazon.jdbc.plugin.encryption.EncryptionSql;
@@ -454,6 +455,11 @@ final class FakeReencryptionDatabase {
         throw new SQLException("relation or column does not exist: " + sql);
       }
       return resultSet(new String[] {"pk", "value"}, Collections.emptyList());
+    }
+    if (sql.startsWith("SELECT 1 FROM") && sql.endsWith(" IS NOT NULL LIMIT 1")) {
+      final boolean hasValue = rows.values().stream().anyMatch(Objects::nonNull);
+      return resultSet(new String[] {"1"},
+          hasValue ? Collections.singletonList(new Object[] {1}) : Collections.emptyList());
     }
     if (sql.startsWith("SELECT ") && sql.contains(" LIMIT ?")) {
       final boolean hasLastPk = sql.contains(" > ?");

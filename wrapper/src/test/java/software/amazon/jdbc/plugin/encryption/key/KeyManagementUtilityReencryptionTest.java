@@ -611,35 +611,54 @@ public class KeyManagementUtilityReencryptionTest {
   // ---- 5. repair after the switch and after the legacy rotateDataKey -------------------------
 
   @Test
-  void repair_afterLegacyRotateDataKey_and_staleWriter() throws Exception {
+  void rotateDataKey_refusesAColumnWithData_andChangesNothing() throws Exception {
     init(false, TABLE);
     final TestKey keyA = createKey("key-users-ssn-1");
     db.setMetadataKeyId(keyA.id);
+    db.putRow(1, encrypt("v1", keyA));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception =
+        assertThrows(KeyManagementException.class, () -> utility.rotateDataKey(TABLE, COLUMN, null));
+
+    assertTrue(exception.getMessage().contains("rotateDataKeyAndReencrypt"), exception.getMessage());
+    assertTrue(db.getExecutedSql().contains(
+        "SELECT 1 FROM `users` WHERE `ssn` IS NOT NULL LIMIT 1"), db.getExecutedSql().toString());
+    assertEquals(keyA.id, db.getMetadataKeyId());
+    assertEquals(1, db.getKeyCount());
+    assertRowsEqual(before, db.getRows());
+    verifyNoInteractions(kmsClient);
+  }
+
+  @Test
+  void rotateDataKey_worksOnAnEmptyColumn() throws Exception {
+    init(false, TABLE);
+    final TestKey keyA = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(keyA.id);
+    when(metadataManager.getColumnConfig(TABLE, COLUMN)).thenReturn(columnConfig(keyA));
+
+    utility.rotateDataKey(TABLE, COLUMN, null);
+
+    assertNotEquals(keyA.id, db.getMetadataKeyId());
+    assertEquals(2, db.getKeyCount());
+  }
+
+  // ---- 5. repair after the switch and after the legacy rotateDataKey -------------------------
+
+  @Test
+  void repair_afterLegacyRotateDataKey_and_staleWriter() throws Exception {
+    init(false, TABLE);
+    final TestKey keyA = createKey("key-users-ssn-1");
     for (long pk = 1; pk <= 4; pk++) {
       db.putRow(pk, encrypt("v" + pk, keyA));
     }
     final Map<Long, byte[]> before = db.getRows();
-    when(metadataManager.getColumnConfig(TABLE, COLUMN)).thenReturn(ColumnEncryptionConfig.builder()
-        .tableName(TABLE)
-        .columnName(COLUMN)
-        .algorithm(ALGORITHM)
-        .keyId(keyA.id)
-        .keyMetadata(KeyMetadata.builder()
-            .keyId(keyA.id)
-            .keyName("key-users-ssn-1")
-            .masterKeyArn(MASTER_KEY_ARN)
-            .encryptedDataKey(keyA.encryptedDataKey)
-            .hmacKey(keyA.hmacKey)
-            .keySpec("AES_256")
-            .createdAt(Instant.now())
-            .lastUsedAt(Instant.now())
-            .build())
-        .build());
 
-    // Legacy behavior (unchanged): new key row, metadata repointed, rows not touched.
-    utility.rotateDataKey(TABLE, COLUMN, null);
-
-    final int keyBId = db.getMetadataKeyId();
+    // The state a release that rotated a column with data left behind: a new key row, the metadata
+    // repointed at it, and the rows not touched.
+    final TestKey keyB = createKey("key-users-ssn-2");
+    db.setMetadataKeyId(keyB.id);
+    final int keyBId = keyB.id;
     assertNotEquals(keyA.id, keyBId);
     assertEquals(2, db.getKeyCount());
     assertRowsEqual(before, db.getRows());
@@ -656,7 +675,6 @@ public class KeyManagementUtilityReencryptionTest {
     assertEquals(6, result.getReencryptedCount());
     assertEquals(0, result.getUnmatchedCount());
     assertEquals(keyBId, result.getCurrentKeyId());
-    final TestKey keyB = keyFromDb(keyBId);
     for (long pk = 1; pk <= 6; pk++) {
       assertDecryptsTo("v" + pk, db.getRow(pk), keyB);
     }
