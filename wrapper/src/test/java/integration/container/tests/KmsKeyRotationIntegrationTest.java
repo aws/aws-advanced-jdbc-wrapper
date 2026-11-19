@@ -755,19 +755,26 @@ public class KmsKeyRotationIntegrationTest {
           stmt.execute("ALTER TABLE " + table + " ALTER COLUMN id DROP DEFAULT, "
               + "ALTER COLUMN id TYPE " + type + " USING 'a'::" + type);
         }
-        final int oldKeyId = currentKeyId(table, SSN);
-        final int keyRowsBefore = keyRowCount(table);
+        final int firstKeyId = currentKeyId(table, SSN);
         final KeyManagementUtility utility = newUtility(plain);
 
         final KeyManagementException rotateError = assertThrows(KeyManagementException.class,
             () -> utility.rotateDataKeyAndReencrypt(table, SSN, PK, null, 4));
         assertTrue(rotateError.getMessage().contains("must have a built-in type")
             && rotateError.getMessage().contains(type), rotateError.getMessage());
-        final KeyManagementException repairError = assertThrows(KeyManagementException.class,
-            () -> utility.reencryptRemainingRows(table, SSN, PK, Collections.singletonList(oldKeyId), 4));
-        assertTrue(repairError.getMessage().contains("must have a built-in type"), repairError.getMessage());
+        assertEquals(firstKeyId, currentKeyId(table, SSN));
 
-        assertEquals(oldKeyId, currentKeyId(table, SSN));
+        // The repair needs a previous key: the legacy rotation switches keys without touching rows,
+        // and the table has none.
+        utility.rotateDataKey(table, SSN, null);
+        final int switchedKeyId = currentKeyId(table, SSN);
+        final int keyRowsBefore = keyRowCount(table);
+        final KeyManagementException repairError = assertThrows(KeyManagementException.class,
+            () -> utility.reencryptRemainingRows(table, SSN, PK, Collections.singletonList(firstKeyId), 4));
+        assertTrue(repairError.getMessage().contains("must have a built-in type")
+            && repairError.getMessage().contains(type), repairError.getMessage());
+
+        assertEquals(switchedKeyId, currentKeyId(table, SSN));
         assertEquals(keyRowsBefore, keyRowCount(table));
       } finally {
         try (Statement stmt = plain.createStatement()) {
