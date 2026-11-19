@@ -214,7 +214,8 @@ public class KeyManagementUtilityReencryptionTest {
     assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("FROM \"app\".\"users\"")
         && sql.contains("\"ssn\" IS NOT NULL") && sql.contains("ORDER BY \"id\"")));
     assertTrue(db.getExecutedSql().stream().anyMatch(
-        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" "
+        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" " + EncryptionSql.PG_EQUALS
+            + " ? AND \"ssn\" "
             + EncryptionSql.PG_EQUALS + " ?")));
   }
 
@@ -223,9 +224,11 @@ public class KeyManagementUtilityReencryptionTest {
     init(true, TABLE);
     final TestKey oldKey = createKey("key-users-ssn-1");
     db.setMetadataKeyId(oldKey.id);
-    db.putRow(1, encrypt("value-1", oldKey));
+    for (long pk = 1; pk <= 3; pk++) {
+      db.putRow(pk, encrypt("value-" + pk, oldKey));
+    }
 
-    utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 10);
+    utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 2);
 
     // The fake also fails on any metadata SQL that compares with a plain =.
     final List<String> metadataSql = db.getExecutedSql().stream()
@@ -236,14 +239,14 @@ public class KeyManagementUtilityReencryptionTest {
     for (String sql : metadataSql) {
       assertTrue(sql.contains(EncryptionSql.PG_EQUALS), sql);
     }
-    // On the application's table, only the encrypted value column, which is always bytea, uses the
-    // built-in operator. The primary key keeps the operators of its own type.
+    // The application's table is compared with the built-in operators too, on the primary key
+    // as well as the encrypted value column, once the primary key's type was checked.
+    assertEquals(1, db.getPrimaryKeyTypeQueries());
     assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.equals(
-        "UPDATE \"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" " + EncryptionSql.PG_EQUALS + " ?")));
-    assertTrue(db.getExecutedSql().stream()
-        .filter(sql -> !FakeReencryptionDatabase.isMetadataSql(sql))
-        .filter(sql -> !sql.startsWith("UPDATE"))
-        .noneMatch(sql -> sql.contains("OPERATOR(")));
+        "UPDATE \"users\" SET \"ssn\" = ? WHERE \"id\" " + EncryptionSql.PG_EQUALS + " ? AND \"ssn\" "
+            + EncryptionSql.PG_EQUALS + " ?")));
+    assertTrue(db.getExecutedSql().stream().anyMatch(
+        sql -> sql.contains(" AND \"id\" " + EncryptionSql.PG_GREATER_THAN + " ? ORDER BY \"id\" LIMIT ?")));
   }
 
   @Test
@@ -905,7 +908,8 @@ public class KeyManagementUtilityReencryptionTest {
     assertTrue(db.getExecutedSql().stream().anyMatch(
         sql -> sql.equals("SELECT \"id\", \"ssn\" FROM \"app\".\"users\" WHERE FALSE")));
     assertTrue(db.getExecutedSql().stream().anyMatch(
-        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" "
+        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" " + EncryptionSql.PG_EQUALS
+            + " ? AND \"ssn\" "
             + EncryptionSql.PG_EQUALS + " ?")));
   }
 
@@ -961,6 +965,73 @@ public class KeyManagementUtilityReencryptionTest {
     assertEquals(oldKey.id, db.getMetadataKeyId());
     assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("INSERT") || sql.startsWith("UPDATE")));
     assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void rotate_postgres_primaryKeyOfNonBuiltInType_refusedBeforeAnyChange() throws Exception {
+    init(true, TABLE);
+    db.setPrimaryKeyType("citext", false);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    assertTrue(exception.getMessage().contains("primary key column \"id\" must have a built-in type"),
+        exception.getMessage());
+    assertTrue(exception.getMessage().contains("citext"), exception.getMessage());
+    verify(kmsClient, never()).generateDataKey(any(GenerateDataKeyRequest.class));
+    assertEquals(1, db.getKeyCount());
+    assertEquals(oldKey.id, db.getMetadataKeyId());
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("INSERT") || sql.startsWith("UPDATE")));
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void reencryptRemaining_postgres_primaryKeyOfNonBuiltInType_refusedBeforeAnyChange() throws Exception {
+    init(true, TABLE);
+    db.setPrimaryKeyType("app.order_code", false);
+    final TestKey oldKey = createKey("old");
+    final TestKey currentKey = createKey("current");
+    db.setMetadataKeyId(currentKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.reencryptRemainingRows(TABLE, COLUMN, PK, Collections.singletonList(oldKey.id), 10));
+
+    assertTrue(exception.getMessage().contains("app.order_code"), exception.getMessage());
+    assertFalse(db.getExecutedSql().stream().anyMatch(sql -> sql.startsWith("UPDATE")));
+    assertRowsEqual(before, db.getRows());
+  }
+
+  @Test
+  void rotate_postgres_domainOverBuiltInPrimaryKey_isAccepted() throws Exception {
+    init(true, TABLE);
+    // The type query reports a domain as built in when its base type is.
+    db.setPrimaryKeyType("app.user_id", true);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    final DataKeyReencryptionResult result = utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10);
+
+    assertEquals(1, result.getReencryptedCount());
+  }
+
+  @Test
+  void rotate_mysql_doesNotCheckThePrimaryKeyType() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("old");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("a", oldKey));
+
+    utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10);
+
+    assertEquals(0, db.getPrimaryKeyTypeQueries());
+    assertTrue(db.getExecutedSql().stream().noneMatch(sql -> sql.contains("pg_catalog")));
   }
 
   @Test

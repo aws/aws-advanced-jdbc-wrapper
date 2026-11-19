@@ -83,6 +83,20 @@ public class KeyManagementUtility {
   /** Longest identifier accepted for re-encryption, and the MySQL limit for user variable names. */
   private static final int MAX_IDENTIFIER_LENGTH = 64;
 
+  /**
+   * PostgreSQL only. Reads the primary key column's type, as a domain's base type when it is a
+   * domain, and whether that type is built in.
+   */
+  private static final String SELECT_PG_PRIMARY_KEY_TYPE_SQL =
+      "SELECT pg_catalog.format_type(a.atttypid, a.atttypmod) AS type_name, "
+          + "(CASE WHEN t.typtype OPERATOR(pg_catalog.=) 'd' THEN bt.typnamespace ELSE t.typnamespace END) "
+          + "OPERATOR(pg_catalog.=) 'pg_catalog'::pg_catalog.regnamespace::pg_catalog.oid AS built_in "
+          + "FROM pg_catalog.pg_attribute a "
+          + "JOIN pg_catalog.pg_type t ON t.oid OPERATOR(pg_catalog.=) a.atttypid "
+          + "LEFT JOIN pg_catalog.pg_type bt ON bt.oid OPERATOR(pg_catalog.=) t.typbasetype "
+          + "WHERE a.attrelid OPERATOR(pg_catalog.=) pg_catalog.to_regclass(?::pg_catalog.text)::pg_catalog.oid "
+          + "AND a.attname OPERATOR(pg_catalog.=) ?::pg_catalog.name AND NOT a.attisdropped";
+
   private final EncryptionService encryptionService = new EncryptionService();
   private final KeyManager keyManager;
   private final MetadataManager metadataManager;
@@ -226,11 +240,15 @@ public class KeyManagementUtility {
     return "DELETE FROM " + schema + ".key_storage WHERE id " + eq() + " ?";
   }
 
-  // The equality operator for columns with built-in types: the metadata and key tables, and the
-  // encrypted value column. The re-encryption SQL below keeps the plain operators on the
-  // application's primary key, which use that type's own ordering and equality.
+  // The equality operator for the plugin's SQL. Every comparison it makes is on a column of a
+  // built-in type: the metadata and key tables, the encrypted value column, and, on PostgreSQL,
+  // the primary key, whose type checkPrimaryKeyType requires to be built in.
   private String eq() {
     return EncryptionSql.equalsOperator(keyManager.isPostgreSQL());
+  }
+
+  private String greaterThan() {
+    return keyManager.isPostgreSQL() ? EncryptionSql.PG_GREATER_THAN : ">";
   }
 
   /** Keyset page of (pk, value) rows. The target's identifiers are validated. */
@@ -239,7 +257,7 @@ public class KeyManagementUtility {
     final String column = quoteIdentifier(target.column);
     return "SELECT " + pk + ", " + column + " FROM " + quoteTableName(target)
         + " WHERE " + column + " IS NOT NULL AND " + pk + " IS NOT NULL"
-        + (firstPage ? "" : " AND " + pk + " > ?")
+        + (firstPage ? "" : " AND " + pk + " " + greaterThan() + " ?")
         + " ORDER BY " + pk + " LIMIT ?"
         + (forUpdate ? " FOR UPDATE" : "");
   }
@@ -248,7 +266,8 @@ public class KeyManagementUtility {
   private String getUpdateEncryptedValueSql(ColumnTarget target) {
     final String column = quoteIdentifier(target.column);
     return "UPDATE " + quoteTableName(target) + " SET " + column + " = ?"
-        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " = ? AND " + column + " " + eq() + " ?";
+        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " " + eq() + " ?"
+        + " AND " + column + " " + eq() + " ?";
   }
 
   /** Reads no rows; fails if the table, the column or the primary key column does not exist. */
@@ -561,6 +580,7 @@ public class KeyManagementUtility {
           schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
       target = column;
       checkColumnsExist(conn, column);
+      checkPrimaryKeyType(conn, column);
       LOGGER.info(() -> Messages.get("KeyManagementUtility.rotationStarting",
           new Object[]{tableName, columnName, String.valueOf(oldKey.id), String.valueOf(batchSize)}));
 
@@ -770,6 +790,7 @@ public class KeyManagementUtility {
       final ColumnTarget target = new ColumnTarget(
           schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
       checkColumnsExist(conn, target);
+      checkPrimaryKeyType(conn, target);
 
       conn.setAutoCommit(false);
       autoCommitChanged = true;
@@ -1034,6 +1055,37 @@ public class KeyManagementUtility {
       throw new KeyManagementException(Messages.get("KeyManagementUtility.relationCheckFailed",
           new Object[]{quoteTableName(target), quoteIdentifier(target.column),
               quoteIdentifier(target.primaryKeyColumn), e.getMessage()}), e);
+    }
+  }
+
+  /**
+   * On PostgreSQL, refuses a primary key whose type is not built in, before any change. Paging and
+   * the update compare the primary key with the built-in operators, which for a type such as
+   * citext would compare differently from the type's own ordering and could skip rows.
+   */
+  private void checkPrimaryKeyType(Connection conn, ColumnTarget target) throws KeyManagementException {
+    if (!keyManager.isPostgreSQL()) {
+      return;
+    }
+    @Nullable String typeName = null;
+    boolean builtIn = false;
+    try (PreparedStatement stmt = conn.prepareStatement(SELECT_PG_PRIMARY_KEY_TYPE_SQL)) {
+      stmt.setString(1, quoteTableName(target));
+      stmt.setString(2, target.primaryKeyColumn);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          typeName = rs.getString("type_name");
+          builtIn = rs.getBoolean("built_in");
+        }
+      }
+    } catch (SQLException e) {
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.primaryKeyTypeCheckFailed",
+          new Object[]{quoteTableName(target), quoteIdentifier(target.primaryKeyColumn), e.getMessage()}), e);
+    }
+    if (!builtIn) {
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.unsupportedPrimaryKeyType",
+          new Object[]{quoteTableName(target), quoteIdentifier(target.primaryKeyColumn),
+              typeName == null ? "unknown" : typeName}));
     }
   }
 
