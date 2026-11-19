@@ -16,6 +16,7 @@
 
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -322,6 +323,85 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
+  /**
+   * With the metadata cache disabled, every encrypted-column read and write looks up its column
+   * configuration (including the key name) directly in the database instead of the cache.
+   */
+  @TestTemplate
+  void testMetadataCacheDisabledReadWrite() throws Exception {
+    final Properties props = pluginProps();
+    props.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "false");
+
+    try (Connection uncached = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
+      try (PreparedStatement pstmt = uncached.prepareStatement(
+          "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
+        pstmt.setString(1, TEST_NAME_1);
+        pstmt.setString(2, TEST_SSN_1);
+        pstmt.setString(3, TEST_EMAIL_1);
+        assertEquals(1, pstmt.executeUpdate());
+      }
+      assertSsn(uncached, TEST_NAME_1, TEST_SSN_1);
+
+      try (PreparedStatement pstmt = uncached.prepareStatement(
+          "UPDATE " + TABLE + " SET ssn = ? WHERE name = ?")) {
+        pstmt.setString(1, TEST_SSN_2);
+        pstmt.setString(2, TEST_NAME_1);
+        assertEquals(1, pstmt.executeUpdate());
+      }
+      assertSsn(uncached, TEST_NAME_1, TEST_SSN_2);
+    }
+
+    // The value is stored encrypted, and a connection using the cache reads it the same way.
+    assertStoredEncrypted(TEST_NAME_1, TEST_SSN_2);
+    assertWrapperRoundTrip(TEST_NAME_1, TEST_SSN_2);
+  }
+
+  /**
+   * A byte[] written to an encrypted column is not modified by the write, and getBytes returns the
+   * original bytes, not a buffer that is cleared after decryption.
+   */
+  @TestTemplate
+  void testBytesRoundTripLeavesCallerArrayIntact() throws Exception {
+    final byte[] original = {0, 1, 2, 3, 0x7f, (byte) 0x80, (byte) 0xfe, (byte) 0xff, 42};
+    final byte[] value = original.clone();
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "INSERT INTO " + TABLE + " (name, ssn) VALUES (?, ?)")) {
+      pstmt.setString(1, TEST_NAME_1);
+      pstmt.setBytes(2, value);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+    assertArrayEquals(original, value, "Encrypting must not modify the caller's array");
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, TEST_NAME_1);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        final byte[] first = rs.getBytes("ssn");
+        assertArrayEquals(original, first, "getBytes should return the decrypted bytes");
+        // Each read decrypts again; an earlier result must not be cleared by a later read.
+        final byte[] second = rs.getBytes("ssn");
+        assertArrayEquals(original, second, "A second getBytes should return the same bytes");
+        assertArrayEquals(original, first, "An earlier getBytes result must stay intact");
+      }
+    }
+
+    assertStoredEncrypted(TEST_NAME_1, original);
+  }
+
+  private static void assertSsn(final Connection conn, final String name, final String ssn)
+      throws SQLException {
+    try (PreparedStatement pstmt = conn.prepareStatement(
+        "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, name);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find user " + name);
+        assertEquals(ssn, rs.getString("ssn"));
+      }
+    }
+  }
+
   @TestTemplate
   void testEncryptionMetadataSetup() throws Exception {
     // Verify encryption metadata was created
@@ -586,6 +666,11 @@ public class KmsEncryptionIntegrationTest {
 
   private static void assertStoredEncrypted(final String name, final String ssn)
       throws SQLException {
+    assertStoredEncrypted(name, ssn.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static void assertStoredEncrypted(final String name, final byte[] plaintext)
+      throws SQLException {
     final String sql = isPg
         ? "SELECT ssn, has_valid_hmac_structure(ssn) AS valid_structure FROM " + TABLE + " WHERE name = ?"
         : "SELECT ssn FROM " + TABLE + " WHERE name = ?";
@@ -599,8 +684,7 @@ public class KmsEncryptionIntegrationTest {
         assertNotNull(stored, "Stored SSN must not be null");
         assertTrue(stored.length >= MIN_ENCRYPTED_LENGTH,
             "Stored SSN is too short to be ciphertext: " + stored.length);
-        assertFalse(Arrays.equals(ssn.getBytes(StandardCharsets.UTF_8), stored),
-            "Stored SSN must not be the plaintext");
+        assertFalse(Arrays.equals(plaintext, stored), "Stored SSN must not be the plaintext");
         if (isPg) {
           assertTrue(rs.getBoolean("valid_structure"),
               "Stored SSN should have a valid HMAC structure");
