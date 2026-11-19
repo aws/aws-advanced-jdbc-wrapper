@@ -163,7 +163,7 @@ public class KmsEncryptionConnectionPluginTest {
     // Set up statement context by calling prepareStatement first
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
 
-    populateContext("users", java.util.Collections.singletonMap(2, "ssn"));
+    populateContext("users", java.util.Collections.singletonMap(2, "users.ssn"));
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
@@ -253,11 +253,10 @@ public class KmsEncryptionConnectionPluginTest {
   }
 
   /**
-   * A bare column name keeps using the statement's parsed table, so the positional mapping path is
-   * unchanged by the qualified-identifier handling.
+   * A bare column name is an annotation whose table is not certain, so its value is not encrypted.
    */
   @Test
-  void test_setString_bareColumnStillUsesParsedTable() throws Exception {
+  void test_setString_bareColumnIsNotEncrypted() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
 
     populateContext("users", java.util.Collections.singletonMap(1, "ssn"));
@@ -266,21 +265,24 @@ public class KmsEncryptionConnectionPluginTest {
         "Connection.prepareStatement", () -> mockPreparedStatement,
         "INSERT INTO users (ssn) VALUES (?)");
 
-    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(false);
-
+    boolean[] called = {false};
     plugin.execute(
         Void.class, SQLException.class, mockPreparedStatement,
-        "PreparedStatement.setString", () -> null,
+        "PreparedStatement.setString", () -> {
+          called[0] = true;
+          return null;
+        },
         1, "123-45-6789");
 
-    verify(mockMetadataManager).isColumnEncrypted("users", "ssn");
+    assertTrue(called[0]);
+    verify(mockMetadataManager, never()).isColumnEncrypted(anyString(), anyString());
   }
 
   @Test
   void test_setString_passesThrough_forNonEncryptedColumn() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
 
-    populateContext("users", java.util.Collections.singletonMap(1, "name"));
+    populateContext("users", java.util.Collections.singletonMap(1, "users.name"));
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
@@ -350,7 +352,7 @@ public class KmsEncryptionConnectionPluginTest {
   @Test
   void test_setString_zeroizesDataKey_whenEncryptionFails() throws Exception {
     when(mockPreparedStatement.getConnection()).thenReturn(mockConnection);
-    populateContext("users", java.util.Collections.singletonMap(2, "ssn"));
+    populateContext("users", java.util.Collections.singletonMap(2, "users.ssn"));
     plugin.execute(
         PreparedStatement.class, SQLException.class, mockConnection,
         "Connection.prepareStatement", () -> mockPreparedStatement,
@@ -1267,5 +1269,177 @@ public class KmsEncryptionConnectionPluginTest {
     assertTrue(methods.contains("ResultSet.getString"));
     assertTrue(methods.contains("ResultSet.getInt"));
     assertTrue(methods.contains("ResultSet.getObject"));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Multi-table statements, bare and aliased columns, and executable comments.
+  // ---------------------------------------------------------------------------------------------
+
+  private void useMysqlDialect() {
+    when(mockPluginService.getTargetDriverDialect())
+        .thenReturn(new software.amazon.jdbc.targetdriverdialect.MysqlConnectorJTargetDriverDialect());
+  }
+
+  static Stream<Arguments> chainedMultiTableCases() {
+    return Stream.of(
+        Arguments.of("joinSecondTable",
+            "UPDATE other o JOIN users u ON o.id = u.id SET o.note = ?, u.ssn = ? WHERE o.id = ?", 3,
+            indexes(2)),
+        Arguments.of("joinFirstTable",
+            "UPDATE users u JOIN other o ON o.id = u.id SET o.ssn = ?, u.ssn = ? WHERE o.id = ?", 3,
+            indexes(2)),
+        Arguments.of("comma", "UPDATE other o, users u SET u.ssn = ? WHERE o.id = u.id", 1,
+            indexes(1)),
+        Arguments.of("tableNames",
+            "UPDATE other JOIN users ON other.id = users.id SET users.ssn = ?", 1, indexes(1)),
+        Arguments.of("parenthesizedJoin",
+            "UPDATE other o JOIN (users u JOIN things t ON u.id = t.id) ON o.id = u.id SET u.ssn = ?",
+            1, indexes(1)),
+        Arguments.of("parenthesizedComma", "UPDATE other o, (users u) SET u.ssn = ? WHERE o.id = u.id",
+            1, indexes(1)),
+        Arguments.of("bareAnnotation",
+            "UPDATE other o JOIN users u ON o.id = u.id SET u.ssn = /*@encrypt:ssn*/ ? WHERE o.id = ?",
+            2, indexes(1)),
+        Arguments.of("aliasAnnotation",
+            "SELECT * FROM users u WHERE lower(u.ssn) = /*@encrypt:u.ssn*/ ?", 1, indexes(1)),
+        Arguments.of("selectJoinQualifier",
+            "SELECT * FROM other o JOIN users u ON o.id = u.id WHERE u.ssn = ?", 1, indexes(1)),
+        Arguments.of("selectJoinOtherQualifier",
+            "SELECT * FROM users u JOIN other o ON o.id = u.id WHERE o.ssn = ?", 1, indexes()),
+        // Columns whose table is not certain are not encrypted.
+        Arguments.of("selectJoinUnqualified",
+            "SELECT * FROM other o JOIN users u ON o.id = u.id WHERE ssn = ?", 1, indexes()),
+        Arguments.of("selectDerivedTable",
+            "SELECT * FROM (SELECT * FROM users) d WHERE d.ssn = ?", 1, indexes()),
+        Arguments.of("selectCommonTableExpression",
+            "WITH d AS (SELECT * FROM users) SELECT * FROM d WHERE ssn = ?", 1, indexes()),
+        Arguments.of("selectBareAnnotationSeveralTables",
+            "SELECT * FROM other o JOIN users u ON o.id = u.id WHERE lower(u.ssn) = /*@encrypt:ssn*/ ?",
+            1, indexes()));
+  }
+
+  static Stream<Arguments> chainedUncertainWriteCases() {
+    return Stream.of(
+        Arguments.of("unqualifiedSet",
+            "UPDATE other o JOIN users u ON o.id = u.id SET ssn = ? WHERE o.id = 1"),
+        Arguments.of("bareAnnotationInExpression",
+            "UPDATE other o JOIN users u ON o.id = u.id SET o.note = lower(/*@encrypt:ssn*/ ?)"),
+        Arguments.of("aliasesDifferingInCase",
+            "UPDATE users a JOIN other A ON a.id = A.id SET a.ssn = ?"),
+        Arguments.of("annotationOverridingEncryptedColumn",
+            "INSERT INTO users (ssn) SELECT /*@encrypt:o.ssn*/ ? FROM other o"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("chainedUncertainWriteCases")
+  void test_chained_writeColumnWithUncertainTable_strict_throws(String id, String sql) throws Exception {
+    stubEncryptedUsersSsn();
+    useMysqlDialect();
+
+    SQLException e = assertThrows(SQLException.class, () -> prepareChained(sql), id);
+
+    verify(mockPreparedStatement).close();
+    assertTrue(e.getMessage().contains("users"), e.getMessage());
+    assertTrue(e.getMessage().contains("encryptionFailOnUnmappedParameter"), e.getMessage());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("chainedUncertainWriteCases")
+  void test_chained_writeColumnWithUncertainTable_nonStrict_warnsAndDoesNotEncrypt(String id, String sql)
+      throws Exception {
+    stubEncryptedUsersSsn();
+    useMysqlDialect();
+    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(false);
+
+    List<LogRecord> warnings = captureWarnings(() -> {
+      assertEquals(mockPreparedStatement, prepareChained(sql));
+      assertEquals(indexes(), boundEncrypted(1), id);
+    });
+
+    assertEquals(1, warnings.size(), id);
+  }
+
+
+  static Stream<Arguments> chainedExecutableCommentCases() {
+    return Stream.of(
+        Arguments.of("versioned", "UPDATE users SET /*!50000 name = ?, */ ssn = ? WHERE id = ?"),
+        Arguments.of("unversioned", "UPDATE users SET /*! name = ?, */ ssn = ? WHERE id = ?"),
+        Arguments.of("mariadb", "UPDATE users SET /*M!100100 name = ?, */ ssn = ? WHERE id = ?"),
+        Arguments.of("insert", "INSERT INTO users (id, ssn) VALUES (? /*!50000 + ? */, ?)"),
+        Arguments.of("encryptedSecondTable",
+            "UPDATE other o JOIN users u ON o.id = u.id SET /*!50000 o.note = ?, */ u.ssn = ?"),
+        Arguments.of("annotationOnly",
+            "UPDATE other SET /*!50000 a = ?, */ b = /*@encrypt:users.ssn*/ ? WHERE id = ?"),
+        Arguments.of("unparsed", "UPDATE users SET ssn = /*!50000 ? */ WHERE id = ?"),
+        Arguments.of("onlyPlaceholderInComment",
+            "UPDATE users SET ssn = COALESCE(/*!?,*/ ssn) WHERE id = 1"),
+        Arguments.of("selectWithAnnotation",
+            "SELECT * FROM users WHERE /*!50000 id = ? AND */ ssn = /*@encrypt:users.ssn*/ ?"),
+        Arguments.of("bareAnnotation",
+            "INSERT INTO other (a, b) SELECT /*!50000 ?, */ id, name FROM users"
+                + " WHERE ssn = /*@encrypt:ssn*/ ?"),
+        Arguments.of("structureOnly",
+            "UPDATE users SET nickname /*!12345 = nickname, ssn */ = ? WHERE id = 1"),
+        Arguments.of("columnListStructure", "INSERT INTO users (name /*!, ssn */) VALUES (?, ?)"),
+        Arguments.of("tableOnlyInComment", "UPDATE other SET a = ? /*!50000 , users.ssn = ? */"),
+        Arguments.of("tableInSubquery",
+            "SELECT * FROM other WHERE uid IN (SELECT id FROM users WHERE ssn = ?) /*! AND x = ? */"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("chainedExecutableCommentCases")
+  void test_chained_executableComment_throwsAndClosesEvenWhenNotStrict(String id, String sql)
+      throws Exception {
+    stubEncryptedUsersSsn();
+    useMysqlDialect();
+    when(mockUtility.isFailOnUnmappedParameter()).thenReturn(false);
+
+    SQLException e = assertThrows(SQLException.class, () -> prepareChained(sql), id);
+
+    verify(mockPreparedStatement).close();
+    assertTrue(e.getMessage().contains("users"), e.getMessage());
+    assertTrue(e.getMessage().contains("executable comment"), e.getMessage());
+    assertFalse(e.getMessage().contains(sql), e.getMessage());
+  }
+
+  @Test
+  void test_chained_executableCommentOnTableWithoutEncryptedColumns_isPrepared() throws Exception {
+    stubEncryptedUsersSsn();
+    useMysqlDialect();
+
+    assertEquals(mockPreparedStatement,
+        prepareChained("UPDATE other SET /*!50000 name = ?, */ note = ? WHERE id = ?"));
+    assertEquals(indexes(), boundEncrypted(3));
+    verify(mockPreparedStatement, never()).close();
+  }
+
+  @Test
+  void test_chained_executableCommentWithoutPlaceholder_encrypts() throws Exception {
+    stubEncryptedUsersSsn();
+    useMysqlDialect();
+
+    assertEquals(mockPreparedStatement,
+        prepareChained("UPDATE /*!50000 LOW_PRIORITY */ users SET ssn = ? WHERE id = ?"));
+    assertEquals(indexes(1), boundEncrypted(2));
+  }
+
+  @Test
+  void test_chained_executableCommentForPostgres_isAnOrdinaryComment() throws Exception {
+    stubEncryptedUsersSsn();
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+
+    assertEquals(mockPreparedStatement,
+        prepareChained("UPDATE users SET /*! name = ?, */ ssn = ? WHERE id = ?"));
+    // The PostgreSQL dialect does not bind ciphertext with setBytes, so pass-through is checked.
+    Set<Integer> passedThrough = new TreeSet<>();
+    for (int i = 1; i <= 2; i++) {
+      final int index = i;
+      plugin.execute(Void.class, SQLException.class, mockPreparedStatement,
+          "PreparedStatement.setString", () -> {
+            passedThrough.add(index);
+            return null;
+          }, i, "v" + i);
+    }
+    assertEquals(indexes(2), passedThrough);
   }
 }
