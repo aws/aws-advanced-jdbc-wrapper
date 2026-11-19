@@ -44,7 +44,12 @@ public final class ParameterMappingProblem {
     /** A write statement with parameters that the SQL parser could not read. */
     UNPARSED_STATEMENT,
     /** A write statement kind the mapper does not support (MERGE, REPLACE). */
-    UNSUPPORTED_STATEMENT
+    UNSUPPORTED_STATEMENT,
+    /**
+     * A statement with a MySQL or MariaDB executable comment that changes placeholder
+     * numbering (see {@link PlaceholderScanner.Result#hasPlaceholderSensitiveExecutableComment()}).
+     */
+    EXECUTABLE_COMMENT
   }
 
   private final Type type;
@@ -174,6 +179,24 @@ public final class ParameterMappingProblem {
         Collections.emptyList(), parameterIndexes, Collections.emptyList(), statementKind, 0, 0);
   }
 
+  /**
+   * Statement whose parameter indexes depend on how an executable comment is read. Either
+   * {@code table} or {@code candidateTables} names a table it writes, or reads when it does not
+   * write.
+   *
+   * @param table the bare target table name, or {@code null} when the statement was not parsed
+   * @param candidateTables identifiers that may name target tables when the statement was not parsed
+   * @param parameterIndexes the 1-based indexes of the statement's parameters
+   * @return an executable-comment mapping problem
+   */
+  public static ParameterMappingProblem executableComment(
+      final @Nullable String table,
+      final List<String> candidateTables,
+      final List<Integer> parameterIndexes) {
+    return new ParameterMappingProblem(Type.EXECUTABLE_COMMENT, table,
+        Collections.emptyList(), parameterIndexes, candidateTables, null, 0, 0);
+  }
+
   public Type getType() {
     return type;
   }
@@ -206,7 +229,8 @@ public final class ParameterMappingProblem {
   }
 
   /**
-   * Identifiers of an unparsed statement that may name tables ({@link Type#UNPARSED_STATEMENT}).
+   * Identifiers of an unparsed statement that may name tables ({@link Type#UNPARSED_STATEMENT}, and
+   * {@link Type#EXECUTABLE_COMMENT} without a table).
    *
    * @return an immutable list of candidate table identifiers
    */
