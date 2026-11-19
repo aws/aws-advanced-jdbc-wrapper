@@ -887,6 +887,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       return;
     }
 
+    if (this.skipFailoverOnInterruptedThread && Thread.currentThread().isInterrupted()) {
+      LOGGER.fine(() -> Messages.get("Failover.skipFailoverOnInterruptedThread"));
+      throw new SQLException(
+          Messages.get("Failover.skipFailoverOnInterruptedThread"),
+          SqlState.CONNECTION_NOT_OPEN.getState());
+    }
+
     if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
       final HostSpec writerHost = Utils.getWriter(this.pluginService.getAllHosts());
       if (writerHost != null) {
