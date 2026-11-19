@@ -356,7 +356,7 @@ App must call `connection.setReadOnly(true)` (or use `@Transactional(readOnly = 
 
 > **Why the internal pool here:** without it, every `setReadOnly()` flip risks opening a new physical connection to the target host — a transactional app that toggles read-only mode per request will churn connections and can exhaust per-instance limits. The internal pool keeps per-instance pools keyed by `clusterId`, so role flips are cheap reuses. The `leastConnections` reader strategy also requires it.
 >
-> **Why no `auroraConnectionTracker`:** the wrapper's internal pool already tracks per-instance connections by `clusterId` and invalidates them on role changes. `auroraConnectionTracker` is for *external* pools (HikariCP-as-application-pool, Tomcat JDBC, etc.) that don't know about Aurora topology.
+> **Why no `auroraConnectionTracker`:** connections in the wrapper's internal pool don't need invalidating when an instance changes role. The internal pools are organized by instance endpoint, so their connections stay valid after a role change, and the wrapper picks the pool that matches each instance's current role from the latest topology. `auroraConnectionTracker` is for *external* pools (HikariCP-as-application-pool, Tomcat JDBC, etc.) that don't know about Aurora topology.
 >
 > **On double-pooling:** this recipe turns on the wrapper's *internal* pool. Under Spring Boot the *external* HikariCP is the default application pool, so leaving both enabled stacks the two. That combination works but is untested and not officially recommended (see §14.2). For a Spring app, prefer a single pooling layer: disable the external pool (via `spring.datasource.type`) and rely on the internal pool, or drop `connectionPoolType` and rely on the external pool.
 
@@ -409,7 +409,7 @@ URL: cluster reader endpoint (`*.cluster-ro-XXX.<region>.rds.amazonaws.com`). Re
 
 **Why this shape:**
 - **No `readWriteSplitting` plugin** — each pool has a fixed role; the plugin would have nothing to flip.
-- **No `auroraConnectionTracker` is fine here** if you keep external HikariCP as the only pool layer — except that HikariCP doesn't know when a host's role changes during failover, so for the **writer** pool we keep `auroraConnectionTracker` to invalidate stale pooled connections after a writer-side failover. The reader pool can omit it because `failoverMode=strict-reader` keeps the connection on a reader; the read endpoint will resolve to a healthy one. (If you also enable the wrapper internal pool in either datasource, drop `auroraConnectionTracker` — internal pool already does this work.)
+- **No `auroraConnectionTracker` is fine here** if you keep external HikariCP as the only pool layer — except that HikariCP doesn't know when a host's role changes during failover, so for the **writer** pool we keep `auroraConnectionTracker` to invalidate stale pooled connections after a writer-side failover. The reader pool can omit it because `failoverMode=strict-reader` keeps the connection on a reader; the read endpoint will resolve to a healthy one. (If you also enable the wrapper internal pool in either datasource, drop `auroraConnectionTracker` — internal pool connections stay valid across role changes; see §14.2.)
 - **`efm2` left out by default** — `tcpKeepAlive=true` covers the analytics datasource, and short OLTP queries time out via `socketTimeout` long before EFM would fire. Add `efm2` to either datasource if you can't tune OS keep-alive (see §6.10 decision matrix).
 - **Same `clusterId`** — both pools see the same physical cluster, so they share topology cache and monitor threads. Different `clusterId` would duplicate that work.
 
@@ -1050,7 +1050,7 @@ Tracks open connections per host **across an external connection pool** and inva
 
 **When NOT to use it.**
 
-- The wrapper's **internal** connection pool is enabled (`connectionPoolType=hikari` or `c3p0`). The internal pool already tracks per-instance connections by `clusterId` and invalidates them on role changes; `auroraConnectionTracker` becomes redundant.
+- The wrapper's **internal** connection pool is enabled (`connectionPoolType=hikari` or `c3p0`). The internal pools are organized by instance endpoint, so their connections stay valid when an instance changes role; the wrapper picks the pool that matches the instance's current role. `auroraConnectionTracker` becomes redundant.
 - Non-Aurora databases (RDS Single-AZ, RDS Multi-AZ Instance, community DBs) — the plugin assumes Aurora topology and may NPE without it.
 - Plain JDBC (no pool) — there are no idle connections to invalidate.
 
@@ -1851,6 +1851,8 @@ Pool-specific options use the `cp-` prefix and map to `com.zaxxer.hikari.HikariC
 - **Single-cluster apps with HikariCP already wrapping the data source** — usually unnecessary. The external pool already gives connection reuse. The internal pool is most useful when the wrapper itself needs to maintain pools across multiple targets (i.e., R/W splitting).
 - **Multiple clusters in one app** — the internal pool keys by `clusterId`, so each cluster gets its own pool, much like external Hikari instances would.
 
+**Limiting connection age:** set `cp-MaxLifetime` (HikariCP, milliseconds, default 30 min) or `cp-MaxConnectionAge` (c3p0, seconds) to cap how long a physical connection lives in the internal pool. Do this whenever the `connectionLifetime` plugin is used with the internal pool. The plugin evicts an expired connection from the pool, but a replacement taken from the pool may already be older than `connectionLifetimeMs`, because the plugin starts timing a connection when it receives it.
+
 **Stacking the internal pool with an external pool (HikariCP):** possible, but not officially recommended. The two pools don't overlap — they save time in different ways. The external Hikari (application-facing) avoids re-initializing wrapper connections (loading plugins, setting up internal monitors); the internal pool avoids re-establishing a physical connection to a specific database instance (it only spawns connections to specific instances, not to the cluster endpoint). However, this combination has **not** been tested by the development team, and we're not aware of anyone running it, so it can't be officially recommended — it will work, but use it with caution. This aligns with the Read/Write Splitting Plugin guidance (`UsingTheReadWriteSplittingPlugin.md`), which recommends enabling either internal or external connection pooling, but not both at once.
 
 ### 14.3 Tomcat JDBC, c3p0, DBCP2
@@ -2262,8 +2264,8 @@ Do you have a connection pool?
    │  ├─ Aurora or RDS Multi-AZ Cluster? → include `auroraConnectionTracker`.
    │  └─ Non-Aurora? → no `auroraConnectionTracker` (it assumes Aurora topology).
    └─ Wrapper internal pool (`connectionPoolType=hikari` or `c3p0`)?
-      └─ Drop `auroraConnectionTracker`. The internal pool already tracks
-        per-instance connections by `clusterId` and invalidates on role change.
+      └─ Drop `auroraConnectionTracker`. Internal pools are organized by instance
+        endpoint, so their connections stay valid when an instance changes role.
 ```
 
 ---
@@ -2297,7 +2299,7 @@ Flag these whenever they appear in user configs:
 | Read/write splitting plugin (`readWriteSplitting` / `srw` / `gdbReadWriteSplitting`) without an internal connection pool | Each `setReadOnly()` flip can open a fresh physical connection to the target host; transactional apps that toggle read-only per request churn connections and may hit per-instance limits | Enable `connectionPoolType=hikari` (or `c3p0`); also required for the `leastConnections` reader strategy |
 | MySQL + read/write splitting (especially behind RDS Proxy) | Each reader/writer switch sends `SET autocommit` / `SET SESSION TRANSACTION ...` round trips, even when the values did not change | Set `useLocalSessionState=true` (MySQL Connector/J). If session settings are made only before the connections open, also set `rwTransferSessionStateOnSwitch=false` (§6.3) |
 | `readWriteSplitting` (or `srw` / `gdbReadWriteSplitting`) on a reader-only datasource | The plugin's job is to flip a connection between writer and reader on `setReadOnly()`. A datasource bound to the reader endpoint with `failoverMode=strict-reader` has nothing to flip — the plugin is dead weight | Drop the plugin. Just use the reader endpoint + `failoverMode=strict-reader` |
-| `auroraConnectionTracker` together with the wrapper internal pool (`connectionPoolType=hikari`) | The internal pool already tracks per-instance connections by `clusterId` and invalidates on role change. The plugin is redundant. | Drop `auroraConnectionTracker` when using the internal pool; keep it only with external pools (HikariCP-as-app-pool, Tomcat JDBC, c3p0, DBCP2) |
+| `auroraConnectionTracker` together with the wrapper internal pool (`connectionPoolType=hikari`) | Internal pools are organized by instance endpoint, so their connections stay valid when an instance changes role, and the wrapper picks the pool that matches the instance's current role. The plugin is redundant. | Drop `auroraConnectionTracker` when using the internal pool; keep it only with external pools (HikariCP-as-app-pool, Tomcat JDBC, c3p0, DBCP2) |
 | `socketTimeout` shorter than the EFM detection window with `efm2` enabled | The socket times out (~your `socketTimeout`) before EFM can detect (~45 s with defaults). EFM never gets to do its job. | Pick one strategy per datasource: `socketTimeout` for short OLTP, OR `efm2` (with `socketTimeout=0`) for long-running queries, OR `tcpKeepAlive` (preferred when OS keep-alive can be tuned) |
 | `efm2` on a datasource where all queries are sub-second OLTP | EFM adds monitoring threads + probe queries it never gets to use, since `socketTimeout` (or natural query completion) catches failures first | Drop `efm2` here. Use `tcpKeepAlive` and/or finite `socketTimeout` instead |
 | Setting `failoverTimeoutMs` to a very large value (e.g., 30 min) | App stalls during failure, masking outages | Use the Normal profile (180000 ms) or Aggressive (30000 ms) |

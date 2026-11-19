@@ -24,8 +24,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -43,10 +46,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -66,6 +71,7 @@ class HostMonitorV2ImplTest {
   @Mock EventPublisher eventPublisher;
   @Mock Connection connectionToAbort;
   @Mock Connection reusedConnection;
+  @Mock TargetDriverDialect targetDriverDialect;
 
   private static final int FAILURE_DETECTION_TIME_MILLIS = 30000;
   private static final int FAILURE_DETECTION_INTERVAL_MILLIS = 5000;
@@ -187,6 +193,28 @@ class HostMonitorV2ImplTest {
     verify(unhealthyMonitor).abortConnection(connectionToAbort);
     assertTrue(monitorContext.isNodeUnhealthy());
     assertEquals(0, activeContextsSize(unhealthyMonitor));
+  }
+
+  @Test
+  void abortConnection_evictsAfterAborting() throws Exception {
+    when(pluginService.getTargetDriverDialect()).thenReturn(targetDriverDialect);
+
+    monitor.abortConnection(connectionToAbort);
+
+    final InOrder inOrder = inOrder(targetDriverDialect, pluginService);
+    inOrder.verify(targetDriverDialect).abortConnection(same(connectionToAbort), any());
+    inOrder.verify(pluginService).evictConnection(connectionToAbort);
+  }
+
+  @Test
+  void abortConnection_evictsEvenWhenAbortFails() throws Exception {
+    when(pluginService.getTargetDriverDialect()).thenReturn(targetDriverDialect);
+    doThrow(new SQLException("abort failed"))
+        .when(targetDriverDialect).abortConnection(same(connectionToAbort), any());
+
+    monitor.abortConnection(connectionToAbort);
+
+    verify(pluginService).evictConnection(connectionToAbort);
   }
 
   @Test

@@ -25,7 +25,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -169,6 +171,31 @@ class HikariPooledConnectionProviderTest {
         }
       }
     }
+  }
+
+  @Test
+  void testEvictConnectionEvictsFromIssuingPool() throws SQLException {
+    when(mockHostSpec.getUrl()).thenReturn("url");
+    provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any(), any());
+
+    final Connection conn = provider.connect(
+        protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, defaultProps).getConnection();
+
+    assertTrue(provider.evictConnection(conn));
+    verify(mockDataSource).evictConnection(mockConnection);
+
+    // The connection is forgotten once evicted, so a second eviction is a no-op.
+    assertFalse(provider.evictConnection(conn));
+    verify(mockDataSource, times(1)).evictConnection(any());
+  }
+
+  @Test
+  void testEvictConnectionIgnoresConnectionsFromOtherProviders() {
+    provider = new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
+
+    assertFalse(provider.evictConnection(mockConnection));
+    verify(mockDataSource, never()).evictConnection(any());
   }
 
   @Test

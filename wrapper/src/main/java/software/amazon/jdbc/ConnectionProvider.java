@@ -91,5 +91,21 @@ public interface ConnectionProvider extends StateSnapshotProvider {
       @NonNull Properties props)
       throws SQLException;
 
+  /**
+   * Evicts a connection returned by {@link #connect} from this provider's internal connection pool,
+   * so that the underlying physical connection is closed instead of being reused. Call it right
+   * after closing or aborting a connection that must not be handed out again, for example a
+   * connection that has reached its maximum lifetime or that lost contact with its host.
+   *
+   * <p>Providers without an internal connection pool have nothing to evict. The default
+   * implementation does nothing and returns false.
+   *
+   * @param connection a connection previously returned by {@link #connect}
+   * @return true if the connection belongs to this provider's pool and was evicted, otherwise false
+   */
+  default boolean evictConnection(@NonNull Connection connection) {
+    return false;
+  }
+
   String getTargetName();
 }

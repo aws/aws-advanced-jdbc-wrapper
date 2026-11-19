@@ -23,6 +23,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.efm.base.HostMonitorConnectionContext;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
@@ -40,6 +41,7 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
       ExecutorFactory.newSingleThreadExecutor("abort");
 
   private @Nullable TelemetryCounter abortedConnectionsCounter;
+  private @Nullable PluginService pluginService;
 
   private long failureDetectionIntervalMillis;
   private long failureDetectionTimeMillis;
@@ -58,6 +60,17 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
       final long failureDetectionIntervalMillis,
       final long failureDetectionCount,
       final @Nullable TelemetryCounter abortedConnectionsCounter) {
+    this.init(connectionToAbort, failureDetectionTimeMillis, failureDetectionIntervalMillis,
+        failureDetectionCount, abortedConnectionsCounter, null);
+  }
+
+  public void init(final Connection connectionToAbort,
+      final long failureDetectionTimeMillis,
+      final long failureDetectionIntervalMillis,
+      final long failureDetectionCount,
+      final @Nullable TelemetryCounter abortedConnectionsCounter,
+      final @Nullable PluginService pluginService) {
+    this.pluginService = pluginService;
     this.connectionToAbortRef.set(new WeakReference<>(connectionToAbort));
     this.nodeUnhealthy.set(false);
     this.activeContext = true;
@@ -118,6 +131,7 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
   public void setInactive() {
     this.activeContext = false;
     this.connectionToAbortRef.set(null);
+    this.pluginService = null;
   }
 
   public void abortConnection() {
@@ -143,6 +157,12 @@ public class HostMonitorConnectionContextV1 extends HostMonitorConnectionContext
           () -> Messages.get(
               "HostMonitorConnectionContext.exceptionAbortingConnection",
               new Object[] {sqlEx.getMessage()}));
+    }
+
+    // Keep an aborted connection from an internal pool from being handed out again.
+    final @Nullable PluginService service = this.pluginService;
+    if (service != null) {
+      service.evictConnection(connectionToAbort);
     }
   }
 

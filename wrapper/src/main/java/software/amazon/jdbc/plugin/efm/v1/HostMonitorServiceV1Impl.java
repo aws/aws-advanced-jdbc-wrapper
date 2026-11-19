@@ -115,7 +115,8 @@ public class HostMonitorServiceV1Impl implements HostMonitorService, StateSnapsh
         this.failureDetectionTimeMillis,
         this.failureDetectionIntervalMillis,
         this.failureDetectionCount,
-        this.abortedConnectionsCounter));
+        this.abortedConnectionsCounter,
+        this.pluginService));
     monitor.startMonitoring(context);
     return context;
   }
@@ -139,6 +140,8 @@ public class HostMonitorServiceV1Impl implements HostMonitorService, StateSnapsh
                   "HostMonitorConnectionContext.exceptionAbortingConnection",
                   new Object[] {sqlEx.getMessage()}));
         }
+        // Keep an aborted connection from an internal pool from being handed out again.
+        this.pluginService.evictConnection(connectionToAbort);
       }
     } else {
       this.connectionContextService.release(context);

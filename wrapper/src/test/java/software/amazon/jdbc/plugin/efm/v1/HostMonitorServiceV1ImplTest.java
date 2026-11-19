@@ -182,6 +182,7 @@ class HostMonitorServiceV1ImplTest {
     verify(conn).abort(any());
     verify(conn).close();
     verify(telemetryCounter).inc();
+    verify(pluginService).evictConnection(conn);
   }
 
   @Test

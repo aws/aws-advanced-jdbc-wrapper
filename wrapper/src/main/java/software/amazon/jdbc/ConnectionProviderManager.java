@@ -157,6 +157,30 @@ public class ConnectionProviderManager implements StateSnapshotProvider {
   }
 
   /**
+   * Evicts a connection from the internal connection pool of the {@link ConnectionProvider} that
+   * issued it. See {@link ConnectionProvider#evictConnection}.
+   *
+   * @param connection the connection to evict
+   * @return true if one of the available {@link ConnectionProvider} instances evicted the connection
+   */
+  public boolean evictConnection(final @NonNull Connection connection) {
+    final @Nullable ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    if (customConnectionProvider != null && customConnectionProvider.evictConnection(connection)) {
+      return true;
+    }
+
+    if (this.effectiveConnProvider != null
+        && this.effectiveConnProvider != customConnectionProvider
+        && this.effectiveConnProvider.evictConnection(connection)) {
+      return true;
+    }
+
+    return this.defaultProvider != customConnectionProvider
+        && this.defaultProvider != this.effectiveConnProvider
+        && this.defaultProvider.evictConnection(connection);
+  }
+
+  /**
    * Releases any resources held by the available {@link ConnectionProvider} instances.
    */
   public static void releaseResources() {

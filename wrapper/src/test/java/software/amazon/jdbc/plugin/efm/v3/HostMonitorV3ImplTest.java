@@ -31,6 +31,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -47,6 +48,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
@@ -192,6 +194,40 @@ class HostMonitorV3ImplTest {
     // A further unhealthy iteration must not abort the same connection again.
     monitor.monitorIteration();
     verify(targetDriverDialect, times(1)).abortConnection(any(Connection.class), any(Executor.class));
+  }
+
+  @Test
+  void abortConnection_evictsAfterAborting() throws Exception {
+    newMonitor(false);
+
+    monitor.abortConnection(appConnection);
+
+    final InOrder inOrder = inOrder(targetDriverDialect, pluginService);
+    inOrder.verify(targetDriverDialect).abortConnection(eq(appConnection), any(Executor.class));
+    inOrder.verify(pluginService).evictConnection(appConnection);
+  }
+
+  @Test
+  void abortConnection_evictsEvenWhenAbortFails() throws Exception {
+    newMonitor(false);
+    doThrow(new SQLException("abort failed"))
+        .when(targetDriverDialect).abortConnection(eq(appConnection), any(Executor.class));
+
+    monitor.abortConnection(appConnection);
+
+    verify(pluginService).evictConnection(appConnection);
+    verify(abortedConnectionsCounter, never()).inc();
+  }
+
+  @Test
+  void abortConnection_survivesEvictionFailure() throws Exception {
+    newMonitor(false);
+    doThrow(new IllegalStateException("evict failed")).when(pluginService).evictConnection(appConnection);
+
+    monitor.abortConnection(appConnection);
+
+    verify(targetDriverDialect).abortConnection(eq(appConnection), any(Executor.class));
+    verify(abortedConnectionsCounter).inc();
   }
 
   @Test

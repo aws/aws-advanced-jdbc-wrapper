@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -34,8 +36,10 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
 class HostMonitorConnectionContextV1Test {
@@ -119,6 +123,30 @@ class HostMonitorConnectionContextV1Test {
     verify(connection).abort(any());
     verify(connection).close();
     verify(counter).inc();
+  }
+
+  @Test
+  void test_abortConnection_evictsAfterClosing() throws SQLException {
+    final PluginService pluginService = mock(PluginService.class);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(connection, 100, 50, 3, counter, pluginService);
+    ctx.abortConnection();
+
+    final InOrder inOrder = inOrder(connection, pluginService);
+    inOrder.verify(connection).abort(any());
+    inOrder.verify(connection).close();
+    inOrder.verify(pluginService).evictConnection(connection);
+  }
+
+  @Test
+  void test_abortConnection_inactiveContextDoesNotEvict() {
+    final PluginService pluginService = mock(PluginService.class);
+    HostMonitorConnectionContextV1 ctx = new HostMonitorConnectionContextV1();
+    ctx.init(connection, 100, 50, 3, counter, pluginService);
+    ctx.setInactive();
+    ctx.abortConnection();
+
+    verify(pluginService, never()).evictConnection(any());
   }
 
   @Test

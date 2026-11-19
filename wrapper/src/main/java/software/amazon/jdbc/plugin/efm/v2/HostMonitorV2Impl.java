@@ -37,6 +37,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
@@ -454,9 +455,9 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
   }
 
   protected void abortConnection(final @NonNull Connection connectionToAbort) {
+    final PluginService pluginService = this.servicesContainer.getPluginService();
     try {
-      this.servicesContainer.getPluginService().getTargetDriverDialect()
-          .abortConnection(connectionToAbort, abortExecutor);
+      pluginService.getTargetDriverDialect().abortConnection(connectionToAbort, abortExecutor);
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(
@@ -464,6 +465,8 @@ public class HostMonitorV2Impl extends AbstractMonitor implements HostMonitor, S
               "HostMonitorConnectionContext.exceptionAbortingConnection",
               new Object[] {sqlEx.getMessage()}));
     }
+    // Keep an aborted connection from an internal pool from being handed out again.
+    pluginService.evictConnection(connectionToAbort);
   }
 
   @Override
