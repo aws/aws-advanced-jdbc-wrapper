@@ -16,6 +16,8 @@
 
 package integration.util;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 import integration.container.ConnectionStringHelper;
 import java.security.SecureRandom;
 import java.sql.Connection;
@@ -459,6 +461,60 @@ public final class KmsTestUtility {
         }
         stmt.executeBatch();
       }
+    }
+  }
+
+  /**
+   * PostgreSQL only. (Re)creates an empty schema for a test to put its own functions or operators
+   * in, skipping the test when the user cannot create schemas.
+   *
+   * @param conn   a direct (non-wrapper) connection to the database
+   * @param schema the schema name
+   */
+  public static void createShadowSchema(final Connection conn, final String schema) throws SQLException {
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+      stmt.execute("CREATE SCHEMA " + schema);
+    } catch (final SQLException e) {
+      assumeTrue(!"42501".equals(e.getSQLState()), "The test user cannot create a schema");
+      throw e;
+    }
+  }
+
+  /**
+   * PostgreSQL only. Creates a shadow schema whose {@code =} on {@code varchar} and on
+   * {@code integer} is always true, for checking that the plugin's SQL uses the built-in operator
+   * regardless of search_path.
+   *
+   * @param conn   a direct (non-wrapper) connection to the database
+   * @param schema the schema name
+   */
+  public static void createShadowEqualsOperators(final Connection conn, final String schema)
+      throws SQLException {
+    createShadowSchema(conn, schema);
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute("CREATE FUNCTION " + schema + ".always_equal(varchar, varchar) RETURNS boolean "
+          + "AS $$ SELECT true $$ LANGUAGE sql IMMUTABLE");
+      stmt.execute("CREATE OPERATOR " + schema + ".= (LEFTARG = varchar, RIGHTARG = varchar, "
+          + "FUNCTION = " + schema + ".always_equal)");
+      stmt.execute("CREATE FUNCTION " + schema + ".always_equal(integer, integer) RETURNS boolean "
+          + "AS $$ SELECT true $$ LANGUAGE sql IMMUTABLE");
+      stmt.execute("CREATE OPERATOR " + schema + ".= (LEFTARG = integer, RIGHTARG = integer, "
+          + "FUNCTION = " + schema + ".always_equal)");
+    }
+  }
+
+  /**
+   * PostgreSQL only. Resets the connection's search_path and drops a schema made by
+   * {@link #createShadowSchema}.
+   *
+   * @param conn   a direct (non-wrapper) connection to the database
+   * @param schema the schema name
+   */
+  public static void dropShadowSchema(final Connection conn, final String schema) throws SQLException {
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute("SET search_path = public, pg_catalog");
+      stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
     }
   }
 }

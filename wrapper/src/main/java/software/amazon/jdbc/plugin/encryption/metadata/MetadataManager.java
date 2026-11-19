@@ -45,11 +45,13 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -68,11 +70,15 @@ public class MetadataManager {
   private final ReadWriteLock cacheLock;
   private volatile Instant lastRefreshTime;
   private volatile ScheduledExecutorService refreshExecutor;
+  // Whether the database is PostgreSQL. Known up front with a PluginService, otherwise read from
+  // the first connection used.
+  private volatile @Nullable Boolean isPostgreSQL;
 
   public MetadataManager(PluginService pluginService, EncryptionConfig config) {
     this.pluginService = pluginService;
     this.dataSource = null;
     this.connection = null;
+    this.isPostgreSQL = pluginService.getTargetDriverDialect() instanceof PgTargetDriverDialect;
     this.config = config;
     this.metadataCache = new ConcurrentHashMap<>();
     this.cacheLock = new ReentrantReadWriteLock();
@@ -110,10 +116,25 @@ public class MetadataManager {
       return dataSource.getConnection();
     }
     if (pluginService != null) {
-      return pluginService.forceConnect(
+      final Connection conn = pluginService.forceConnect(
           pluginService.getCurrentHostSpec(), pluginService.getProperties());
+      // The connection is the plugin's own and is closed after use, so its search_path can be pinned.
+      if (Boolean.TRUE.equals(isPostgreSQL)) {
+        EncryptionSql.pinPgSearchPathOrClose(conn);
+      }
+      return conn;
     }
     throw new SQLException(Messages.get("MetadataManager.noConnectionAvailable"));
+  }
+
+  /** The equality operator for SQL run on the given connection. */
+  private String eq(Connection conn) throws SQLException {
+    @Nullable Boolean pg = isPostgreSQL;
+    if (pg == null) {
+      pg = EncryptionSql.isPostgreSQL(conn);
+      isPostgreSQL = pg;
+    }
+    return EncryptionSql.equalsOperator(pg);
   }
 
   private void closeConnection(final @Nullable Connection conn) throws SQLException {
@@ -123,7 +144,7 @@ public class MetadataManager {
     // Don't close if using provided connection
   }
 
-  private String getLoadEncryptionMetadataSql() {
+  private String getLoadEncryptionMetadataSql(String eq) {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
         + "       em.created_at, em.updated_at, "
@@ -132,18 +153,19 @@ public class MetadataManager {
         + "FROM "
         + schema + ".encryption_metadata em "
         + "JOIN "
-        + schema + ".key_storage ks ON em.key_id = ks.id "
+        + schema + ".key_storage ks ON em.key_id " + eq + " ks.id "
         + "ORDER BY em.table_name, em.column_name";
   }
 
-  private String getCheckColumnEncryptedSql() {
+  private String getCheckColumnEncryptedSql(String eq) {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+    return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name " + eq + " ? AND column_name "
+        + eq + " ?";
   }
 
-  private String getCheckTableEncryptedSql() {
+  private String getCheckTableEncryptedSql(String eq) {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name = ?";
+    return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name " + eq + " ?";
   }
 
   private String getEncryptedTableNamesSql() {
@@ -151,7 +173,7 @@ public class MetadataManager {
     return "SELECT DISTINCT table_name FROM " + schema + ".encryption_metadata";
   }
 
-  private String getColumnConfigSql() {
+  private String getColumnConfigSql(String eq) {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
         + "       em.created_at, em.updated_at, "
@@ -160,8 +182,8 @@ public class MetadataManager {
         + "FROM "
         + schema + ".encryption_metadata em "
         + "JOIN "
-        + schema + ".key_storage ks ON em.key_id = ks.id "
-        + "WHERE em.table_name = ? AND em.column_name = ?";
+        + schema + ".key_storage ks ON em.key_id " + eq + " ks.id "
+        + "WHERE em.table_name " + eq + " ? AND em.column_name " + eq + " ?";
   }
 
   /**
@@ -178,7 +200,7 @@ public class MetadataManager {
     Connection conn = null;
     try {
       conn = getConnection();
-      try (PreparedStatement stmt = conn.prepareStatement(getLoadEncryptionMetadataSql());
+      try (PreparedStatement stmt = conn.prepareStatement(getLoadEncryptionMetadataSql(eq(conn)));
           ResultSet rs = stmt.executeQuery()) {
 
         while (rs.next()) {
@@ -295,7 +317,7 @@ public class MetadataManager {
     Connection conn = null;
     try {
       conn = getConnection();
-      try (PreparedStatement stmt = conn.prepareStatement(getCheckTableEncryptedSql())) {
+      try (PreparedStatement stmt = conn.prepareStatement(getCheckTableEncryptedSql(eq(conn)))) {
         stmt.setString(1, tableName);
         try (ResultSet rs = stmt.executeQuery()) {
           return rs.next();
@@ -499,7 +521,7 @@ public class MetadataManager {
     Connection conn = null;
     try {
       conn = getConnection();
-      try (PreparedStatement stmt = conn.prepareStatement(getCheckColumnEncryptedSql())) {
+      try (PreparedStatement stmt = conn.prepareStatement(getCheckColumnEncryptedSql(eq(conn)))) {
 
         stmt.setString(1, tableName);
         stmt.setString(2, columnName);
@@ -536,7 +558,7 @@ public class MetadataManager {
     Connection conn = null;
     try {
       conn = getConnection();
-      try (PreparedStatement stmt = conn.prepareStatement(getColumnConfigSql())) {
+      try (PreparedStatement stmt = conn.prepareStatement(getColumnConfigSql(eq(conn)))) {
 
         stmt.setString(1, tableName);
         stmt.setString(2, columnName);

@@ -306,7 +306,7 @@ public class KmsTriggerIntegrationTest {
       try {
         // pg_temp is never searched for functions, so the shadow lives in an ordinary schema that
         // the session puts first in its search_path.
-        createShadowSchema(conn);
+        KmsTestUtility.createShadowSchema(conn, SHADOW_SCHEMA);
         try (Statement stmt = conn.createStatement()) {
           stmt.execute(
               "CREATE FUNCTION " + SHADOW_SCHEMA + ".hmac(bytea, bytea, text) RETURNS bytea "
@@ -319,7 +319,7 @@ public class KmsTriggerIntegrationTest {
         assertHmacFailure(error);
         assertEquals(0, userCount(conn));
       } finally {
-        dropShadowSchema(conn);
+        KmsTestUtility.dropShadowSchema(conn, SHADOW_SCHEMA);
       }
     }
   }
@@ -333,7 +333,7 @@ public class KmsTriggerIntegrationTest {
 
     try (Connection conn = KmsTestUtility.openPlainConnection()) {
       try {
-        createShadowSchema(conn);
+        KmsTestUtility.createShadowSchema(conn, SHADOW_SCHEMA);
         try (Statement stmt = conn.createStatement()) {
           // A <> on bytea that is never true, so a trigger resolving <> through the session's
           // search_path would treat every value as matching its HMAC.
@@ -350,7 +350,7 @@ public class KmsTriggerIntegrationTest {
         assertHmacFailure(error);
         assertEquals(0, userCount(conn));
       } finally {
-        dropShadowSchema(conn);
+        KmsTestUtility.dropShadowSchema(conn, SHADOW_SCHEMA);
       }
     }
   }
@@ -443,23 +443,6 @@ public class KmsTriggerIntegrationTest {
   }
 
   private static final String SHADOW_SCHEMA = "kms_trig_shadow";
-
-  private static void createShadowSchema(final Connection conn) throws SQLException {
-    try (Statement stmt = conn.createStatement()) {
-      stmt.execute("DROP SCHEMA IF EXISTS " + SHADOW_SCHEMA + " CASCADE");
-      stmt.execute("CREATE SCHEMA " + SHADOW_SCHEMA);
-    } catch (final SQLException e) {
-      assumeTrue(!"42501".equals(e.getSQLState()), "The test user cannot create a schema");
-      throw e;
-    }
-  }
-
-  private static void dropShadowSchema(final Connection conn) throws SQLException {
-    try (Statement stmt = conn.createStatement()) {
-      stmt.execute("SET search_path = public, pg_catalog");
-      stmt.execute("DROP SCHEMA IF EXISTS " + SHADOW_SCHEMA + " CASCADE");
-    }
-  }
 
   /** A 80-byte value whose first 32 bytes equal the next 32, and so match a hijacked hmac(). */
   private static byte[] collidingPayload() {

@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,7 @@ import software.amazon.awssdk.services.kms.model.DecryptResponse;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.awssdk.services.kms.model.KmsException;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
@@ -212,7 +214,51 @@ public class KeyManagementUtilityReencryptionTest {
     assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.contains("FROM \"app\".\"users\"")
         && sql.contains("\"ssn\" IS NOT NULL") && sql.contains("ORDER BY \"id\"")));
     assertTrue(db.getExecutedSql().stream().anyMatch(
-        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" = ?")));
+        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" "
+            + EncryptionSql.PG_EQUALS + " ?")));
+  }
+
+  @Test
+  void rotate_postgres_metadataSqlUsesTheBuiltInOperator() throws Exception {
+    init(true, TABLE);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("value-1", oldKey));
+
+    utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 10);
+
+    // The fake also fails on any metadata SQL that compares with a plain =.
+    final List<String> metadataSql = db.getExecutedSql().stream()
+        .filter(FakeReencryptionDatabase::isMetadataSql)
+        .filter(sql -> !sql.startsWith("INSERT"))
+        .collect(Collectors.toList());
+    assertFalse(metadataSql.isEmpty());
+    for (String sql : metadataSql) {
+      assertTrue(sql.contains(EncryptionSql.PG_EQUALS), sql);
+    }
+    // On the application's table, only the encrypted value column, which is always bytea, uses the
+    // built-in operator. The primary key keeps the operators of its own type.
+    assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.equals(
+        "UPDATE \"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" " + EncryptionSql.PG_EQUALS + " ?")));
+    assertTrue(db.getExecutedSql().stream()
+        .filter(sql -> !FakeReencryptionDatabase.isMetadataSql(sql))
+        .filter(sql -> !sql.startsWith("UPDATE"))
+        .noneMatch(sql -> sql.contains("OPERATOR(")));
+  }
+
+  @Test
+  void rotate_mysql_sqlHasNoQualifiedOperators() throws Exception {
+    init(false, TABLE);
+    final TestKey oldKey = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(oldKey.id);
+    db.putRow(1, encrypt("value-1", oldKey));
+
+    utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, NEW_MASTER_KEY_ARN, 10);
+
+    assertTrue(db.getExecutedSql().stream().noneMatch(sql -> sql.contains("OPERATOR(")));
+    assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.equals(
+        "UPDATE encrypt.encryption_metadata SET key_id = ?, updated_at = ? "
+            + "WHERE table_name = ? AND column_name = ? AND key_id = ?")));
   }
 
   // ---- 2. resume after a mid-run failure -----------------------------------------------------
@@ -505,6 +551,58 @@ public class KeyManagementUtilityReencryptionTest {
 
     assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
     verifyNoInteractions(kmsClient);
+  }
+
+  @Test
+  void rotateDataKey_postgres_switchesTheKeyWithTheBuiltInOperator() throws Exception {
+    init(true, TABLE);
+    final TestKey keyA = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(keyA.id);
+    when(metadataManager.getColumnConfig(TABLE, COLUMN)).thenReturn(columnConfig(keyA));
+
+    // The fake fails on any PostgreSQL metadata SQL that compares with a plain =.
+    utility.rotateDataKey(TABLE, COLUMN, null);
+
+    assertNotEquals(keyA.id, db.getMetadataKeyId());
+    assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.equals(
+        "UPDATE encrypt.encryption_metadata SET key_id = ?, updated_at = ? WHERE table_name "
+            + EncryptionSql.PG_EQUALS + " ? AND column_name " + EncryptionSql.PG_EQUALS + " ?")));
+  }
+
+  @Test
+  void removeEncryptionForColumn_postgres_deletesOnlyThatColumn() throws Exception {
+    init(true, TABLE);
+    final TestKey keyA = createKey("key-users-ssn-1");
+    db.setMetadataKeyId(keyA.id);
+
+    utility.removeEncryptionForColumn("orders", COLUMN);
+    assertEquals(keyA.id, db.getMetadataKeyId(), "another column's configuration must be kept");
+
+    utility.removeEncryptionForColumn(TABLE, COLUMN);
+    assertEquals(-1, db.getMetadataKeyId());
+    assertTrue(db.getExecutedSql().stream().anyMatch(sql -> sql.equals(
+        "DELETE FROM encrypt.encryption_metadata WHERE table_name " + EncryptionSql.PG_EQUALS
+            + " ? AND column_name " + EncryptionSql.PG_EQUALS + " ?")));
+    verify(metadataManager, times(2)).refreshMetadata();
+  }
+
+  private static ColumnEncryptionConfig columnConfig(TestKey key) {
+    return ColumnEncryptionConfig.builder()
+        .tableName(TABLE)
+        .columnName(COLUMN)
+        .algorithm(ALGORITHM)
+        .keyId(key.id)
+        .keyMetadata(KeyMetadata.builder()
+            .keyId(key.id)
+            .keyName("key-users-ssn-1")
+            .masterKeyArn(MASTER_KEY_ARN)
+            .encryptedDataKey(key.encryptedDataKey)
+            .hmacKey(key.hmacKey)
+            .keySpec("AES_256")
+            .createdAt(Instant.now())
+            .lastUsedAt(Instant.now())
+            .build())
+        .build();
   }
 
   // ---- 5. repair after the switch and after the legacy rotateDataKey -------------------------
@@ -805,9 +903,10 @@ public class KeyManagementUtilityReencryptionTest {
       assertArrayEquals(new String[] {"users", COLUMN}, lookup);
     }
     assertTrue(db.getExecutedSql().stream().anyMatch(
-        sql -> sql.equals("SELECT \"id\", \"ssn\" FROM \"app\".\"users\" WHERE 1=0")));
+        sql -> sql.equals("SELECT \"id\", \"ssn\" FROM \"app\".\"users\" WHERE FALSE")));
     assertTrue(db.getExecutedSql().stream().anyMatch(
-        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" = ?")));
+        sql -> sql.equals("UPDATE \"app\".\"users\" SET \"ssn\" = ? WHERE \"id\" = ? AND \"ssn\" "
+            + EncryptionSql.PG_EQUALS + " ?")));
   }
 
   @Test

@@ -43,6 +43,7 @@ import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
@@ -179,17 +180,18 @@ public class KeyManagementUtility {
   private String getUpdateEncryptionMetadataKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "UPDATE " + schema + ".encryption_metadata SET key_id = ?, updated_at = ? "
-        + "WHERE table_name = ? AND column_name = ?";
+        + "WHERE table_name " + eq() + " ? AND column_name " + eq() + " ?";
   }
 
   private String getSelectColumnsWithKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT table_name, column_name FROM " + schema + ".encryption_metadata WHERE key_id = ?";
+    return "SELECT table_name, column_name FROM " + schema + ".encryption_metadata WHERE key_id " + eq() + " ?";
   }
 
   private String getDeleteEncryptionMetadataSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "DELETE FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+    return "DELETE FROM " + schema + ".encryption_metadata WHERE table_name " + eq() + " ? AND column_name "
+        + eq() + " ?";
   }
 
   private String getSelectCurrentKeySql() {
@@ -197,29 +199,38 @@ public class KeyManagementUtility {
     return "SELECT em.key_id, em.encryption_algorithm, em.table_name, em.column_name, "
         + "ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key "
         + "FROM " + schema + ".encryption_metadata em "
-        + "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id "
-        + "WHERE em.table_name = ? AND em.column_name = ?";
+        + "JOIN " + schema + ".key_storage ks ON em.key_id " + eq() + " ks.id "
+        + "WHERE em.table_name " + eq() + " ? AND em.column_name " + eq() + " ?";
   }
 
   private String getSelectKeyByIdSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT id, master_key_arn, encrypted_data_key, hmac_key FROM " + schema + ".key_storage WHERE id = ?";
+    return "SELECT id, master_key_arn, encrypted_data_key, hmac_key FROM " + schema + ".key_storage WHERE id "
+        + eq() + " ?";
   }
 
   private String getSwitchEncryptionMetadataKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "UPDATE " + schema + ".encryption_metadata SET key_id = ?, updated_at = ? "
-        + "WHERE table_name = ? AND column_name = ? AND key_id = ?";
+        + "WHERE table_name " + eq() + " ? AND column_name " + eq() + " ? AND key_id " + eq() + " ?";
   }
 
   private String getSelectColumnKeyIdSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT key_id FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+    return "SELECT key_id FROM " + schema + ".encryption_metadata WHERE table_name " + eq()
+        + " ? AND column_name " + eq() + " ?";
   }
 
   private String getDeleteKeyByIdSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "DELETE FROM " + schema + ".key_storage WHERE id = ?";
+    return "DELETE FROM " + schema + ".key_storage WHERE id " + eq() + " ?";
+  }
+
+  // The equality operator for columns with built-in types: the metadata and key tables, and the
+  // encrypted value column. The re-encryption SQL below keeps the plain operators on the
+  // application's primary key, which use that type's own ordering and equality.
+  private String eq() {
+    return EncryptionSql.equalsOperator(keyManager.isPostgreSQL());
   }
 
   /** Keyset page of (pk, value) rows. The target's identifiers are validated. */
@@ -237,13 +248,13 @@ public class KeyManagementUtility {
   private String getUpdateEncryptedValueSql(ColumnTarget target) {
     final String column = quoteIdentifier(target.column);
     return "UPDATE " + quoteTableName(target) + " SET " + column + " = ?"
-        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " = ? AND " + column + " = ?";
+        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " = ? AND " + column + " " + eq() + " ?";
   }
 
   /** Reads no rows; fails if the table, the column or the primary key column does not exist. */
   private String getProbeSql(ColumnTarget target) {
     return "SELECT " + quoteIdentifier(target.primaryKeyColumn) + ", " + quoteIdentifier(target.column)
-        + " FROM " + quoteTableName(target) + " WHERE 1=0";
+        + " FROM " + quoteTableName(target) + " WHERE FALSE";
   }
 
   /**
@@ -1018,7 +1029,7 @@ public class KeyManagementUtility {
   private void checkColumnsExist(Connection conn, ColumnTarget target) throws KeyManagementException {
     try (PreparedStatement stmt = conn.prepareStatement(getProbeSql(target));
          ResultSet ignored = stmt.executeQuery()) {
-      // WHERE 1=0: no rows to read.
+      // WHERE FALSE: no rows to read.
     } catch (SQLException e) {
       throw new KeyManagementException(Messages.get("KeyManagementUtility.relationCheckFailed",
           new Object[]{quoteTableName(target), quoteIdentifier(target.column),
@@ -1366,21 +1377,35 @@ public class KeyManagementUtility {
    * Lists all columns that use a specific key ID. Useful for understanding the impact of key
    * operations.
    *
-   * @param keyId The key ID to search for
+   * @param keyId The key ID to search for: the {@code key_storage.id} value, in decimal
+   * @return List of table.column identifiers using the key
+   * @throws KeyManagementException if query fails
+   * @throws IllegalArgumentException if the key ID is not an integer
+   * @deprecated Use {@link #getColumnsUsingKey(int)}.
+   */
+  @Deprecated
+  public List<String> getColumnsUsingKey(String keyId) throws KeyManagementException {
+    Objects.requireNonNull(keyId, "Key ID cannot be null");
+    return getColumnsUsingKey(KeyManager.parseKeyId(keyId));
+  }
+
+  /**
+   * Lists all columns that use a specific key ID. Useful for understanding the impact of key
+   * operations.
+   *
+   * @param keyId The key ID to search for: the {@code key_storage.id} value
    * @return List of table.column identifiers using the key
    * @throws KeyManagementException if query fails
    */
-  public List<String> getColumnsUsingKey(String keyId) throws KeyManagementException {
-    Objects.requireNonNull(keyId, "Key ID cannot be null");
-
-    LOGGER.finest(() -> Messages.get("KeyManagementUtility.findingColumns", new Object[]{keyId}));
+  public List<String> getColumnsUsingKey(int keyId) throws KeyManagementException {
+    LOGGER.finest(() -> Messages.get("KeyManagementUtility.findingColumns", new Object[]{String.valueOf(keyId)}));
 
     Connection conn = null;
     try {
       conn = getConnection();
       try (PreparedStatement stmt = conn.prepareStatement(getSelectColumnsWithKeySql())) {
 
-        stmt.setString(1, keyId);
+        stmt.setInt(1, keyId);
 
         try (ResultSet rs = stmt.executeQuery()) {
           List<String> columns = new ArrayList<>();
@@ -1394,7 +1419,8 @@ public class KeyManagementUtility {
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManagementUtility.findColumnsFailed", new Object[]{keyId, e.getMessage()}));
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.findColumnsFailed",
+          new Object[]{String.valueOf(keyId), e.getMessage()}));
       throw new KeyManagementException(
           Messages.get("KeyManagementUtility.findColumnsForKeyFailed", new Object[]{e.getMessage(), e}));
     } finally {

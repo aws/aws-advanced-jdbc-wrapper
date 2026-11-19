@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Predicate;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 
 /**
  * In-memory fake of the JDBC calls made by {@link KeyManagementUtility} and {@link KeyManager}
@@ -246,7 +247,7 @@ final class FakeReencryptionDatabase {
     switch (method.getName()) {
       case "prepareStatement":
         executedSql.add((String) args[0]);
-        return newStatement((String) args[0]);
+        return newStatement(normalize((String) args[0]));
       case "getAutoCommit":
         return autoCommit;
       case "setAutoCommit":
@@ -297,6 +298,30 @@ final class FakeReencryptionDatabase {
 
   private void discardStaged() {
     staged.clear();
+  }
+
+  /**
+   * Returns whether SQL reads or writes the metadata or key tables, rather than the application's
+   * table.
+   */
+  static boolean isMetadataSql(String sql) {
+    return sql.contains(".encryption_metadata") || sql.contains(".key_storage");
+  }
+
+  /**
+   * On PostgreSQL, fails on metadata or key SQL that compares with a plain {@code =}, and maps the
+   * qualified operator back to {@code =} so the statement can be matched below. The assignments of
+   * a SET clause are not comparisons.
+   */
+  private String normalize(String sql) {
+    if (!postgres || !isMetadataSql(sql)) {
+      return sql;
+    }
+    final String comparisons = sql.replaceAll(" SET .*?( WHERE |$)", "$1");
+    if (comparisons.contains(" = ")) {
+      throw new AssertionError("Unqualified equality operator in PostgreSQL metadata SQL: " + sql);
+    }
+    return sql.replace(EncryptionSql.PG_EQUALS, "=");
   }
 
   private PreparedStatement newStatement(String sql) {
@@ -361,7 +386,7 @@ final class FakeReencryptionDatabase {
   private String probeSql() {
     final String table = physicalSchema == null
         ? quote(physicalTable) : quote(physicalSchema) + "." + quote(physicalTable);
-    return "SELECT " + quote(physicalPrimaryKey) + ", " + quote(physicalColumn) + " FROM " + table + " WHERE 1=0";
+    return "SELECT " + quote(physicalPrimaryKey) + ", " + quote(physicalColumn) + " FROM " + table + " WHERE FALSE";
   }
 
   private ResultSet executeQuery(String sql, Map<Integer, Object> params) throws SQLException {
@@ -398,7 +423,7 @@ final class FakeReencryptionDatabase {
       final int id = insertKey(params);
       return resultSet(new String[] {"id"}, Collections.singletonList(new Object[] {id}));
     }
-    if (sql.endsWith(" WHERE 1=0")) {
+    if (sql.endsWith(" WHERE FALSE")) {
       if (!sql.equals(probeSql())) {
         throw new SQLException("relation or column does not exist: " + sql);
       }
@@ -442,6 +467,15 @@ final class FakeReencryptionDatabase {
         result[0] = 1;
       } else {
         result[0] = 0;
+      }
+      return null;
+    }
+    if (sql.startsWith("DELETE FROM") && sql.contains("encryption_metadata")
+        && sql.endsWith("WHERE table_name = ? AND column_name = ?")) {
+      final boolean matches = metadataMatches(params.get(1), params.get(2)) && metadataKeyId >= 0;
+      result[0] = matches ? 1 : 0;
+      if (matches) {
+        write(() -> metadataKeyId = -1);
       }
       return null;
     }
