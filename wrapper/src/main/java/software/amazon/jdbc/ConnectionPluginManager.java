@@ -45,6 +45,7 @@ import software.amazon.jdbc.plugin.cache.RemoteQueryCachePlugin;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.plugin.efm.v1.HostMonitoringConnectionPluginV1;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitoringConnectionPluginV2;
+import software.amazon.jdbc.plugin.efm.v3.HostMonitoringConnectionPluginV3;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
@@ -92,6 +93,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper, St
           put(RemoteQueryCachePlugin.class, "plugin:remoteQueryCache");
           put(HostMonitoringConnectionPluginV1.class, "plugin:efm");
           put(HostMonitoringConnectionPluginV2.class, "plugin:efm2");
+          put(HostMonitoringConnectionPluginV3.class, "plugin:efm3");
           put(FailoverConnectionPlugin.class, "plugin:failover");
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class, "plugin:failover2");
           put(software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin.class, "plugin:gdbFailover");

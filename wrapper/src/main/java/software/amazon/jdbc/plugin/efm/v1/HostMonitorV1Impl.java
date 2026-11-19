@@ -34,6 +34,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.efm.base.ConnectionContext;
 import software.amazon.jdbc.plugin.efm.base.HostMonitor;
+import software.amazon.jdbc.plugin.efm.base.HostMonitoringProperties;
 import software.amazon.jdbc.plugin.efm.v2.HostMonitorV2Impl;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -55,7 +56,7 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
   private static final Logger LOGGER = Logger.getLogger(HostMonitorV1Impl.class.getName());
   private static final String MONITORING_THREAD_NAME_PREFIX = "efm-monitor";
   private static final long TERMINATION_TIMEOUT_SEC = 30;
-  private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
+
 
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
   private static final long MIN_CONNECTION_CHECK_TIMEOUT_MILLIS = 100;
@@ -98,26 +99,8 @@ public class HostMonitorV1Impl extends AbstractMonitor implements HostMonitor, S
     this.monitoringConn = new AtomicConnection(
         this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
 
-    this.monitoringProperties = PropertyUtils.copyProperties(this.properties);
-
-    // Drop inherited restrictions before the monitoring overrides are applied, so an explicit
-    // '<prefix>' value below still takes effect. This monitor watches one specific node, which may be
-    // a reader, so a target driver setting that rejects read-only servers would stop it connecting.
-    PropertyUtils.removeHostSelectionProperties(
-        this.monitoringProperties, servicesContainer.getPluginService().getTargetDriverDialect());
-
-    this.properties.stringPropertyNames().stream()
-        .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
-        .forEach(
-            p -> {
-              final String value = this.properties.getProperty(p);
-              if (value != null) {
-                this.monitoringProperties.put(
-                    p.substring(MONITORING_PROPERTY_PREFIX.length()),
-                    value);
-              }
-              this.monitoringProperties.remove(p);
-            });
+    this.monitoringProperties = HostMonitoringProperties.create(
+        this.properties, servicesContainer.getPluginService().getTargetDriverDialect());
 
     final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()

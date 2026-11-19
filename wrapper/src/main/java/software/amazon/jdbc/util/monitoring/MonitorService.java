@@ -151,6 +151,27 @@ public interface MonitorService extends StateSnapshotProvider {
   <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key);
 
   /**
+   * Stops and removes the monitor stored under the given key only if it is the given instance. Use this when replacing
+   * a monitor observed to be stopped, so that a replacement installed concurrently by another caller is left alone.
+   *
+   * <p>The default implementation is not atomic; {@link MonitorServiceImpl} overrides it with an atomic one.
+   *
+   * @param monitorClass    the class of the monitor.
+   * @param key             the key of the monitor.
+   * @param expectedMonitor the monitor instance that should be removed.
+   * @param <T>             the type of the monitor.
+   * @return true if {@code expectedMonitor} was stored under the key and has been stopped and removed.
+   */
+  default <T extends Monitor> boolean stopAndRemove(
+      Class<T> monitorClass, Object key, Monitor expectedMonitor) {
+    if (this.get(monitorClass, key) != expectedMonitor) {
+      return false;
+    }
+    this.stopAndRemove(monitorClass, key);
+    return true;
+  }
+
+  /**
    * Stops all monitors for the given type and removes them from the monitor service.
    *
    * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.

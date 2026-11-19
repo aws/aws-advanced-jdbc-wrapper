@@ -139,6 +139,17 @@ See [Host Monitoring Plugin v2](./using-plugins/UsingTheHostMonitoringPlugin.md#
 
 `efm2` does not submit a per-node unhealthy counter.
 
+### Host Monitoring plugin v3 — `efm3`
+
+See [Host Monitoring Plugin v3](./using-plugins/UsingTheHostMonitoringPlugin.md#telemetry-metrics-2).
+
+| Metric name                     | Metric type | Description                                                                                           |
+|---------------------------------|-------------|-------------------------------------------------------------------------------------------------------|
+| efm3.connections.aborted        | Counter     | Number of times a connection was aborted after being defined as unhealthy by an EFM monitoring thread |
+| efm3.hostUnhealthy.count.[NODE] | Counter     | Number of failed probes against a specific host                                                       |
+
+`efm3` does not use the context pool and submits no `efm.contextPool.size` gauge.
+
 ### Secrets Manager plugins — `awsSecretsManager`, `awsSecretsManager2`
 
 See [Using the AWS Secrets Manager Plugin](./using-plugins/UsingTheAwsSecretsManagerPlugin.md#telemetry-metrics) and [plugin v2](./using-plugins/UsingTheAwsSecretsManagerPlugin2.md#telemetry-metrics).

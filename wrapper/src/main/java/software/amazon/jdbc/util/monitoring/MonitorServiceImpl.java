@@ -369,6 +369,22 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
+  public <T extends Monitor> boolean stopAndRemove(
+      Class<T> monitorClass, Object key, Monitor expectedMonitor) {
+    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+    if (cacheContainer == null) {
+      return false;
+    }
+
+    MonitorItem monitorItem = cacheContainer.getCache().removeIf(key, item -> item.getMonitor() == expectedMonitor);
+    if (monitorItem == null) {
+      return false;
+    }
+    monitorItem.getMonitor().stop();
+    return true;
+  }
+
+  @Override
   public <T extends Monitor> void stopAndRemoveMonitors(Class<T> monitorClass) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {

@@ -38,6 +38,7 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.cache.DataLocalCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import software.amazon.jdbc.plugin.efm.v3.HostMonitorV3Impl;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
@@ -449,6 +450,7 @@ public class Driver implements java.sql.Driver {
     }
     BatchingEventPublisher.releaseResources();
     OpenedConnectionTracker.releaseResources();
+    HostMonitorV3Impl.releaseAbortExecutor();
     ConnectionProviderManager.releaseResources();
     InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();

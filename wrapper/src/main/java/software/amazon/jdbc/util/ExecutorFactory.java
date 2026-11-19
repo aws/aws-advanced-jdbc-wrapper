@@ -19,8 +19,11 @@ package software.amazon.jdbc.util;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ExecutorFactory {
@@ -36,6 +39,19 @@ public class ExecutorFactory {
 
   public static ExecutorService newFixedThreadPool(int threadCount, String threadName) {
     return Executors.newFixedThreadPool(threadCount, getThreadFactory(threadName));
+  }
+
+  /**
+   * A pool of at most {@code threadCount} threads with an unbounded queue, whose threads all exit after being idle for
+   * {@code keepAlive}. Unlike a cached pool its thread count is bounded, and unlike a plain fixed pool it holds no
+   * threads while unused.
+   */
+  public static ExecutorService newFixedThreadPoolWithIdleTimeout(
+      int threadCount, long keepAlive, TimeUnit unit, String threadName) {
+    final ThreadPoolExecutor executor = new ThreadPoolExecutor(
+        threadCount, threadCount, keepAlive, unit, new LinkedBlockingQueue<>(), getThreadFactory(threadName));
+    executor.allowCoreThreadTimeOut(true);
+    return executor;
   }
 
   public static ScheduledExecutorService newSingleThreadScheduledThreadExecutor(String threadName) {

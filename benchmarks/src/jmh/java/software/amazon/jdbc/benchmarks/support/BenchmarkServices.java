@@ -39,8 +39,9 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import java.util.concurrent.atomic.AtomicReference;
 import software.amazon.jdbc.plugin.efm.base.ConnectionContextService;
-import software.amazon.jdbc.plugin.efm.base.SimpleConnectionContextServiceImpl;
+import software.amazon.jdbc.plugin.efm.base.ConnectionContextServiceFactory;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -262,7 +263,10 @@ public final class BenchmarkServices {
     // contexts on their execute path, so standing these in would remove the very work being measured.
     // The monitor service is the driver's process-wide singleton, matching production.
     final MonitorService monitorService = CoreServicesContainer.getInstance().getMonitorService();
-    final ConnectionContextService connectionContextService = new SimpleConnectionContextServiceImpl();
+    // The monitoring plugins install their context service in their constructor; honour that so efm/efm2 are
+    // measured with the production default (the pooled service and its lock), not a stand-in.
+    final AtomicReference<ConnectionContextService> connectionContextService =
+        new AtomicReference<>(ConnectionContextServiceFactory.getInstance());
     final EventPublisher eventPublisher = new NoOpEventPublisher();
     return proxy(FullServicesContainer.class, (proxy, method, args) -> {
       switch (method.getName()) {
@@ -281,7 +285,10 @@ public final class BenchmarkServices {
         case "getMonitorService":
           return monitorService;
         case "getConnectionContextService":
-          return connectionContextService;
+          return connectionContextService.get();
+        case "setConnectionContextService":
+          connectionContextService.set((ConnectionContextService) args[0]);
+          return null;
         case "getEventPublisher":
           return eventPublisher;
         case "getDefaultConnectionProvider":

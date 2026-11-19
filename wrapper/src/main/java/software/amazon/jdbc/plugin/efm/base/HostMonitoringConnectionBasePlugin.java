@@ -83,6 +83,12 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
           "3",
           "Number of failed connection checks before considering database node unhealthy.");
 
+  public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
+      new AwsWrapperProperty(
+          "monitorDisposalTime",
+          "600000", // 10min
+          "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
+
   protected final Set<String> subscribedMethods;
 
   protected @NonNull Properties properties;
@@ -95,7 +101,7 @@ public abstract class HostMonitoringConnectionBasePlugin extends AbstractConnect
 
   static {
     PropertyDefinition.registerPluginProperties(HostMonitoringConnectionBasePlugin.class);
-    PropertyDefinition.registerPluginProperties("monitoring-");
+    PropertyDefinition.registerPluginProperties(HostMonitoringProperties.MONITORING_PROPERTY_PREFIX);
   }
 
   /**
