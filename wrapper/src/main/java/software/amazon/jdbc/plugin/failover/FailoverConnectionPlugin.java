@@ -887,6 +887,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       return;
     }
 
+    // Honor skipFailoverOnInterruptedThread on every path that leads to failover, not only on the
+    // exception path. An interrupt can close the underlying socket, so the next call on the connection
+    // (for example, a pool's rollback) would otherwise start a failover on a healthy cluster.
+    if (this.skipFailoverOnInterruptedThread && Thread.currentThread().isInterrupted()) {
+      LOGGER.fine(() -> Messages.get("Failover.skipFailoverOnInterruptedThread"));
+      throw new SQLException(
+          Messages.get("Failover.connectionNotOpenOnInterruptedThread"),
+          SqlState.CONNECTION_NOT_OPEN.getState());
+    }
+
     if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
       final HostSpec writerHost = Utils.getWriter(this.pluginService.getAllHosts());
       if (writerHost != null) {
