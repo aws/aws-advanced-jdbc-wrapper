@@ -221,8 +221,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
 
     final long currentTimeNano = System.nanoTime();
     try {
-      // An interrupted caller cannot wait for the result, so it does not put the monitor into panic mode.
-      if (verifyTopology && !Thread.currentThread().isInterrupted()) {
+      if (verifyTopology) {
         // Enter panic mode, which will verify the topology for us.
         this.monitoringConnection.set(null);
       }
