@@ -504,8 +504,27 @@ public class SqlParserConnectionPluginTest {
   void test_bareAnnotation_tablesInDifferentSchemas_stayBare() throws Exception {
     executeWithSql("SELECT * FROM a.users JOIN b.other ON users.id = other.id"
         + " WHERE lower(ssn) = /*@encrypt:ssn*/ ?");
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+
+    executeWithSql("SELECT * FROM a.users x JOIN b.users y ON x.id = y.id"
+        + " WHERE lower(x.ssn) = /*@encrypt:ssn*/ ?");
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_tablesDifferingInCase_stayBare() throws Exception {
+    executeWithSql("SELECT * FROM \"Users\" x JOIN users y ON x.id = y.id"
+        + " WHERE lower(x.ssn) = /*@encrypt:ssn*/ ?");
 
     assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_sameTableTwice_takesThatTable() throws Exception {
+    executeWithSql("SELECT * FROM users x JOIN users y ON x.parent = y.id"
+        + " WHERE lower(x.ssn) = /*@encrypt:ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
   }
 
   @Test

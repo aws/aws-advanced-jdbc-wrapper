@@ -215,8 +215,14 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     for (String table : analysis.tables) {
       tables.add(table.replace("`", "").replace("\"", ""));
     }
-    final boolean allTablesListed = addAllTables(statement, tables);
-    final @Nullable String onlyTable = allTablesListed ? onlyTable(tables) : null;
+    final @Nullable Set<String> allTables = allTables(statement);
+    if (allTables != null) {
+      tables.addAll(allTables);
+    }
+    // Only one source of names is counted, so that the same table written two ways by two sources
+    // (users, public.users) is not two tables, while different tables always are.
+    final @Nullable String onlyTable = allTables != null && allTables.size() == 1
+        ? lastSegment(allTables.iterator().next()) : null;
 
     // Build parameter mapping; annotations take precedence
     Map<Integer, String> paramMapping = new HashMap<>(mapping.getColumns());
@@ -272,40 +278,25 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * The bare name of the only table in {@code tables}, or null when there are several. A table
-   * listed both with and without its schema ({@code public.users} and {@code users}) is one table.
-   */
-  private static @Nullable String onlyTable(final Set<String> tables) {
-    @Nullable String only = null;
-    for (String table : tables) {
-      final String name = lastSegment(table);
-      if (only == null) {
-        only = name;
-      } else if (!only.equalsIgnoreCase(name)) {
-        return null;
-      }
-    }
-    return only;
-  }
-
-  /**
-   * Adds every table the statement names, subqueries included, to {@code tables}.
+   * Every table the statement names, subqueries included, as written (schema kept, case kept)
+   * without quotes, so that tables in different schemas or differing in case stay apart.
    *
-   * @return true when they could all be listed
+   * @return the tables, or null when they could not all be listed
    */
-  private static boolean addAllTables(final @Nullable Statement statement, final Set<String> tables) {
+  private static @Nullable Set<String> allTables(final @Nullable Statement statement) {
     if (statement == null) {
-      return false;
+      return null;
     }
     try {
+      final Set<String> tables = new LinkedHashSet<>();
       for (String table : new TablesNamesFinder().getTables(statement)) {
         tables.add(table.replace("`", "").replace("\"", ""));
       }
-      return true;
+      return tables;
     } catch (RuntimeException e) {
       LOGGER.finest(() -> Messages.get(
           "SqlParserConnectionPlugin.tableListFailed", new Object[] {e.getClass().getName()}));
-      return false;
+      return null;
     }
   }
 
