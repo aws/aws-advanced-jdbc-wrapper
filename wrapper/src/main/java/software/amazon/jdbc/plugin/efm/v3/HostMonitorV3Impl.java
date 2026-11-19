@@ -36,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.efm.base.HostMonitoringProperties;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -418,14 +419,22 @@ public class HostMonitorV3Impl extends AbstractMonitor implements EventSubscribe
   }
 
   protected void abortConnection(final @NonNull Connection connectionToAbort) {
+    final PluginService pluginService = this.servicesContainer.getPluginService();
     try {
-      this.servicesContainer.getPluginService().getTargetDriverDialect()
-          .abortConnection(connectionToAbort, getAbortExecutor());
+      pluginService.getTargetDriverDialect().abortConnection(connectionToAbort, getAbortExecutor());
       if (this.abortedConnectionsCounter != null) {
         this.abortedConnectionsCounter.inc();
       }
     } catch (final Exception ex) {
       // Includes RejectedExecutionException when the pool is released concurrently with a driver shutdown.
+      LOGGER.finest(() -> Messages.get(
+          "HostMonitorConnectionContext.exceptionAbortingConnection", new Object[] {ex.getMessage()}));
+    }
+
+    // Keep an aborted connection from an internal pool from being handed out again.
+    try {
+      pluginService.evictConnection(connectionToAbort);
+    } catch (final RuntimeException ex) {
       LOGGER.finest(() -> Messages.get(
           "HostMonitorConnectionContext.exceptionAbortingConnection", new Object[] {ex.getMessage()}));
     }
