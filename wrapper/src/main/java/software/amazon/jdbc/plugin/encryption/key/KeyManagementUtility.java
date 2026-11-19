@@ -45,6 +45,7 @@ import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
@@ -313,13 +314,15 @@ public class KeyManagementUtility {
 
       kmsClient.createAlias(aliasRequest);
 
-      LOGGER.info(() -> Messages.get("KeyManagementUtility.masterKeyCreated", new Object[]{keyArn, aliasName}));
+      LOGGER.info(() -> Messages.get(
+          "KeyManagementUtility.masterKeyCreated", new Object[]{Sanitizer.arn(keyArn), aliasName}));
       return keyArn;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManagementUtility.masterKeyFailed", new Object[]{e.getMessage()}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManagementUtility.masterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManagementUtility.createMasterKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManagementUtility.createMasterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -356,7 +359,7 @@ public class KeyManagementUtility {
     }
 
     LOGGER.info(() -> Messages.get(
-        "KeyManagementUtility.generatingDataKey", new Object[]{tableName, columnName, masterKeyArn}));
+        "KeyManagementUtility.generatingDataKey", new Object[]{tableName, columnName, Sanitizer.arn(masterKeyArn)}));
 
     try {
 
@@ -496,7 +499,7 @@ public class KeyManagementUtility {
       LOGGER.severe(() -> Messages.get(
           "KeyManagementUtility.keyRotationFailed", new Object[]{tableName, columnName, e.getMessage()}));
       throw new KeyManagementException(
-          Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -1494,7 +1497,8 @@ public class KeyManagementUtility {
   public boolean validateMasterKey(String masterKeyArn) throws KeyManagementException {
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    LOGGER.finest(() -> Messages.get("KeyManagementUtility.validatingMasterKey", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get(
+        "KeyManagementUtility.validatingMasterKey", new Object[]{Sanitizer.arn(masterKeyArn)}));
 
     try {
       DescribeKeyRequest request = DescribeKeyRequest.builder().keyId(masterKeyArn).build();
@@ -1507,14 +1511,16 @@ public class KeyManagementUtility {
               && keyMetadata.keyState() == KeyState.ENABLED
               && keyMetadata.keyUsage() == KeyUsageType.ENCRYPT_DECRYPT;
 
-      LOGGER.finest(() -> Messages.get("KeyManagementUtility.masterKeyValidated", new Object[]{masterKeyArn, isValid}));
+      LOGGER.finest(() -> Messages.get(
+          "KeyManagementUtility.masterKeyValidated", new Object[]{Sanitizer.arn(masterKeyArn), isValid}));
       return isValid;
 
     } catch (Exception e) {
       LOGGER.severe(() -> Messages.get(
-          "KeyManagementUtility.masterKeyValidationFailed", new Object[]{masterKeyArn, e.getMessage()}));
+          "KeyManagementUtility.masterKeyValidationFailed",
+          new Object[]{Sanitizer.arn(masterKeyArn), Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManagementUtility.validateMasterKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManagementUtility.validateMasterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 

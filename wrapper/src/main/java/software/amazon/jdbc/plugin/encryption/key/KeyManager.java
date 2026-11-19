@@ -65,6 +65,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
@@ -181,13 +182,13 @@ public class KeyManager {
       CreateKeyResponse response = executeWithRetry(() -> kmsClient.createKey(request));
       String keyArn = response.keyMetadata().arn();
 
-      LOGGER.info(() -> Messages.get("KeyManager.masterKeyCreated", new Object[]{keyArn}));
+      LOGGER.info(() -> Messages.get("KeyManager.masterKeyCreated", new Object[]{Sanitizer.arn(keyArn)}));
       return keyArn;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.masterKeyFailed", new Object[]{e}));
+      LOGGER.severe(() -> Messages.get("KeyManager.masterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.createMasterKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.createMasterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -202,7 +203,7 @@ public class KeyManager {
     authorizeMasterKey(masterKeyArn);
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    LOGGER.finest(() -> Messages.get("KeyManager.generatingDataKey", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get("KeyManager.generatingDataKey", new Object[]{Sanitizer.arn(masterKeyArn)}));
 
     try {
       GenerateDataKeyRequest request =
@@ -217,9 +218,10 @@ public class KeyManager {
       return new DataKeyResult(encryptedKey);
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.dataKeyGenerationFailed", new Object[]{masterKeyArn, e}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.dataKeyGenerationFailed", new Object[]{Sanitizer.arn(masterKeyArn), Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.generateDataKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.generateDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -254,7 +256,7 @@ public class KeyManager {
       }
     }
 
-    LOGGER.finest(() -> Messages.get("KeyManager.decryptingDataKey", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get("KeyManager.decryptingDataKey", new Object[]{Sanitizer.arn(masterKeyArn)}));
 
     byte @Nullable [] plaintextKey = null;
     try {
@@ -282,9 +284,10 @@ public class KeyManager {
       if (plaintextKey != null) {
         Arrays.fill(plaintextKey, (byte) 0);
       }
-      LOGGER.severe(() -> Messages.get("KeyManager.dataKeyDecryptionFailed", new Object[]{masterKeyArn, e}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.dataKeyDecryptionFailed", new Object[]{Sanitizer.arn(masterKeyArn), Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.decryptDataKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.decryptDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -530,7 +533,7 @@ public class KeyManager {
     }
     // The ARN comes from key_storage and may have been written by someone else, so it is masked.
     final String message = Messages.get("KeyManager.masterKeyNotAllowed",
-        new Object[]{KeyManagementException.sanitizeArn(masterKeyArn),
+        new Object[]{Sanitizer.arn(masterKeyArn),
             EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name});
     LOGGER.warning(message);
     throw KeyManagementException.unauthorizedMasterKey(message, masterKeyArn);
@@ -567,7 +570,8 @@ public class KeyManager {
           long backoffMs = calculateBackoff(attempt);
           int finalAttempt = attempt;
           LOGGER.warning(() -> Messages.get(
-              "KeyManager.retrying", new Object[]{finalAttempt + 1, maxRetries + 1, backoffMs, e.getMessage()}));
+              "KeyManager.retrying",
+              new Object[]{finalAttempt + 1, maxRetries + 1, backoffMs, Sanitizer.errorSummary(e)}));
 
           try {
             Thread.sleep(backoffMs);

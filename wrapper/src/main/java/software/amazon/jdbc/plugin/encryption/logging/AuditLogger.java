@@ -519,26 +519,13 @@ public class AuditLogger {
   // Sanitization methods to prevent sensitive data exposure
 
   private String sanitizeArn(String arn) {
-    if (arn == null) {
-      return "null";
-    }
-    // Keep only the key ID part of the ARN for audit purposes
-    int lastSlash = arn.lastIndexOf('/');
-    if (lastSlash != -1 && lastSlash < arn.length() - 1) {
-      return "arn:aws:kms:***:***:key/" + arn.substring(lastSlash + 1);
-    }
-    return "arn:aws:kms:***:***:key/***";
+    final String masked = Sanitizer.arn(arn);
+    return masked == null ? "null" : masked;
   }
 
   private String sanitizeKeyId(String keyId) {
-    if (keyId == null) {
-      return "null";
-    }
-    // Show only first and last 4 characters of key ID
-    if (keyId.length() > 8) {
-      return keyId.substring(0, 4) + "***" + keyId.substring(keyId.length() - 4);
-    }
-    return "***";
+    final String masked = Sanitizer.keyId(keyId);
+    return masked == null ? "null" : masked;
   }
 
   private String sanitizeTableName(String tableName) {
@@ -591,17 +578,7 @@ public class AuditLogger {
   }
 
   private String sanitizeJdbcUrl(String jdbcUrl) {
-    if (jdbcUrl == null) {
-      return "null";
-    }
-
-    // Remove password parameters from URL
-    String sanitized =
-        jdbcUrl
-            .replaceAll("(?i)[?&]password=[^&]*", "?password=***")
-            .replaceAll("(?i)[?&]pwd=[^&]*", "?pwd=***")
-            .replaceAll("(?i)://[^:]+:[^@]+@", "://***:***@");
-
-    return sanitized;
+    final String masked = Sanitizer.connectionUrl(jdbcUrl);
+    return masked == null ? "null" : masked;
   }
 }

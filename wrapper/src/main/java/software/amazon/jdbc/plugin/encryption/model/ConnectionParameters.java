@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 import java.util.Objects;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.util.Messages;
 
 /**
@@ -173,7 +174,13 @@ public class ConnectionParameters {
     return String.format(
         "ConnectionParameters{jdbcUrl='%s', username='%s', password='[REDACTED]',"
             + " connectionProperties=%s, driverClassName='%s', catalog='%s', schema='%s'}",
-        jdbcUrl, username, connectionProperties, driverClassName, catalog, schema);
+        Sanitizer.connectionUrl(jdbcUrl), username, maskedProperties(), driverClassName, catalog,
+        schema);
+  }
+
+  // Connection properties routinely hold secrets (password, tokens), so only the names are printed.
+  private String maskedProperties() {
+    return connectionProperties == null ? "null" : connectionProperties.stringPropertyNames().toString();
   }
 
   /** Builder class for constructing ConnectionParameters instances. */
