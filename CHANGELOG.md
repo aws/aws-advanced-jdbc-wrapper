@@ -965,6 +965,14 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[4.7.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.6.0...4.7.0
+[4.6.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.5.0...4.6.0
+[4.5.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.4.0...4.5.0
+[4.4.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.3.0...4.4.0
+[4.3.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.2.0...4.3.0
+[4.2.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.1.0...4.2.0
+[4.1.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.0.1...4.1.0
+[4.0.1]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/4.0.0...4.0.1
 [4.0.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.3.0...4.0.0
 [3.3.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.2.0...3.3.0
 [3.2.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.1.0...3.2.0
