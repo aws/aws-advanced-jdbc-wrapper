@@ -345,6 +345,73 @@ public final class KmsTestUtility {
   }
 
   /**
+   * Leaves a column in the state a data key switch without re-encryption produces: inserts a new
+   * {@code key_storage} row (same KMS master key and wrapped data key, new random HMAC key) and
+   * repoints the column's {@code encryption_metadata} at it. Rows already written stay under the
+   * previous key, so reading them through the plugin fails the HMAC check.
+   *
+   * @return the id of the new key row
+   */
+  public static int switchColumnKeyWithoutReencrypting(
+      final Connection conn, final SchemaName metadataSchema, final boolean isPg,
+      final String table, final String column) throws SQLException {
+    final String prefix = metadataSchema.getValue() + ".";
+    final String name;
+    final String masterKeyArn;
+    final String encryptedDataKey;
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "SELECT ks.name, ks.master_key_arn, ks.encrypted_data_key FROM " + prefix + "encryption_metadata em "
+            + "JOIN " + prefix + "key_storage ks ON em.key_id = ks.id "
+            + "WHERE em.table_name = ? AND em.column_name = ?")) {
+      stmt.setString(1, table);
+      stmt.setString(2, column);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (!rs.next()) {
+          throw new SQLException("No encryption metadata for " + table + "." + column);
+        }
+        name = rs.getString(1) + "-switched-" + System.nanoTime();
+        masterKeyArn = rs.getString(2);
+        encryptedDataKey = rs.getString(3);
+      }
+    }
+
+    final byte[] hmacKey = new byte[32];
+    new SecureRandom().nextBytes(hmacKey);
+    final int newKeyId;
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "INSERT INTO " + prefix + "key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
+            + "VALUES (?, ?, ?, ?, ?)" + (isPg ? " RETURNING id" : ""),
+        isPg ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setString(1, name);
+      stmt.setString(2, masterKeyArn);
+      stmt.setString(3, encryptedDataKey);
+      stmt.setBytes(4, hmacKey);
+      stmt.setString(5, "AES_256");
+      if (isPg) {
+        try (ResultSet rs = stmt.executeQuery()) {
+          rs.next();
+          newKeyId = rs.getInt(1);
+        }
+      } else {
+        stmt.executeUpdate();
+        try (ResultSet rs = stmt.getGeneratedKeys()) {
+          rs.next();
+          newKeyId = rs.getInt(1);
+        }
+      }
+    }
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE " + prefix + "encryption_metadata SET key_id = ? WHERE table_name = ? AND column_name = ?")) {
+      stmt.setInt(1, newKeyId);
+      stmt.setString(2, table);
+      stmt.setString(3, column);
+      stmt.executeUpdate();
+    }
+    return newKeyId;
+  }
+
+  /**
    * Creates an application table with an {@code id} primary key, a {@code name} column, the given
    * encrypted columns ({@code encrypted_data} on PostgreSQL, {@code VARBINARY(256)} on MySQL) and any
    * trailing plain {@code VARCHAR} columns, in that order.

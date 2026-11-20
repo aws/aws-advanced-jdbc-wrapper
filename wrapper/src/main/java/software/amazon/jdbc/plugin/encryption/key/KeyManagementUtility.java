@@ -271,6 +271,12 @@ public class KeyManagementUtility {
         + " AND " + column + " " + eq() + " ?";
   }
 
+  /** Finds out whether the column holds any value. The target's identifiers are validated. */
+  private String getSelectAnyValueSql(ColumnTarget target) {
+    return "SELECT 1 FROM " + quoteTableName(target)
+        + " WHERE " + quoteIdentifier(target.column) + " IS NOT NULL LIMIT 1";
+  }
+
   /** Reads no rows; fails if the table, the column or the primary key column does not exist. */
   private String getProbeSql(ColumnTarget target) {
     return "SELECT " + quoteIdentifier(target.primaryKeyColumn) + ", " + quoteIdentifier(target.column)
@@ -426,25 +432,32 @@ public class KeyManagementUtility {
    *       holds data encrypted under it. Without them that data cannot be recovered.
    * </ul>
    *
-   * <p>This method is safe only for a column that holds no encrypted data. To rotate the data key
-   * of a column that holds data, use {@link #rotateDataKeyAndReencrypt(String, String, String,
-   * String, int)}. If this method was already called on a column with data, re-encrypt the
-   * remaining rows with {@link #reencryptRemainingRows(String, String, String, List, int)}, passing
-   * the previous key id. To rotate the KMS key instead, enable KMS automatic key rotation; it is
-   * transparent to the plugin.
+   * <p>This method is safe only for a column that holds no data, so it refuses to run on any other
+   * column: it throws before changing anything when the column has a non-null value. To rotate the
+   * data key of a column that holds data, use {@link #rotateDataKeyAndReencrypt(String, String, String,
+   * String, int)}. If a previous release's version of this method was already called on a column with
+   * data, re-encrypt the remaining rows with
+   * {@link #reencryptRemainingRows(String, String, String, List, int)}, passing the previous key id.
+   * To rotate the KMS key instead, enable KMS automatic key rotation; it is transparent to the
+   * plugin.
    *
    * @param tableName       Name of the table
    * @param columnName      Name of the column
    * @param newMasterKeyArn The master key to wrap the new data key with, or null to keep the
    *     current one (requires {@code encryptionAllowedMasterKeyArns})
-   * @throws KeyManagementException if the master key is not allowed, or key rotation fails
-   * @throws IllegalArgumentException if no master key is given and no allow-list is configured
+   * @throws KeyManagementException if the column holds data, the master key is not allowed, or key
+   *     rotation fails
+   * @throws IllegalArgumentException if no master key is given and no allow-list is configured, or
+   *     a table or column name is not a valid identifier
    */
   public void rotateDataKey(String tableName, String columnName, @Nullable String newMasterKeyArn)
       throws KeyManagementException {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
+    validateTableAndColumn(tableName, columnName);
     requireTargetMasterKey(newMasterKeyArn);
+
+    requireEmptyColumn(tableName, columnName);
 
     LOGGER.info(() -> Messages.get("KeyManagementUtility.rotatingKey", new Object[]{tableName, columnName}));
 
@@ -1004,6 +1017,34 @@ public class KeyManagementUtility {
   }
 
   /**
+   * Throws if the column holds a non-null value, before anything is changed. Switching the data
+   * key does not re-encrypt rows, so it would make every existing value unreadable.
+   */
+  private void requireEmptyColumn(String tableName, String columnName) throws KeyManagementException {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      final CurrentColumnKey current = loadCurrentKey(conn, tableName, columnName);
+      final ColumnTarget target =
+          new ColumnTarget(schemaPrefix(tableName), current.storedTable, current.storedColumn, "");
+      try (PreparedStatement stmt = conn.prepareStatement(getSelectAnyValueSql(target));
+           ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          throw new KeyManagementException(
+              Messages.get("KeyManagementUtility.rotateColumnHasData", new Object[]{tableName, columnName}));
+        }
+      }
+    } catch (KeyManagementException e) {
+      throw e;
+    } catch (SQLException e) {
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{e.getMessage(), e}));
+    } finally {
+      closeConnectionQuietly(conn);
+    }
+  }
+
+  /**
    * Reads the column's current key, algorithm and stored names from the database, bypassing the
    * metadata cache. The metadata is looked up with the bare table name, as the plugin stores it.
    */
@@ -1128,6 +1169,22 @@ public class KeyManagementUtility {
     Objects.requireNonNull(columnName, Messages.get("KeyManagementUtility.columnNameNull"));
     Objects.requireNonNull(primaryKeyColumn, Messages.get("KeyManagementUtility.primaryKeyColumnNull"));
 
+    validateTableAndColumn(tableName, columnName);
+    if (!isValidIdentifier(primaryKeyColumn)) {
+      throw new IllegalArgumentException(
+          Messages.get("KeyManagementUtility.invalidPrimaryKeyColumn", new Object[]{primaryKeyColumn}));
+    }
+    if (primaryKeyColumn.equalsIgnoreCase(columnName)) {
+      throw new IllegalArgumentException(
+          Messages.get("KeyManagementUtility.primaryKeySameAsColumn", new Object[]{primaryKeyColumn}));
+    }
+    if (batchSize < 1 || batchSize > MAX_REENCRYPTION_BATCH_SIZE) {
+      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.invalidBatchSize",
+          new Object[]{String.valueOf(MAX_REENCRYPTION_BATCH_SIZE), String.valueOf(batchSize)}));
+    }
+  }
+
+  private static void validateTableAndColumn(String tableName, String columnName) {
     final String[] tableParts = tableName.split("\\.", -1);
     boolean validTable = tableParts.length <= 2;
     for (String part : tableParts) {
@@ -1140,18 +1197,6 @@ public class KeyManagementUtility {
     if (!isValidIdentifier(columnName)) {
       throw new IllegalArgumentException(
           Messages.get("KeyManagementUtility.invalidColumnName", new Object[]{columnName}));
-    }
-    if (!isValidIdentifier(primaryKeyColumn)) {
-      throw new IllegalArgumentException(
-          Messages.get("KeyManagementUtility.invalidPrimaryKeyColumn", new Object[]{primaryKeyColumn}));
-    }
-    if (primaryKeyColumn.equalsIgnoreCase(columnName)) {
-      throw new IllegalArgumentException(
-          Messages.get("KeyManagementUtility.primaryKeySameAsColumn", new Object[]{primaryKeyColumn}));
-    }
-    if (batchSize < 1 || batchSize > MAX_REENCRYPTION_BATCH_SIZE) {
-      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.invalidBatchSize",
-          new Object[]{String.valueOf(MAX_REENCRYPTION_BATCH_SIZE), String.valueOf(batchSize)}));
     }
   }
 

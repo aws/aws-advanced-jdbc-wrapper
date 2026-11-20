@@ -490,7 +490,9 @@ public class KmsTriggerIntegrationTest {
 
   private void rotateDataKey() throws SQLException {
     try (Connection conn = KmsTestUtility.openPlainConnection()) {
-      newUtility(conn).rotateDataKey(TABLE, COLUMN, null);
+      // rotateDataKey refuses a column with data, so switch the key directly.
+      KmsTestUtility.switchColumnKeyWithoutReencrypting(
+          conn, SchemaName.of(METADATA_SCHEMA), isPg, TABLE, COLUMN);
     }
   }
 
