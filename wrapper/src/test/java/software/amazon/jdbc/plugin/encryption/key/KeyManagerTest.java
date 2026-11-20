@@ -23,8 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -34,6 +37,10 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -43,14 +50,19 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class KeyManagerTest {
 
@@ -211,6 +223,194 @@ public class KeyManagerTest {
         Base64.getEncoder().encodeToString(new byte[] {1, 2, 3}), "arn:aws:kms:us-east-1:123:key/abc"));
 
     assertArrayEquals(new byte[32], keyGivenToCache.get());
+  }
+
+  @Test
+  void postgresql_keyQueriesUseTheBuiltInOperator() {
+    final KeyManager keyManager = new KeyManager(mock(KmsClient.class), mock(Connection.class), true,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
+    try {
+      assertEquals("SELECT id, name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, "
+          + "last_used_at FROM encrypt.key_storage WHERE id OPERATOR(pg_catalog.=) ?",
+          keyManager.getSelectKeyMetadataSql());
+      assertEquals("UPDATE encrypt.key_storage SET last_used_at = ? WHERE id OPERATOR(pg_catalog.=) ?",
+          keyManager.getUpdateLastUsedSql());
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void mysql_keyQueriesAreUnchanged() {
+    final KeyManager keyManager = new KeyManager(mock(KmsClient.class), mock(Connection.class), false,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
+    try {
+      assertEquals("SELECT id, name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, "
+          + "last_used_at FROM encrypt.key_storage WHERE id = ?", keyManager.getSelectKeyMetadataSql());
+      assertEquals("UPDATE encrypt.key_storage SET last_used_at = ? WHERE id = ?",
+          keyManager.getUpdateLastUsedSql());
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void pluginServicePostgresql_pinsSearchPathOnItsOwnConnection() throws Exception {
+    final Connection conn = queryableConnection();
+    final Statement plain = mock(Statement.class);
+    when(conn.createStatement()).thenReturn(plain);
+    final KeyManager keyManager = pluginServiceKeyManager(new PgTargetDriverDialect(), conn);
+    try {
+      keyManager.getKeyMetadata(7);
+
+      final InOrder order = inOrder(plain, conn);
+      order.verify(plain).execute(EncryptionSql.PIN_PG_SEARCH_PATH_SQL);
+      order.verify(conn).prepareStatement(keyManager.getSelectKeyMetadataSql());
+      order.verify(conn).close();
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void pluginServicePostgresql_failedPinClosesTheConnection() throws Exception {
+    final Connection conn = queryableConnection();
+    final Statement plain = mock(Statement.class);
+    when(conn.createStatement()).thenReturn(plain);
+    when(plain.execute(anyString())).thenThrow(new SQLException("boom"));
+    final KeyManager keyManager = pluginServiceKeyManager(new PgTargetDriverDialect(), conn);
+    try {
+      assertThrows(KeyManagementException.class, () -> keyManager.getKeyMetadata(7));
+
+      verify(conn, never()).prepareStatement(anyString());
+      verify(conn).close();
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void pluginServicePostgresql_failedPinAndClose_reportsThePinFailure() throws Exception {
+    final Connection conn = queryableConnection();
+    final Statement plain = mock(Statement.class);
+    when(conn.createStatement()).thenReturn(plain);
+    final SQLException pinFailure = new SQLException("pin failed");
+    final SQLException closeFailure = new SQLException("close failed");
+    when(plain.execute(anyString())).thenThrow(pinFailure);
+    doThrow(closeFailure).when(conn).close();
+    final KeyManager keyManager = pluginServiceKeyManager(new PgTargetDriverDialect(), conn);
+    try {
+      final KeyManagementException e =
+          assertThrows(KeyManagementException.class, () -> keyManager.getKeyMetadata(7));
+
+      assertTrue(e.getMessage().contains("pin failed"), e.getMessage());
+      assertArrayEquals(new Throwable[] {closeFailure}, pinFailure.getSuppressed());
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void pluginServiceMysql_leavesSearchPathAlone() throws Exception {
+    final Connection conn = queryableConnection();
+    final KeyManager keyManager = pluginServiceKeyManager(mock(TargetDriverDialect.class), conn);
+    try {
+      keyManager.getKeyMetadata(7);
+
+      verify(conn, never()).createStatement();
+      verify(conn).prepareStatement(keyManager.getSelectKeyMetadataSql());
+      assertFalse(keyManager.getSelectKeyMetadataSql().contains("OPERATOR("));
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void providedPostgresqlConnection_searchPathIsLeftAlone() throws Exception {
+    final Connection conn = queryableConnection();
+    final KeyManager keyManager = new KeyManager(mock(KmsClient.class), conn, true,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
+    try {
+      keyManager.getKeyMetadata(7);
+
+      verify(conn, never()).createStatement();
+      verify(conn, never()).close();
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void getKeyMetadata_bindsTheKeyIdAsAnInteger() throws Exception {
+    final Connection conn = mock(Connection.class);
+    final PreparedStatement stmt = mock(PreparedStatement.class);
+    when(conn.prepareStatement(anyString())).thenReturn(stmt);
+    when(stmt.executeQuery()).thenReturn(mock(ResultSet.class));
+    final KeyManager keyManager = new KeyManager(mock(KmsClient.class), conn, true,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
+    try {
+      assertFalse(keyManager.getKeyMetadata(7).isPresent());
+      assertFalse(keyManager.getKeyMetadata(" 8 ").isPresent());
+
+      verify(stmt).setInt(1, 7);
+      verify(stmt).setInt(1, 8);
+      verify(stmt, never()).setString(anyInt(), anyString());
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void updateLastUsed_bindsTheKeyIdAsAnInteger() throws Exception {
+    final Connection conn = mock(Connection.class);
+    final PreparedStatement stmt = mock(PreparedStatement.class);
+    when(conn.prepareStatement(anyString())).thenReturn(stmt);
+    final KeyManager keyManager = new KeyManager(mock(KmsClient.class), conn, true,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
+    try {
+      keyManager.updateLastUsed(7);
+      keyManager.updateLastUsed("8");
+
+      verify(conn, times(2)).prepareStatement(keyManager.getUpdateLastUsedSql());
+      verify(stmt).setInt(2, 7);
+      verify(stmt).setInt(2, 8);
+      verify(stmt, never()).setString(anyInt(), anyString());
+      assertThrows(IllegalArgumentException.class, () -> keyManager.updateLastUsed("key-uuid"));
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  @Test
+  void getKeyMetadata_refusesANonIntegerKeyId_withoutQuerying() throws Exception {
+    final Connection conn = mock(Connection.class);
+    final KeyManager keyManager = new KeyManager(mock(KmsClient.class), conn, true,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
+    try {
+      final IllegalArgumentException e =
+          assertThrows(IllegalArgumentException.class, () -> keyManager.getKeyMetadata("key-uuid"));
+      assertTrue(e.getMessage().contains("key-uuid"), e.getMessage());
+      verifyNoInteractions(conn);
+    } finally {
+      keyManager.shutdown();
+    }
+  }
+
+  private static Connection queryableConnection() throws SQLException {
+    final Connection conn = mock(Connection.class);
+    final PreparedStatement stmt = mock(PreparedStatement.class);
+    when(conn.prepareStatement(anyString())).thenReturn(stmt);
+    when(stmt.executeQuery()).thenReturn(mock(ResultSet.class));
+    return conn;
+  }
+
+  private static KeyManager pluginServiceKeyManager(TargetDriverDialect dialect, Connection conn)
+      throws SQLException {
+    final PluginService pluginService = mock(PluginService.class);
+    when(pluginService.getTargetDriverDialect()).thenReturn(dialect);
+    when(pluginService.forceConnect(any(), any())).thenReturn(conn);
+    return new KeyManager(mock(KmsClient.class), pluginService,
+        EncryptionConfig.builder().kmsRegion("us-east-1").build());
   }
 
   private static KeyManager newKeyManager(KmsClient kmsClient, String allowedMasterKeyArns) {

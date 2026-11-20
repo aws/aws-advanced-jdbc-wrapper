@@ -679,6 +679,7 @@ It never deletes the old `key_storage` row and never changes the old KMS key.
 
 Requirements:
 - The primary key column must be a single, unique, `NOT NULL` column. Rows with a `NULL` value in it are not processed.
+- On PostgreSQL, the primary key column must have a built-in type, such as `integer`, `bigint`, `uuid` or `text`, or a domain over one. A column of another type, such as `citext` or an enum, is refused with nothing changed. This applies to `rotateDataKeyAndReencrypt()` and `reencryptRemainingRows()`.
 - Table and column names may contain only letters, digits and underscores, at most 64 characters. They are matched against `encrypt.encryption_metadata` as stored there, with the bare table name, the way the plugin stores it. On PostgreSQL the match is case-sensitive, and unquoted names are stored in lower case (`users`, not `Users`). The SQL against the data table uses the table and column spelling stored in the metadata.
 - A table name may have one schema prefix (`app.users`). The prefix is used only in the SQL against the data table; the metadata lookup and the HMAC trigger use the bare table name (`users`).
 - Before it creates a key, the utility checks that the table, the encrypted column and the primary key column exist. A wrong name fails with nothing changed.

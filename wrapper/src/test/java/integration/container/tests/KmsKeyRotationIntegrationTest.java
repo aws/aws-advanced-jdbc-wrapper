@@ -739,6 +739,85 @@ public class KmsKeyRotationIntegrationTest {
         + " user needs the create-routine privilege.");
   }
 
+  /**
+   * PostgreSQL compares the primary key with the built-in operators while re-encrypting, so a
+   * primary key whose type is not built in is refused before anything changes.
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void test13PostgresPrimaryKeyOfNonBuiltInTypeIsRefused() throws Exception {
+    final String table = createEncryptedTable("enumpk", SSN);
+    final String type = table + "_code";
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      try {
+        try (Statement stmt = plain.createStatement()) {
+          stmt.execute("CREATE TYPE " + type + " AS ENUM ('a', 'b')");
+          stmt.execute("ALTER TABLE " + table + " ALTER COLUMN id DROP DEFAULT, "
+              + "ALTER COLUMN id TYPE " + type + " USING 'a'::" + type);
+        }
+        final int firstKeyId = currentKeyId(table, SSN);
+        final KeyManagementUtility utility = newUtility(plain);
+
+        final KeyManagementException rotateError = assertThrows(KeyManagementException.class,
+            () -> utility.rotateDataKeyAndReencrypt(table, SSN, PK, null, 4));
+        assertTrue(rotateError.getMessage().contains("must have a built-in type")
+            && rotateError.getMessage().contains(type), rotateError.getMessage());
+        assertEquals(firstKeyId, currentKeyId(table, SSN));
+
+        // The repair needs a previous key: the legacy rotation switches keys without touching rows,
+        // and the table has none.
+        utility.rotateDataKey(table, SSN, null);
+        final int switchedKeyId = currentKeyId(table, SSN);
+        final int keyRowsBefore = keyRowCount(table);
+        final KeyManagementException repairError = assertThrows(KeyManagementException.class,
+            () -> utility.reencryptRemainingRows(table, SSN, PK, Collections.singletonList(firstKeyId), 4));
+        assertTrue(repairError.getMessage().contains("must have a built-in type")
+            && repairError.getMessage().contains(type), repairError.getMessage());
+
+        assertEquals(switchedKeyId, currentKeyId(table, SSN));
+        assertEquals(keyRowsBefore, keyRowCount(table));
+      } finally {
+        try (Statement stmt = plain.createStatement()) {
+          stmt.execute("DROP TABLE IF EXISTS " + table);
+          stmt.execute("DROP TYPE IF EXISTS " + type);
+        }
+      }
+    }
+  }
+
+  /** A domain over a built-in type counts as that type, so it can still be re-encrypted. */
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void test14PostgresPrimaryKeyOfDomainOverBuiltInTypeIsReencrypted() throws Exception {
+    final String table = createEncryptedTable("domainpk", SSN);
+    final String domain = table + "_id";
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      try {
+        try (Statement stmt = plain.createStatement()) {
+          stmt.execute("CREATE DOMAIN " + domain + " AS integer CHECK (VALUE > 0)");
+          stmt.execute("ALTER TABLE " + table + " ALTER COLUMN id TYPE " + domain);
+        }
+        installHmacTriggers(table, SSN);
+        try (Connection writer = openPluginConnection()) {
+          insertRows(writer, table, 1, 6, false);
+        }
+        final int oldKeyId = currentKeyId(table, SSN);
+
+        final DataKeyReencryptionResult result =
+            newUtility(plain).rotateDataKeyAndReencrypt(table, SSN, PK, null, 4);
+
+        assertResult(result, 6, 0, 0, 2);
+        assertEquals(Collections.singletonList(oldKeyId), result.getSourceKeyIds());
+        assertAllRowsDecrypt(table, 6, false);
+      } finally {
+        try (Statement stmt = plain.createStatement()) {
+          stmt.execute("DROP TABLE IF EXISTS " + table);
+          stmt.execute("DROP DOMAIN IF EXISTS " + domain);
+        }
+      }
+    }
+  }
+
   private Connection openWrapperConnection(String plugins) throws SQLException {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, plugins);

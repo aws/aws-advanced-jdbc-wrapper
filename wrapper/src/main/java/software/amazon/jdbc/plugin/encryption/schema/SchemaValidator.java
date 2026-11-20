@@ -125,10 +125,13 @@ public class SchemaValidator {
     }
   }
 
-  /** Gets the current schema name from the connection. */
+  /**
+   * Gets the current schema name from the connection. The function is schema-qualified so that a
+   * function of the same name earlier in the session's search_path is not called instead.
+   */
   private @Nullable String getCurrentSchema(Connection connection) throws SQLException {
     try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT current_schema()")) {
+        ResultSet rs = stmt.executeQuery("SELECT pg_catalog.current_schema()")) {
       if (rs.next()) {
         return rs.getString(1);
       }
