@@ -193,6 +193,7 @@ MySQL does not support DOMAINs. Encrypted columns use `VARBINARY(256)` instead (
 ```sql
 CREATE TABLE encrypt.key_storage (
     id SERIAL PRIMARY KEY,
+    key_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     master_key_arn VARCHAR(512) NOT NULL,
     encrypted_data_key TEXT NOT NULL,
@@ -218,6 +219,7 @@ CREATE TABLE encrypt.encryption_metadata (
 ```sql
 CREATE TABLE encrypt.key_storage (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    key_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     master_key_arn VARCHAR(512) NOT NULL,
     encrypted_data_key TEXT NOT NULL,
@@ -239,7 +241,7 @@ CREATE TABLE encrypt.encryption_metadata (
 );
 ```
 
-`encryption_metadata.key_id` is the integer `id` of the column's row in `key_storage`. `table_name` is the bare table name, without a schema prefix.
+`key_storage.key_id` is a unique identifier for the key row (the plugin writes a random UUID). If your `key_storage` was created without it, add it with `ALTER TABLE encrypt.key_storage ADD COLUMN key_id VARCHAR(255) NOT NULL DEFAULT ''` and backfill. `encryption_metadata.key_id` is the integer `id` of the column's row in `key_storage`. `table_name` is the bare table name, without a schema prefix.
 
 ### 5. Configure Column Encryption
 
@@ -1010,6 +1012,13 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 - Encrypted columns cannot be searched or compared. Each value is encrypted with a random IV, so the same plaintext is stored as different bytes every time: a condition such as `WHERE ssn = ?`, or a join on an encrypted column, never matches. Filter and join on columns that are not encrypted.
 - Values are encrypted from these `PreparedStatement` setters: `setString`, `setNString`, `setInt`, `setLong`, `setShort`, `setByte`, `setDouble`, `setFloat`, `setBoolean`, `setBigDecimal`, `setDate`, `setTime`, `setTimestamp`, `setBytes` and `setObject`. The type byte of the [encrypted data format](#encrypted-data-format) records the value's Java type.
 - Stream and LOB setters (`setCharacterStream`, `setNCharacterStream`, `setAsciiStream`, `setBinaryStream`, `setUnicodeStream`, `setClob`, `setNClob`, `setBlob`) throw a `SQLException` when the parameter maps to an encrypted column. Use `setString`, `setNString`, `setBytes` or `setObject`.
+- Values are decrypted by these `ResultSet` getters: `getString`, `getInt`, `getLong`, `getShort`, `getByte`, `getDouble`, `getFloat`, `getBoolean`, `getBigDecimal`, `getDate`, `getTime`, `getTimestamp`, `getBytes` and `getObject`. `getObject` returns the Java type that was written, including `LocalDate`, `LocalTime` and `LocalDateTime`, which have no dedicated getter. Read each value with the getter that matches the type it was written with:
+  - Numeric getters convert between numeric types (for example `getLong` on an `int`), as in a plain JDBC read.
+  - `getString` returns the text form of any written type except `byte[]`, whose text form is not meaningful.
+  - `getBytes` returns the bytes that were written with `setBytes`. On a column written with `setString` it returns the string's UTF-8 bytes. (Earlier versions treated the text as base64 and failed with a type conversion error, or returned the decoded bytes if the text happened to be valid base64. If you relied on that, decode the string from `getString` yourself.)
+  - A getter from a different family than the written type, such as `getTimestamp` on a `LocalDateTime`, fails with a type conversion error.
+  - `Date`, `Time` and `Timestamp` values are stored as epoch milliseconds, so a `Timestamp` keeps millisecond precision only.
+- Other getters (`getNString`, `getAsciiStream`, `getBinaryStream`, `getCharacterStream`, `getClob`, `getBlob`, `getArray` and similar) are not intercepted and are not tested. On an encrypted column they return the stored ciphertext or fail, not the decrypted value. Use one of the getters listed above.
 - SQL run through a plain `Statement` is not encrypted. The plugin checks it only for the writes described in [Statements always refused](#statements-always-refused); any other value is sent as written.
 - `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
 - Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.

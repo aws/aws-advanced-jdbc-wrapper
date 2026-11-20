@@ -49,7 +49,6 @@ public class EncryptionServiceTest {
 
   static Stream<Arguments> unconvertibleTargets() {
     return Stream.of(
-        Arguments.of(byte[].class),
         Arguments.of(Integer.class),
         Arguments.of(Long.class),
         Arguments.of(Double.class),
