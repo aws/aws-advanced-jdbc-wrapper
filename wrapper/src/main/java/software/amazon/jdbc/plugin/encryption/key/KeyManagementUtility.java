@@ -497,7 +497,8 @@ public class KeyManagementUtility {
     } catch (Exception e) {
       rethrowIfUnauthorizedMasterKey(e);
       LOGGER.severe(() -> Messages.get(
-          "KeyManagementUtility.keyRotationFailed", new Object[]{tableName, columnName, e.getMessage()}));
+          "KeyManagementUtility.keyRotationFailed",
+          new Object[]{tableName, columnName, Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
           Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }

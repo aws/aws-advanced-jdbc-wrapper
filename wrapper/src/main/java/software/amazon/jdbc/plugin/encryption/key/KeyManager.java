@@ -214,7 +214,7 @@ public class KeyManager {
       String encryptedKey =
           Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray());
 
-      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyGenerated", new Object[]{masterKeyArn}));
+      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyGenerated", new Object[]{Sanitizer.arn(masterKeyArn)}));
       return new DataKeyResult(encryptedKey);
 
     } catch (Exception e) {
@@ -276,7 +276,7 @@ public class KeyManager {
         dataKeyCache.put(cacheKey, plaintextKey);
       }
 
-      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{masterKeyArn}));
+      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{Sanitizer.arn(masterKeyArn)}));
       return plaintextKey;
 
     } catch (Exception e) {

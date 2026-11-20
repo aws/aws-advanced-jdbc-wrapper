@@ -544,37 +544,25 @@ public class AuditLogger {
     return columnName.length() > 50 ? columnName.substring(0, 47) + "..." : columnName;
   }
 
-  private String sanitizeDescription(String description) {
-    if (description == null) {
-      return "null";
-    }
-    // Limit description length and remove potential sensitive patterns
-    String sanitized = description.replaceAll("(?i)(password|secret|key|token)=[^\\s]+", "$1=***");
-    return sanitized.length() > 100 ? sanitized.substring(0, 97) + "..." : sanitized;
+  private String sanitizeDescription(@Nullable String description) {
+    return maskAndLimit(description, 100);
   }
 
   private String sanitizeErrorMessage(@Nullable String errorMessage) {
-    if (errorMessage == null) {
-      return "null";
-    }
-    // Remove potential sensitive information from error messages
-    String sanitized =
-        errorMessage
-            .replaceAll("(?i)(password|secret|key|token)=[^\\s]+", "$1=***")
-            .replaceAll("arn:aws:kms:[^:]+:[^:]+:key/[a-f0-9-]+", "arn:aws:kms:***:***:key/***");
-    return sanitized.length() > 200 ? sanitized.substring(0, 197) + "..." : sanitized;
+    final String masked = Sanitizer.errorMessage(errorMessage);
+    return masked == null ? "null" : masked;
   }
 
-  private String sanitizeConfigDetails(String details) {
-    if (details == null) {
+  private String sanitizeConfigDetails(@Nullable String details) {
+    return maskAndLimit(details, 150);
+  }
+
+  private String maskAndLimit(@Nullable String text, int maxLength) {
+    final String masked = Sanitizer.errorMessage(text);
+    if (masked == null) {
       return "null";
     }
-    // Remove sensitive configuration values
-    String sanitized =
-        details
-            .replaceAll("(?i)(password|secret|key|token|credential)=[^\\s,}]+", "$1=***")
-            .replaceAll("arn:aws:kms:[^:]+:[^:]+:key/[a-f0-9-]+", "arn:aws:kms:***:***:key/***");
-    return sanitized.length() > 150 ? sanitized.substring(0, 147) + "..." : sanitized;
+    return masked.length() > maxLength ? masked.substring(0, maxLength - 3) + "..." : masked;
   }
 
   private String sanitizeJdbcUrl(String jdbcUrl) {
