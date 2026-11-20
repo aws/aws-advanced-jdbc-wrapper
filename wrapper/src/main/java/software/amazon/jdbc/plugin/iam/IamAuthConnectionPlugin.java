@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -171,15 +172,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
 
     final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
 
-    // The token is signed with the credentials resolved from awsProfile (see AwsCredentialsManager), so
-    // the profile is part of the key: connections using different profiles must not share a token.
-    final String cacheKey = IamAuthUtils.getCacheKey(
-        CACHE_KEY_SCOPE,
-        new @Nullable String[] {PropertyDefinition.AWS_PROFILE.getString(props)},
-        user,
-        host.getHost(),
-        port,
-        region);
+    // A token is only valid for the credentials that signed it, so the resolved credentials are part of
+    // the key: connections that sign with different credentials must not share a token.
+    final AwsCredentialsProvider credentialsProvider = AwsCredentialsManager.getProvider(hostSpec, props, region);
+    final String cacheKey = this.getCacheKey(credentialsProvider, user, host.getHost(), port, region);
     final TokenInfo tokenInfo = this.servicesContainer.getStorageService().get(TokenInfo.class, cacheKey);
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
@@ -204,7 +200,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           host.getHost(),
           port,
           region,
-          AwsCredentialsManager.getProvider(hostSpec, props, region));
+          credentialsProvider);
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
@@ -237,6 +233,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       if (this.fetchTokenCounter != null) {
         this.fetchTokenCounter.inc();
       }
+      // Use a fresh provider, which may resolve newer credentials, and key the new token by them.
+      final AwsCredentialsProvider retryCredentialsProvider =
+          AwsCredentialsManager.getProvider(hostSpec, props, region);
+      final String retryCacheKey = this.getCacheKey(retryCredentialsProvider, user, host.getHost(), port, region);
       final String token = IamAuthUtils.generateAuthenticationToken(
           iamTokenUtility,
           pluginService,
@@ -244,14 +244,14 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           host.getHost(),
           port,
           region,
-          AwsCredentialsManager.getProvider(hostSpec, props, region));
+          retryCredentialsProvider);
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
       props.setProperty(iamTokenPropertyName, token);
       this.servicesContainer.getStorageService().set(
-          cacheKey,
+          retryCacheKey,
           new TokenInfo(token, tokenExpiry));
 
       return connectFunc.call();
@@ -263,6 +263,21 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
               new Object[] {exception}));
       throw new SQLException(exception);
     }
+  }
+
+  private String getCacheKey(
+      final AwsCredentialsProvider credentialsProvider,
+      final String user,
+      final String host,
+      final int port,
+      final Region region) {
+    return IamAuthUtils.getCacheKey(
+        CACHE_KEY_SCOPE,
+        new @Nullable String[] {IamAuthUtils.getCredentialsIdentity(credentialsProvider)},
+        user,
+        host,
+        port,
+        region);
   }
 
   @Override
