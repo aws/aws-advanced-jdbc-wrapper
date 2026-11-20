@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 
 /**
  * Exception thrown when key management operations fail. Extends SQLException to integrate with JDBC
@@ -125,7 +126,7 @@ public class KeyManagementException extends SQLException {
    * @return this exception for method chaining
    */
   public KeyManagementException withKeyId(final @Nullable String keyId) {
-    return withContext("keyId", sanitizeKeyId(keyId));
+    return withContext("keyId", Sanitizer.keyId(keyId));
   }
 
   /**
@@ -135,7 +136,7 @@ public class KeyManagementException extends SQLException {
    * @return this exception for method chaining
    */
   public KeyManagementException withMasterKeyArn(final @Nullable String masterKeyArn) {
-    return withContext("masterKeyArn", sanitizeArn(masterKeyArn));
+    return withContext("masterKeyArn", Sanitizer.arn(masterKeyArn));
   }
 
   /**
@@ -270,46 +271,4 @@ public class KeyManagementException extends SQLException {
   public static KeyManagementException invalidKeyMetadata(String message) {
     return new KeyManagementException(message, INVALID_KEY_METADATA_STATE, null);
   }
-
-  // Sanitization methods to prevent sensitive data exposure
-
-  private @Nullable String sanitizeKeyId(final @Nullable String keyId) {
-    if (keyId == null) {
-      return null;
-    }
-    // Show only first and last 4 characters of key ID
-    if (keyId.length() > 8) {
-      return keyId.substring(0, 4) + "***" + keyId.substring(keyId.length() - 4);
-    }
-    return "***";
-  }
-
-  /**
-   * Masks a master key ARN for logs and error context: keeps only the key id, and replaces control
-   * characters, since the ARN may come from a key_storage row that someone rewrote.
-   *
-   * @param arn the master key ARN, alias, or key id
-   * @return the masked value, or null for null
-   */
-  static @Nullable String sanitizeArn(final @Nullable String arn) {
-    if (arn == null) {
-      return null;
-    }
-    // Keep only the key ID part of the ARN
-    int lastSlash = arn.lastIndexOf('/');
-    if (lastSlash != -1 && lastSlash < arn.length() - 1) {
-      return "arn:aws:kms:***:***:key/" + replaceControlCharacters(arn.substring(lastSlash + 1));
-    }
-    return "arn:aws:kms:***:***:key/***";
-  }
-
-  private static String replaceControlCharacters(final String value) {
-    final StringBuilder sb = new StringBuilder(value.length());
-    for (int i = 0; i < value.length(); i++) {
-      final char c = value.charAt(i);
-      sb.append(Character.isISOControl(c) ? '?' : c);
-    }
-    return sb.toString();
-  }
-
 }

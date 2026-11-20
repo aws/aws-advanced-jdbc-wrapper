@@ -928,6 +928,26 @@ On MySQL the triggers and routines run with the privileges of their `DEFINER`, w
 
 Verify the separation by connecting as the runtime role and confirming that `INSERT INTO encrypt.key_storage ...` and `UPDATE encrypt.encryption_metadata ...` fail with a permission error, that `DROP TABLE encrypt.key_storage` and `DROP TRIGGER` on an encrypted table fail, and that `aws kms generate-data-key` with the runtime credentials is denied.
 
+### What the plugin keeps out of logs and exceptions
+
+The plugin masks master keys, KMS error text and URL credentials in its own log records, audit log entries and exception messages, at every log level:
+
+- **Master keys.** A key is shown as `arn:aws:kms:***:***:key/<first 4>***<last 4>`, whether it was configured as an ARN, `key/<id>` or a bare key id, and a key id is masked the same way everywhere it appears. A key id of 8 characters or fewer is shown as `***`. An alias is shown as `arn:aws:kms:***:***:alias/***`, and any other ARN, such as a role, as `arn:***`. This covers the allow-list in `encryptionAllowedMasterKeyArns` when the plugin logs it.
+- **KMS errors.** An error returned by KMS is logged and wrapped as its type, error code and HTTP status only, for example `KmsException[errorCode=AccessDeniedException, httpStatus=400]`. The AWS message is dropped because it repeats the key ARN and the caller's role ARN. This applies to the retry warning, to the failure logs for creating a key, generating or decrypting a data key and validating a master key, and to the messages of the exceptions the plugin throws for those failures. Those exceptions carry no cause, so the original error does not appear in a stack trace either. The master key failure logs also show the masked key and the error summary.
+- **Other errors** reported by the same code keep their type and message, with ARNs, URL credentials (`user:password@host`) and the value of any `name=value` pair whose name contains `password`, `passwd`, `pwd`, `secret`, `token` or `credential`, or is `key`, masked. Messages are cut at 200 characters.
+- **Connection URLs** that the plugin logs or puts in an exception have their user info and password parameters (any parameter whose name contains `password`, `passwd`, `pwd`, `secret`, `token` or `credential`) masked, and `ConnectionParameters.toString()` prints the names of the connection properties but not their values.
+- **Control characters** (line breaks, other ISO control characters, and invisible formatting characters such as bidirectional overrides) in a key, URL or error are replaced with `?`. A `master_key_arn` that someone rewrote in `key_storage` therefore cannot forge log lines.
+
+Masking is deliberately cautious. The user info of a URL is everything up to the last `@` before the next `?`, `#` or whitespace, so a URL whose path contains `@` (for example `jdbc:mysql://host/db@x`) is logged as `jdbc:mysql://***@x`. Hiding too much is accepted so that a password containing an unencoded `/` is never logged.
+
+What the plugin does not mask:
+
+- **A password written in a URL with `?`, `#` or a space in it.** These end the user info, so only the part before them is masked. Pass the password as the `password` property, or percent-encode those characters (`%3F`, `%23`, `%20`).
+- **A secret in a property or parameter whose name does not look like a secret**, for example `foo=<secret>`. The plugin cannot recognize it.
+- **Other values the plugin logs**: table and column names, SQL text, primary key values, the description you pass to `createMasterKey`, and errors from the database. Do not put secrets in a master key description.
+- **Anything it did not write.** Log records and exceptions from the JDBC driver, the AWS SDK or your own code are not masked, and the AWS SDK can log the full request and error text when its logging is turned up. Do not enable wire or request logging for the driver or the SDK in production.
+- **Values you read yourself.** `master_key_arn` and key ids that you read from the metadata tables with SQL (see Debugging) are shown in full, so do not paste them into shared logs.
+
 ### Data Protection
 
 - Encrypted data is stored as binary data in the database
@@ -1003,7 +1023,7 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 2. **Metadata table not found**: Verify that the tables in the metadata schema exist and are accessible, and that `encryptionMetadataSchema` names that schema.
 3. **`No encryption configuration found for ...`** (from `KeyManagementUtility`): Verify the column is registered in `encrypt.encryption_metadata`, that the table and column names match exactly (case-sensitive), and that its `key_id` references a row in `encrypt.key_storage`.
 4. **`encryptionAllowedMasterKeyArns is required: list the KMS master key ARNs the KMS encryption plugin may use`**: The plugin was loaded without `encryptionAllowedMasterKeyArns`. Set it to the master keys your columns use; `SELECT DISTINCT master_key_arn FROM encrypt.key_storage` lists them. Check each one before you add it: the point of the list is that `key_storage` is not trusted.
-5. **`Refusing to use master key arn:aws:kms:***:***:key/<key id>: it is not listed in encryptionAllowedMasterKeyArns`** (SQL state `KEY07`): The column's `key_storage` row names a master key that is not on the list. The message masks the key's region and account; the full value is in `key_storage.master_key_arn`. If the key is yours, add it to the list in exactly the form stored in `key_storage.master_key_arn`. If it is not, someone changed the row: investigate before you change anything.
+5. **`Refusing to use master key arn:aws:kms:***:***:key/1234***abcd: it is not listed in encryptionAllowedMasterKeyArns`** (SQL state `KEY07`): The column's `key_storage` row names a master key that is not on the list. The message masks the key's region and account and the middle of its id (an alias is shown as `arn:aws:kms:***:***:alias/***`); the full value is in `key_storage.master_key_arn`. If the key is yours, add it to the list in exactly the form stored in `key_storage.master_key_arn`. If it is not, someone changed the row: investigate before you change anything.
 6. **`HMAC verification failed`** (driver, on read):
    - Data may have been tampered with, or the HMAC key in `encrypt.key_storage.hmac_key` changed
    - The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()`), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)

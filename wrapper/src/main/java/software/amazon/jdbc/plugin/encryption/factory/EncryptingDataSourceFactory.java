@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 import software.amazon.jdbc.util.Messages;
@@ -68,7 +69,8 @@ public class EncryptingDataSourceFactory {
   public static EncryptingDataSource createWithAwsWrapper(
       String jdbcUrl, String username, String password, Properties encryptionProperties)
       throws SQLException {
-    logger.info(Messages.get("EncryptingDataSourceFactory.creatingWithWrapper", new Object[]{jdbcUrl}));
+    logger.info(Messages.get(
+        "EncryptingDataSourceFactory.creatingWithWrapper", new Object[]{Sanitizer.connectionUrl(jdbcUrl)}));
 
     try {
       // Create properties for AWS JDBC Wrapper
@@ -180,8 +182,8 @@ public class EncryptingDataSourceFactory {
     // Metadata configuration
     properties.setProperty(EncryptionConfig.METADATA_CACHE_REFRESH_INTERVAL_MS.name, "300000");
 
-    logger.fine(
-        Messages.get("EncryptingDataSourceFactory.createdDefaults", new Object[]{allowedMasterKeyArns, region}));
+    logger.fine(Messages.get(
+        "EncryptingDataSourceFactory.createdDefaults", new Object[]{Sanitizer.arnList(allowedMasterKeyArns), region}));
 
     return properties;
   }

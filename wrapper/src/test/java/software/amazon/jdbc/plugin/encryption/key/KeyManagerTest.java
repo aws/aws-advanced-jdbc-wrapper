@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,22 +42,29 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
+import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
+import software.amazon.awssdk.services.kms.model.KeyMetadata;
+import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
@@ -68,6 +76,12 @@ public class KeyManagerTest {
 
   private static final String LISTED_ARN = "arn:aws:kms:us-east-1:111111111111:key/listed";
   private static final String UNLISTED_ARN = "arn:aws:kms:us-east-1:222222222222:key/unlisted";
+  private static final String KEY_UUID = "12345678-aaaa-bbbb-cccc-abcdefabcdef";
+  private static final String ROLE_ARN = "arn:aws:iam::333333333333:role/SecretRoleName";
+  private static final String FULL_ARN = "arn:aws:kms:us-east-1:444444444444:key/" + KEY_UUID;
+  // What KMS puts in an AccessDenied message: the key ARN and the caller's role ARN.
+  private static final String KMS_MESSAGE = ROLE_ARN + " is not authorized to perform: kms:GenerateDataKey on "
+      + "resource: " + FULL_ARN + " because no identity-based policy allows it";
   private static final String ENCRYPTED_DATA_KEY = Base64.getEncoder().encodeToString(new byte[] {1, 2, 3});
 
   @Test
@@ -142,18 +156,110 @@ public class KeyManagerTest {
         .orElseThrow(AssertionError::new);
     assertFalse(logged.contains("222222222222"), logged);
     assertFalse(logged.contains("\n"), logged);
-    assertTrue(logged.contains("arn:aws:kms:***:***:key/evil?SEVERE: forged line"), logged);
+    assertTrue(logged.contains("arn:aws:kms:***:***:key/evil***line"), logged);
     // The exception carries the same masked message as the log.
     assertEquals(logged, exception.getMessage());
     assertEquals(KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE, exception.getSQLState());
   }
 
   @Test
-  void sanitizeArn_keepsOnlyTheKeyId() {
-    assertEquals("arn:aws:kms:***:***:key/listed", KeyManagementException.sanitizeArn(LISTED_ARN));
-    assertEquals("arn:aws:kms:***:***:key/***", KeyManagementException.sanitizeArn("not-an-arn"));
-    assertEquals("arn:aws:kms:***:***:key/a?b", KeyManagementException.sanitizeArn("key/a\rb"));
-    assertEquals(null, KeyManagementException.sanitizeArn(null));
+  void generateDataKey_logsTheMaskedKeyAndTheErrorSummary_withoutTheKmsMessage() {
+    final KmsClient kmsClient = mock(KmsClient.class);
+    when(kmsClient.generateDataKey(any(GenerateDataKeyRequest.class))).thenThrow(accessDenied());
+    final KeyManager keyManager = newKeyManager(kmsClient, FULL_ARN);
+
+    final List<LogRecord> records = new CopyOnWriteArrayList<>();
+    final KeyManagementException exception = captureLogs(records,
+        () -> assertThrows(KeyManagementException.class, () -> keyManager.generateDataKey(FULL_ARN)));
+
+    final LogRecord severe = findRecord(records, Level.SEVERE, "Failed to generate data key");
+    assertSummaryOnly(severe.getMessage());
+    assertTrue(severe.getMessage().contains("arn:aws:kms:***:***:key/1234***cdef"), severe.getMessage());
+    // The error is kept, as a summary, and no Throwable is attached to the record.
+    assertTrue(severe.getMessage().contains("errorCode=AccessDeniedException"), severe.getMessage());
+    assertNull(severe.getThrown());
+    assertSummaryOnly(exception.getMessage());
+  }
+
+  @Test
+  void decryptDataKey_logsTheMaskedKeyAndTheErrorSummary_withoutTheKmsMessage() {
+    final KmsClient kmsClient = mock(KmsClient.class);
+    when(kmsClient.decrypt(any(DecryptRequest.class))).thenThrow(accessDenied());
+    final KeyManager keyManager = newKeyManager(kmsClient, FULL_ARN);
+
+    final List<LogRecord> records = new CopyOnWriteArrayList<>();
+    final KeyManagementException exception = captureLogs(records,
+        () -> assertThrows(KeyManagementException.class,
+            () -> keyManager.decryptDataKey(ENCRYPTED_DATA_KEY, FULL_ARN)));
+
+    final LogRecord severe = findRecord(records, Level.SEVERE, "Failed to decrypt data key");
+    assertSummaryOnly(severe.getMessage());
+    assertTrue(severe.getMessage().contains("arn:aws:kms:***:***:key/1234***cdef"), severe.getMessage());
+    assertTrue(severe.getMessage().contains("errorCode=AccessDeniedException"), severe.getMessage());
+    assertNull(severe.getThrown());
+    assertSummaryOnly(exception.getMessage());
+  }
+
+  @Test
+  void retry_logsTheErrorSummary_withoutTheKmsMessage() {
+    final KmsClient kmsClient = mock(KmsClient.class);
+    when(kmsClient.generateDataKey(any(GenerateDataKeyRequest.class)))
+        .thenThrow((KmsException) KmsException.builder()
+            .message(KMS_MESSAGE)
+            .statusCode(503)
+            .awsErrorDetails(AwsErrorDetails.builder().errorCode("ServiceUnavailable").build())
+            .build());
+    final KeyManager keyManager = new KeyManager(kmsClient, mock(Connection.class), false,
+        EncryptionConfig.builder().kmsRegion("us-east-1").maxRetries(1)
+            .retryBackoffBase(Duration.ofMillis(1)).allowedMasterKeyArns(FULL_ARN).build());
+
+    final List<LogRecord> records = new CopyOnWriteArrayList<>();
+    captureLogs(records,
+        () -> assertThrows(KeyManagementException.class, () -> keyManager.generateDataKey(FULL_ARN)));
+
+    final LogRecord warning = findRecord(records, Level.WARNING, "retrying");
+    assertSummaryOnly(warning.getMessage());
+    assertTrue(warning.getMessage().contains("errorCode=ServiceUnavailable, httpStatus=503"),
+        warning.getMessage());
+  }
+
+  @Test
+  void keyArnsAreMaskedAtEveryLevel_whenCreatingAndUsingKeys() throws Exception {
+    final KmsClient kmsClient = mock(KmsClient.class);
+    when(kmsClient.generateDataKey(any(GenerateDataKeyRequest.class)))
+        .thenReturn(GenerateDataKeyResponse.builder()
+            .ciphertextBlob(SdkBytes.fromByteArray(new byte[] {9}))
+            .plaintext(SdkBytes.fromByteArray(new byte[32]))
+            .build());
+    when(kmsClient.createKey(any(CreateKeyRequest.class)))
+        .thenReturn(CreateKeyResponse.builder()
+            .keyMetadata(KeyMetadata.builder().arn(FULL_ARN).build()).build());
+    final KeyManager keyManager = newKeyManager(kmsClient, FULL_ARN);
+
+    final Logger logger = Logger.getLogger(KeyManager.class.getName());
+    final Level previous = logger.getLevel();
+    logger.setLevel(Level.ALL);
+    final List<LogRecord> records = new CopyOnWriteArrayList<>();
+    try {
+      captureLogs(records, () -> {
+        try {
+          keyManager.generateDataKey(FULL_ARN);
+          keyManager.createMasterKey("test");
+        } catch (KeyManagementException e) {
+          throw new AssertionError(e);
+        }
+        return null;
+      });
+    } finally {
+      logger.setLevel(previous);
+    }
+
+    assertFalse(records.isEmpty());
+    for (final LogRecord record : records) {
+      assertFalse(record.getMessage().contains(KEY_UUID), record.getMessage());
+    }
+    assertNotNull(findRecord(records, Level.FINEST, "Generating data key using master key"));
+    assertNotNull(findRecord(records, Level.INFO, "Successfully created KMS master key"));
   }
 
   @Test
@@ -432,5 +538,52 @@ public class KeyManagerTest {
     field.setAccessible(true);
     ((DataKeyCache) field.get(keyManager)).shutdown();
     field.set(keyManager, cache);
+  }
+
+  private static KmsException accessDenied() {
+    return (KmsException) KmsException.builder()
+        .message(KMS_MESSAGE)
+        .statusCode(400)
+        .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDeniedException").build())
+        .build();
+  }
+
+  private static void assertSummaryOnly(final String text) {
+    assertFalse(text.contains(KEY_UUID), text);
+    assertFalse(text.contains("444444444444"), text);
+    assertFalse(text.contains("333333333333"), text);
+    assertFalse(text.contains("SecretRoleName"), text);
+  }
+
+  private static LogRecord findRecord(final List<LogRecord> records, final Level level, final String text) {
+    return records.stream()
+        .filter(r -> r.getLevel().equals(level) && r.getMessage().contains(text))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("No " + level + " record containing '" + text + "' in " + records));
+  }
+
+  private static <T> T captureLogs(final List<LogRecord> records, final java.util.function.Supplier<T> action) {
+    final Logger logger = Logger.getLogger(KeyManager.class.getName());
+    final Handler handler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        records.add(record);
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    handler.setLevel(Level.ALL);
+    logger.addHandler(handler);
+    try {
+      return action.get();
+    } finally {
+      logger.removeHandler(handler);
+    }
   }
 }

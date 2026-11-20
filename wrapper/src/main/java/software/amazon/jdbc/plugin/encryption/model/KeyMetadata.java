@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption.model;
 import java.time.Instant;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 
 /**
  * Metadata class for storing KMS key information including master key ARN, encrypted data key, and
@@ -151,7 +152,7 @@ public class KeyMetadata {
     return String.format(
         "KeyMetadata{keyId='%s', masterKeyArn='%s', keySpec='%s',"
             + " createdAt=%s, lastUsedAt=%s, encryptedDataKey='[REDACTED]'}",
-        keyId, masterKeyArn, keySpec, createdAt, lastUsedAt);
+        keyId, Sanitizer.arn(masterKeyArn), keySpec, createdAt, lastUsedAt);
   }
 
   public static Builder builder() {
