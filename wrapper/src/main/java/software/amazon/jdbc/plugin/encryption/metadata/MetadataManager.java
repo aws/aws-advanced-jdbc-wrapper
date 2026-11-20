@@ -144,7 +144,12 @@ public class MetadataManager {
     // Don't close if using provided connection
   }
 
-  private String getLoadEncryptionMetadataSql(String eq) {
+  /**
+   * The columns {@link #buildColumnConfigFromResultSet} reads, joined from encryption_metadata and
+   * key_storage. The cached load and the direct lookup both start from this, so they always return
+   * the same column configuration.
+   */
+  private String getColumnConfigSelectSql(String eq) {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
         + "       em.created_at, em.updated_at, "
@@ -153,8 +158,11 @@ public class MetadataManager {
         + "FROM "
         + schema + ".encryption_metadata em "
         + "JOIN "
-        + schema + ".key_storage ks ON em.key_id " + eq + " ks.id "
-        + "ORDER BY em.table_name, em.column_name";
+        + schema + ".key_storage ks ON em.key_id " + eq + " ks.id ";
+  }
+
+  private String getLoadEncryptionMetadataSql(String eq) {
+    return getColumnConfigSelectSql(eq) + "ORDER BY em.table_name, em.column_name";
   }
 
   private String getCheckColumnEncryptedSql(String eq) {
@@ -174,15 +182,7 @@ public class MetadataManager {
   }
 
   private String getColumnConfigSql(String eq) {
-    SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
-        + "       em.created_at, em.updated_at, "
-        + "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, "
-        + "       ks.created_at as key_created_at, ks.last_used_at "
-        + "FROM "
-        + schema + ".encryption_metadata em "
-        + "JOIN "
-        + schema + ".key_storage ks ON em.key_id " + eq + " ks.id "
+    return getColumnConfigSelectSql(eq)
         + "WHERE em.table_name " + eq + " ? AND em.column_name " + eq + " ?";
   }
 

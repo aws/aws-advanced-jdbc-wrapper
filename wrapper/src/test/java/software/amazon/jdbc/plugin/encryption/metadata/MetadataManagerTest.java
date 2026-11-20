@@ -16,8 +16,10 @@
 
 package software.amazon.jdbc.plugin.encryption.metadata;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,18 +32,25 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,11 +60,19 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.EncryptionSql;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class MetadataManagerTest {
+
+  private static final Instant METADATA_CREATED_AT = Instant.parse("2026-01-01T00:00:00Z");
+  private static final Instant METADATA_UPDATED_AT = Instant.parse("2026-01-02T00:00:00Z");
+  private static final Instant KEY_CREATED_AT = Instant.parse("2026-01-03T00:00:00Z");
+  private static final Instant KEY_LAST_USED_AT = Instant.parse("2026-01-04T00:00:00Z");
+  private static final byte[] HMAC_KEY = {1, 2, 3, 4, (byte) 0xfe, (byte) 0xff};
 
   private AutoCloseable closeable;
   private MetadataManager manager;
@@ -117,6 +134,151 @@ public class MetadataManagerTest {
     final ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
     verify(mockConnection, times(4)).prepareStatement(sql.capture());
     return sql.getAllValues();
+  }
+
+  /** One joined encryption_metadata and key_storage row, keyed by result set column label. */
+  private static Map<String, Object> columnConfigRow() {
+    final Map<String, Object> row = new HashMap<>();
+    row.put("table_name", "users");
+    row.put("column_name", "ssn");
+    row.put("encryption_algorithm", "AES-256-GCM");
+    row.put("key_id", 7);
+    row.put("created_at", Timestamp.from(METADATA_CREATED_AT));
+    row.put("updated_at", Timestamp.from(METADATA_UPDATED_AT));
+    row.put("name", "users-ssn-key");
+    row.put("master_key_arn", "arn:aws:kms:us-east-1:123456789012:key/abc");
+    row.put("encrypted_data_key", "ZW5jcnlwdGVkLWtleQ==");
+    row.put("hmac_key", HMAC_KEY.clone());
+    row.put("key_spec", "AES_256");
+    row.put("key_created_at", Timestamp.from(KEY_CREATED_AT));
+    row.put("last_used_at", Timestamp.from(KEY_LAST_USED_AT));
+    return row;
+  }
+
+  /**
+   * Makes each prepared statement return a result set holding {@code row}, readable only through
+   * the column labels its SQL selects. Reading any other label throws, as a real driver does.
+   */
+  private void answerQueriesWith(final Map<String, Object> row) throws SQLException {
+    when(mockConnection.prepareStatement(anyString())).thenAnswer(invocation -> {
+      final Set<String> labels = selectedLabels(invocation.getArgument(0));
+      final PreparedStatement stmt = mock(PreparedStatement.class);
+      when(stmt.executeQuery()).thenAnswer(query -> singleRowResultSet(row, labels));
+      return stmt;
+    });
+  }
+
+  /** The result set column labels of a {@code SELECT a.x, b.y as z FROM ...} statement. */
+  private static Set<String> selectedLabels(final String sql) {
+    final String selectList = sql.substring("SELECT ".length(), sql.indexOf(" FROM "));
+    final Set<String> labels = new HashSet<>();
+    for (String item : selectList.split(",")) {
+      final String column = item.trim();
+      final int alias = column.toLowerCase(Locale.ROOT).lastIndexOf(" as ");
+      labels.add(alias >= 0
+          ? column.substring(alias + " as ".length()).trim()
+          : column.substring(column.indexOf('.') + 1));
+    }
+    return labels;
+  }
+
+  private static ResultSet singleRowResultSet(final Map<String, Object> row, final Set<String> labels) {
+    final boolean[] beforeRow = {true};
+    return (ResultSet) Proxy.newProxyInstance(
+        MetadataManagerTest.class.getClassLoader(),
+        new Class<?>[] {ResultSet.class},
+        (proxy, method, args) -> {
+          switch (method.getName()) {
+            case "next":
+              final boolean hasRow = beforeRow[0];
+              beforeRow[0] = false;
+              return hasRow;
+            case "close":
+              return null;
+            case "toString":
+              return "ResultSet" + labels;
+            case "getString":
+            case "getInt":
+            case "getBytes":
+            case "getTimestamp":
+              final String label = (String) args[0];
+              if (!labels.contains(label)) {
+                throw new SQLException("The column name " + label + " was not found in this ResultSet.");
+              }
+              return row.get(label);
+            default:
+              throw new UnsupportedOperationException(method.getName());
+          }
+        });
+  }
+
+  private static void assertColumnConfigFromRow(final @Nullable ColumnEncryptionConfig config) {
+    assertNotNull(config);
+    assertEquals("users", config.getTableName());
+    assertEquals("ssn", config.getColumnName());
+    assertEquals("AES-256-GCM", config.getAlgorithm());
+    assertEquals(7, config.getKeyId());
+    assertEquals(METADATA_CREATED_AT, config.getCreatedAt());
+    assertEquals(METADATA_UPDATED_AT, config.getUpdatedAt());
+
+    final KeyMetadata key = config.getKeyMetadata();
+    assertEquals(7, key.getKeyId());
+    assertEquals("users-ssn-key", key.getKeyName());
+    assertEquals("arn:aws:kms:us-east-1:123456789012:key/abc", key.getMasterKeyArn());
+    assertEquals("ZW5jcnlwdGVkLWtleQ==", key.getEncryptedDataKey());
+    assertArrayEquals(HMAC_KEY, key.getHmacKey());
+    assertEquals("AES_256", key.getKeySpec());
+    assertEquals(KEY_CREATED_AT, key.getCreatedAt());
+    assertEquals(KEY_LAST_USED_AT, key.getLastUsedAt());
+  }
+
+  @Test
+  void cachedAndDirectLookups_returnTheSameColumnConfig() throws Exception {
+    answerQueriesWith(columnConfigRow());
+
+    final MetadataManager cached = createManager(true);
+    cached.initialize();
+    final ColumnEncryptionConfig fromCache = cached.getColumnConfig("users", "ssn");
+
+    final MetadataManager direct = new MetadataManager(mockConnection, config(false));
+    final ColumnEncryptionConfig fromDatabase;
+    try {
+      fromDatabase = direct.getColumnConfig("users", "ssn");
+    } finally {
+      direct.shutdown();
+    }
+
+    // One query loads the cache and one answers the direct lookup.
+    final ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+    verify(mockConnection, times(2)).prepareStatement(sql.capture());
+    assertTrue(sql.getAllValues().get(0).endsWith("ORDER BY em.table_name, em.column_name"));
+    assertTrue(sql.getAllValues().get(1).endsWith("WHERE em.table_name = ? AND em.column_name = ?"));
+
+    // Compared field by field: ColumnEncryptionConfig.equals and KeyMetadata.equals skip the key
+    // name and HMAC key.
+    assertColumnConfigFromRow(fromCache);
+    assertColumnConfigFromRow(fromDatabase);
+  }
+
+  @Test
+  void staleCache_looksUpTheSameColumnConfigFromTheDatabase() throws Exception {
+    answerQueriesWith(columnConfigRow());
+    // A zero expiration leaves the cache stale as soon as it is loaded.
+    manager = new MetadataManager(mockConnection, EncryptionConfig.builder()
+        .kmsRegion("us-east-1")
+        .cacheEnabled(true)
+        .cacheExpirationMinutes(0)
+        .metadataRefreshInterval(Duration.ZERO)
+        .build());
+    manager.initialize();
+    assertEquals(1, manager.getCacheSize());
+
+    final ColumnEncryptionConfig config = manager.getColumnConfig("users", "ssn");
+
+    final ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+    verify(mockConnection, times(2)).prepareStatement(sql.capture());
+    assertTrue(sql.getAllValues().get(1).endsWith("WHERE em.table_name = ? AND em.column_name = ?"));
+    assertColumnConfigFromRow(config);
   }
 
   @Test
