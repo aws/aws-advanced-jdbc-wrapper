@@ -14,6 +14,7 @@ CHECK (length(VALUE) >= 45)^;
 -- Key storage table
 CREATE TABLE IF NOT EXISTS encrypt.key_storage (
     id SERIAL PRIMARY KEY,
+    key_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     master_key_arn VARCHAR(512) NOT NULL,
     encrypted_data_key TEXT NOT NULL,

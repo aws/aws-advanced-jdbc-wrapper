@@ -139,8 +139,9 @@ public class KeyManager {
     SchemaName schema = config.getEncryptionMetadataSchema();
     String sql = "INSERT INTO "
         + schema + ".key_storage"
-        + " (name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, last_used_at) "
-        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        + " (name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, last_used_at,"
+        + " key_id) "
+        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     return isPostgreSQL() ? sql + " RETURNING id" : sql;
   }
 
@@ -325,6 +326,8 @@ public class KeyManager {
         stmt.setString(5, keyMetadata.getKeySpec());
         stmt.setTimestamp(6, Timestamp.from(keyMetadata.getCreatedAt()));
         stmt.setTimestamp(7, Timestamp.from(keyMetadata.getLastUsedAt()));
+        // key_storage.key_id is NOT NULL in the shared schema.
+        stmt.setString(8, UUID.randomUUID().toString());
 
         int generatedId;
         if (isPostgreSQL()) {

@@ -66,6 +66,7 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
+import software.amazon.jdbc.plugin.encryption.schema.SchemaValidator;
 
 /**
  * Integration test for KMS encryption functionality with JSqlParser.
@@ -1033,6 +1034,58 @@ public class KmsEncryptionIntegrationTest {
         }
 
         LOGGER.info("Successfully verified encryption/decryption with awsProfile property");
+      }
+    }
+  }
+
+  /** The validator finds the metadata tables in the configured schema, not the session's default. */
+  @TestTemplate
+  void testSchemaValidatorAcceptsWellFormedMetadataSchema() throws Exception {
+    try (Connection directConnection = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+      final SchemaValidator.ValidationResult result =
+          new SchemaValidator(SchemaName.of(METADATA_SCHEMA)).validateSchema(directConnection);
+      assertTrue(result.isValid(), () -> "schema validation failed: " + result.getIssues());
+    }
+  }
+
+  /** A schema that does not exist is reported as missing both tables rather than passing. */
+  @TestTemplate
+  void testSchemaValidatorReportsMissingTables() throws Exception {
+    try (Connection directConnection = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+      final SchemaValidator.ValidationResult result =
+          new SchemaValidator(SchemaName.of("kms_no_such_schema")).validateSchema(directConnection);
+      assertFalse(result.isValid());
+      assertEquals(2, result.getIssues().size(), result::toString);
+    }
+  }
+
+  /** Dropping hmac_key from key_storage in a scratch schema is reported as that missing column. */
+  @TestTemplate
+  void testSchemaValidatorReportsMissingColumn() throws Exception {
+    final SchemaName scratchSchema = SchemaName.of("kms_validator_scratch");
+    try (Connection directConnection = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties())) {
+      try {
+        // A scratch schema, so the shared metadata schema the other tests use is left intact.
+        KmsTestUtility.createMetadataTables(directConnection, scratchSchema, isPg);
+        try (Statement stmt = directConnection.createStatement()) {
+          stmt.execute("ALTER TABLE " + scratchSchema + ".key_storage DROP COLUMN hmac_key");
+        }
+
+        final SchemaValidator.ValidationResult result =
+            new SchemaValidator(scratchSchema).validateSchema(directConnection);
+        assertFalse(result.isValid());
+        assertEquals(1, result.getIssues().size(), result::toString);
+        assertTrue(
+            result.getIssues().get(0).contains("key_storage")
+                && result.getIssues().get(0).contains("hmac_key"),
+            result::toString);
+      } finally {
+        try (Statement stmt = directConnection.createStatement()) {
+          stmt.execute("DROP SCHEMA IF EXISTS " + scratchSchema + (isPg ? " CASCADE" : ""));
+        }
       }
     }
   }
