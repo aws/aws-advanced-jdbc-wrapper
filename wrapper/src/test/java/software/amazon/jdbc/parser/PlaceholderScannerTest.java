@@ -196,4 +196,61 @@ class PlaceholderScannerTest {
     assertEquals(1,
         PlaceholderScanner.scan("SELECT 'a;b', `c;d` # ;\n", Mode.MYSQL).getStatements().size());
   }
+
+  static Stream<Arguments> executableComments() {
+    return Stream.of(
+        Arguments.of("UPDATE t SET /*!50000 a = ?, */ b = ?", true),
+        Arguments.of("UPDATE t SET /*! a = ?, */ b = ?", true),
+        Arguments.of("UPDATE t SET /*M!100100 a = ?, */ b = ?", true),
+        Arguments.of("UPDATE t SET /*m! a = ?, */ b = ?", true),
+        Arguments.of("UPDATE t SET b = /*!50000 'x */ ?", true),
+        Arguments.of("UPDATE t SET b = /*!50000 \"x */ ?", true),
+        Arguments.of("UPDATE t SET b = /*!50000 `x */ ?", true),
+        Arguments.of("UPDATE t SET b = ? /*!50000 -- x */", true),
+        Arguments.of("UPDATE t SET b = ? /*!50000 # x */", true),
+        Arguments.of("UPDATE t SET b = ? /*!50000 /* x */", true),
+        Arguments.of("UPDATE t SET b = ? /*!50000 ?", true),
+        Arguments.of("UPDATE /*!50000 LOW_PRIORITY */ t SET b = ?", false),
+        Arguments.of("UPDATE t SET b = ? /*!*/", false),
+        Arguments.of("UPDATE t SET b = ? /*!", false),
+        Arguments.of("UPDATE t SET b = ? /* ? 'x */", false),
+        Arguments.of("UPDATE /*+ BKA(t) ? */ t SET b = ?", false),
+        Arguments.of("UPDATE t SET b = '/*! ? */' WHERE c = ?", false),
+        Arguments.of("UPDATE t SET b = ? -- /*! ? */", false),
+        Arguments.of("UPDATE t SET /*M a = ? */ b = ?", false),
+        // Structure changes which column a placeholder is assigned to, when there is one.
+        Arguments.of("UPDATE t SET a /*!12345 = a, b */ = ? WHERE id = 1", true),
+        Arguments.of("INSERT INTO t (a /*!, b */) VALUES (?, ?)", true),
+        Arguments.of("UPDATE t SET a = 1 /*!50000 , b = 2 */", false),
+        Arguments.of("UPDATE t SET b = ? WHERE id = ? /*!50000 AND TRUE */", false));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("executableComments")
+  void testPlaceholderSensitiveExecutableComment(final String sql, final boolean expected) {
+    assertEquals(expected,
+        PlaceholderScanner.scan(sql, Mode.MYSQL).hasPlaceholderSensitiveExecutableComment(), "MYSQL");
+    assertEquals(expected,
+        PlaceholderScanner.scan(sql, Mode.GENERIC).hasPlaceholderSensitiveExecutableComment(), "GENERIC");
+    assertFalse(
+        PlaceholderScanner.scan(sql, Mode.POSTGRESQL).hasPlaceholderSensitiveExecutableComment(),
+        "POSTGRESQL");
+  }
+
+  @Test
+  void testExecutableCommentIsSkippedLikeOtherComments() {
+    final PlaceholderScanner.Result result =
+        PlaceholderScanner.scan("UPDATE t SET /*!50000 a = ?, */ b = ?", Mode.MYSQL);
+
+    assertEquals(1, result.getPlaceholderCount());
+    assertEquals(1, result.getBlockComments().size());
+  }
+
+  @Test
+  void testExecutableCommentWords() {
+    assertEquals(Arrays.asList("users", "ssn"), PlaceholderScanner.scan(
+        "UPDATE plain SET a = ? /*!50000 , users.ssn = ? */", Mode.MYSQL).getExecutableCommentWords());
+    assertTrue(PlaceholderScanner.scan("UPDATE /*!50000 LOW_PRIORITY */ t SET b = ?", Mode.MYSQL)
+        .getExecutableCommentWords().isEmpty());
+  }
 }

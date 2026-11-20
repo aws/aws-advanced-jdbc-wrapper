@@ -24,14 +24,17 @@ import java.util.Locale;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * SQL fragments shared by the plugin's queries against its metadata and key tables. Every
- * comparison in that SQL uses {@link #equalsOperator(boolean)}, which on PostgreSQL uses the
- * built-in operator regardless of search_path.
+ * SQL fragments shared by the plugin's queries against its metadata and key tables and by the
+ * re-encryption queries. Their comparisons use these operators, which on PostgreSQL are the
+ * built-in operators regardless of search_path.
  */
 public final class EncryptionSql {
 
   /** The PostgreSQL equality operator, pinned to pg_catalog. */
   public static final String PG_EQUALS = "OPERATOR(pg_catalog.=)";
+
+  /** The PostgreSQL greater-than operator, pinned to pg_catalog. */
+  public static final String PG_GREATER_THAN = "OPERATOR(pg_catalog.>)";
 
   /** The MySQL equality operator. MySQL has no user-defined operators. */
   public static final String MYSQL_EQUALS = "=";

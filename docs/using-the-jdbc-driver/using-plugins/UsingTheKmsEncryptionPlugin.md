@@ -679,6 +679,7 @@ It never deletes the old `key_storage` row and never changes the old KMS key.
 
 Requirements:
 - The primary key column must be a single, unique, `NOT NULL` column. Rows with a `NULL` value in it are not processed.
+- On PostgreSQL, the primary key column must have a built-in type, such as `integer`, `bigint`, `uuid` or `text`, or a domain over one. A column of another type, such as `citext` or an enum, is refused with nothing changed. This applies to `rotateDataKeyAndReencrypt()` and `reencryptRemainingRows()`.
 - Table and column names may contain only letters, digits and underscores, at most 64 characters. They are matched against `encrypt.encryption_metadata` as stored there, with the bare table name, the way the plugin stores it. On PostgreSQL the match is case-sensitive, and unquoted names are stored in lower case (`users`, not `Users`). The SQL against the data table uses the table and column spelling stored in the metadata.
 - A table name may have one schema prefix (`app.users`). The prefix is used only in the SQL against the data table; the metadata lookup and the HMAC trigger use the bare table name (`users`).
 - Before it creates a key, the utility checks that the table, the encrypted column and the primary key column exist. A wrong name fails with nothing changed.
@@ -848,13 +849,92 @@ The plugin needs only `kms:Decrypt` on the master keys its columns use:
 
 Grant the actions `KeyManagementUtility` uses (see [AWS Requirements](#aws-requirements)) only to the credentials that set up and rotate the columns.
 
+### Separating the runtime role from the admin role
+
+Run the application and the setup and rotation tooling under different credentials, so that a compromised application cannot change which keys protect a column.
+
+| | Runtime (application) | Admin (`KeyManagementUtility`, DDL) |
+|---|---|---|
+| AWS | `kms:Decrypt` only, on the specific master key ARNs the columns use | `kms:GenerateDataKey` and `kms:Decrypt` on those ARNs, plus `kms:DescribeKey` for `validateMasterKey()`. `kms:CreateKey` and `kms:CreateAlias` only if it creates master keys |
+| Database | `SELECT` on `key_storage` and `encryption_metadata`; normal DML on the application tables | Write access to `key_storage` and `encryption_metadata`; `SELECT` and `UPDATE` on the encrypted columns' tables (re-encryption reads and rewrites every row); DDL and trigger creation on the application tables |
+
+The runtime role must not have `kms:GenerateDataKey`, `kms:Encrypt`, `kms:CreateKey` or `"Resource": "*"`, and must not be able to write the metadata tables. Without write access to `key_storage`, a compromised application cannot point a column at a different master key or HMAC key, and the `encryptionAllowedMasterKeyArns` list and the trigger stay meaningful. The runtime role must also not own the application tables or hold the `TRIGGER` privilege on them, since that lets it drop or disable the HMAC triggers; create those tables as the admin role, or move ownership with `ALTER TABLE ... OWNER TO app_admin` on PostgreSQL. On PostgreSQL it must not own the schemas that contain the metadata or application tables either, because a schema's owner can drop any table in it. Use a separate admin credential, held by your deployment pipeline or an operator, and do not ship it with the application.
+
+**PostgreSQL**, with `app_runtime` as the application's role and `app_admin` as the admin role (replace `encrypt` with your metadata schema):
+
+```sql
+-- Ownership first: changing an object's owner rewrites the previous owner's grants to the new owner,
+-- so do it before the GRANT statements below.
+-- Transfer the schema before the tables: a schema's owner can drop any table in it, even one owned by another role
+ALTER SCHEMA encrypt OWNER TO app_admin;
+ALTER TABLE encrypt.key_storage OWNER TO app_admin;
+ALTER TABLE encrypt.encryption_metadata OWNER TO app_admin;
+-- The admin role owns the application table so that the runtime role cannot drop its triggers.
+-- Also make sure app_runtime does not own the table's schema (on PostgreSQL 15 and later, public is owned
+-- by the database owner) or the database; if it does, transfer them with ALTER SCHEMA ... OWNER TO app_admin
+-- and ALTER DATABASE ... OWNER TO app_admin
+ALTER TABLE users OWNER TO app_admin;
+
+-- Metadata: read-only for the application
+REVOKE ALL ON ALL TABLES IN SCHEMA encrypt FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA encrypt FROM app_runtime;
+GRANT USAGE ON SCHEMA encrypt TO app_runtime;
+GRANT SELECT ON encrypt.key_storage, encrypt.encryption_metadata TO app_runtime;
+
+-- Repeat for every other role that writes an encrypted column (an ETL or batch role, for example)
+GRANT USAGE ON SCHEMA encrypt TO <other_writer_role>;
+GRANT SELECT ON encrypt.key_storage, encrypt.encryption_metadata TO <other_writer_role>;
+
+-- Metadata: writable only by the admin role
+GRANT USAGE ON SCHEMA encrypt TO app_admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON encrypt.key_storage, encrypt.encryption_metadata TO app_admin;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA encrypt TO app_admin;
+
+-- Application table: normal DML for the runtime role (including the id sequence)
+GRANT SELECT, INSERT, UPDATE, DELETE ON users TO app_runtime;
+GRANT USAGE ON SEQUENCE users_id_seq TO app_runtime;
+```
+
+The simplest way to avoid ownership problems is to create the metadata schema and tables (steps 2 to 4) and the application tables (step 6) as `app_admin` in the first place, and to run this block as `app_admin`; the `ALTER ... OWNER` statements then change nothing. To run it later against objects that another role owns, connect as a role that may take over their ownership: the RDS master user (`rds_superuser`), or a role that is a member of both the current owner and `app_admin`. A role that is neither fails with `must be owner of schema encrypt` on the first statement (or `must be owner of table key_storage` if the schema is already transferred), and its `GRANT` and `REVOKE` statements on those tables then fail with `permission denied for table key_storage`. A member-of-both role can run `ALTER TABLE ... OWNER TO app_admin` only if `app_admin` has `CREATE` on the table's schema, which is why the block transfers the schema first.
+
+Once `app_admin` owns the application tables, migrations that alter them (Flyway, Liquibase, Rails and similar) can no longer run as `app_runtime`. Run migrations that touch tables with encrypted columns as the admin role.
+
+These statements only remove direct grants. Also make sure `app_runtime` is not a superuser (on RDS, a member of `rds_superuser`), and is not a member of `app_admin` or of `pg_write_all_data` (PostgreSQL 14 and later): any of these still lets it write the metadata tables. A role that owns the metadata tables can also grant itself access again, which is why the admin role should own them.
+
+The trigger function runs with the privileges of the user whose statement fires it, so every role that writes an encrypted column, not only `app_runtime`, needs the `SELECT` grants above. A role that has not been granted `USAGE` on the schema and `SELECT` on both tables fails on every write to an encrypted column, inside `validate_encrypted_data_hmac`, with `permission denied for schema encrypt` (or `for table key_storage`); this includes a role that used to read the metadata through `PUBLIC`, which the block revokes. Grant it the access shown above. Roles that never write encrypted columns need no access to the schema.
+
+**MySQL**, with `'app_runtime'@'%'` and `'app_admin'@'%'` (replace `encrypt` with your metadata schema):
+
+```sql
+REVOKE ALL PRIVILEGES ON encrypt.* FROM 'app_runtime'@'%';
+GRANT SELECT ON encrypt.key_storage TO 'app_runtime'@'%';
+GRANT SELECT ON encrypt.encryption_metadata TO 'app_runtime'@'%';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON encrypt.key_storage TO 'app_admin'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE ON encrypt.encryption_metadata TO 'app_admin'@'%';
+
+-- Routines and triggers (steps 3 and 7) and re-encryption, in the database that holds your tables (app_db)
+GRANT CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON app_db.* TO 'app_admin'@'%';
+GRANT SELECT, UPDATE, TRIGGER ON app_db.users TO 'app_admin'@'%';
+```
+
+`REVOKE ALL PRIVILEGES ON encrypt.*` removes only schema-level grants. It does not touch global grants (`ON *.*`, for example when the application connects as the RDS master user) or table-level grants such as an earlier `GRANT INSERT ON encrypt.key_storage`, and it fails with error 1141 if the account holds no schema-level grant at all. Run `SHOW GRANTS FOR 'app_runtime'@'%'` and revoke any global or table-level privilege that gives write access to the metadata tables, and do not grant `app_runtime` the `TRIGGER` privilege on the application tables.
+
+On MySQL the triggers and routines run with the privileges of their `DEFINER`, which is the account that installed them (the shipped script sets no `SQL SECURITY` clause). That account, the admin role, therefore needs `SELECT` on the metadata tables and the privileges to create routines and triggers (see step 3). The trigger reads the metadata as its definer, so a role that writes an encrypted column without going through the plugin (for example, a batch job or the `mysql` client) needs no privileges on the metadata schema. The plugin still reads both tables itself, so the database user it connects as always needs the `SELECT` grants above.
+
+> [!WARNING]\
+> Do not drop the definer account or revoke its `SELECT` on the metadata tables while the triggers exist. Every `INSERT` and `UPDATE` on an encrypted table then fails, with `The user specified as a definer ('app_admin'@'%') does not exist` or `SELECT command denied to user 'app_admin'@'%' for table 'key_storage'`. To retire the account, re-create the routines and triggers under another definer first. Locking it with `ALTER USER ... ACCOUNT LOCK` only blocks logins and is safe: the triggers keep working.
+
+
+Verify the separation by connecting as the runtime role and confirming that `INSERT INTO encrypt.key_storage ...` and `UPDATE encrypt.encryption_metadata ...` fail with a permission error, that `DROP TABLE encrypt.key_storage` and `DROP TRIGGER` on an encrypted table fail, and that `aws kms generate-data-key` with the runtime credentials is denied.
+
 ### Data Protection
 
 - Encrypted data is stored as binary data in the database
 - The original data never leaves your application - encryption/decryption happens locally using data keys from KMS
 - Only encryption keys are managed by AWS KMS, not the actual data
 - Use different KMS keys for different environments (dev, staging, prod)
-- Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. The PostgreSQL trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. Only the user that runs `KeyManagementUtility` needs to write to them
+- Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. On PostgreSQL the trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. On MySQL the trigger runs as its definer, so writers need no access to the metadata tables. Only the user that runs `KeyManagementUtility` needs to write to them (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
 - Always use SSL/TLS for database connections
 - Enable CloudTrail logging for KMS operations
 
@@ -985,6 +1065,7 @@ JOIN encrypt.key_storage ks ON em.key_id = ks.id;
    - Create the HMAC validation trigger on every encrypted column (see [step 7 of Setup](#7-add-hmac-validation-triggers))
    - Use IAM roles instead of hardcoded credentials or access keys
    - Apply least-privilege IAM policies
+   - Run the application under a runtime role with only `kms:Decrypt` and `SELECT` on the metadata schema, and keep a separate admin credential for `KeyManagementUtility` (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
    - Restrict access to the metadata schema, and regularly audit the encryption metadata
 3. **Performance**
    - Use connection pooling
