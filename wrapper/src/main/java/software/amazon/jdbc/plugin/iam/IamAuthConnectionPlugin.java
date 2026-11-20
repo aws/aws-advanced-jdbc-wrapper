@@ -66,6 +66,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       });
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
   private static final long DISPOSAL_TIME_NANO = TimeUnit.MINUTES.toNanos(15);
+  private static final String CACHE_KEY_SCOPE = "iam";
 
   public static final AwsWrapperProperty IAM_HOST = new AwsWrapperProperty(
       "iamHost", null,
@@ -170,7 +171,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
 
     final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
 
+    // The token is signed with the credentials resolved from awsProfile (see AwsCredentialsManager), so
+    // the profile is part of the key: connections using different profiles must not share a token.
     final String cacheKey = IamAuthUtils.getCacheKey(
+        CACHE_KEY_SCOPE,
+        new @Nullable String[] {PropertyDefinition.AWS_PROFILE.getString(props)},
         user,
         host.getHost(),
         port,

@@ -61,6 +61,51 @@ public class IamAuthUtils {
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
   }
 
+  /**
+   * Builds an authentication token cache key that is scoped to the identity used to sign the token.
+   *
+   * <p>A token is only valid for the AWS identity that signed it. Two connections that target the same
+   * region, host, port and database user but sign with different identities (for example, different
+   * {@code awsProfile} values, or different federated users or roles) must not share a cached token.
+   *
+   * @param scope    the plugin that owns the token, so different plugins never share an entry.
+   * @param identity the components that identify the signing identity, as configured for the connection.
+   * @param user     the database user.
+   * @param hostname the host the token is generated for.
+   * @param port     the port the token is generated for.
+   * @param region   the region the token is generated for.
+   * @return the cache key.
+   */
+  public static String getCacheKey(
+      final String scope,
+      final @Nullable String[] identity,
+      final @Nullable String user,
+      final String hostname,
+      final int port,
+      final Region region) {
+    final StringBuilder sb = new StringBuilder()
+        .append(escapeCacheKeyComponent(scope))
+        .append(':').append(region)
+        .append(':').append(escapeCacheKeyComponent(hostname))
+        .append(':').append(port)
+        .append(':').append(escapeCacheKeyComponent(user));
+    for (final @Nullable String component : identity) {
+      sb.append(':').append(escapeCacheKeyComponent(component));
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Escapes a cache key component so that values containing the separator cannot make two different
+   * identities produce the same key. A null component is encoded differently from an empty one.
+   */
+  private static String escapeCacheKeyComponent(final @Nullable String component) {
+    if (component == null) {
+      return "\\0";
+    }
+    return component.replace("\\", "\\\\").replace(":", "\\:");
+  }
+
   public static IamTokenUtility getTokenUtility() {
     try {
       // RegularRdsUtility requires AWS Java SDK RDS v2.x to be presented in classpath.

@@ -65,10 +65,12 @@ class IamAuthConnectionPluginTest {
   private static final String TEST_TOKEN = "testToken";
   private static final int DEFAULT_PG_PORT = 5432;
   private static final int DEFAULT_MYSQL_PORT = 3306;
-  private static final String PG_CACHE_KEY = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+  private static final String PG_CACHE_KEY = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+      + DEFAULT_PG_PORT + ":postgresqlUser");
+  private static final String MYSQL_CACHE_KEY = cacheKey("us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
+      + DEFAULT_MYSQL_PORT + ":mysqlUser");
+  private static final String PG_KEY_PREFIX = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
       + DEFAULT_PG_PORT + ":postgresqlUser";
-  private static final String MYSQL_CACHE_KEY = "us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
-      + DEFAULT_MYSQL_PORT + ":mysqlUser";
   private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
   private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
   private static final HostSpec PG_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -162,8 +164,8 @@ class IamAuthConnectionPluginTest {
     final String invalidIamDefaultPort = "0";
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, invalidIamDefaultPort);
 
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-        + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -177,8 +179,8 @@ class IamAuthConnectionPluginTest {
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-        + DEFAULT_PG_PORT + ":postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + DEFAULT_PG_PORT + ":postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -204,7 +206,7 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testConnectWithSpecifiedPort() throws SQLException {
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:" + "postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -215,8 +217,8 @@ class IamAuthConnectionPluginTest {
   public void testConnectWithSpecifiedIamDefaultPort() throws SQLException {
     final String iamDefaultPort = "9999";
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, iamDefaultPort);
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-        + iamDefaultPort + ":postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + iamDefaultPort + ":postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -226,7 +228,7 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectWithSpecifiedRegion() throws SQLException {
     final String cacheKeyWithNewRegion =
-        "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":" + "postgresqlUser";
+        cacheKey("us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":postgresqlUser");
     props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-west-1");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewRegion)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
@@ -249,6 +251,39 @@ class IamAuthConnectionPluginTest {
         "pg.testdb.us-east-2.rds.amazonaws.com");
   }
 
+  @Test
+  public void testCachedTokenNotReusedForDifferentAwsProfile() throws SQLException {
+    // A token cached for one profile must not be handed to a connection that signs with another.
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(PG_KEY_PREFIX, "profileA"))))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+    props.setProperty(PropertyDefinition.AWS_PROFILE.name, "profileB");
+
+    testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, PG_HOST_SPEC.getHost(),
+        cacheKey(PG_KEY_PREFIX, "profileB"));
+  }
+
+  @Test
+  public void testCachedTokenNotReusedBetweenDefaultAndNamedAwsProfile() throws SQLException {
+    when(mockStorageService.get(eq(TokenInfo.class), eq(PG_CACHE_KEY)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+    props.setProperty(PropertyDefinition.AWS_PROFILE.name, "profileB");
+
+    testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, PG_HOST_SPEC.getHost(),
+        cacheKey(PG_KEY_PREFIX, "profileB"));
+  }
+
+  @Test
+  public void testCachedTokenReusedForSameAwsProfile() throws SQLException {
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(PG_KEY_PREFIX, "profileA"))))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+    props.setProperty(PropertyDefinition.AWS_PROFILE.name, "profileA");
+
+    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
+  }
+
   public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
 
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockServicesContainer, mockIamTokenUtils);
@@ -268,6 +303,14 @@ class IamAuthConnectionPluginTest {
       final String protocol,
       final HostSpec hostSpec,
       final String expectedHost) throws SQLException {
+    testGenerateToken(protocol, hostSpec, expectedHost, PG_CACHE_KEY);
+  }
+
+  private void testGenerateToken(
+      final String protocol,
+      final HostSpec hostSpec,
+      final String expectedHost,
+      final String expectedCacheKey) throws SQLException {
     final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockServicesContainer, mockIamTokenUtils);
     final IamAuthConnectionPlugin spyPlugin = Mockito.spy(targetPlugin);
 
@@ -291,7 +334,16 @@ class IamAuthConnectionPluginTest {
     verify(mockStorageService, times(1)).set(keyArgumentCaptor.capture(), tokenArgumentCaptor.capture());
     final Object actualKey = keyArgumentCaptor.getValue();
     final TokenInfo actualToken = tokenArgumentCaptor.getValue();
-    assertEquals(PG_CACHE_KEY, actualKey);
+    assertEquals(expectedCacheKey, actualKey);
     assertEquals(GENERATED_TOKEN, actualToken.getToken());
+  }
+
+  /** Builds the expected key for a connection that does not set awsProfile. */
+  private static String cacheKey(final String regionHostPortUser) {
+    return "iam:" + regionHostPortUser + ":\\0";
+  }
+
+  private static String cacheKey(final String regionHostPortUser, final String awsProfile) {
+    return "iam:" + regionHostPortUser + ":" + awsProfile;
   }
 }
