@@ -60,14 +60,15 @@ public class EncryptionConfig implements CommandLineRunner {
             new SecureRandom().nextBytes(hmacKey);
             
             keyId = jdbc.queryForObject(
-                "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) " +
-                "VALUES (?, ?, ?, ?, ?) RETURNING id",
+                "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec, key_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
                 Integer.class,
                 "default-key",
                 kmsKeyId,
                 Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray()),
                 hmacKey,
-                "AES_256"
+                "AES_256",
+                java.util.UUID.randomUUID().toString()
             );
         }
         

@@ -28,7 +28,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Map;
 import java.util.logging.Logger;
 import javax.crypto.Cipher;
@@ -322,6 +321,10 @@ public class EncryptionService {
       return ((String) value).getBytes(StandardCharsets.UTF_8);
     } else if (value instanceof Integer) {
       return ByteBuffer.allocate(4).putInt((Integer) value).array();
+    } else if (value instanceof Short) {
+      return ByteBuffer.allocate(2).putShort((Short) value).array();
+    } else if (value instanceof Byte) {
+      return new byte[] {(Byte) value};
     } else if (value instanceof Long) {
       return ByteBuffer.allocate(8).putLong((Long) value).array();
     } else if (value instanceof Double) {
@@ -386,6 +389,24 @@ public class EncryptionService {
         }
         int intVal = ByteBuffer.wrap(data).getInt();
         return convertToTargetType(intVal, targetType);
+
+      case SHORT:
+        if (data.length != 2) {
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidShortLength"), null)
+              .withContext("expectedLength", 2)
+              .withContext("actualLength", data.length);
+        }
+        short shortVal = ByteBuffer.wrap(data).getShort();
+        return convertToTargetType(shortVal, targetType);
+
+      case BYTE:
+        if (data.length != 1) {
+          throw EncryptionException.decryptionFailed(Messages.get("EncryptionService.invalidByteLength"), null)
+              .withContext("expectedLength", 1)
+              .withContext("actualLength", data.length);
+        }
+        byte byteVal = data[0];
+        return convertToTargetType(byteVal, targetType);
 
       case LONG:
         if (data.length != 8) {
@@ -513,12 +534,8 @@ public class EncryptionService {
     // Handle byte array conversions
     if (targetType == byte[].class) {
       if (value instanceof String) {
-        // Assume base64 encoded string, decode it
-        try {
-          return Base64.getDecoder().decode((String) value);
-        } catch (IllegalArgumentException e) {
-          throw EncryptionException.typeConversionFailed("String", "byte[]", null);
-        }
+        // The inverse of how a String is serialized on write.
+        return ((String) value).getBytes(StandardCharsets.UTF_8);
       } else if (value instanceof byte[]) {
         return value;
       }
@@ -529,6 +546,10 @@ public class EncryptionService {
       Number num = (Number) value;
       if (targetType == Integer.class || targetType == int.class) {
         return num.intValue();
+      } else if (targetType == Short.class || targetType == short.class) {
+        return num.shortValue();
+      } else if (targetType == Byte.class || targetType == byte.class) {
+        return num.byteValue();
       } else if (targetType == Long.class || targetType == long.class) {
         return num.longValue();
       } else if (targetType == Double.class || targetType == double.class) {
