@@ -144,7 +144,11 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
           Messages.get("OktaAuthPlugin.unableToDetermineRegion", new Object[] {BaseSamlAuthPlugin.IAM_REGION_NAME}));
     }
 
+    // The token is signed with the role assumed for the federated user, so the IdP, the user and the
+    // role are part of the key: connections using different identities must not share a token.
     final String cacheKey = IamAuthUtils.getCacheKey(
+        this.getCacheKeyScope(),
+        this.getCredentialsIdentity(props),
         this.getDbUserProperty(props),
         host.getHost(),
         port,
@@ -248,4 +252,10 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
   abstract int getIamTokenExpiration(Properties props);
 
   abstract void checkIdpCredentialsWithFallback(Properties props);
+
+  /** Returns a value that keeps this plugin's cached tokens apart from other plugins' tokens. */
+  abstract String getCacheKeyScope();
+
+  /** Returns the configured values that determine the AWS identity used to sign the token. */
+  abstract @Nullable String[] getCredentialsIdentity(Properties props);
 }
