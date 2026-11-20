@@ -16,8 +16,13 @@
 
 package software.amazon.jdbc.util;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
@@ -59,6 +64,72 @@ public class IamAuthUtils {
       final Region region) {
 
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
+  }
+
+  /**
+   * Builds an authentication token cache key that is scoped to the identity used to sign the token.
+   *
+   * <p>A token is only valid for the AWS identity that signed it. Two connections that target the same
+   * region, host, port and database user but sign with different identities (for example, different
+   * AWS credentials, or different federated users or roles) must not share a cached token.
+   *
+   * @param scope    the plugin that owns the token, so different plugins never share an entry.
+   * @param identity the components that identify the signing identity, as configured for the connection.
+   * @param user     the database user.
+   * @param hostname the host the token is generated for.
+   * @param port     the port the token is generated for.
+   * @param region   the region the token is generated for.
+   * @return the cache key.
+   */
+  public static String getCacheKey(
+      final String scope,
+      final @Nullable String[] identity,
+      final @Nullable String user,
+      final String hostname,
+      final int port,
+      final Region region) {
+    final StringBuilder sb = new StringBuilder()
+        .append(escapeCacheKeyComponent(scope))
+        .append(':').append(region)
+        .append(':').append(escapeCacheKeyComponent(hostname))
+        .append(':').append(port)
+        .append(':').append(escapeCacheKeyComponent(user));
+    for (final @Nullable String component : identity) {
+      sb.append(':').append(escapeCacheKeyComponent(component));
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Returns a value that identifies the AWS credentials the provider currently resolves to, for use as a
+   * cache key component. It is derived from the access key ID, so it changes whenever the provider starts
+   * returning different credentials (for example, after the profile in the credentials file is edited, or
+   * when temporary credentials are refreshed). The access key ID is hashed so the raw ID is not kept in
+   * the cache key.
+   *
+   * @param credentialsProvider the provider that will sign the token.
+   * @return a SHA-256 hash of the resolved access key ID, Base64-encoded.
+   */
+  public static String getCredentialsIdentity(final AwsCredentialsProvider credentialsProvider) {
+    final AwsCredentials credentials = credentialsProvider.resolveCredentials();
+    try {
+      final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      final byte[] hash = digest.digest(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
+      return Base64.getEncoder().encodeToString(hash);
+    } catch (final NoSuchAlgorithmException e) {
+      throw new IllegalStateException(Messages.get("IamAuthUtils.sha256NotAvailable"), e);
+    }
+  }
+
+  /**
+   * Escapes a cache key component so that values containing the separator cannot make two different
+   * identities produce the same key. A null component is encoded differently from an empty one.
+   */
+  private static String escapeCacheKeyComponent(final @Nullable String component) {
+    if (component == null) {
+      return "\\0";
+    }
+    return component.replace("\\", "\\\\").replace(":", "\\:");
   }
 
   public static IamTokenUtility getTokenUtility() {
