@@ -862,7 +862,7 @@ Run the application and the setup and rotation tooling under different credentia
 | AWS | `kms:Decrypt` only, on the specific master key ARNs the columns use | `kms:GenerateDataKey` and `kms:Decrypt` on those ARNs, plus `kms:DescribeKey` for `validateMasterKey()`. `kms:CreateKey` and `kms:CreateAlias` only if it creates master keys |
 | Database | `SELECT` on `key_storage` and `encryption_metadata`; normal DML on the application tables | Write access to `key_storage` and `encryption_metadata`; `SELECT` and `UPDATE` on the encrypted columns' tables (re-encryption reads and rewrites every row); DDL and trigger creation on the application tables |
 
-The runtime role must not have `kms:GenerateDataKey`, `kms:Encrypt`, `kms:CreateKey` or `"Resource": "*"`, and must not be able to write the metadata tables. Without write access to `key_storage`, a compromised application cannot point a column at a different master key or HMAC key, and the `encryptionAllowedMasterKeyArns` list and the trigger stay meaningful. The runtime role must also not own the application tables or hold the `TRIGGER` privilege on them, since that lets it drop or disable the HMAC triggers; create those tables as the admin role, or move ownership with `ALTER TABLE ... OWNER TO app_admin` on PostgreSQL. On PostgreSQL it must not own the schemas that contain the metadata or application tables either, because a schema's owner can drop any table in it. Use a separate admin credential, held by your deployment pipeline or an operator, and do not ship it with the application.
+The runtime role must not have `kms:GenerateDataKey`, `kms:Encrypt`, `kms:CreateKey` or `"Resource": "*"`, and must not be able to write the metadata tables. Without write access to `key_storage`, a compromised application cannot point a column at a different master key or HMAC key, and the `encryptionAllowedMasterKeyArns` list and the trigger stay meaningful. The runtime role must also not own the application tables, since that lets it drop or disable the HMAC triggers, or hold the `TRIGGER` privilege on them (see [Who can disable or skip the HMAC trigger](#who-can-disable-or-skip-the-hmac-trigger)); create those tables as the admin role, or move ownership with `ALTER TABLE ... OWNER TO app_admin` on PostgreSQL. On PostgreSQL it must not own the schemas that contain the metadata or application tables either, because a schema's owner can drop any table in it. Use a separate admin credential, held by your deployment pipeline or an operator, and do not ship it with the application.
 
 **PostgreSQL**, with `app_runtime` as the application's role and `app_admin` as the admin role (replace `encrypt` with your metadata schema):
 
@@ -962,6 +962,59 @@ What the plugin does not mask:
 - Always use SSL/TLS for database connections
 - Enable CloudTrail logging for KMS operations
 
+### Who can disable or skip the HMAC trigger
+
+The HMAC trigger is the only database-side guarantee that an encrypted column holds no plaintext, and it is an ordinary trigger. Anyone who can remove it, bypass it or run code after it can store any value. Treat these as part of the trust boundary:
+
+- **The table owner**, who can drop or disable the trigger (`DROP TRIGGER`, `ALTER TABLE ... DISABLE TRIGGER`). Make the admin role the owner of tables with encrypted columns (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role)).
+- **Roles with the `TRIGGER` privilege on the table.** On MySQL such a role can drop the trigger. On PostgreSQL it can create its own trigger, which can run after the HMAC trigger (triggers fire in name order) and replace the value it validated. Do not grant `TRIGGER` to the runtime role.
+- **Superusers**, which on RDS includes the master user and members of `rds_superuser`. They can disable triggers and are not restricted by grants.
+- **PostgreSQL `session_replication_role = replica`.** In that mode PostgreSQL does not fire ordinary triggers, so the HMAC trigger is skipped. Only a superuser, or a role granted `SET` on that parameter (PostgreSQL 15 and later), can set it, but it is also what logical replication apply workers and some bulk-load and migration tools use. Do not grant it to the runtime role.
+- **Anyone who can change the trigger's inputs**: the function and the metadata tables it reads (see the next section).
+
+None of these is stopped by the plugin. Keep the runtime role off this list, and audit who is on it for the admin role and for any person or tool with direct database access.
+
+### Why write access to `key_storage` is dangerous
+
+`key_storage` holds, for each column, the KMS-encrypted data key, the `master_key_arn` and the HMAC key in plaintext. `encryption_metadata` says which column uses which row. A role that can write either table can:
+
+- **Compute a valid HMAC** for any value by writing its own `hmac_key` (or reading the current one). The trigger and the driver's read check then accept a forged or plaintext value.
+- **Point a column at a different `key_storage` row or master key.** The `encryptionAllowedMasterKeyArns` list limits which master keys the plugin will call, but not which permitted key a column uses, so a column can be moved to another column's key or to any other listed key. A column whose row names a key that is not listed is refused (`KEY07`).
+- **Remove a column from `encryption_metadata`.** The plugin then stops treating the column as encrypted. While the trigger exists it finds no HMAC key and rejects every write to the column; if the trigger is removed as well, plaintext is accepted.
+
+Even read access to `key_storage` exposes the HMAC key. It does not expose the data, because the data key is only usable through KMS, but it lets a user who can also write the encrypted column forge values. Give write access to the metadata tables only to the admin role, and read access only to the roles that write an encrypted column.
+
+### Encrypted values are not tied to their row
+
+Each value is encrypted and authenticated on its own: AES-GCM is used without associated data, and the HMAC covers only `[Type][IV][Ciphertext]`. Nothing in a value records which row, table or column it was written for. A user who can write the encrypted column, with or without the plugin, can therefore copy a valid value from one row to another, or between columns that use the same `key_storage` row, and the trigger and the driver accept it. The copy decrypts to the original plaintext. For example, `UPDATE users SET ssn = (SELECT ssn FROM users WHERE id = 7) WHERE id = 8` is accepted, and so is swapping the values of two accounts.
+
+The HMAC protects against a value that was altered or never encrypted. It does not protect against a value being moved. If your application needs to detect that, keep an integrity check outside the encrypted column, such as a signed record or an application-level check against another column, and limit write access to these tables as above. A value copied into a column that uses a different `key_storage` row fails verification; columns that point at the same row do not have that protection.
+
+### KMS key guidance
+
+- **Rotating the allow-list.** To move a column to a new master key without an outage:
+  1. Create the new master key and grant the runtime role `kms:Decrypt` on it, and the admin role the actions in [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role).
+  2. Add the new key to `encryptionAllowedMasterKeyArns` for the application and for `KeyManagementUtility`, in the same form (ARN, alias or key id) that `key_storage` will hold. Keep the old key listed.
+  3. Roll the column onto the new key with `rotateDataKeyAndReencrypt()` (see [Key Rotation](#key-rotation)).
+  4. Wait until every application instance has refreshed its metadata (`metadataCacheRefreshIntervalMs`) or restarted, and the re-encryption has finished.
+  5. Only then remove the old key from the allow-list and from the runtime role's IAM policy.
+- **Do not use the `kms:ViaService` condition key.** It allows a call only when it is made on your behalf by an AWS service, such as RDS or S3. The plugin calls KMS directly from your application, so a key policy or IAM policy that requires `kms:ViaService` denies every call. Restrict access with the principal, the key ARN, and conditions that apply to direct calls instead, such as `aws:PrincipalArn` or `aws:SourceVpce`. The plugin does not set a KMS encryption context, so `kms:EncryptionContext` conditions do not apply.
+- **Do not delete, disable or schedule the deletion of a master key that existing values still need.** Every data key in `key_storage`, and every backup of it, can be decrypted only through its master key. Once KMS deletes the key, those data keys and every value encrypted under them cannot be recovered, by you or by AWS. A disabled key or one pending deletion fails every `Decrypt` call, so a column stops being readable as soon as the cached data keys expire. Before retiring a key, re-encrypt every column that uses it onto another key, and confirm that no row of `key_storage` and no backup you may restore still names it. Prefer disabling a key for a trial period (and watching CloudTrail for `Decrypt` calls) over scheduling its deletion, and use the longest waiting period.
+
+### What the plugin does not protect
+
+The plugin encrypts the values of the columns you register, in the application. It does not provide:
+
+- **Protection from a user who can use the application's credentials.** Anyone who can run code with the runtime role's `kms:Decrypt` and its database access can read every encrypted column the plugin can. The plugin is not an access control inside the application.
+- **Protection of plaintext before and after the plugin.** Values are plaintext in application memory, in your logs and caches, in query strings sent through a plain `Statement` or `CallableStatement`, and in any column that is not registered.
+- **Protection of other columns, indexes, and metadata.** Column names, table names, row counts, value lengths (ciphertext length follows plaintext length), null versus non-null, and the types written are visible to anyone who can read the table. Unencrypted columns of the same row are visible.
+- **Searching or ordering on encrypted columns** (see [Other limitations](#other-limitations)).
+- **Row binding or replay protection** (see [Encrypted values are not tied to their row](#encrypted-values-are-not-tied-to-their-row)).
+- **A guarantee that no plaintext is stored.** The plugin finds encrypted columns by parsing SQL, so a statement it cannot map is rejected or left to the trigger (see [Limitations](#limitations)), and the trigger can be bypassed by the roles listed in [Who can disable or skip the HMAC trigger](#who-can-disable-or-skip-the-hmac-trigger).
+- **Protection from a compromised database administrator with metadata access**, who can read the HMAC keys and write the metadata (see [Why write access to `key_storage` is dangerous](#why-write-access-to-key_storage-is-dangerous)). The data itself stays protected as long as they cannot call KMS with a role that may decrypt it.
+- **Protection of existing plaintext.** Registering a column does not encrypt values already in it. Existing rows must be re-written through the plugin; until then a read of a plaintext value fails, because it carries no valid HMAC.
+- **Encryption in transit.** Use SSL/TLS for the database connection.
+
 ## Performance Considerations
 
 - KMS calls are only needed for data key generation/decryption, not for each data encryption/decryption
@@ -1012,6 +1065,7 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 ### Other limitations
 
 - Encrypted columns cannot be searched or compared. Each value is encrypted with a random IV, so the same plaintext is stored as different bytes every time: a condition such as `WHERE ssn = ?`, or a join on an encrypted column, never matches. Filter and join on columns that are not encrypted.
+- Other operations on an encrypted column are equally meaningless on the stored bytes: `ORDER BY`, `GROUP BY`, `DISTINCT`, `LIKE`, range comparisons, aggregates such as `MIN` or `MAX`, and `UNIQUE` constraints (two rows with the same plaintext are stored as different bytes, so a duplicate is never detected). Do these in the application after decrypting, or on an unencrypted column. `IS NULL` and `IS NOT NULL` still work.
 - Values are encrypted from these `PreparedStatement` setters: `setString`, `setNString`, `setInt`, `setLong`, `setShort`, `setByte`, `setDouble`, `setFloat`, `setBoolean`, `setBigDecimal`, `setDate`, `setTime`, `setTimestamp`, `setBytes` and `setObject`. The type byte of the [encrypted data format](#encrypted-data-format) records the value's Java type.
 - Stream and LOB setters (`setCharacterStream`, `setNCharacterStream`, `setAsciiStream`, `setBinaryStream`, `setUnicodeStream`, `setClob`, `setNClob`, `setBlob`) throw a `SQLException` when the parameter maps to an encrypted column. Use `setString`, `setNString`, `setBytes` or `setObject`.
 - SQL run through a plain `Statement` is not encrypted. The plugin checks it only for the writes described in [Statements always refused](#statements-always-refused); any other value is sent as written.
