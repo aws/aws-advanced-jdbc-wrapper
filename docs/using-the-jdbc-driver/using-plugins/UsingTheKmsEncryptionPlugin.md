@@ -17,10 +17,10 @@ The KMS Encryption Plugin provides transparent client-side, column-level encrypt
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [SQL Annotation Syntax](#sql-annotation-syntax)
+- [Limitations](#limitations)
 - [Key Rotation](#key-rotation)
 - [Security Considerations](#security-considerations)
 - [Performance Considerations](#performance-considerations)
-- [Limitations](#limitations)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
 - [Database Differences Summary](#database-differences-summary)
@@ -473,6 +473,8 @@ The `sqlParser` plugin is required and must run before `kmsEncryption`. List it 
 
 The plugin calls KMS with the same AWS credentials provider as the driver's other AWS plugins. By default this is the AWS SDK default credentials provider chain; set `awsProfile` to use a named profile (see [AWS Credentials Configuration](../custom-configuration/AwsCredentialsConfiguration.md)). See [AWS Credentials](../AwsCredentials.md) for keeping credentials valid.
 
+For the IAM permissions the credentials need, see [KMS Key Permissions](#kms-key-permissions).
+
 ## Usage
 
 Once configured, the plugin works transparently. Values bound to encrypted columns with `PreparedStatement` setters are encrypted, and values read from encrypted columns are decrypted:
@@ -612,11 +614,83 @@ try (PreparedStatement stmt = connection.prepareStatement(sql2)) {
 /* @encrypt:users.ssn */ ?         -- Space after /* not allowed
 ```
 
+## Limitations
+
+Every encrypted column must be registered in the metadata tables (see [Setup](#setup)).
+
+This section lists what the plugin does not support, which statements it rejects, and what it does not protect. Statements that work are in [Statements the plugin maps automatically](#statements-the-plugin-maps-automatically).
+
+### Statements the plugin maps automatically
+
+Automatic encryption works for `PreparedStatement` parameters in these statement shapes:
+
+- `INSERT` with a column list: single-row and multi-row `VALUES`, `INSERT ... SELECT` (including `UNION`), and MySQL `INSERT ... SET`
+- `UPDATE ... SET`, including row assignments such as `SET (name, ssn) = (?, ?)`
+- PostgreSQL `INSERT ... ON CONFLICT ... DO UPDATE SET` and MySQL `INSERT ... ON DUPLICATE KEY UPDATE`
+
+A value is encrypted only when it is bound by its own `?` placeholder directly to the encrypted column. A cast around the placeholder and parentheses are allowed, for example `CAST(? AS bytea)`, `?::bytea` or `(?)`. String literals and other expressions are never encrypted: a literal written to an encrypted column, as in `SET ssn = '123-45-6789'`, is refused (see [Statements always refused](#statements-always-refused)), and a parameter inside an expression, as in `SET ssn = lower(?)`, is rejected by default. Literals and expressions in other columns of the same statement are fine and do not shift the parameter numbering.
+
+### Statements always refused
+
+On a table with encrypted columns, the plugin refuses with a `SQLException` a statement that writes an encrypted column with a value that is not a bind parameter: a literal, as in `SET ssn = '123-45-6789'`, or an expression that reads no column and holds no subquery. Such a value is certain to be stored as plaintext. A prepared statement is refused when it is prepared. SQL passed directly to `execute`, `executeQuery` or `executeUpdate`, or to `addBatch` on a plain `Statement`, is refused by that call, before it is sent. As long as the encryption metadata can be read, `encryptionFailOnUnmappedParameter` does not change this.
+
+The check covers `INSERT` with a column list (including `INSERT ... SELECT` and MySQL `INSERT ... SET`), `UPDATE ... SET`, and the assignments of PostgreSQL `ON CONFLICT ... DO UPDATE SET` and MySQL `ON DUPLICATE KEY UPDATE`. It does not cover `REPLACE`, `MERGE`, `INSERT` without a column list, a `VALUES` row whose number of values differs from the column list, data-modifying CTEs, a string with several statements, or SQL the parser cannot read. Those are left to the HMAC trigger; a prepared statement of one of these shapes that has parameters is also subject to [Statements rejected by default](#statements-rejected-by-default). A value read from another column or a subquery, a MySQL user variable, `DEFAULT` and `NULL` are not refused either: they may be ciphertext the database already holds, and the HMAC trigger checks every value except `NULL`.
+
+### Statements rejected by default
+
+On a table with encrypted columns, the plugin rejects the following statements with a `SQLException` when they are prepared, so that no value is written unencrypted (controlled by `encryptionFailOnUnmappedParameter`, default `true`):
+
+- `INSERT` without a column list
+- parameters inside an expression (function call, arithmetic, concatenation, `CASE`, sub-select) that is assigned to an encrypted column
+- parameters whose target column cannot be determined, for example a sub-select or an unknown target table
+- `REPLACE` and `MERGE` statements
+- statements the SQL parser cannot read, for example PostgreSQL `E'...'` strings, MySQL backslash escapes inside string literals (`'it\'s'`), or the PostgreSQL JSONB `??` operator
+- numbered placeholders such as `?1`
+- statements where the number of parameters found by the parser differs from the number of placeholders the driver sends
+
+This check applies to prepared statements only: SQL passed directly to `execute`, `executeQuery`, `executeUpdate` or `addBatch` has no bound values, and a `?` in it is not a parameter. When the encryption metadata cannot be read, the plugin cannot tell which columns are encrypted, so `encryptionFailOnUnmappedParameter` decides whether every check, including the one in [Statements always refused](#statements-always-refused), refuses the statement or only logs a WARNING.
+
+Statements on tables without encrypted columns are never rejected. If you encounter a `SQLException` because your statement falls into one of the categories above, see the [Troubleshooting](#troubleshooting) section for how to fix it.
+
+### Other limitations
+
+- Encrypted columns cannot be searched or compared. Each value is encrypted with a random IV, so the same plaintext is stored as different bytes every time: a condition such as `WHERE ssn = ?`, or a join on an encrypted column, never matches. Filter and join on columns that are not encrypted.
+- Other operations on an encrypted column are equally meaningless on the stored bytes: `ORDER BY`, `GROUP BY`, `DISTINCT`, `LIKE`, range comparisons, aggregates such as `MIN` or `MAX`, and `UNIQUE` constraints (two rows with the same plaintext are stored as different bytes, so a duplicate is never detected). Do these in the application after decrypting, or on an unencrypted column. `IS NULL` and `IS NOT NULL` still work.
+- Values are encrypted from these `PreparedStatement` setters: `setString`, `setNString`, `setInt`, `setLong`, `setShort`, `setByte`, `setDouble`, `setFloat`, `setBoolean`, `setBigDecimal`, `setDate`, `setTime`, `setTimestamp`, `setBytes` and `setObject`. The type byte of the [encrypted data format](#encrypted-data-format) records the value's Java type.
+- Stream and LOB setters (`setCharacterStream`, `setNCharacterStream`, `setAsciiStream`, `setBinaryStream`, `setUnicodeStream`, `setClob`, `setNClob`, `setBlob`) throw a `SQLException` when the parameter maps to an encrypted column. Use `setString`, `setNString`, `setBytes` or `setObject`.
+- Values are decrypted by these `ResultSet` getters: `getString`, `getInt`, `getLong`, `getShort`, `getByte`, `getDouble`, `getFloat`, `getBoolean`, `getBigDecimal`, `getDate`, `getTime`, `getTimestamp`, `getBytes` and `getObject`. `getObject` returns the Java type that was written, including `LocalDate`, `LocalTime` and `LocalDateTime`, which have no dedicated getter. Read each value with the getter that matches the type it was written with:
+  - Numeric getters convert between numeric types (for example `getLong` on an `int`), as in a plain JDBC read.
+  - `getString` returns the text form of any written type except `byte[]`, whose text form is not meaningful.
+  - `getBytes` returns the bytes that were written with `setBytes`. On a column written with `setString` it returns the string's UTF-8 bytes. (Earlier versions treated the text as base64 and failed with a type conversion error, or returned the decoded bytes if the text happened to be valid base64. If you relied on that, decode the string from `getString` yourself.)
+  - A getter from a different family than the written type, such as `getTimestamp` on a `LocalDateTime`, fails with a type conversion error.
+  - `Date`, `Time` and `Timestamp` values are stored as epoch milliseconds, so a `Timestamp` keeps millisecond precision only.
+- Other getters (`getNString`, `getAsciiStream`, `getBinaryStream`, `getCharacterStream`, `getClob`, `getBlob`, `getArray` and similar) are not intercepted and are not tested. On an encrypted column they return the stored ciphertext or fail, not the decrypted value. Use one of the getters listed above.
+- SQL run through a plain `Statement` is not encrypted. The plugin checks it only for the writes described in [Statements always refused](#statements-always-refused); any other value is sent as written.
+- `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
+- Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.
+- Table names are matched against the metadata case-sensitively. Use the same spelling in statements as in `encryption_metadata`.
+
+### What the plugin does not protect
+
+The plugin encrypts the values of the columns you register, in the application. It does not provide:
+
+- **Protection from a user who can use the application's credentials.** Anyone who can run code with the runtime role's `kms:Decrypt` and its database access can read every encrypted column the plugin can. The plugin is not an access control inside the application.
+- **Protection of plaintext before and after the plugin.** Values are plaintext in application memory, in your logs and caches, in query strings sent through a plain `Statement` or `CallableStatement`, and in any column that is not registered.
+- **Protection of other columns, indexes, and metadata.** Column names, table names, row counts, value lengths (ciphertext length follows plaintext length), null versus non-null, and the types written are visible to anyone who can read the table. Unencrypted columns of the same row are visible.
+- **Searching or ordering on encrypted columns** (see [Other limitations](#other-limitations)).
+- **Row binding or replay protection** (see [Encrypted values are not tied to their row](#encrypted-values-are-not-tied-to-their-row)).
+- **A guarantee that no plaintext is stored.** The plugin finds encrypted columns by parsing SQL, so a statement it cannot map is rejected or left to the trigger (see [Limitations](#limitations)), and the trigger can be bypassed by the roles listed in [Who can disable or skip the HMAC trigger](#who-can-disable-or-skip-the-hmac-trigger).
+- **Protection from a compromised database administrator with metadata access**, who can read the HMAC keys and write the metadata (see [Why write access to `key_storage` is dangerous](#why-write-access-to-key_storage-is-dangerous)). The data itself stays protected as long as they cannot call KMS with a role that may decrypt it.
+- **Protection of existing plaintext.** Registering a column does not encrypt values already in it. Existing rows must be re-written through the plugin; until then a read of a plaintext value fails, because it carries no valid HMAC.
+- **Encryption in transit.** Use SSL/TLS for the database connection.
+
 ## Key Rotation
 
 The plugin uses two levels of keys. A KMS key (master key) wraps each data key. Each encrypted column has one data key and one HMAC key, stored in `encrypt.key_storage`. Encrypted values do not record which data key encrypted them, so the plugin can only read a column whose values are all encrypted under the column's current data key.
 
 For a complete program that rotates data keys with `KeyManagementUtility`, see [KeyManagementExample.java](../../../examples/EncryptionExample/src/main/java/software/amazon/KeyManagementExample.java).
+
+To change which KMS key a column uses, see [Moving a column to a new master key](#moving-a-column-to-a-new-master-key).
 
 ### Rotating the KMS key (recommended)
 
@@ -629,6 +703,16 @@ aws kms enable-key-rotation --key-id <KEY_ID>
 KMS keeps the previous key material and uses it to decrypt data keys wrapped before the rotation. The rotation is transparent to the plugin and needs no database changes. It does not change the data keys themselves.
 
 Rotate with KMS key rotation, not by pointing an alias at a different KMS key. The plugin decrypts each data key with the key named in `key_storage.master_key_arn`. If that is an alias and the alias is moved to another key, KMS refuses to decrypt the data keys wrapped under the previous key, and the columns that use them can be neither read nor written until the alias points back. To move a column to a different KMS key, use [`rotateDataKeyAndReencrypt()`](#rotating-a-columns-data-key).
+
+### Moving a column to a new master key
+
+To move a column to a new master key without an outage:
+
+1. Create the new master key and grant the runtime role `kms:Decrypt` on it, and the admin role the actions in [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role).
+2. Add the new key to `encryptionAllowedMasterKeyArns` for the application and for `KeyManagementUtility`, in the same form (ARN, alias or key id) that `key_storage` will hold. Keep the old key listed.
+3. Roll the column onto the new key with `rotateDataKeyAndReencrypt()` (see [Key Rotation](#key-rotation)).
+4. Wait until every application instance has refreshed its metadata (`metadataCacheRefreshIntervalMs`) or restarted, and the re-encryption has finished.
+5. Only then remove the old key from the allow-list and from the runtime role's IAM policy.
 
 ### Rotating a column's data key
 
@@ -820,6 +904,18 @@ if (!repair.isComplete()) {
 
 ## Security Considerations
 
+This section covers who and what you have to trust, and how to limit it. Where to look:
+
+### Data Protection
+
+- Encrypted data is stored as binary data in the database
+- The original data never leaves your application - encryption/decryption happens locally using data keys from KMS
+- Only encryption keys are managed by AWS KMS, not the actual data
+- Use different KMS keys for different environments (dev, staging, prod)
+- Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. On PostgreSQL the trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. On MySQL the trigger runs as its definer, so writers need no access to the metadata tables. Only the user that runs `KeyManagementUtility` needs to write to them (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
+- Always use SSL/TLS for database connections
+- Enable CloudTrail logging for KMS operations
+
 ### Restricting the KMS keys the application can use
 
 The plugin does not take the master key for a column from its own configuration: it reads it from the column's `key_storage` row and asks KMS to decrypt the data key under it. Two independent controls keep a changed row from pointing the plugin at a key it should not use, such as a key in another AWS account.
@@ -852,6 +948,13 @@ The plugin needs only `kms:Decrypt` on the master keys its columns use:
 ```
 
 Grant the actions `KeyManagementUtility` uses (see [AWS Requirements](#aws-requirements)) only to the credentials that set up and rotate the columns.
+
+### KMS key policy and lifecycle
+
+- **Do not use the `kms:ViaService` condition key.** It allows a call only when it is made on your behalf by an AWS service, such as RDS or S3. The plugin calls KMS directly from your application, so a key policy or IAM policy that requires `kms:ViaService` denies every call. Restrict access with the principal, the key ARN, and conditions that apply to direct calls instead, such as `aws:PrincipalArn` or `aws:SourceVpce`. The plugin does not set a KMS encryption context, so `kms:EncryptionContext` conditions do not apply.
+- **Do not delete, disable or schedule the deletion of a master key that existing values still need.** Every data key in `key_storage`, and every backup of it, can be decrypted only through its master key. Once KMS deletes the key, those data keys and every value encrypted under them cannot be recovered, by you or by AWS. A disabled key or one pending deletion fails every `Decrypt` call, so a column stops being readable as soon as the cached data keys expire. Before retiring a key, re-encrypt every column that uses it onto another key, and confirm that no row of `key_storage` and no backup you may restore still names it. Prefer disabling a key for a trial period (and watching CloudTrail for `Decrypt` calls) over scheduling its deletion, and use the longest waiting period.
+
+To change a column's master key, see [Moving a column to a new master key](#moving-a-column-to-a-new-master-key).
 
 ### Separating the runtime role from the admin role
 
@@ -932,36 +1035,6 @@ On MySQL the triggers and routines run with the privileges of their `DEFINER`, w
 
 Verify the separation by connecting as the runtime role and confirming that `INSERT INTO encrypt.key_storage ...` and `UPDATE encrypt.encryption_metadata ...` fail with a permission error, that `DROP TABLE encrypt.key_storage` and `DROP TRIGGER` on an encrypted table fail, and that `aws kms generate-data-key` with the runtime credentials is denied.
 
-### What the plugin keeps out of logs and exceptions
-
-The plugin masks master keys, KMS error text and URL credentials in its own log records, audit log entries and exception messages, at every log level:
-
-- **Master keys.** A key is shown as `arn:aws:kms:***:***:key/<first 4>***<last 4>`, whether it was configured as an ARN, `key/<id>` or a bare key id, and a key id is masked the same way everywhere it appears. A key id of 8 characters or fewer is shown as `***`. An alias is shown as `arn:aws:kms:***:***:alias/***`, and any other ARN, such as a role, as `arn:***`. This covers the allow-list in `encryptionAllowedMasterKeyArns` when the plugin logs it.
-- **KMS errors.** An error returned by KMS is logged and wrapped as its type, error code and HTTP status only, for example `KmsException[errorCode=AccessDeniedException, httpStatus=400]`. The AWS message is dropped because it repeats the key ARN and the caller's role ARN. This applies to the retry warning, to the failure logs for creating a key, generating or decrypting a data key and validating a master key, and to the messages of the exceptions the plugin throws for those failures. Those exceptions carry no cause, so the original error does not appear in a stack trace either. The master key failure logs also show the masked key and the error summary.
-- **Other errors** reported by the same code keep their type and message, with ARNs, URL credentials (`user:password@host`) and the value of any `name=value` pair whose name contains `password`, `passwd`, `pwd`, `secret`, `token` or `credential`, or is `key`, masked. Messages are cut at 200 characters.
-- **Connection URLs** that the plugin logs or puts in an exception have their user info and password parameters (any parameter whose name contains `password`, `passwd`, `pwd`, `secret`, `token` or `credential`) masked, and `ConnectionParameters.toString()` prints the names of the connection properties but not their values.
-- **Control characters** (line breaks, other ISO control characters, and invisible formatting characters such as bidirectional overrides) in a key, URL or error are replaced with `?`. A `master_key_arn` that someone rewrote in `key_storage` therefore cannot forge log lines.
-
-Masking is deliberately cautious. The user info of a URL is everything up to the last `@` before the next `?`, `#` or whitespace, so a URL whose path contains `@` (for example `jdbc:mysql://host/db@x`) is logged as `jdbc:mysql://***@x`. Hiding too much is accepted so that a password containing an unencoded `/` is never logged.
-
-What the plugin does not mask:
-
-- **A password written in a URL with `?`, `#` or a space in it.** These end the user info, so only the part before them is masked. Pass the password as the `password` property, or percent-encode those characters (`%3F`, `%23`, `%20`).
-- **A secret in a property or parameter whose name does not look like a secret**, for example `foo=<secret>`. The plugin cannot recognize it.
-- **Other values the plugin logs**: table and column names, SQL text, primary key values, the description you pass to `createMasterKey`, and errors from the database. Do not put secrets in a master key description.
-- **Anything it did not write.** Log records and exceptions from the JDBC driver, the AWS SDK or your own code are not masked, and the AWS SDK can log the full request and error text when its logging is turned up. Do not enable wire or request logging for the driver or the SDK in production.
-- **Values you read yourself.** `master_key_arn` and key ids that you read from the metadata tables with SQL (see Debugging) are shown in full, so do not paste them into shared logs.
-
-### Data Protection
-
-- Encrypted data is stored as binary data in the database
-- The original data never leaves your application - encryption/decryption happens locally using data keys from KMS
-- Only encryption keys are managed by AWS KMS, not the actual data
-- Use different KMS keys for different environments (dev, staging, prod)
-- Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. On PostgreSQL the trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. On MySQL the trigger runs as its definer, so writers need no access to the metadata tables. Only the user that runs `KeyManagementUtility` needs to write to them (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
-- Always use SSL/TLS for database connections
-- Enable CloudTrail logging for KMS operations
-
 ### Who can disable or skip the HMAC trigger
 
 The HMAC trigger is the only database-side guarantee that an encrypted column holds no plaintext, and it is an ordinary trigger. Anyone who can remove it, bypass it or run code after it can store any value. Treat these as part of the trust boundary:
@@ -990,30 +1063,25 @@ Each value is encrypted and authenticated on its own: AES-GCM is used without as
 
 The HMAC protects against a value that was altered or never encrypted. It does not protect against a value being moved. If your application needs to detect that, keep an integrity check outside the encrypted column, such as a signed record or an application-level check against another column, and limit write access to these tables as above. A value copied into a column that uses a different `key_storage` row fails verification; columns that point at the same row do not have that protection.
 
-### KMS key guidance
+### What the plugin keeps out of logs and exceptions
 
-- **Rotating the allow-list.** To move a column to a new master key without an outage:
-  1. Create the new master key and grant the runtime role `kms:Decrypt` on it, and the admin role the actions in [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role).
-  2. Add the new key to `encryptionAllowedMasterKeyArns` for the application and for `KeyManagementUtility`, in the same form (ARN, alias or key id) that `key_storage` will hold. Keep the old key listed.
-  3. Roll the column onto the new key with `rotateDataKeyAndReencrypt()` (see [Key Rotation](#key-rotation)).
-  4. Wait until every application instance has refreshed its metadata (`metadataCacheRefreshIntervalMs`) or restarted, and the re-encryption has finished.
-  5. Only then remove the old key from the allow-list and from the runtime role's IAM policy.
-- **Do not use the `kms:ViaService` condition key.** It allows a call only when it is made on your behalf by an AWS service, such as RDS or S3. The plugin calls KMS directly from your application, so a key policy or IAM policy that requires `kms:ViaService` denies every call. Restrict access with the principal, the key ARN, and conditions that apply to direct calls instead, such as `aws:PrincipalArn` or `aws:SourceVpce`. The plugin does not set a KMS encryption context, so `kms:EncryptionContext` conditions do not apply.
-- **Do not delete, disable or schedule the deletion of a master key that existing values still need.** Every data key in `key_storage`, and every backup of it, can be decrypted only through its master key. Once KMS deletes the key, those data keys and every value encrypted under them cannot be recovered, by you or by AWS. A disabled key or one pending deletion fails every `Decrypt` call, so a column stops being readable as soon as the cached data keys expire. Before retiring a key, re-encrypt every column that uses it onto another key, and confirm that no row of `key_storage` and no backup you may restore still names it. Prefer disabling a key for a trial period (and watching CloudTrail for `Decrypt` calls) over scheduling its deletion, and use the longest waiting period.
+The plugin masks master keys, KMS error text and URL credentials in its own log records, audit log entries and exception messages, at every log level:
 
-### What the plugin does not protect
+- **Master keys.** A key is shown as `arn:aws:kms:***:***:key/<first 4>***<last 4>`, whether it was configured as an ARN, `key/<id>` or a bare key id, and a key id is masked the same way everywhere it appears. A key id of 8 characters or fewer is shown as `***`. An alias is shown as `arn:aws:kms:***:***:alias/***`, and any other ARN, such as a role, as `arn:***`. This covers the allow-list in `encryptionAllowedMasterKeyArns` when the plugin logs it.
+- **KMS errors.** An error returned by KMS is logged and wrapped as its type, error code and HTTP status only, for example `KmsException[errorCode=AccessDeniedException, httpStatus=400]`. The AWS message is dropped because it repeats the key ARN and the caller's role ARN. This applies to the retry warning, to the failure logs for creating a key, generating or decrypting a data key and validating a master key, and to the messages of the exceptions the plugin throws for those failures. Those exceptions carry no cause, so the original error does not appear in a stack trace either. The master key failure logs also show the masked key and the error summary.
+- **Other errors** reported by the same code keep their type and message, with ARNs, URL credentials (`user:password@host`) and the value of any `name=value` pair whose name contains `password`, `passwd`, `pwd`, `secret`, `token` or `credential`, or is `key`, masked. Messages are cut at 200 characters.
+- **Connection URLs** that the plugin logs or puts in an exception have their user info and password parameters (any parameter whose name contains `password`, `passwd`, `pwd`, `secret`, `token` or `credential`) masked, and `ConnectionParameters.toString()` prints the names of the connection properties but not their values.
+- **Control characters** (line breaks, other ISO control characters, and invisible formatting characters such as bidirectional overrides) in a key, URL or error are replaced with `?`. A `master_key_arn` that someone rewrote in `key_storage` therefore cannot forge log lines.
 
-The plugin encrypts the values of the columns you register, in the application. It does not provide:
+Masking is deliberately cautious. The user info of a URL is everything up to the last `@` before the next `?`, `#` or whitespace, so a URL whose path contains `@` (for example `jdbc:mysql://host/db@x`) is logged as `jdbc:mysql://***@x`. Hiding too much is accepted so that a password containing an unencoded `/` is never logged.
 
-- **Protection from a user who can use the application's credentials.** Anyone who can run code with the runtime role's `kms:Decrypt` and its database access can read every encrypted column the plugin can. The plugin is not an access control inside the application.
-- **Protection of plaintext before and after the plugin.** Values are plaintext in application memory, in your logs and caches, in query strings sent through a plain `Statement` or `CallableStatement`, and in any column that is not registered.
-- **Protection of other columns, indexes, and metadata.** Column names, table names, row counts, value lengths (ciphertext length follows plaintext length), null versus non-null, and the types written are visible to anyone who can read the table. Unencrypted columns of the same row are visible.
-- **Searching or ordering on encrypted columns** (see [Other limitations](#other-limitations)).
-- **Row binding or replay protection** (see [Encrypted values are not tied to their row](#encrypted-values-are-not-tied-to-their-row)).
-- **A guarantee that no plaintext is stored.** The plugin finds encrypted columns by parsing SQL, so a statement it cannot map is rejected or left to the trigger (see [Limitations](#limitations)), and the trigger can be bypassed by the roles listed in [Who can disable or skip the HMAC trigger](#who-can-disable-or-skip-the-hmac-trigger).
-- **Protection from a compromised database administrator with metadata access**, who can read the HMAC keys and write the metadata (see [Why write access to `key_storage` is dangerous](#why-write-access-to-key_storage-is-dangerous)). The data itself stays protected as long as they cannot call KMS with a role that may decrypt it.
-- **Protection of existing plaintext.** Registering a column does not encrypt values already in it. Existing rows must be re-written through the plugin; until then a read of a plaintext value fails, because it carries no valid HMAC.
-- **Encryption in transit.** Use SSL/TLS for the database connection.
+What the plugin does not mask:
+
+- **A password written in a URL with `?`, `#` or a space in it.** These end the user info, so only the part before them is masked. Pass the password as the `password` property, or percent-encode those characters (`%3F`, `%23`, `%20`).
+- **A secret in a property or parameter whose name does not look like a secret**, for example `foo=<secret>`. The plugin cannot recognize it.
+- **Other values the plugin logs**: table and column names, SQL text, primary key values, the description you pass to `createMasterKey`, and errors from the database. Do not put secrets in a master key description.
+- **Anything it did not write.** Log records and exceptions from the JDBC driver, the AWS SDK or your own code are not masked, and the AWS SDK can log the full request and error text when its logging is turned up. Do not enable wire or request logging for the driver or the SDK in production.
+- **Values you read yourself.** `master_key_arn` and key ids that you read from the metadata tables with SQL (see Debugging) are shown in full, so do not paste them into shared logs.
 
 ## Performance Considerations
 
@@ -1025,53 +1093,6 @@ The plugin encrypts the values of the columns you register, in the application. 
 - Reuse connections through a connection pool to avoid repeated initialization
 - Use batch inserts/updates when possible
 - Indexes on encrypted columns are not useful: the stored values are random
-
-## Limitations
-
-Every encrypted column must be registered in the metadata tables (see [Setup](#setup)).
-
-### Statements the plugin maps automatically
-
-Automatic encryption works for `PreparedStatement` parameters in these statement shapes:
-
-- `INSERT` with a column list: single-row and multi-row `VALUES`, `INSERT ... SELECT` (including `UNION`), and MySQL `INSERT ... SET`
-- `UPDATE ... SET`, including row assignments such as `SET (name, ssn) = (?, ?)`
-- PostgreSQL `INSERT ... ON CONFLICT ... DO UPDATE SET` and MySQL `INSERT ... ON DUPLICATE KEY UPDATE`
-
-A value is encrypted only when it is bound by its own `?` placeholder directly to the encrypted column. A cast around the placeholder and parentheses are allowed, for example `CAST(? AS bytea)`, `?::bytea` or `(?)`. String literals and other expressions are never encrypted: a literal written to an encrypted column, as in `SET ssn = '123-45-6789'`, is refused (see [Statements always refused](#statements-always-refused)), and a parameter inside an expression, as in `SET ssn = lower(?)`, is rejected by default. Literals and expressions in other columns of the same statement are fine and do not shift the parameter numbering.
-
-### Statements always refused
-
-On a table with encrypted columns, the plugin refuses with a `SQLException` a statement that writes an encrypted column with a value that is not a bind parameter: a literal, as in `SET ssn = '123-45-6789'`, or an expression that reads no column and holds no subquery. Such a value is certain to be stored as plaintext. A prepared statement is refused when it is prepared. SQL passed directly to `execute`, `executeQuery` or `executeUpdate`, or to `addBatch` on a plain `Statement`, is refused by that call, before it is sent. As long as the encryption metadata can be read, `encryptionFailOnUnmappedParameter` does not change this.
-
-The check covers `INSERT` with a column list (including `INSERT ... SELECT` and MySQL `INSERT ... SET`), `UPDATE ... SET`, and the assignments of PostgreSQL `ON CONFLICT ... DO UPDATE SET` and MySQL `ON DUPLICATE KEY UPDATE`. It does not cover `REPLACE`, `MERGE`, `INSERT` without a column list, a `VALUES` row whose number of values differs from the column list, data-modifying CTEs, a string with several statements, or SQL the parser cannot read. Those are left to the HMAC trigger; a prepared statement of one of these shapes that has parameters is also subject to [Statements rejected by default](#statements-rejected-by-default). A value read from another column or a subquery, a MySQL user variable, `DEFAULT` and `NULL` are not refused either: they may be ciphertext the database already holds, and the HMAC trigger checks every value except `NULL`.
-
-### Statements rejected by default
-
-On a table with encrypted columns, the plugin rejects the following statements with a `SQLException` when they are prepared, so that no value is written unencrypted (controlled by `encryptionFailOnUnmappedParameter`, default `true`):
-
-- `INSERT` without a column list
-- parameters inside an expression (function call, arithmetic, concatenation, `CASE`, sub-select) that is assigned to an encrypted column
-- parameters whose target column cannot be determined, for example a sub-select or an unknown target table
-- `REPLACE` and `MERGE` statements
-- statements the SQL parser cannot read, for example PostgreSQL `E'...'` strings, MySQL backslash escapes inside string literals (`'it\'s'`), or the PostgreSQL JSONB `??` operator
-- numbered placeholders such as `?1`
-- statements where the number of parameters found by the parser differs from the number of placeholders the driver sends
-
-This check applies to prepared statements only: SQL passed directly to `execute`, `executeQuery`, `executeUpdate` or `addBatch` has no bound values, and a `?` in it is not a parameter. When the encryption metadata cannot be read, the plugin cannot tell which columns are encrypted, so `encryptionFailOnUnmappedParameter` decides whether every check, including the one in [Statements always refused](#statements-always-refused), refuses the statement or only logs a WARNING.
-
-Statements on tables without encrypted columns are never rejected. If you encounter a `SQLException` because your statement falls into one of the categories above, see the [Troubleshooting](#troubleshooting) section for how to fix it.
-
-### Other limitations
-
-- Encrypted columns cannot be searched or compared. Each value is encrypted with a random IV, so the same plaintext is stored as different bytes every time: a condition such as `WHERE ssn = ?`, or a join on an encrypted column, never matches. Filter and join on columns that are not encrypted.
-- Other operations on an encrypted column are equally meaningless on the stored bytes: `ORDER BY`, `GROUP BY`, `DISTINCT`, `LIKE`, range comparisons, aggregates such as `MIN` or `MAX`, and `UNIQUE` constraints (two rows with the same plaintext are stored as different bytes, so a duplicate is never detected). Do these in the application after decrypting, or on an unencrypted column. `IS NULL` and `IS NOT NULL` still work.
-- Values are encrypted from these `PreparedStatement` setters: `setString`, `setNString`, `setInt`, `setLong`, `setShort`, `setByte`, `setDouble`, `setFloat`, `setBoolean`, `setBigDecimal`, `setDate`, `setTime`, `setTimestamp`, `setBytes` and `setObject`. The type byte of the [encrypted data format](#encrypted-data-format) records the value's Java type.
-- Stream and LOB setters (`setCharacterStream`, `setNCharacterStream`, `setAsciiStream`, `setBinaryStream`, `setUnicodeStream`, `setClob`, `setNClob`, `setBlob`) throw a `SQLException` when the parameter maps to an encrypted column. Use `setString`, `setNString`, `setBytes` or `setObject`.
-- SQL run through a plain `Statement` is not encrypted. The plugin checks it only for the writes described in [Statements always refused](#statements-always-refused); any other value is sent as written.
-- `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
-- Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.
-- Table names are matched against the metadata case-sensitively. Use the same spelling in statements as in `encryption_metadata`.
 
 ## Troubleshooting
 
