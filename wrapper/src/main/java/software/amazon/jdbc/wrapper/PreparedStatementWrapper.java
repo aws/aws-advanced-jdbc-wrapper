@@ -170,9 +170,10 @@ public class PreparedStatementWrapper implements PreparedStatement, Rebindable {
 
   @Override
   public void addBatch(String sql) throws SQLException {
-    // Reported as the inherited Statement.addBatch(String) so that plugins subscribed to SQL passed
-    // directly to a statement see this call, while the no-argument addBatch() run for every row of a
-    // prepared batch keeps its own method and stays out of their pipeline.
+    // This adds the SQL given as the argument, not the prepared SQL, so it is reported as the
+    // inherited Statement.addBatch(String) and plugins that check SQL passed to a Statement see it.
+    // The no-argument addBatch() run for every row of a prepared batch keeps its own method and
+    // stays out of their pipeline.
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,

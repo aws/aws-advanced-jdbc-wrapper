@@ -46,9 +46,10 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Tests which method the prepared and callable statement wrappers report for each
- * {@code addBatch} overload: {@code addBatch(String)} runs SQL directly, so it is reported as
- * {@code Statement.addBatch}, while the no-argument {@code addBatch()} run for every row of a batch
- * keeps its own method and skips the pipeline when no plugin subscribes to it.
+ * {@code addBatch} overload: {@code addBatch(String)} adds the SQL given as its argument rather than
+ * the statement's prepared SQL, so it is reported as {@code Statement.addBatch}, while the
+ * no-argument {@code addBatch()} run for every row of a batch keeps its own method and skips the
+ * pipeline when no plugin subscribes to it.
  */
 public class StatementAddBatchRoutingTest {
 
