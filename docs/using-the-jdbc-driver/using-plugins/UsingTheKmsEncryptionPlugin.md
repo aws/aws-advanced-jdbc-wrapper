@@ -172,7 +172,7 @@ Replace every `SCHEMA_NAME` in the script with your metadata schema (default `en
 sed 's/SCHEMA_NAME/encrypt/g' encrypted_data_type.sql | psql -h host -U dbuser -d database -v ON_ERROR_STOP=1
 ```
 
-The PostgreSQL script is safe to run again on a database that already holds encrypted data. It creates the `encrypted_data` domain only when it does not exist yet, and replaces the functions with `CREATE OR REPLACE`. On a database set up with an earlier version of the script, it replaces the domain's 45-byte length check with the 61-byte one. The new check is added `NOT VALID`, so existing values are not re-checked; new values are.
+The PostgreSQL script is safe to run again on a database that already holds encrypted data. It creates the `encrypted_data` domain only when it does not exist yet, and replaces the functions with `CREATE OR REPLACE`. On a database set up with an earlier version of the script, it replaces the domain's 45-byte length check with the 61-byte one. The new check is added `NOT VALID`, so existing values are not re-checked; new values are. The driver never writes a value shorter than 61 bytes, so you can then check the existing values too with `ALTER DOMAIN encrypted_data VALIDATE CONSTRAINT encrypted_data_check`, which fails if any column of the type holds a shorter value.
 
 > [!WARNING]\
 > Scripts from earlier driver versions start with `DROP DOMAIN IF EXISTS encrypted_data CASCADE`, which drops every column of type `encrypted_data` and the data in it. Do not re-run an earlier version of the script on a database with data.

@@ -767,15 +767,11 @@ public class KmsEncryptionIntegrationTest {
     try (Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
          Statement stmt = conn.createStatement()) {
-      final String originalSearchPath;
-      try (ResultSet rs = stmt.executeQuery("SHOW search_path")) {
-        rs.next();
-        originalSearchPath = rs.getString(1);
-      }
       stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
       stmt.execute("CREATE SCHEMA " + schema);
       try {
-        // A schema of its own, so the encrypted_data domain the other tests use is not touched.
+        // A schema of its own, so the encrypted_data domain the other tests use is not touched. The
+        // connection is closed at the end of the test, so its search_path is not restored.
         stmt.execute("SET search_path TO " + schema);
         // The domain as earlier versions of the script created it, with a 45-byte check.
         stmt.execute("CREATE DOMAIN encrypted_data AS bytea CHECK (length(VALUE) >= 45)");
@@ -788,22 +784,41 @@ public class KmsEncryptionIntegrationTest {
         final long constraintOid = domainCheckOid(stmt);
         EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
 
-        try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM reinstall_users")) {
-          rs.next();
-          assertEquals(2, rs.getInt(1), "Re-installing must keep the existing rows");
+        // Dropping the domain with CASCADE would drop the ssn column but keep the rows, so check the
+        // values themselves. The 50-byte value also shows that the new check skipped existing rows.
+        try (ResultSet rs = stmt.executeQuery("SELECT id, ssn FROM reinstall_users ORDER BY id")) {
+          assertTrue(rs.next());
+          assertEquals(1, rs.getInt(1));
+          assertArrayEquals(filled((byte) 0xab, 61), rs.getBytes(2), "Re-installing must keep row 1");
+          assertTrue(rs.next());
+          assertEquals(2, rs.getInt(1));
+          assertArrayEquals(filled((byte) 0xcd, 50), rs.getBytes(2), "Re-installing must keep row 2");
+          assertFalse(rs.next());
         }
         assertEquals(constraintOid, domainCheckOid(stmt), "A second run must leave the check unchanged");
+        try (ResultSet rs = stmt.executeQuery(
+            "SELECT count(*) FROM pg_constraint WHERE contypid = 'encrypted_data'::regtype")) {
+          rs.next();
+          assertEquals(1, rs.getInt(1), "The 45-byte check must be replaced, not kept next to the new one");
+        }
         try (ResultSet rs = stmt.executeQuery("SELECT pg_get_constraintdef(" + constraintOid + ")")) {
           rs.next();
           assertTrue(rs.getString(1).contains(">= 61"), rs.getString(1));
         }
-        assertThrows(SQLException.class, () -> stmt.execute(
+        final SQLException tooShort = assertThrows(SQLException.class, () -> stmt.execute(
             "INSERT INTO reinstall_users VALUES (3, decode(repeat('ef', 50), 'hex'))"));
+        // 23514 is check_violation, so the insert failed on the domain check and not for another reason.
+        assertEquals("23514", tooShort.getSQLState(), tooShort.getMessage());
       } finally {
-        stmt.execute("SET search_path TO " + originalSearchPath);
         stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
       }
     }
+  }
+
+  private static byte[] filled(final byte value, final int length) {
+    final byte[] bytes = new byte[length];
+    Arrays.fill(bytes, value);
+    return bytes;
   }
 
   private static long domainCheckOid(Statement stmt) throws SQLException {
