@@ -160,13 +160,16 @@ public class CallableStatementWrapper implements CallableStatement, Rebindable {
 
   @Override
   public void addBatch(String sql) throws SQLException {
-    if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_ADDBATCH)) {
+    // Reported as the inherited Statement.addBatch(String) so that plugins subscribed to SQL passed
+    // directly to a statement see this call, while the no-argument addBatch() run for every row of a
+    // callable batch keeps its own method and stays out of their pipeline.
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
           this.connectionWrapper,
           this.pluginManager,
           this.statement,
-          JdbcMethod.CALLABLESTATEMENT_ADDBATCH,
+          JdbcMethod.STATEMENT_ADDBATCH,
           () -> this.statement.addBatch(sql),
           sql);
     } else {

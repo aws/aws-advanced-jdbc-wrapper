@@ -366,8 +366,30 @@ public class SqlParserConnectionPluginTest {
     Set<String> methods = plugin.getSubscribedMethods();
 
     assertTrue(methods.contains("Statement.addBatch"));
+    // The no-argument addBatch() of a prepared batch carries no SQL; keeping it out of the pipeline
+    // keeps batches fast. addBatch(String) on these statements is reported as Statement.addBatch.
     assertFalse(methods.contains("PreparedStatement.addBatch"));
     assertFalse(methods.contains("CallableStatement.addBatch"));
+  }
+
+  @Test
+  void test_addBatchWithSqlOnPreparedStatement_parsesThatSqlAndKeepsThePreparedParse() throws Exception {
+    PreparedStatement ps = mock(PreparedStatement.class);
+    plugin.execute(PreparedStatement.class, SQLException.class, null,
+        "Connection.prepareStatement", () -> ps, new Object[] {"INSERT INTO users (name, ssn) VALUES (?, ?)"});
+    callContext.reset();
+
+    execute("Statement.addBatch", ps, "UPDATE users SET ssn = 'x'");
+
+    assertEquals(QueryType.UPDATE, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertEquals(1, unboundColumns().size());
+
+    callContext.reset();
+    execute("PreparedStatement.executeBatch", ps);
+
+    assertEquals(QueryType.INSERT, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertEquals("users.ssn", paramMapping().get(2));
+    assertTrue(unboundColumns().isEmpty());
   }
 
   @Test
