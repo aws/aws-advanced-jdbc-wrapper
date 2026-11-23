@@ -686,19 +686,21 @@ Requirements:
 - The HMAC triggers on both PostgreSQL and MySQL look up the key from the metadata for every row and ignore any session setting, so nothing needs priming on either database.
 
 > [!WARNING]
-> `KeyManagementUtility.rotateDataKey()` does **not** re-encrypt existing rows. It only stores a new data key and points the column's metadata at it. After the call:
+> `KeyManagementUtility.rotateDataKey()` does **not** re-encrypt existing rows. It only stores a new data key and points the column's metadata at it, so it is only for a column that holds no data. Before it changes anything it runs `SELECT 1 FROM <table> WHERE <column> IS NOT NULL LIMIT 1`. If a row comes back, it throws a `KeyManagementException` that points to `rotateDataKeyAndReencrypt()`, and the column keeps its key. On a column with no non-null value it works as before.
+>
+> A column that a release without this check already rotated has the following symptoms:
 > - Every row encrypted under the previous data key fails to decrypt through the plugin with `HMAC verification failed`.
 > - Running applications keep using the previous key until their metadata cache refreshes (`metadataCacheRefreshIntervalMs`, 5 minutes by default). With the HMAC trigger, which every encrypted column requires, their writes to the column are rejected until then.
 > - The data is recoverable only while the previous `key_storage` row and its KMS key exist. Do not delete them.
 >
-> Use `rotateDataKey()` only for a column that holds no data. If you already called it on a column with data, see [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption).
+> To recover such a column, see [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption).
 
 ### Finishing or repairing a re-encryption
 
 `KeyManagementUtility.reencryptRemainingRows(table, column, primaryKeyColumn, oldKeyIds, batchSize)` re-encrypts values that are still under one of the given old key ids into the column's current key. It uses the same batching and HMAC check as the rotation and is safe to run again: values already under the current key are skipped. It requires `allowedMasterKeyArns` on the `EncryptionConfig` and throws an `IllegalArgumentException` without it: the values are re-encrypted into the column's current data key, and the master key of that key is read from `key_storage`, so it must be checked against the list. Use it:
 
 - To resume a failed rotation. Committed batches are kept; the exception message names the old key id to pass.
-- To recover a column after `rotateDataKey()` was called on it. Find the previous key id:
+- To recover a column that an earlier release's `rotateDataKey()` was called on while it held data. Find the previous key id:
 
 ```sql
 -- Data keys created for the column, oldest first
@@ -1026,7 +1028,7 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 5. **`Refusing to use master key arn:aws:kms:***:***:key/1234***abcd: it is not listed in encryptionAllowedMasterKeyArns`** (SQL state `KEY07`): The column's `key_storage` row names a master key that is not on the list. The message masks the key's region and account and the middle of its id (an alias is shown as `arn:aws:kms:***:***:alias/***`); the full value is in `key_storage.master_key_arn`. If the key is yours, add it to the list in exactly the form stored in `key_storage.master_key_arn`. If it is not, someone changed the row: investigate before you change anything.
 6. **`HMAC verification failed`** (driver, on read):
    - Data may have been tampered with, or the HMAC key in `encrypt.key_storage.hmac_key` changed
-   - The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()`), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)
+   - The column's data key was rotated without re-encrypting existing rows (for example with `rotateDataKey()` in a release before it refused columns with data), or a re-encryption has not finished. See [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)
 7. **`HMAC verification failed for column ...` or `Invalid encrypted data length for column ...`** (PostgreSQL trigger), **`HMAC verification failed (plaintext or tampered value)`** (MySQL trigger): The trigger rejected a plaintext or tampered value. This is expected when a value reaches the database unencrypted. Write the column through a plugin connection with a statement the plugin maps (see [Limitations](#limitations)), or use an annotation: `/*@encrypt:table.column*/`. Annotations do not bypass the parameter-mapping check described in entry 9.
    - The current HMAC triggers on both PostgreSQL and MySQL cache nothing — they look up the key from the metadata per row — so pooled sessions pick up a rotated key on their own. With a routine created by an earlier (caching) version, re-create it (see step 6 of the [Data key rotation procedure](#data-key-rotation-procedure)) or recycle the connection
 8. **`No HMAC key found for ...`** (PostgreSQL trigger), **`No HMAC key is configured for the encrypted column`** (MySQL trigger): The trigger found no row for the column in `encryption_metadata`. Check that the column is registered, and that the metadata schema written into the script in [step 3](#3-install-the-encrypted-data-type-and-hmac-functions) is the one that holds the metadata.

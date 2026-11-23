@@ -215,7 +215,10 @@ public class KmsKeyRotationIntegrationTest {
     tables.clear();
   }
 
-  /** Documents the reported behavior: the legacy method switches the key without re-encrypting. */
+  /**
+   * Documents what a key switch without re-encryption does to existing rows. The state is built
+   * directly, because {@code rotateDataKey} no longer runs on a column with data.
+   */
   @TestTemplate
   void test01LegacyRotateDataKeyLeavesOldRowsUndecryptable() throws Exception {
     final String table = createEncryptedTable("legacy", SSN);
@@ -228,7 +231,7 @@ public class KmsKeyRotationIntegrationTest {
     assertEquals(5, rawBefore.size());
 
     try (Connection plain = KmsTestUtility.openPlainConnection()) {
-      newUtility(plain).rotateDataKey(table, SSN, null);
+      switchKeyWithoutReencrypting(plain, table, SSN);
     }
 
     final int newKeyId = currentKeyId(table, SSN);
@@ -313,7 +316,7 @@ public class KmsKeyRotationIntegrationTest {
     }
   }
 
-  /** Recovery of a column after the legacy method was used on it. */
+  /** Recovery of a column whose key was switched without re-encrypting its rows. */
   @TestTemplate
   void test03ReencryptRemainingRowsRecoversAfterLegacyRotation() throws Exception {
     final String table = createEncryptedTable("recover", SSN);
@@ -323,7 +326,7 @@ public class KmsKeyRotationIntegrationTest {
     }
     final int oldKeyId = currentKeyId(table, SSN);
     try (Connection plain = KmsTestUtility.openPlainConnection()) {
-      newUtility(plain).rotateDataKey(table, SSN, null);
+      switchKeyWithoutReencrypting(plain, table, SSN);
     }
     final int newKeyId = currentKeyId(table, SSN);
     assertNotEquals(oldKeyId, newKeyId);
@@ -666,8 +669,8 @@ public class KmsKeyRotationIntegrationTest {
    * UPDATEs to rows a rotation has not converted yet. A data key rotation re-encrypts rows in
    * batches; while it runs, rows it has not reached still carry the previous key's HMAC tag. A
    * single-threaded test cannot interrupt {@link KeyManagementUtility#rotateDataKeyAndReencrypt}
-   * mid-batch, so the not-yet-converted state is produced with its first phase,
-   * {@link KeyManagementUtility#rotateDataKey} (the key is switched; re-encryption has not run), and
+   * mid-batch, so the not-yet-converted state is produced with its first phase, the key switch
+   * (the key is switched; re-encryption has not run), and
    * {@link KeyManagementUtility#reencryptRemainingRows} finishes the rotation at the end. With the
    * HMAC trigger installed, an UPDATE that leaves a not-yet-converted row's encrypted value unchanged
    * is accepted, a change to a value under the current key is accepted, and a change to a value under
@@ -686,7 +689,7 @@ public class KmsKeyRotationIntegrationTest {
 
     // Switch the data key without re-encrypting: rows 1..3 keep the previous key's HMAC tag.
     try (Connection plain = KmsTestUtility.openPlainConnection()) {
-      newUtility(plain).rotateDataKey(table, SSN, null);
+      switchKeyWithoutReencrypting(plain, table, SSN);
     }
     assertNotEquals(oldKeyId, currentKeyId(table, SSN));
 
@@ -719,6 +722,62 @@ public class KmsKeyRotationIntegrationTest {
     assertTrue(result.isComplete());
   }
 
+  /** {@code rotateDataKey} refuses a column with data, before it changes anything. */
+  @TestTemplate
+  void test13RotateDataKeyRefusesColumnWithData() throws Exception {
+    final String table = createEncryptedTable("refuse", SSN);
+    installHmacTriggers(table, SSN);
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 1, 3, false);
+    }
+    final int keyId = currentKeyId(table, SSN);
+    final Map<Integer, byte[]> rawBefore = readRawValues(table, SSN);
+    final int keyRows = keyRowCount(table);
+
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      final KeyManagementException error = assertThrows(KeyManagementException.class,
+          () -> newUtility(plain).rotateDataKey(table, SSN, null));
+      assertTrue(error.getMessage().contains("rotateDataKeyAndReencrypt"), error.getMessage());
+    }
+
+    assertEquals(keyId, currentKeyId(table, SSN));
+    assertEquals(keyRows, keyRowCount(table));
+    assertRawValuesUnchanged(rawBefore, readRawValues(table, SSN));
+    assertAllRowsDecrypt(table, 3, false);
+  }
+
+  /** {@code rotateDataKey} still works on an empty column, including one holding only NULLs. */
+  @TestTemplate
+  void test14RotateDataKeyWorksOnEmptyColumn() throws Exception {
+    final String table = createEncryptedTable("emptycol", SSN);
+    installHmacTriggers(table, SSN);
+    final int oldKeyId = currentKeyId(table, SSN);
+
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      newUtility(plain).rotateDataKey(table, SSN, null);
+    }
+    final int newKeyId = currentKeyId(table, SSN);
+    assertNotEquals(oldKeyId, newKeyId);
+
+    try (Connection writer = openPluginConnection()) {
+      try (PreparedStatement stmt = writer.prepareStatement(
+          "INSERT INTO " + table + " (name, ssn) VALUES (?, ?)")) {
+        stmt.setString(1, "row-null");
+        stmt.setNull(2, Types.BINARY);
+        assertEquals(1, stmt.executeUpdate());
+      }
+    }
+    try (Connection plain = KmsTestUtility.openPlainConnection()) {
+      newUtility(plain).rotateDataKey(table, SSN, null);
+    }
+    assertNotEquals(newKeyId, currentKeyId(table, SSN));
+
+    try (Connection writer = openPluginConnection()) {
+      insertRows(writer, table, 1, 2, false);
+    }
+    assertAllRowsDecrypt(table, 2, false);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------------------------
@@ -737,6 +796,15 @@ public class KmsKeyRotationIntegrationTest {
     }
     assertTrue(installed, "The HMAC validation triggers could not be installed. On MySQL the test"
         + " user needs the create-routine privilege.");
+  }
+
+  /**
+   * The state the old {@code rotateDataKey} left on a column with data: a new key row, the metadata
+   * pointing at it and the rows untouched. {@code rotateDataKey} now refuses such a column, so the
+   * state is built directly.
+   */
+  private void switchKeyWithoutReencrypting(Connection conn, String table, String column) throws SQLException {
+    KmsTestUtility.switchColumnKeyWithoutReencrypting(conn, SchemaName.of(METADATA_SCHEMA), isPg, table, column);
   }
 
   /**
