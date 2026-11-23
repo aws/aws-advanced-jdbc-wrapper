@@ -16,8 +16,12 @@
 
 package integration.util;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import integration.container.ConnectionStringHelper;
 import java.security.SecureRandom;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -172,6 +176,12 @@ public final class KmsTestUtility {
         .build();
   }
 
+  /** Opens a direct (non-wrapper) connection to the current test database. */
+  public static Connection openPlainConnection() throws SQLException {
+    return DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+  }
+
   /**
    * Creates the encryption metadata schema and its {@code key_storage} and {@code encryption_metadata}
    * tables from scratch, dropping any existing schema first. On PostgreSQL it also installs the
@@ -263,6 +273,22 @@ public final class KmsTestUtility {
   public static ColumnKey configureColumn(
       final Connection conn, final SchemaName metadataSchema, final boolean isPg, final String region,
       final String kmsKeyId, final String keyName, final String table, final String column) throws Exception {
+    final byte[] hmacKey = new byte[32];
+    new SecureRandom().nextBytes(hmacKey);
+    return configureColumnWithHmacKey(
+        conn, metadataSchema, isPg, region, kmsKeyId, keyName, table, column, hmacKey);
+  }
+
+  /**
+   * Same as {@link #configureColumn} but stores the given HMAC key instead of a random one, so a
+   * test can exercise a key with known byte values (for example bytes {@code >= 128} on MySQL).
+   *
+   * @param hmacKey the 32-byte HMAC key to store for the column
+   */
+  public static ColumnKey configureColumnWithHmacKey(
+      final Connection conn, final SchemaName metadataSchema, final boolean isPg, final String region,
+      final String kmsKeyId, final String keyName, final String table, final String column,
+      final byte[] hmacKey) throws Exception {
     // Generate a KMS data key. KMS accepts a key id, key ARN or alias.
     final String encryptedDataKeyBase64;
     final byte[] dataKey;
@@ -274,9 +300,6 @@ public final class KmsTestUtility {
           Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
       dataKey = dataKeyResponse.plaintext().asByteArray();
     }
-
-    final byte[] hmacKey = new byte[32];
-    new SecureRandom().nextBytes(hmacKey);
 
     final String prefix = (metadataSchema != null) ? metadataSchema.getValue() + "." : "";
     final String insertKeySql =
@@ -319,6 +342,73 @@ public final class KmsTestUtility {
     }
 
     return new ColumnKey(keyId, hmacKey, dataKey);
+  }
+
+  /**
+   * Leaves a column in the state a data key switch without re-encryption produces: inserts a new
+   * {@code key_storage} row (same KMS master key and wrapped data key, new random HMAC key) and
+   * repoints the column's {@code encryption_metadata} at it. Rows already written stay under the
+   * previous key, so reading them through the plugin fails the HMAC check.
+   *
+   * @return the id of the new key row
+   */
+  public static int switchColumnKeyWithoutReencrypting(
+      final Connection conn, final SchemaName metadataSchema, final boolean isPg,
+      final String table, final String column) throws SQLException {
+    final String prefix = metadataSchema.getValue() + ".";
+    final String name;
+    final String masterKeyArn;
+    final String encryptedDataKey;
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "SELECT ks.name, ks.master_key_arn, ks.encrypted_data_key FROM " + prefix + "encryption_metadata em "
+            + "JOIN " + prefix + "key_storage ks ON em.key_id = ks.id "
+            + "WHERE em.table_name = ? AND em.column_name = ?")) {
+      stmt.setString(1, table);
+      stmt.setString(2, column);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (!rs.next()) {
+          throw new SQLException("No encryption metadata for " + table + "." + column);
+        }
+        name = rs.getString(1) + "-switched-" + System.nanoTime();
+        masterKeyArn = rs.getString(2);
+        encryptedDataKey = rs.getString(3);
+      }
+    }
+
+    final byte[] hmacKey = new byte[32];
+    new SecureRandom().nextBytes(hmacKey);
+    final int newKeyId;
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "INSERT INTO " + prefix + "key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
+            + "VALUES (?, ?, ?, ?, ?)" + (isPg ? " RETURNING id" : ""),
+        isPg ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setString(1, name);
+      stmt.setString(2, masterKeyArn);
+      stmt.setString(3, encryptedDataKey);
+      stmt.setBytes(4, hmacKey);
+      stmt.setString(5, "AES_256");
+      if (isPg) {
+        try (ResultSet rs = stmt.executeQuery()) {
+          rs.next();
+          newKeyId = rs.getInt(1);
+        }
+      } else {
+        stmt.executeUpdate();
+        try (ResultSet rs = stmt.getGeneratedKeys()) {
+          rs.next();
+          newKeyId = rs.getInt(1);
+        }
+      }
+    }
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "UPDATE " + prefix + "encryption_metadata SET key_id = ? WHERE table_name = ? AND column_name = ?")) {
+      stmt.setInt(1, newKeyId);
+      stmt.setString(2, table);
+      stmt.setString(3, column);
+      stmt.executeUpdate();
+    }
+    return newKeyId;
   }
 
   /**
@@ -438,6 +528,60 @@ public final class KmsTestUtility {
         }
         stmt.executeBatch();
       }
+    }
+  }
+
+  /**
+   * PostgreSQL only. (Re)creates an empty schema for a test to put its own functions or operators
+   * in, skipping the test when the user cannot create schemas.
+   *
+   * @param conn   a direct (non-wrapper) connection to the database
+   * @param schema the schema name
+   */
+  public static void createShadowSchema(final Connection conn, final String schema) throws SQLException {
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+      stmt.execute("CREATE SCHEMA " + schema);
+    } catch (final SQLException e) {
+      assumeTrue(!"42501".equals(e.getSQLState()), "The test user cannot create a schema");
+      throw e;
+    }
+  }
+
+  /**
+   * PostgreSQL only. Creates a shadow schema whose {@code =} on {@code varchar} and on
+   * {@code integer} is always true, for checking that the plugin's SQL uses the built-in operator
+   * regardless of search_path.
+   *
+   * @param conn   a direct (non-wrapper) connection to the database
+   * @param schema the schema name
+   */
+  public static void createShadowEqualsOperators(final Connection conn, final String schema)
+      throws SQLException {
+    createShadowSchema(conn, schema);
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute("CREATE FUNCTION " + schema + ".always_equal(varchar, varchar) RETURNS boolean "
+          + "AS $$ SELECT true $$ LANGUAGE sql IMMUTABLE");
+      stmt.execute("CREATE OPERATOR " + schema + ".= (LEFTARG = varchar, RIGHTARG = varchar, "
+          + "FUNCTION = " + schema + ".always_equal)");
+      stmt.execute("CREATE FUNCTION " + schema + ".always_equal(integer, integer) RETURNS boolean "
+          + "AS $$ SELECT true $$ LANGUAGE sql IMMUTABLE");
+      stmt.execute("CREATE OPERATOR " + schema + ".= (LEFTARG = integer, RIGHTARG = integer, "
+          + "FUNCTION = " + schema + ".always_equal)");
+    }
+  }
+
+  /**
+   * PostgreSQL only. Resets the connection's search_path and drops a schema made by
+   * {@link #createShadowSchema}.
+   *
+   * @param conn   a direct (non-wrapper) connection to the database
+   * @param schema the schema name
+   */
+  public static void dropShadowSchema(final Connection conn, final String schema) throws SQLException {
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute("SET search_path = public, pg_catalog");
+      stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
     }
   }
 }

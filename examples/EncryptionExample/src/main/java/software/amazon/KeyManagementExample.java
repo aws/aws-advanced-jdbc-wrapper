@@ -178,8 +178,8 @@ public class KeyManagementExample {
   public void auditExistingKeys() throws KeyManagementException {
     LOGGER.info("Auditing existing encryption keys");
 
-    // Find all columns using a specific key
-    String keyIdToAudit = "some-existing-key-id";
+    // Find all columns using a specific key, by its key_storage.id
+    int keyIdToAudit = 1;
     List<String> columnsUsingKey = keyManagementUtility.getColumnsUsingKey(keyIdToAudit);
 
     LOGGER.info(

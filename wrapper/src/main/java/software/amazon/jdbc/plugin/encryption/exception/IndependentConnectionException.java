@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.encryption.exception;
 
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.plugin.encryption.model.ConnectionParameters;
 
 /**
@@ -210,17 +211,6 @@ public class IndependentConnectionException extends SQLException {
    * sensitive parameters while preserving useful debugging information.
    */
   private static @Nullable String maskSensitiveUrl(final @Nullable String jdbcUrl) {
-    if (jdbcUrl == null) {
-      return null;
-    }
-
-    // Remove password parameters from URL
-    String masked = jdbcUrl.replaceAll("([?&]password=)[^&]*", "$1***");
-    masked = masked.replaceAll("([?&]pwd=)[^&]*", "$1***");
-
-    // Remove user credentials from URL if present
-    masked = masked.replaceAll("://[^:/@]+:[^@]*@", "://***:***@");
-
-    return masked;
+    return Sanitizer.connectionUrl(jdbcUrl);
   }
 }

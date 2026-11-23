@@ -62,8 +62,10 @@ import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
@@ -111,8 +113,13 @@ public class KeyManager {
       return connection;
     }
     if (pluginService != null) {
-      return pluginService.forceConnect(
+      final Connection conn = pluginService.forceConnect(
           pluginService.getCurrentHostSpec(), pluginService.getProperties());
+      // The connection is the plugin's own and is closed after use, so its search_path can be pinned.
+      if (isPostgreSQL) {
+        EncryptionSql.pinPgSearchPathOrClose(conn);
+      }
+      return conn;
     }
     throw new SQLException(Messages.get("KeyManager.noConnectionAvailable"));
   }
@@ -137,15 +144,19 @@ public class KeyManager {
     return isPostgreSQL() ? sql + " RETURNING id" : sql;
   }
 
-  private String getSelectKeyMetadataSql() {
+  String getSelectKeyMetadataSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "SELECT id, name, master_key_arn, encrypted_data_key, hmac_key, key_spec, created_at, last_used_at "
-        + "FROM " + schema + ".key_storage WHERE id = ?";
+        + "FROM " + schema + ".key_storage WHERE id " + eq() + " ?";
   }
 
-  private String getUpdateLastUsedSql() {
+  String getUpdateLastUsedSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "UPDATE " + schema + ".key_storage SET last_used_at = ? WHERE key_id = ?";
+    return "UPDATE " + schema + ".key_storage SET last_used_at = ? WHERE id " + eq() + " ?";
+  }
+
+  private String eq() {
+    return EncryptionSql.equalsOperator(isPostgreSQL);
   }
 
   /**
@@ -171,13 +182,13 @@ public class KeyManager {
       CreateKeyResponse response = executeWithRetry(() -> kmsClient.createKey(request));
       String keyArn = response.keyMetadata().arn();
 
-      LOGGER.info(() -> Messages.get("KeyManager.masterKeyCreated", new Object[]{keyArn}));
+      LOGGER.info(() -> Messages.get("KeyManager.masterKeyCreated", new Object[]{Sanitizer.arn(keyArn)}));
       return keyArn;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.masterKeyFailed", new Object[]{e}));
+      LOGGER.severe(() -> Messages.get("KeyManager.masterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.createMasterKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.createMasterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -192,7 +203,7 @@ public class KeyManager {
     authorizeMasterKey(masterKeyArn);
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    LOGGER.finest(() -> Messages.get("KeyManager.generatingDataKey", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get("KeyManager.generatingDataKey", new Object[]{Sanitizer.arn(masterKeyArn)}));
 
     try {
       GenerateDataKeyRequest request =
@@ -203,13 +214,14 @@ public class KeyManager {
       String encryptedKey =
           Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray());
 
-      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyGenerated", new Object[]{masterKeyArn}));
+      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyGenerated", new Object[]{Sanitizer.arn(masterKeyArn)}));
       return new DataKeyResult(encryptedKey);
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.dataKeyGenerationFailed", new Object[]{masterKeyArn, e}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.dataKeyGenerationFailed", new Object[]{Sanitizer.arn(masterKeyArn), Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.generateDataKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.generateDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -244,7 +256,7 @@ public class KeyManager {
       }
     }
 
-    LOGGER.finest(() -> Messages.get("KeyManager.decryptingDataKey", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get("KeyManager.decryptingDataKey", new Object[]{Sanitizer.arn(masterKeyArn)}));
 
     byte @Nullable [] plaintextKey = null;
     try {
@@ -264,7 +276,7 @@ public class KeyManager {
         dataKeyCache.put(cacheKey, plaintextKey);
       }
 
-      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{masterKeyArn}));
+      LOGGER.finest(() -> Messages.get("KeyManager.dataKeyDecrypted", new Object[]{Sanitizer.arn(masterKeyArn)}));
       return plaintextKey;
 
     } catch (Exception e) {
@@ -272,9 +284,10 @@ public class KeyManager {
       if (plaintextKey != null) {
         Arrays.fill(plaintextKey, (byte) 0);
       }
-      LOGGER.severe(() -> Messages.get("KeyManager.dataKeyDecryptionFailed", new Object[]{masterKeyArn, e}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.dataKeyDecryptionFailed", new Object[]{Sanitizer.arn(masterKeyArn), Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManager.decryptDataKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManager.decryptDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -351,21 +364,34 @@ public class KeyManager {
   /**
    * Retrieves key metadata from the database for the specified key ID.
    *
-   * @param keyId Key ID to retrieve metadata for
+   * @param keyId Key ID to retrieve metadata for: the {@code key_storage.id} value, in decimal
+   * @return Optional containing key metadata if found
+   * @throws KeyManagementException if retrieval fails
+   * @throws IllegalArgumentException if the key ID is not an integer
+   * @deprecated Use {@link #getKeyMetadata(int)}.
+   */
+  @Deprecated
+  public Optional<KeyMetadata> getKeyMetadata(String keyId) throws KeyManagementException {
+    Objects.requireNonNull(keyId, "Key ID cannot be null");
+    return getKeyMetadata(parseKeyId(keyId));
+  }
+
+  /**
+   * Retrieves key metadata from the database for the specified key ID.
+   *
+   * @param keyId Key ID to retrieve metadata for: the {@code key_storage.id} value
    * @return Optional containing key metadata if found
    * @throws KeyManagementException if retrieval fails
    */
-  public Optional<KeyMetadata> getKeyMetadata(String keyId) throws KeyManagementException {
-    Objects.requireNonNull(keyId, "Key ID cannot be null");
-
-    LOGGER.finest(() -> Messages.get("KeyManager.retrievingKeyMetadata", new Object[]{keyId}));
+  public Optional<KeyMetadata> getKeyMetadata(int keyId) throws KeyManagementException {
+    LOGGER.finest(() -> Messages.get("KeyManager.retrievingKeyMetadata", new Object[]{String.valueOf(keyId)}));
 
     Connection conn = null;
     try {
       conn = getConnection();
       try (PreparedStatement stmt = conn.prepareStatement(getSelectKeyMetadataSql())) {
 
-        stmt.setString(1, keyId);
+        stmt.setInt(1, keyId);
 
         try (ResultSet rs = stmt.executeQuery()) {
           if (rs.next()) {
@@ -385,17 +411,18 @@ public class KeyManager {
                     .lastUsedAt(lastUsedAt != null ? lastUsedAt.toInstant() : null)
                     .build();
 
-            LOGGER.finest(() -> Messages.get("KeyManager.keyMetadataRetrieved", new Object[]{keyId}));
+            LOGGER.finest(() -> Messages.get("KeyManager.keyMetadataRetrieved", new Object[]{String.valueOf(keyId)}));
             return Optional.of(metadata);
           } else {
-            LOGGER.finest(() -> Messages.get("KeyManager.noKeyMetadata", new Object[]{keyId}));
+            LOGGER.finest(() -> Messages.get("KeyManager.noKeyMetadata", new Object[]{String.valueOf(keyId)}));
             return Optional.empty();
           }
         }
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.retrieveKeyMetadataDbError", new Object[]{keyId, e}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.retrieveKeyMetadataDbError", new Object[]{String.valueOf(keyId), e}));
       throw new KeyManagementException(
           Messages.get("KeyManager.retrieveKeyMetadataFailed", new Object[]{e.getMessage(), e}));
     } finally {
@@ -408,27 +435,55 @@ public class KeyManager {
   }
 
   /**
+   * Parses a {@code key_storage.id} value given as a string.
+   *
+   * @param keyId the key ID, in decimal
+   * @return the key ID
+   * @throws IllegalArgumentException if the key ID is not an integer
+   */
+  public static int parseKeyId(String keyId) {
+    try {
+      return Integer.parseInt(keyId.trim());
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException(Messages.get("KeyManager.invalidKeyId", new Object[]{keyId}), e);
+    }
+  }
+
+  /**
    * Updates the last used timestamp for the specified key.
    *
-   * @param keyId Key ID to update
+   * @param keyId Key ID to update: the {@code key_storage.id} value, in decimal
    * @throws KeyManagementException if update fails
+   * @throws IllegalArgumentException if the key ID is not an integer
+   * @deprecated Use {@link #updateLastUsed(int)}.
    */
+  @Deprecated
   public void updateLastUsed(String keyId) throws KeyManagementException {
     Objects.requireNonNull(keyId, "Key ID cannot be null");
+    updateLastUsed(parseKeyId(keyId));
+  }
 
+  /**
+   * Updates the last used timestamp for the specified key.
+   *
+   * @param keyId Key ID to update: the {@code key_storage.id} value
+   * @throws KeyManagementException if update fails
+   */
+  public void updateLastUsed(int keyId) throws KeyManagementException {
     Connection conn = null;
     try {
       conn = getConnection();
       try (PreparedStatement stmt = conn.prepareStatement(getUpdateLastUsedSql())) {
 
         stmt.setTimestamp(1, Timestamp.from(Instant.now()));
-        stmt.setString(2, keyId);
+        stmt.setInt(2, keyId);
 
         stmt.executeUpdate();
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManager.updateLastUsedDbError", new Object[]{keyId, e.getMessage()}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManager.updateLastUsedDbError", new Object[]{String.valueOf(keyId), e.getMessage()}));
       throw new KeyManagementException(
           Messages.get("KeyManager.updateLastUsedFailed",
               new Object[]{e.getMessage()}), e);
@@ -478,7 +533,7 @@ public class KeyManager {
     }
     // The ARN comes from key_storage and may have been written by someone else, so it is masked.
     final String message = Messages.get("KeyManager.masterKeyNotAllowed",
-        new Object[]{KeyManagementException.sanitizeArn(masterKeyArn),
+        new Object[]{Sanitizer.arn(masterKeyArn),
             EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name});
     LOGGER.warning(message);
     throw KeyManagementException.unauthorizedMasterKey(message, masterKeyArn);
@@ -515,7 +570,8 @@ public class KeyManager {
           long backoffMs = calculateBackoff(attempt);
           int finalAttempt = attempt;
           LOGGER.warning(() -> Messages.get(
-              "KeyManager.retrying", new Object[]{finalAttempt + 1, maxRetries + 1, backoffMs, e.getMessage()}));
+              "KeyManager.retrying",
+              new Object[]{finalAttempt + 1, maxRetries + 1, backoffMs, Sanitizer.errorSummary(e)}));
 
           try {
             Thread.sleep(backoffMs);

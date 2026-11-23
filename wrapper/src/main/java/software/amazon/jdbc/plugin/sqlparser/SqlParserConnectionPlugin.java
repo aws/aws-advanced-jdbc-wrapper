@@ -21,7 +21,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -30,6 +32,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -64,6 +67,30 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
   private static final Pattern ROUTING_HINT_PATTERN =
       Pattern.compile("/\\*\\s*@\\s*(reader|writer|keep)\\s*\\*/", Pattern.CASE_INSENSITIVE);
 
+  /**
+   * Methods that take the SQL to run as their first argument. The SQL of each call is parsed, rather
+   * than the statement's prepared SQL, so that plugins downstream see what is actually sent.
+   *
+   * <p>{@code PreparedStatement.addBatch} and {@code CallableStatement.addBatch} are left out: they
+   * share their method name with the no-argument {@code addBatch()} called for every row of a
+   * prepared batch, and the drivers refuse {@code addBatch(String)} on a prepared statement.
+   */
+  public static final Set<String> SQL_EXECUTION_METHODS =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add(JdbcMethod.STATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName);
+        }
+      });
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -73,6 +100,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
           add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
           add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
@@ -138,6 +166,11 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
         return result;
       }
       // No SQL arg (shouldn't happen in practice) — fall through to jdbcMethodFunc.call()
+    } else if (SQL_EXECUTION_METHODS.contains(methodName) && jdbcMethodArgs != null && jdbcMethodArgs.length > 0
+        && jdbcMethodArgs[0] instanceof String) {
+      // SQL passed to execute* or addBatch(String). On a PreparedStatement this SQL is not the
+      // prepared one, so it is parsed itself rather than taken from the cache.
+      applyToContext(parseSql((String) jdbcMethodArgs[0]));
     } else if ((methodName.startsWith("PreparedStatement.execute")
         || methodName.startsWith("CallableStatement.execute"))
         && methodInvokeOn instanceof PreparedStatement) {
@@ -146,14 +179,9 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       if (cached != null) {
         applyToContext(cached);
       }
-    } else if (methodName.startsWith("Statement.execute")) {
-      // Parse SQL from args; executeBatch has no SQL arg and will be skipped,
-      // causing downstream plugins to fall back to method-name heuristics (routes to writer)
-      if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0
-          && jdbcMethodArgs[0] instanceof String) {
-        applyToContext(parseSql((String) jdbcMethodArgs[0]));
-      }
     }
+    // Statement.executeBatch has no SQL arg and is skipped, causing downstream plugins to fall back
+    // to method-name heuristics (routes to writer)
 
     return jdbcMethodFunc.call();
   }
@@ -179,27 +207,62 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     final @Nullable Statement statement = JSQLParserAnalyzer.parse(cleanSql);
     JSQLParserAnalyzer.QueryAnalysis analysis = JSQLParserAnalyzer.analyze(statement, cleanSql);
 
-    Set<String> tables = new HashSet<>();
+    final ParameterColumnMapper.ParameterMapping mapping = ParameterColumnMapper.map(statement, scan);
+
+    // The tables a write statement writes come first, in statement order, then every other table
+    // the statement names, subqueries included.
+    final Set<String> tables = new LinkedHashSet<>(mapping.getTargetTables());
     for (String table : analysis.tables) {
       tables.add(table.replace("`", "").replace("\"", ""));
     }
+    final @Nullable Set<String> allTables = allTables(statement);
+    if (allTables != null) {
+      tables.addAll(allTables);
+    }
+    // Only one source of names is counted, so that the same table written two ways by two sources
+    // (users, public.users) is not two tables, while different tables always are.
+    final @Nullable String onlyTable = allTables != null && allTables.size() == 1
+        ? lastSegment(allTables.iterator().next()) : null;
 
     // Build parameter mapping; annotations take precedence
-    final ParameterColumnMapper.ParameterMapping mapping = ParameterColumnMapper.map(statement, scan);
     Map<Integer, String> paramMapping = new HashMap<>(mapping.getColumns());
+    final List<ParameterMappingProblem> problems = new ArrayList<>(mapping.getProblems());
     for (Map.Entry<Integer, String> annotation : annotations.entrySet()) {
       final String mapped = paramMapping.get(annotation.getKey());
-      if (mapped != null && conflicts(annotation.getValue(), mapped)) {
+      final String annotated =
+          resolveAnnotation(annotation.getValue(), mapped, mapping.getTableAliases(), onlyTable);
+      // An annotation that agrees with the automatic mapping (public.users.ssn and users.ssn) keeps
+      // the mapping's table name, which is how the encryption metadata names the table.
+      final String resolved = mapped != null && !conflicts(annotated, mapped) ? mapped : annotated;
+      if (mapped != null && conflicts(resolved, mapped)) {
         LOGGER.warning(() -> Messages.get(
             "SqlParserConnectionPlugin.annotationConflictsWithMapping",
             new Object[] {String.valueOf(annotation.getKey()), annotation.getValue(), mapped}));
+        final int mappedDot = mapped.lastIndexOf('.');
+        if (mapping.isWriteStatement() && mappedDot > 0) {
+          // The annotation takes the parameter away from the column the statement assigns it to, so
+          // if that column is encrypted its value would not be: reported like an unmapped parameter.
+          problems.add(ParameterMappingProblem.unknownTargetParams(
+              mapped.substring(0, mappedDot),
+              Collections.singletonList(mapped.substring(mappedDot + 1)),
+              Collections.singletonList(annotation.getKey())));
+        }
       }
-      paramMapping.put(annotation.getKey(), annotation.getValue());
+      paramMapping.put(annotation.getKey(), resolved);
+      if (resolved.indexOf('.') < 0 && mapping.isWriteStatement()) {
+        // The table of the annotated column is not certain, so the value is not encrypted; for a
+        // write that is reported like any other parameter that cannot be mapped.
+        for (String target : mapping.getTargetTables()) {
+          problems.add(ParameterMappingProblem.unknownTargetParams(
+              target, Collections.singletonList(resolved), Collections.singletonList(annotation.getKey())));
+        }
+      }
     }
 
     return new ParsedSqlResult(
         analysis.queryType, tables, paramMapping, cleanSql,
-        annotations, analysis.forUpdate, routingHint, mapping.getProblems());
+        annotations, analysis.forUpdate, routingHint, problems,
+        mapping.getUnboundColumns());
   }
 
   private PlaceholderScanner.Mode resolveScannerMode() {
@@ -212,6 +275,66 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       return PlaceholderScanner.Mode.MYSQL;
     }
     return PlaceholderScanner.Mode.GENERIC;
+  }
+
+  /**
+   * Every table the statement names, subqueries included, as written (schema kept, case kept)
+   * without quotes, so that tables in different schemas or differing in case stay apart.
+   *
+   * @return the tables, or null when they could not all be listed
+   */
+  private static @Nullable Set<String> allTables(final @Nullable Statement statement) {
+    if (statement == null) {
+      return null;
+    }
+    try {
+      final Set<String> tables = new LinkedHashSet<>();
+      for (String table : new TablesNamesFinder().getTables(statement)) {
+        tables.add(table.replace("`", "").replace("\"", ""));
+      }
+      return tables;
+    } catch (RuntimeException e) {
+      LOGGER.finest(() -> Messages.get(
+          "SqlParserConnectionPlugin.tableListFailed", new Object[] {e.getClass().getName()}));
+      return null;
+    }
+  }
+
+  /**
+   * Resolves the table of an annotation against the statement, only where it is certain. A bare
+   * column takes the table of the automatic mapping of the same parameter when both name the same
+   * column, or else the statement's only table. A one-part qualifier that is an alias (or a
+   * differently quoted name) of one of the statement's tables is replaced by that table. Anything
+   * else is kept as written, so a bare column whose table is not certain stays bare.
+   *
+   * @param annotation the annotated column, {@code column} or {@code qualifier.column}
+   * @param mapped the automatic mapping of the same parameter, or null
+   * @param aliases the statement's tables keyed by lower-case alias, or name when not aliased
+   * @param onlyTable the only table the statement names, or null
+   * @return the column the annotation names, qualified with its table where that is certain
+   */
+  static String resolveAnnotation(
+      final String annotation,
+      final @Nullable String mapped,
+      final Map<String, String> aliases,
+      final @Nullable String onlyTable) {
+    final int dot = annotation.lastIndexOf('.');
+    final String column = annotation.substring(dot + 1);
+    if (dot < 0) {
+      if (mapped != null) {
+        final int mappedDot = mapped.lastIndexOf('.');
+        if (mappedDot > 0 && mapped.substring(mappedDot + 1).equalsIgnoreCase(column)) {
+          return mapped;
+        }
+      }
+      return onlyTable != null ? onlyTable + "." + column : annotation;
+    }
+    final String qualifier = annotation.substring(0, dot);
+    if (qualifier.indexOf('.') >= 0) {
+      return annotation;
+    }
+    final @Nullable String table = aliases.get(qualifier.toLowerCase(Locale.ROOT));
+    return table == null ? annotation : table + "." + column;
   }
 
   /**
@@ -244,6 +367,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     ctx.setAttribute(SqlContextKeys.TABLES, parsed.tables);
     ctx.setAttribute(SqlContextKeys.PARAM_MAPPING, parsed.paramMapping);
     ctx.setAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS, parsed.problems);
+    ctx.setAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, parsed.unboundColumns);
     ctx.setAttribute(SqlContextKeys.CLEAN_SQL, parsed.cleanSql);
     ctx.setAttribute(SqlContextKeys.ANNOTATIONS, parsed.annotations);
     ctx.setAttribute(SqlContextKeys.FOR_UPDATE, parsed.forUpdate);
@@ -262,11 +386,13 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
     final boolean forUpdate;
     final @Nullable RoutingHint routingHint;
     final List<ParameterMappingProblem> problems;
+    final List<ParameterColumnMapper.UnboundColumn> unboundColumns;
 
     ParsedSqlResult(QueryType queryType, Set<String> tables,
         Map<Integer, String> paramMapping, String cleanSql,
         Map<Integer, String> annotations, boolean forUpdate,
-        @Nullable RoutingHint routingHint, List<ParameterMappingProblem> problems) {
+        @Nullable RoutingHint routingHint, List<ParameterMappingProblem> problems,
+        List<ParameterColumnMapper.UnboundColumn> unboundColumns) {
       this.queryType = queryType;
       this.tables = tables;
       this.paramMapping = paramMapping;
@@ -275,6 +401,7 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
       this.forUpdate = forUpdate;
       this.routingHint = routingHint;
       this.problems = Collections.unmodifiableList(new ArrayList<>(problems));
+      this.unboundColumns = Collections.unmodifiableList(new ArrayList<>(unboundColumns));
     }
   }
 }

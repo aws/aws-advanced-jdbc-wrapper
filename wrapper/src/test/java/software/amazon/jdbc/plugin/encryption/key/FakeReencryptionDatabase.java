@@ -28,8 +28,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Predicate;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 
 /**
  * In-memory fake of the JDBC calls made by {@link KeyManagementUtility} and {@link KeyManager}
@@ -89,6 +91,9 @@ final class FakeReencryptionDatabase {
   private boolean failOnSwitchUpdate;
   private boolean failOnKeyDelete;
   private boolean pluginConnection;
+  private String primaryKeyType = "bigint";
+  private boolean primaryKeyTypeBuiltIn = true;
+  private int primaryKeyTypeQueries;
 
   /**
    * Creates the fake. A schema prefix in {@code tableName} ({@code app.users}) is the physical
@@ -227,6 +232,16 @@ final class FakeReencryptionDatabase {
     this.failOnKeyDelete = true;
   }
 
+  /** Sets the type reported for the primary key column on PostgreSQL. */
+  void setPrimaryKeyType(String typeName, boolean builtIn) {
+    this.primaryKeyType = typeName;
+    this.primaryKeyTypeBuiltIn = builtIn;
+  }
+
+  int getPrimaryKeyTypeQueries() {
+    return primaryKeyTypeQueries;
+  }
+
   void setPluginConnection(boolean pluginConnection) {
     this.pluginConnection = pluginConnection;
   }
@@ -246,7 +261,7 @@ final class FakeReencryptionDatabase {
     switch (method.getName()) {
       case "prepareStatement":
         executedSql.add((String) args[0]);
-        return newStatement((String) args[0]);
+        return newStatement(normalize((String) args[0]));
       case "getAutoCommit":
         return autoCommit;
       case "setAutoCommit":
@@ -297,6 +312,30 @@ final class FakeReencryptionDatabase {
 
   private void discardStaged() {
     staged.clear();
+  }
+
+  /**
+   * Returns whether SQL reads or writes the metadata or key tables, rather than the application's
+   * table.
+   */
+  static boolean isMetadataSql(String sql) {
+    return sql.contains(".encryption_metadata") || sql.contains(".key_storage");
+  }
+
+  /**
+   * On PostgreSQL, fails on SQL that compares with a plain {@code =} or {@code >}, and maps the
+   * qualified operators back to the plain ones so the statement can be matched below. The
+   * assignments of a SET clause are not comparisons.
+   */
+  private String normalize(String sql) {
+    if (!postgres) {
+      return sql;
+    }
+    final String comparisons = sql.replaceAll(" SET .*?( WHERE |$)", "$1");
+    if (comparisons.contains(" = ") || comparisons.contains(" > ")) {
+      throw new AssertionError("Unqualified comparison operator in PostgreSQL SQL: " + sql);
+    }
+    return sql.replace(EncryptionSql.PG_EQUALS, "=").replace(EncryptionSql.PG_GREATER_THAN, ">");
   }
 
   private PreparedStatement newStatement(String sql) {
@@ -361,10 +400,23 @@ final class FakeReencryptionDatabase {
   private String probeSql() {
     final String table = physicalSchema == null
         ? quote(physicalTable) : quote(physicalSchema) + "." + quote(physicalTable);
-    return "SELECT " + quote(physicalPrimaryKey) + ", " + quote(physicalColumn) + " FROM " + table + " WHERE 1=0";
+    return "SELECT " + quote(physicalPrimaryKey) + ", " + quote(physicalColumn) + " FROM " + table + " WHERE FALSE";
   }
 
   private ResultSet executeQuery(String sql, Map<Integer, Object> params) throws SQLException {
+    if (sql.startsWith("SELECT pg_catalog.format_type(")) {
+      if (!postgres) {
+        throw new SQLException("pg_catalog does not exist: " + sql);
+      }
+      primaryKeyTypeQueries++;
+      final String table = physicalSchema == null
+          ? quote(physicalTable) : quote(physicalSchema) + "." + quote(physicalTable);
+      if (!table.equals(params.get(1)) || !physicalPrimaryKey.equals(params.get(2))) {
+        return resultSet(new String[0], Collections.emptyList());
+      }
+      return resultSet(new String[] {"type_name", "built_in"},
+          Collections.singletonList(new Object[] {primaryKeyType, primaryKeyTypeBuiltIn}));
+    }
     if (sql.startsWith("SELECT em.key_id")) {
       metadataLookups.add(new String[] {(String) params.get(1), (String) params.get(2)});
       if (!metadataMatches(params.get(1), params.get(2)) || metadataKeyId < 0) {
@@ -398,11 +450,16 @@ final class FakeReencryptionDatabase {
       final int id = insertKey(params);
       return resultSet(new String[] {"id"}, Collections.singletonList(new Object[] {id}));
     }
-    if (sql.endsWith(" WHERE 1=0")) {
+    if (sql.endsWith(" WHERE FALSE")) {
       if (!sql.equals(probeSql())) {
         throw new SQLException("relation or column does not exist: " + sql);
       }
       return resultSet(new String[] {"pk", "value"}, Collections.emptyList());
+    }
+    if (sql.startsWith("SELECT 1 FROM") && sql.endsWith(" IS NOT NULL LIMIT 1")) {
+      final boolean hasValue = rows.values().stream().anyMatch(Objects::nonNull);
+      return resultSet(new String[] {"1"},
+          hasValue ? Collections.singletonList(new Object[] {1}) : Collections.emptyList());
     }
     if (sql.startsWith("SELECT ") && sql.contains(" LIMIT ?")) {
       final boolean hasLastPk = sql.contains(" > ?");
@@ -442,6 +499,15 @@ final class FakeReencryptionDatabase {
         result[0] = 1;
       } else {
         result[0] = 0;
+      }
+      return null;
+    }
+    if (sql.startsWith("DELETE FROM") && sql.contains("encryption_metadata")
+        && sql.endsWith("WHERE table_name = ? AND column_name = ?")) {
+      final boolean matches = metadataMatches(params.get(1), params.get(2)) && metadataKeyId >= 0;
+      result[0] = matches ? 1 : 0;
+      if (matches) {
+        write(() -> metadataKeyId = -1);
       }
       return null;
     }
@@ -506,6 +572,8 @@ final class FakeReencryptionDatabase {
         case "getInt":
           final Object value = column(labels, data.get(cursor[0]), args[0]);
           return value == null ? 0 : ((Number) value).intValue();
+        case "getBoolean":
+          return Boolean.TRUE.equals(column(labels, data.get(cursor[0]), args[0]));
         case "close":
           return null;
         case "toString":

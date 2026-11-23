@@ -83,7 +83,7 @@ public class ErrorContext {
    * @return This ErrorContext instance for chaining
    */
   public ErrorContext keyId(String keyId) {
-    context.put("keyId", sanitizeKeyId(keyId));
+    context.put("keyId", Sanitizer.keyId(keyId));
     return this;
   }
 
@@ -94,7 +94,7 @@ public class ErrorContext {
    * @return This ErrorContext instance for chaining
    */
   public ErrorContext masterKeyArn(String masterKeyArn) {
-    context.put("masterKeyArn", sanitizeArn(masterKeyArn));
+    context.put("masterKeyArn", Sanitizer.arn(masterKeyArn));
     return this;
   }
 
@@ -347,29 +347,6 @@ public class ErrorContext {
   }
 
   // Sanitization methods
-
-  private @Nullable String sanitizeKeyId(@Nullable String keyId) {
-    if (keyId == null) {
-      return null;
-    }
-    // Show only first and last 4 characters of key ID
-    if (keyId.length() > 8) {
-      return keyId.substring(0, 4) + "***" + keyId.substring(keyId.length() - 4);
-    }
-    return "***";
-  }
-
-  private @Nullable String sanitizeArn(@Nullable String arn) {
-    if (arn == null) {
-      return null;
-    }
-    // Keep only the key ID part of the ARN
-    int lastSlash = arn.lastIndexOf('/');
-    if (lastSlash != -1 && lastSlash < arn.length() - 1) {
-      return "arn:aws:kms:***:***:key/" + arn.substring(lastSlash + 1);
-    }
-    return "arn:aws:kms:***:***:key/***";
-  }
 
   private @Nullable String sanitizeSql(@Nullable String sql) {
     if (sql == null) {

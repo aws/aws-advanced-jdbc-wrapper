@@ -16,10 +16,12 @@
 
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -55,8 +57,13 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.plugin.encryption.key.KeyManagementUtility;
+import software.amazon.jdbc.plugin.encryption.key.KeyManager;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
@@ -91,6 +98,12 @@ public class KmsEncryptionIntegrationTest {
   // A test-specific table name, so that DROP TABLE never removes an unrelated table.
   private static final String TABLE = "kms_enc_users";
   private static final String KEY_NAME = "test-key-users-ssn";
+  // PostgreSQL only: a schema holding an always-true = operator, and a second configured column
+  // with its own key, so that a lookup matching every row would return more than the right one.
+  private static final String SHADOW_SCHEMA = "kms_enc_shadow";
+  private static final String DECOY_TABLE = "kms_enc_shadow_decoy";
+  private static final String DECOY_KEY_NAME = "test-key-shadow-decoy";
+  private static final String MISSING_TABLE = "kms_enc_no_such_table";
   // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) + GCM tag (16) bytes.
   private static final int MIN_ENCRYPTED_LENGTH = 61;
   private static final String TEST_SSN_1 = "111-11-1111";
@@ -106,6 +119,7 @@ public class KmsEncryptionIntegrationTest {
   private static boolean isPg;
   private static boolean triggersInstalled;
   private static boolean schemaReady;
+  private static int ssnKeyId;
 
   @BeforeAll
   static void setUp() throws Exception {
@@ -151,8 +165,8 @@ public class KmsEncryptionIntegrationTest {
       // Insert the key_storage/encryption_metadata rows directly (not through KeyManagementUtility, so
       // a bug in the utility cannot mask a bug in the read/write path), create the test table, and
       // install the HMAC validation triggers.
-      KmsTestUtility.configureColumn(
-          directConnection, metadataSchema, isPg, region, kmsKeyId, KEY_NAME, TABLE, "ssn");
+      ssnKeyId = KmsTestUtility.configureColumn(
+          directConnection, metadataSchema, isPg, region, kmsKeyId, KEY_NAME, TABLE, "ssn").keyId();
       KmsTestUtility.createAppTable(
           directConnection, isPg, TABLE,
           Collections.singletonList("ssn"), Collections.singletonList("email"));
@@ -310,6 +324,85 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
+  /**
+   * With the metadata cache disabled, every encrypted-column read and write looks up its column
+   * configuration (including the key name) directly in the database instead of the cache.
+   */
+  @TestTemplate
+  void testMetadataCacheDisabledReadWrite() throws Exception {
+    final Properties props = pluginProps();
+    props.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "false");
+
+    try (Connection uncached = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
+      try (PreparedStatement pstmt = uncached.prepareStatement(
+          "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
+        pstmt.setString(1, TEST_NAME_1);
+        pstmt.setString(2, TEST_SSN_1);
+        pstmt.setString(3, TEST_EMAIL_1);
+        assertEquals(1, pstmt.executeUpdate());
+      }
+      assertSsn(uncached, TEST_NAME_1, TEST_SSN_1);
+
+      try (PreparedStatement pstmt = uncached.prepareStatement(
+          "UPDATE " + TABLE + " SET ssn = ? WHERE name = ?")) {
+        pstmt.setString(1, TEST_SSN_2);
+        pstmt.setString(2, TEST_NAME_1);
+        assertEquals(1, pstmt.executeUpdate());
+      }
+      assertSsn(uncached, TEST_NAME_1, TEST_SSN_2);
+    }
+
+    // The value is stored encrypted, and a connection using the cache reads it the same way.
+    assertStoredEncrypted(TEST_NAME_1, TEST_SSN_2);
+    assertWrapperRoundTrip(TEST_NAME_1, TEST_SSN_2);
+  }
+
+  /**
+   * A byte[] written to an encrypted column is not modified by the write, and getBytes returns the
+   * original bytes, not a buffer that is cleared after decryption.
+   */
+  @TestTemplate
+  void testBytesRoundTripLeavesCallerArrayIntact() throws Exception {
+    final byte[] original = {0, 1, 2, 3, 0x7f, (byte) 0x80, (byte) 0xfe, (byte) 0xff, 42};
+    final byte[] value = original.clone();
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "INSERT INTO " + TABLE + " (name, ssn) VALUES (?, ?)")) {
+      pstmt.setString(1, TEST_NAME_1);
+      pstmt.setBytes(2, value);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+    assertArrayEquals(original, value, "Encrypting must not modify the caller's array");
+
+    try (PreparedStatement pstmt = connection.prepareStatement(
+        "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, TEST_NAME_1);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        final byte[] first = rs.getBytes("ssn");
+        assertArrayEquals(original, first, "getBytes should return the decrypted bytes");
+        // Each read decrypts again; an earlier result must not be cleared by a later read.
+        final byte[] second = rs.getBytes("ssn");
+        assertArrayEquals(original, second, "A second getBytes should return the same bytes");
+        assertArrayEquals(original, first, "An earlier getBytes result must stay intact");
+      }
+    }
+
+    assertStoredEncrypted(TEST_NAME_1, original);
+  }
+
+  private static void assertSsn(final Connection conn, final String name, final String ssn)
+      throws SQLException {
+    try (PreparedStatement pstmt = conn.prepareStatement(
+        "SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, name);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next(), "Should find user " + name);
+        assertEquals(ssn, rs.getString("ssn"));
+      }
+    }
+  }
+
   @TestTemplate
   void testEncryptionMetadataSetup() throws Exception {
     // Verify encryption metadata was created
@@ -406,6 +499,151 @@ public class KmsEncryptionIntegrationTest {
         "Unexpected message: " + e.getMessage());
   }
 
+  /**
+   * The plugin's own metadata connections start with the application's connection properties, so
+   * a search_path set there reaches them too. They pin their search_path, so a session operator
+   * cannot change which columns the plugin encrypts.
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void testPgSessionEqualsOperatorDoesNotChangePluginLookups() throws Exception {
+    final String name = "Shadow Plugin";
+    final String email = "shadow@test.com";
+    try (Connection plainConn = KmsTestUtility.openPlainConnection()) {
+      try {
+        KmsTestUtility.createShadowEqualsOperators(plainConn, SHADOW_SCHEMA);
+        configureDecoyColumn(plainConn);
+
+        final Properties props = pluginProps();
+        // Puts the shadow schema in the search_path of every connection opened with these properties.
+        props.setProperty("currentSchema", SHADOW_SCHEMA + ",public");
+        // Look the metadata up on every statement rather than once into the cache.
+        props.setProperty(EncryptionConfig.METADATA_CACHE_ENABLED.name, "false");
+        assertShadowEqualsActive(props);
+
+        try (Connection shadowed = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+            PreparedStatement pstmt = shadowed.prepareStatement(
+                "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)")) {
+          pstmt.setString(1, name);
+          pstmt.setString(2, TEST_SSN_1);
+          pstmt.setString(3, email);
+          pstmt.executeUpdate();
+        }
+
+        // With every metadata row matching, name and email would be encrypted too.
+        try (PreparedStatement pstmt = plainConn.prepareStatement(
+            "SELECT email FROM " + TABLE + " WHERE name = ?")) {
+          pstmt.setString(1, name);
+          try (ResultSet rs = pstmt.executeQuery()) {
+            assertTrue(rs.next(), "The name column must be stored as plaintext");
+            assertEquals(email, rs.getString("email"), "The email column must be stored as plaintext");
+          }
+        }
+        assertStoredEncrypted(name, TEST_SSN_1);
+        assertWrapperRoundTrip(name, TEST_SSN_1);
+      } finally {
+        KmsTestUtility.dropShadowSchema(plainConn, SHADOW_SCHEMA);
+        KmsTestUtility.teardown(plainConn, SchemaName.of(METADATA_SCHEMA), DECOY_TABLE);
+      }
+    }
+  }
+
+  /**
+   * The metadata manager and key management utility can run on the application's own connection.
+   * They must neither use a session operator nor change the session's search_path.
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void testPgSessionEqualsOperatorDoesNotChangeMetadataOrKeyLookups() throws Exception {
+    final EncryptionConfig config = EncryptionConfig.builder()
+        .kmsRegion(region)
+        .encryptionMetadataSchema(METADATA_SCHEMA)
+        .cacheEnabled(false)
+        .allowedMasterKeyArns(kmsKeyId)
+        .build();
+    try (Connection conn = KmsTestUtility.openPlainConnection();
+        KmsClient kmsClient = KmsTestUtility.kmsClient(region)) {
+      try {
+        KmsTestUtility.createShadowEqualsOperators(conn, SHADOW_SCHEMA);
+        configureDecoyColumn(conn);
+        final String searchPath = SHADOW_SCHEMA + ", pg_catalog";
+        try (Statement stmt = conn.createStatement()) {
+          stmt.execute("SET search_path = " + searchPath);
+          // Both shadow operators come before the built-in ones here.
+          try (ResultSet rs = stmt.executeQuery("SELECT 'a'::varchar = 'b'::varchar, 1 = 2")) {
+            assertTrue(rs.next());
+            assertTrue(rs.getBoolean(1) && rs.getBoolean(2), "The shadow = operators are not in use");
+          }
+        }
+
+        // Rolled back below, so a lookup that matched every row cannot delete the configuration.
+        conn.setAutoCommit(false);
+        final MetadataManager metadataManager = new MetadataManager(conn, config);
+        final KeyManager keyManager = new KeyManager(kmsClient, conn, true, config);
+        try {
+          assertFalse(metadataManager.isColumnEncrypted(MISSING_TABLE, "ssn"));
+          assertFalse(metadataManager.isColumnEncrypted(TABLE, "email"));
+          assertFalse(metadataManager.hasEncryptedColumns(MISSING_TABLE));
+          assertNull(metadataManager.getColumnConfig(MISSING_TABLE, "ssn"));
+
+          // The join to key_storage must return this column's own key, not the decoy's.
+          final ColumnEncryptionConfig ssnConfig = metadataManager.getColumnConfig(TABLE, "ssn");
+          assertNotNull(ssnConfig);
+          assertEquals(ssnKeyId, ssnConfig.getKeyId());
+          assertEquals(KEY_NAME, ssnConfig.getKeyMetadata().getKeyName());
+          final ColumnEncryptionConfig loaded = metadataManager.loadEncryptionMetadata().get(TABLE + ".ssn");
+          assertNotNull(loaded);
+          assertEquals(KEY_NAME, loaded.getKeyMetadata().getKeyName());
+
+          // Lookups by key_storage.id, compared as integers.
+          assertEquals(KEY_NAME, keyManager.getKeyMetadata(ssnKeyId)
+              .orElseThrow(() -> new AssertionError("No key_storage row for the test column")).getKeyName());
+          final KeyManagementUtility utility =
+              new KeyManagementUtility(keyManager, metadataManager, conn, kmsClient, config);
+          assertEquals(Collections.singletonList(TABLE + ".ssn"), utility.getColumnsUsingKey(ssnKeyId));
+
+          utility.removeEncryptionForColumn(MISSING_TABLE, "ssn");
+          assertTrue(metadataManager.isColumnEncrypted(TABLE, "ssn"),
+              "Removing another column's configuration must not remove this one");
+          assertTrue(metadataManager.isColumnEncrypted(DECOY_TABLE, "secret"),
+              "Removing another column's configuration must not remove this one");
+
+          try (Statement stmt = conn.createStatement();
+              ResultSet rs = stmt.executeQuery("SHOW search_path")) {
+            assertTrue(rs.next());
+            assertEquals(searchPath, rs.getString(1), "The session's search_path must be left as it was");
+          }
+        } finally {
+          conn.rollback();
+          conn.setAutoCommit(true);
+          keyManager.shutdown();
+          metadataManager.shutdown();
+        }
+      } finally {
+        KmsTestUtility.dropShadowSchema(conn, SHADOW_SCHEMA);
+        KmsTestUtility.teardown(conn, SchemaName.of(METADATA_SCHEMA), DECOY_TABLE);
+      }
+    }
+  }
+
+  /** Configures a second encrypted column, with its own key, in the metadata tables. */
+  private static void configureDecoyColumn(final Connection conn) throws Exception {
+    KmsTestUtility.configureColumn(conn, SchemaName.of(METADATA_SCHEMA), isPg, region, kmsKeyId,
+        DECOY_KEY_NAME, DECOY_TABLE, "secret");
+  }
+
+  /** Checks that connections opened with these properties resolve = on varchar to the shadow one. */
+  private static void assertShadowEqualsActive(final Properties props) throws SQLException {
+    final Properties plainProps = ConnectionStringHelper.getDefaultProperties();
+    plainProps.setProperty("currentSchema", props.getProperty("currentSchema"));
+    try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getUrl(), plainProps);
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT 'a'::varchar = 'b'::varchar")) {
+      assertTrue(rs.next());
+      assertTrue(rs.getBoolean(1), "The shadow = operator is not in use");
+    }
+  }
+
   private static void deleteUsersByName(final String name) throws SQLException {
     try (Connection plainConn = DriverManager.getConnection(
             ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
@@ -429,6 +667,11 @@ public class KmsEncryptionIntegrationTest {
 
   private static void assertStoredEncrypted(final String name, final String ssn)
       throws SQLException {
+    assertStoredEncrypted(name, ssn.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static void assertStoredEncrypted(final String name, final byte[] plaintext)
+      throws SQLException {
     final String sql = isPg
         ? "SELECT ssn, has_valid_hmac_structure(ssn) AS valid_structure FROM " + TABLE + " WHERE name = ?"
         : "SELECT ssn FROM " + TABLE + " WHERE name = ?";
@@ -442,8 +685,7 @@ public class KmsEncryptionIntegrationTest {
         assertNotNull(stored, "Stored SSN must not be null");
         assertTrue(stored.length >= MIN_ENCRYPTED_LENGTH,
             "Stored SSN is too short to be ciphertext: " + stored.length);
-        assertFalse(Arrays.equals(ssn.getBytes(StandardCharsets.UTF_8), stored),
-            "Stored SSN must not be the plaintext");
+        assertFalse(Arrays.equals(plaintext, stored), "Stored SSN must not be the plaintext");
         if (isPg) {
           assertTrue(rs.getBoolean("valid_structure"),
               "Stored SSN should have a valid HMAC structure");

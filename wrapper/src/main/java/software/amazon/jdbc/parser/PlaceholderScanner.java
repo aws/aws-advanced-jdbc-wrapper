@@ -28,6 +28,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>A {@code ?} inside a string literal, a quoted identifier, a comment or a dollar-quoted string is
  * not a placeholder. The quoting and comment rules depend on the target driver, see {@link Mode}.
  * The rules mirror {@code org.postgresql.core.Parser} (PgJDBC) and MySQL Connector/J.
+ *
+ * <p>MySQL and MariaDB run the contents of an executable comment ({@code /*! ... *}{@code /}, with
+ * an optional version after the {@code !}, and MariaDB's {@code /*M! ... *}{@code /}). Drivers do not
+ * agree on whether a {@code ?} inside one is a placeholder, and the server runs a versioned one only
+ * when it is at least that version. Such comments are skipped like other comments, and the result
+ * reports when one holds text that could change which placeholder is which (see
+ * {@link Result#hasPlaceholderSensitiveExecutableComment()}).
  */
 public final class PlaceholderScanner {
 
@@ -48,7 +55,8 @@ public final class PlaceholderScanner {
   }
 
   private static final Result EMPTY_RESULT = new Result(
-      Collections.<Integer>emptyList(), Collections.<int[]>emptyList(), Collections.<String>emptyList());
+      Collections.<Integer>emptyList(), Collections.<int[]>emptyList(), Collections.<String>emptyList(),
+      Collections.<Integer>emptyList(), false, Collections.<String>emptyList());
 
   private PlaceholderScanner() {
     // Utility class
@@ -69,7 +77,11 @@ public final class PlaceholderScanner {
     final List<Integer> placeholders = new ArrayList<>();
     final List<int[]> blockComments = new ArrayList<>();
     final List<String> words = new ArrayList<>();
+    final List<Integer> statementBreaks = new ArrayList<>();
     final int len = sql.length();
+    boolean placeholderTextInExecutableComment = false;
+    boolean structureInExecutableComment = false;
+    final List<String> executableCommentWords = new ArrayList<>();
     int i = 0;
 
     while (i < len) {
@@ -94,6 +106,14 @@ public final class PlaceholderScanner {
       } else if (c == '/' && next == '*') {
         final int end = skipBlockComment(sql, i, mode == Mode.POSTGRESQL);
         blockComments.add(new int[] {i, end});
+        final int @Nullable [] content =
+            mode == Mode.POSTGRESQL ? null : executableCommentContent(sql, i, end);
+        if (content != null) {
+          final int kind = classifyExecutableComment(sql, content[0], content[1]);
+          placeholderTextInExecutableComment |= kind == EXECUTABLE_PLACEHOLDER_TEXT;
+          structureInExecutableComment |= kind == EXECUTABLE_STRUCTURE;
+          collectWords(sql, content[0], content[1], executableCommentWords);
+        }
         i = end;
       } else if (c == '$' && mode != Mode.MYSQL) {
         i = skipDollarQuote(sql, i);
@@ -112,6 +132,10 @@ public final class PlaceholderScanner {
         }
         words.add(sql.substring(i, end));
         i = end;
+      } else if (c == ';') {
+        // A statement separator: the words that follow belong to the next statement.
+        statementBreaks.add(words.size());
+        i++;
       } else if (Character.isDigit(c)) {
         // Skip numeric tokens (and identifier characters glued to them) as a whole.
         int end = i + 1;
@@ -124,7 +148,82 @@ public final class PlaceholderScanner {
       }
     }
 
-    return new Result(placeholders, blockComments, words);
+    // An executable comment that only holds structure (such as "= nickname, ssn") changes which
+    // column a placeholder outside it is assigned to; without any placeholder that cannot matter.
+    final boolean sensitive = placeholderTextInExecutableComment
+        || (structureInExecutableComment && !placeholders.isEmpty());
+    return new Result(placeholders, blockComments, words, statementBreaks, sensitive,
+        sensitive ? executableCommentWords : Collections.<String>emptyList());
+  }
+
+  private static final int EXECUTABLE_HARMLESS = 0;
+  private static final int EXECUTABLE_STRUCTURE = 1;
+  private static final int EXECUTABLE_PLACEHOLDER_TEXT = 2;
+
+  /**
+   * The contents of the block comment {@code [start, end)} when it is a MySQL or MariaDB executable
+   * comment ({@code /*!}, {@code /*M!}), as {@code {contentStart, contentEnd}} after the {@code !};
+   * null for any other comment.
+   */
+  private static int @Nullable [] executableCommentContent(
+      final String sql, final int start, final int end) {
+    int contentStart = start + 2;
+    if (contentStart < end && (sql.charAt(contentStart) == 'M' || sql.charAt(contentStart) == 'm')) {
+      contentStart++;
+    }
+    if (contentStart >= end || sql.charAt(contentStart) != '!') {
+      return null;
+    }
+    final int contentEnd = sql.startsWith("*/", end - 2) && end - 2 > contentStart ? end - 2 : end;
+    return new int[] {contentStart + 1, contentEnd};
+  }
+
+  /**
+   * What the contents of an executable comment can change when they are run as code. A {@code ?},
+   * a quote, a line comment or a nested block comment changes which placeholders there are or how
+   * many. A comma, an equals sign, a parenthesis or a semicolon changes which column a placeholder
+   * is assigned to. Keywords and names alone (such as {@code LOW_PRIORITY}) change neither.
+   */
+  private static int classifyExecutableComment(final String sql, final int from, final int to) {
+    int kind = EXECUTABLE_HARMLESS;
+    for (int j = from; j < to; j++) {
+      final char ch = sql.charAt(j);
+      if (ch == '?' || ch == '\'' || ch == '"' || ch == '`' || ch == '#') {
+        return EXECUTABLE_PLACEHOLDER_TEXT;
+      }
+      final char after = j + 1 < to ? sql.charAt(j + 1) : '\0';
+      if ((ch == '-' && after == '-') || (ch == '/' && after == '*')) {
+        return EXECUTABLE_PLACEHOLDER_TEXT;
+      }
+      if (ch == ',' || ch == '=' || ch == '(' || ch == ')' || ch == ';') {
+        kind = EXECUTABLE_STRUCTURE;
+      }
+    }
+    return kind;
+  }
+
+  /** Adds the identifier-like words of {@code sql[from, to)} to {@code sink}. */
+  private static void collectWords(final String sql, final int from, final int to, final List<String> sink) {
+    int j = from;
+    while (j < to) {
+      final char ch = sql.charAt(j);
+      if (Character.isLetter(ch) || ch == '_') {
+        int end = j + 1;
+        while (end < to && isIdentifierChar(sql.charAt(end))) {
+          end++;
+        }
+        sink.add(sql.substring(j, end));
+        j = end;
+      } else if (Character.isDigit(ch)) {
+        int end = j + 1;
+        while (end < to && isIdentifierChar(sql.charAt(end))) {
+          end++;
+        }
+        j = end;
+      } else {
+        j++;
+      }
+    }
   }
 
   private static boolean isIdentifierChar(final char c) {
@@ -268,14 +367,39 @@ public final class PlaceholderScanner {
     private final List<Integer> placeholderOffsets;
     private final List<int[]> blockComments;
     private final List<String> words;
+    private final List<List<String>> statements;
+    private final boolean sensitiveExecutableComment;
+    private final List<String> executableCommentWords;
 
     private Result(
         final List<Integer> placeholderOffsets,
         final List<int[]> blockComments,
-        final List<String> words) {
+        final List<String> words,
+        final List<Integer> statementBreaks,
+        final boolean sensitiveExecutableComment,
+        final List<String> executableCommentWords) {
+      this.sensitiveExecutableComment = sensitiveExecutableComment;
+      this.executableCommentWords = Collections.unmodifiableList(executableCommentWords);
       this.placeholderOffsets = Collections.unmodifiableList(placeholderOffsets);
       this.blockComments = Collections.unmodifiableList(blockComments);
       this.words = Collections.unmodifiableList(words);
+      this.statements = Collections.unmodifiableList(splitStatements(this.words, statementBreaks));
+    }
+
+    private static List<List<String>> splitStatements(
+        final List<String> words, final List<Integer> statementBreaks) {
+      final List<List<String>> statements = new ArrayList<>();
+      int start = 0;
+      for (int end : statementBreaks) {
+        if (end > start) {
+          statements.add(words.subList(start, end));
+        }
+        start = end;
+      }
+      if (words.size() > start) {
+        statements.add(words.subList(start, words.size()));
+      }
+      return statements;
     }
 
     /**
@@ -305,6 +429,42 @@ public final class PlaceholderScanner {
      */
     public List<String> getWords() {
       return words;
+    }
+
+    /**
+     * The words of each statement, split at top-level semicolons. Statements without any words (an
+     * empty statement, or a trailing semicolon) are not listed, so a single statement yields one
+     * entry and blank SQL yields none.
+     *
+     * @return an unmodifiable list of the words of each statement, in order
+     */
+    public List<List<String>> getStatements() {
+      return statements;
+    }
+
+    /**
+     * True when the statement has a MySQL or MariaDB executable comment ({@code /*!}, {@code /*M!})
+     * that changes how its placeholders are matched to columns when it is run: one holding a
+     * {@code ?}, a quote, a line comment or a nested block comment, or, in a statement with
+     * placeholders, a comma, an equals sign, a parenthesis or a semicolon. Different drivers and
+     * servers read such a statement differently, so no parameter index of it can be matched to a
+     * column. Never true in {@link Mode#POSTGRESQL}, where these are ordinary comments.
+     *
+     * @return {@code true} if such a comment was found; {@code false} otherwise
+     */
+    public boolean hasPlaceholderSensitiveExecutableComment() {
+      return sensitiveExecutableComment;
+    }
+
+    /**
+     * The identifier-like words inside the statement's executable comments, which may name tables
+     * the statement touches only when the comments are run. Empty unless
+     * {@link #hasPlaceholderSensitiveExecutableComment()} is true.
+     *
+     * @return an unmodifiable list of words
+     */
+    public List<String> getExecutableCommentWords() {
+      return executableCommentWords;
     }
 
     /**

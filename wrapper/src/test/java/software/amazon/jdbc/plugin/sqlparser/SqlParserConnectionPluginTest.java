@@ -20,10 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +46,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.parser.ParameterColumnMapper;
 import software.amazon.jdbc.parser.ParameterMappingProblem;
 import software.amazon.jdbc.parser.QueryType;
 import software.amazon.jdbc.parser.RoutingHint;
@@ -324,7 +329,8 @@ public class SqlParserConnectionPluginTest {
       logger.removeHandler(handler);
     }
 
-    assertEquals("public.users.ssn", paramMapping().get(2));
+    // The annotation agrees with the automatic mapping, whose table name the metadata uses.
+    assertEquals("users.ssn", paramMapping().get(2));
     assertTrue(warnings.isEmpty());
   }
 
@@ -334,5 +340,233 @@ public class SqlParserConnectionPluginTest {
 
     assertTrue(callContext.hasAttribute(SqlContextKeys.PARAM_MAPPING_PROBLEMS));
     assertTrue(problems().isEmpty());
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<ParameterColumnMapper.UnboundColumn> unboundColumns() {
+    return callContext.getAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, List.class);
+  }
+
+  private void execute(String methodName, Object methodInvokeOn, Object... args) throws Exception {
+    JdbcCallable<Object, SQLException> callable = () -> null;
+    plugin.execute(Object.class, SQLException.class, methodInvokeOn, methodName, callable, args);
+  }
+
+  @Test
+  void test_literalWrite_setsUnboundColumns() throws Exception {
+    executeWithSql("INSERT INTO users (name, ssn) VALUES (?, '123')");
+
+    assertEquals(1, unboundColumns().size());
+    assertEquals("ssn", unboundColumns().get(0).getColumn());
+    assertEquals("users", unboundColumns().get(0).getTable());
+  }
+
+  @Test
+  void test_subscribesToAddBatch() {
+    Set<String> methods = plugin.getSubscribedMethods();
+
+    assertTrue(methods.contains("Statement.addBatch"));
+    assertFalse(methods.contains("PreparedStatement.addBatch"));
+    assertFalse(methods.contains("CallableStatement.addBatch"));
+  }
+
+  @Test
+  void test_statementMethodsWithSql_populateContext() throws Exception {
+    for (String methodName : new String[] {
+        "Statement.execute", "Statement.executeQuery", "Statement.executeUpdate", "Statement.addBatch"}) {
+      callContext.reset();
+      execute(methodName, mock(Statement.class), "UPDATE users SET ssn = 'x'");
+
+      assertEquals(QueryType.UPDATE,
+          callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class), methodName);
+      assertEquals(1, unboundColumns().size(), methodName);
+    }
+  }
+
+  @Test
+  void test_preparedStatementExecuteWithSql_parsesThatSqlNotThePreparedOne() throws Exception {
+    PreparedStatement ps = mock(PreparedStatement.class);
+    plugin.execute(PreparedStatement.class, SQLException.class, null,
+        "Connection.prepareStatement", () -> ps, new Object[] {"SELECT * FROM users WHERE id = ?"});
+    callContext.reset();
+
+    execute("PreparedStatement.executeUpdate", ps, "UPDATE users SET ssn = 'x'");
+
+    assertEquals(QueryType.UPDATE, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertEquals(1, unboundColumns().size());
+
+    callContext.reset();
+    execute("PreparedStatement.executeQuery", ps);
+
+    assertEquals(QueryType.SELECT, callContext.getAttribute(SqlContextKeys.QUERY_TYPE, QueryType.class));
+    assertTrue(unboundColumns().isEmpty());
+  }
+
+  private List<LogRecord> warningsWhilePreparing(String sql) throws Exception {
+    final Logger logger = Logger.getLogger(SqlParserConnectionPlugin.class.getName());
+    final List<LogRecord> warnings = new ArrayList<>();
+    final Handler handler = new Handler() {
+      @Override
+      public void publish(LogRecord record) {
+        if (record.getLevel() == Level.WARNING) {
+          warnings.add(record);
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    logger.addHandler(handler);
+    try {
+      executeWithSql(sql);
+    } finally {
+      logger.removeHandler(handler);
+    }
+    return warnings;
+  }
+
+  @Test
+  void test_multiTableUpdate_tablesListWrittenTablesInStatementOrder() throws Exception {
+    executeWithSql("UPDATE other o JOIN users u ON o.id = u.id SET u.ssn = ?");
+
+    Set<String> tables = callContext.getAttribute(SqlContextKeys.TABLES, Set.class);
+    assertEquals(Arrays.asList("other", "users"), new ArrayList<>(tables));
+  }
+
+  @Test
+  void test_bareAnnotation_takesTableOfPositionalMapping() throws Exception {
+    final List<LogRecord> warnings = warningsWhilePreparing(
+        "UPDATE other o JOIN users u ON o.id = u.id SET u.ssn = /*@encrypt:ssn*/ ? WHERE o.id = ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+    assertTrue(warnings.isEmpty());
+  }
+
+  @Test
+  void test_aliasAnnotation_resolvesToItsTable() throws Exception {
+    executeWithSql("SELECT * FROM users u WHERE lower(u.ssn) = /*@encrypt:u.ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+  }
+
+  @Test
+  void test_aliasAnnotationAgreeingWithMapping_doesNotWarn() throws Exception {
+    final List<LogRecord> warnings =
+        warningsWhilePreparing("UPDATE users u SET ssn = /*@encrypt:u.ssn*/ ? WHERE u.id = ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+    assertTrue(warnings.isEmpty());
+  }
+
+  @Test
+  void test_resolveAnnotation() {
+    final Map<String, String> aliases = new HashMap<>();
+    aliases.put("u", "users");
+    aliases.put("other", "other");
+
+    assertEquals("users.ssn",
+        SqlParserConnectionPlugin.resolveAnnotation("ssn", "users.ssn", aliases, null));
+    assertEquals("ssn", SqlParserConnectionPlugin.resolveAnnotation("ssn", "users.name", aliases, null));
+    assertEquals("ssn", SqlParserConnectionPlugin.resolveAnnotation("ssn", null, aliases, null));
+    assertEquals("users.ssn", SqlParserConnectionPlugin.resolveAnnotation("ssn", null, aliases, "users"));
+    assertEquals("users.ssn", SqlParserConnectionPlugin.resolveAnnotation("U.ssn", null, aliases, null));
+    assertEquals("other.ssn", SqlParserConnectionPlugin.resolveAnnotation("other.ssn", null, aliases, null));
+    assertEquals("public.u.ssn",
+        SqlParserConnectionPlugin.resolveAnnotation("public.u.ssn", null, aliases, null));
+  }
+
+  @Test
+  void test_bareAnnotation_singleTableStatement_takesThatTable() throws Exception {
+    executeWithSql("SELECT * FROM users WHERE lower(ssn) = /*@encrypt:ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_schemaQualifiedSingleTable_takesBareTableName() throws Exception {
+    executeWithSql("UPDATE public.users SET note = lower(/*@encrypt:ssn*/ ?) WHERE id = 1");
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+    for (ParameterMappingProblem problem : problems()) {
+      assertFalse(problem.getParameterIndexes().contains(1)
+          && problem.getType() == ParameterMappingProblem.Type.UNKNOWN_TARGET_PARAMS, problem.toString());
+    }
+
+    executeWithSql("SELECT * FROM public.users WHERE lower(ssn) = /*@encrypt:ssn*/ ?");
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_tablesInDifferentSchemas_stayBare() throws Exception {
+    executeWithSql("SELECT * FROM a.users JOIN b.other ON users.id = other.id"
+        + " WHERE lower(ssn) = /*@encrypt:ssn*/ ?");
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+
+    executeWithSql("SELECT * FROM a.users x JOIN b.users y ON x.id = y.id"
+        + " WHERE lower(x.ssn) = /*@encrypt:ssn*/ ?");
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_tablesDifferingInCase_stayBare() throws Exception {
+    executeWithSql("SELECT * FROM \"Users\" x JOIN users y ON x.id = y.id"
+        + " WHERE lower(x.ssn) = /*@encrypt:ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_sameTableTwice_takesThatTable() throws Exception {
+    executeWithSql("SELECT * FROM users x JOIN users y ON x.parent = y.id"
+        + " WHERE lower(x.ssn) = /*@encrypt:ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "users.ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotation_subqueryTableCounts_staysBare() throws Exception {
+    executeWithSql("SELECT * FROM other WHERE id IN (SELECT id FROM users WHERE lower(ssn) = /*@encrypt:ssn*/ ?)");
+
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+  }
+
+  @Test
+  void test_bareAnnotationWithUncertainTableInWrite_reportsUnmappedParameter() throws Exception {
+    executeWithSql("UPDATE other o JOIN users u ON o.id = u.id SET u.ssn = lower(/*@encrypt:ssn*/ ?)");
+
+    assertEquals(Collections.singletonMap(1, "ssn"), paramMapping());
+    boolean reported = false;
+    for (ParameterMappingProblem problem : problems()) {
+      reported |= problem.getType() == ParameterMappingProblem.Type.UNKNOWN_TARGET_PARAMS
+          && "users".equals(problem.getTable())
+          && problem.getColumns().equals(Collections.singletonList("ssn"));
+    }
+    assertTrue(reported, problems().toString());
+  }
+
+  @Test
+  void test_annotationOverridingPositionalColumnInWrite_reportsThatColumn() throws Exception {
+    executeWithSql("INSERT INTO users (ssn) SELECT /*@encrypt:o.ssn*/ ? FROM other o");
+
+    assertEquals(Collections.singletonMap(1, "o.ssn"), paramMapping());
+    boolean reported = false;
+    for (ParameterMappingProblem problem : problems()) {
+      reported |= problem.getType() == ParameterMappingProblem.Type.UNKNOWN_TARGET_PARAMS
+          && "users".equals(problem.getTable())
+          && problem.getColumns().equals(Collections.singletonList("ssn"))
+          && problem.getParameterIndexes().equals(Collections.singletonList(1));
+    }
+    assertTrue(reported, problems().toString());
+  }
+
+  @Test
+  void test_schemaQualifiedAnnotationWithoutMapping_isKeptAsWritten() throws Exception {
+    executeWithSql("SELECT * FROM public.users WHERE lower(ssn) = /*@encrypt:public.users.ssn*/ ?");
+
+    assertEquals(Collections.singletonMap(1, "public.users.ssn"), paramMapping());
   }
 }

@@ -43,7 +43,9 @@ import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.jdbc.plugin.encryption.EncryptionSql;
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPlugin;
+import software.amazon.jdbc.plugin.encryption.logging.Sanitizer;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
@@ -81,6 +83,20 @@ public class KeyManagementUtility {
 
   /** Longest identifier accepted for re-encryption, and the MySQL limit for user variable names. */
   private static final int MAX_IDENTIFIER_LENGTH = 64;
+
+  /**
+   * PostgreSQL only. Reads the primary key column's type, as a domain's base type when it is a
+   * domain, and whether that type is built in.
+   */
+  private static final String SELECT_PG_PRIMARY_KEY_TYPE_SQL =
+      "SELECT pg_catalog.format_type(a.atttypid, a.atttypmod) AS type_name, "
+          + "(CASE WHEN t.typtype OPERATOR(pg_catalog.=) 'd' THEN bt.typnamespace ELSE t.typnamespace END) "
+          + "OPERATOR(pg_catalog.=) 'pg_catalog'::pg_catalog.regnamespace::pg_catalog.oid AS built_in "
+          + "FROM pg_catalog.pg_attribute a "
+          + "JOIN pg_catalog.pg_type t ON t.oid OPERATOR(pg_catalog.=) a.atttypid "
+          + "LEFT JOIN pg_catalog.pg_type bt ON bt.oid OPERATOR(pg_catalog.=) t.typbasetype "
+          + "WHERE a.attrelid OPERATOR(pg_catalog.=) pg_catalog.to_regclass(?::pg_catalog.text)::pg_catalog.oid "
+          + "AND a.attname OPERATOR(pg_catalog.=) ?::pg_catalog.name AND NOT a.attisdropped";
 
   private final EncryptionService encryptionService = new EncryptionService();
   private final KeyManager keyManager;
@@ -179,17 +195,18 @@ public class KeyManagementUtility {
   private String getUpdateEncryptionMetadataKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "UPDATE " + schema + ".encryption_metadata SET key_id = ?, updated_at = ? "
-        + "WHERE table_name = ? AND column_name = ?";
+        + "WHERE table_name " + eq() + " ? AND column_name " + eq() + " ?";
   }
 
   private String getSelectColumnsWithKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT table_name, column_name FROM " + schema + ".encryption_metadata WHERE key_id = ?";
+    return "SELECT table_name, column_name FROM " + schema + ".encryption_metadata WHERE key_id " + eq() + " ?";
   }
 
   private String getDeleteEncryptionMetadataSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "DELETE FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+    return "DELETE FROM " + schema + ".encryption_metadata WHERE table_name " + eq() + " ? AND column_name "
+        + eq() + " ?";
   }
 
   private String getSelectCurrentKeySql() {
@@ -197,29 +214,42 @@ public class KeyManagementUtility {
     return "SELECT em.key_id, em.encryption_algorithm, em.table_name, em.column_name, "
         + "ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key "
         + "FROM " + schema + ".encryption_metadata em "
-        + "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id "
-        + "WHERE em.table_name = ? AND em.column_name = ?";
+        + "JOIN " + schema + ".key_storage ks ON em.key_id " + eq() + " ks.id "
+        + "WHERE em.table_name " + eq() + " ? AND em.column_name " + eq() + " ?";
   }
 
   private String getSelectKeyByIdSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT id, master_key_arn, encrypted_data_key, hmac_key FROM " + schema + ".key_storage WHERE id = ?";
+    return "SELECT id, master_key_arn, encrypted_data_key, hmac_key FROM " + schema + ".key_storage WHERE id "
+        + eq() + " ?";
   }
 
   private String getSwitchEncryptionMetadataKeySql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
     return "UPDATE " + schema + ".encryption_metadata SET key_id = ?, updated_at = ? "
-        + "WHERE table_name = ? AND column_name = ? AND key_id = ?";
+        + "WHERE table_name " + eq() + " ? AND column_name " + eq() + " ? AND key_id " + eq() + " ?";
   }
 
   private String getSelectColumnKeyIdSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "SELECT key_id FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+    return "SELECT key_id FROM " + schema + ".encryption_metadata WHERE table_name " + eq()
+        + " ? AND column_name " + eq() + " ?";
   }
 
   private String getDeleteKeyByIdSql() {
     SchemaName schema = config.getEncryptionMetadataSchema();
-    return "DELETE FROM " + schema + ".key_storage WHERE id = ?";
+    return "DELETE FROM " + schema + ".key_storage WHERE id " + eq() + " ?";
+  }
+
+  // The equality operator for the plugin's SQL. Every comparison it makes is on a column of a
+  // built-in type: the metadata and key tables, the encrypted value column, and, on PostgreSQL,
+  // the primary key, whose type checkPrimaryKeyType requires to be built in.
+  private String eq() {
+    return EncryptionSql.equalsOperator(keyManager.isPostgreSQL());
+  }
+
+  private String greaterThan() {
+    return keyManager.isPostgreSQL() ? EncryptionSql.PG_GREATER_THAN : ">";
   }
 
   /** Keyset page of (pk, value) rows. The target's identifiers are validated. */
@@ -228,7 +258,7 @@ public class KeyManagementUtility {
     final String column = quoteIdentifier(target.column);
     return "SELECT " + pk + ", " + column + " FROM " + quoteTableName(target)
         + " WHERE " + column + " IS NOT NULL AND " + pk + " IS NOT NULL"
-        + (firstPage ? "" : " AND " + pk + " > ?")
+        + (firstPage ? "" : " AND " + pk + " " + greaterThan() + " ?")
         + " ORDER BY " + pk + " LIMIT ?"
         + (forUpdate ? " FOR UPDATE" : "");
   }
@@ -237,13 +267,20 @@ public class KeyManagementUtility {
   private String getUpdateEncryptedValueSql(ColumnTarget target) {
     final String column = quoteIdentifier(target.column);
     return "UPDATE " + quoteTableName(target) + " SET " + column + " = ?"
-        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " = ? AND " + column + " = ?";
+        + " WHERE " + quoteIdentifier(target.primaryKeyColumn) + " " + eq() + " ?"
+        + " AND " + column + " " + eq() + " ?";
+  }
+
+  /** Finds out whether the column holds any value. The target's identifiers are validated. */
+  private String getSelectAnyValueSql(ColumnTarget target) {
+    return "SELECT 1 FROM " + quoteTableName(target)
+        + " WHERE " + quoteIdentifier(target.column) + " IS NOT NULL LIMIT 1";
   }
 
   /** Reads no rows; fails if the table, the column or the primary key column does not exist. */
   private String getProbeSql(ColumnTarget target) {
     return "SELECT " + quoteIdentifier(target.primaryKeyColumn) + ", " + quoteIdentifier(target.column)
-        + " FROM " + quoteTableName(target) + " WHERE 1=0";
+        + " FROM " + quoteTableName(target) + " WHERE FALSE";
   }
 
   /**
@@ -283,13 +320,15 @@ public class KeyManagementUtility {
 
       kmsClient.createAlias(aliasRequest);
 
-      LOGGER.info(() -> Messages.get("KeyManagementUtility.masterKeyCreated", new Object[]{keyArn, aliasName}));
+      LOGGER.info(() -> Messages.get(
+          "KeyManagementUtility.masterKeyCreated", new Object[]{Sanitizer.arn(keyArn), aliasName}));
       return keyArn;
 
     } catch (Exception e) {
-      LOGGER.severe(() -> Messages.get("KeyManagementUtility.masterKeyFailed", new Object[]{e.getMessage()}));
+      LOGGER.severe(() -> Messages.get(
+          "KeyManagementUtility.masterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManagementUtility.createMasterKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManagementUtility.createMasterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -326,7 +365,7 @@ public class KeyManagementUtility {
     }
 
     LOGGER.info(() -> Messages.get(
-        "KeyManagementUtility.generatingDataKey", new Object[]{tableName, columnName, masterKeyArn}));
+        "KeyManagementUtility.generatingDataKey", new Object[]{tableName, columnName, Sanitizer.arn(masterKeyArn)}));
 
     try {
 
@@ -393,25 +432,32 @@ public class KeyManagementUtility {
    *       holds data encrypted under it. Without them that data cannot be recovered.
    * </ul>
    *
-   * <p>This method is safe only for a column that holds no encrypted data. To rotate the data key
-   * of a column that holds data, use {@link #rotateDataKeyAndReencrypt(String, String, String,
-   * String, int)}. If this method was already called on a column with data, re-encrypt the
-   * remaining rows with {@link #reencryptRemainingRows(String, String, String, List, int)}, passing
-   * the previous key id. To rotate the KMS key instead, enable KMS automatic key rotation; it is
-   * transparent to the plugin.
+   * <p>This method is safe only for a column that holds no data, so it refuses to run on any other
+   * column: it throws before changing anything when the column has a non-null value. To rotate the
+   * data key of a column that holds data, use {@link #rotateDataKeyAndReencrypt(String, String, String,
+   * String, int)}. If a previous release's version of this method was already called on a column with
+   * data, re-encrypt the remaining rows with
+   * {@link #reencryptRemainingRows(String, String, String, List, int)}, passing the previous key id.
+   * To rotate the KMS key instead, enable KMS automatic key rotation; it is transparent to the
+   * plugin.
    *
    * @param tableName       Name of the table
    * @param columnName      Name of the column
    * @param newMasterKeyArn The master key to wrap the new data key with, or null to keep the
    *     current one (requires {@code encryptionAllowedMasterKeyArns})
-   * @throws KeyManagementException if the master key is not allowed, or key rotation fails
-   * @throws IllegalArgumentException if no master key is given and no allow-list is configured
+   * @throws KeyManagementException if the column holds data, the master key is not allowed, or key
+   *     rotation fails
+   * @throws IllegalArgumentException if no master key is given and no allow-list is configured, or
+   *     a table or column name is not a valid identifier
    */
   public void rotateDataKey(String tableName, String columnName, @Nullable String newMasterKeyArn)
       throws KeyManagementException {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
+    validateTableAndColumn(tableName, columnName);
     requireTargetMasterKey(newMasterKeyArn);
+
+    requireEmptyColumn(tableName, columnName);
 
     LOGGER.info(() -> Messages.get("KeyManagementUtility.rotatingKey", new Object[]{tableName, columnName}));
 
@@ -464,9 +510,10 @@ public class KeyManagementUtility {
     } catch (Exception e) {
       rethrowIfUnauthorizedMasterKey(e);
       LOGGER.severe(() -> Messages.get(
-          "KeyManagementUtility.keyRotationFailed", new Object[]{tableName, columnName, e.getMessage()}));
+          "KeyManagementUtility.keyRotationFailed",
+          new Object[]{tableName, columnName, Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 
@@ -550,6 +597,7 @@ public class KeyManagementUtility {
           schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
       target = column;
       checkColumnsExist(conn, column);
+      checkPrimaryKeyType(conn, column);
       LOGGER.info(() -> Messages.get("KeyManagementUtility.rotationStarting",
           new Object[]{tableName, columnName, String.valueOf(oldKey.id), String.valueOf(batchSize)}));
 
@@ -759,6 +807,7 @@ public class KeyManagementUtility {
       final ColumnTarget target = new ColumnTarget(
           schemaPrefix(tableName), current.storedTable, current.storedColumn, primaryKeyColumn);
       checkColumnsExist(conn, target);
+      checkPrimaryKeyType(conn, target);
 
       conn.setAutoCommit(false);
       autoCommitChanged = true;
@@ -968,6 +1017,34 @@ public class KeyManagementUtility {
   }
 
   /**
+   * Throws if the column holds a non-null value, before anything is changed. Switching the data
+   * key does not re-encrypt rows, so it would make every existing value unreadable.
+   */
+  private void requireEmptyColumn(String tableName, String columnName) throws KeyManagementException {
+    Connection conn = null;
+    try {
+      conn = getConnection();
+      final CurrentColumnKey current = loadCurrentKey(conn, tableName, columnName);
+      final ColumnTarget target =
+          new ColumnTarget(schemaPrefix(tableName), current.storedTable, current.storedColumn, "");
+      try (PreparedStatement stmt = conn.prepareStatement(getSelectAnyValueSql(target));
+           ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          throw new KeyManagementException(
+              Messages.get("KeyManagementUtility.rotateColumnHasData", new Object[]{tableName, columnName}));
+        }
+      }
+    } catch (KeyManagementException e) {
+      throw e;
+    } catch (SQLException e) {
+      throw new KeyManagementException(
+          Messages.get("KeyManagementUtility.rotateDataKeyFailed", new Object[]{e.getMessage(), e}));
+    } finally {
+      closeConnectionQuietly(conn);
+    }
+  }
+
+  /**
    * Reads the column's current key, algorithm and stored names from the database, bypassing the
    * metadata cache. The metadata is looked up with the bare table name, as the plugin stores it.
    */
@@ -1018,11 +1095,42 @@ public class KeyManagementUtility {
   private void checkColumnsExist(Connection conn, ColumnTarget target) throws KeyManagementException {
     try (PreparedStatement stmt = conn.prepareStatement(getProbeSql(target));
          ResultSet ignored = stmt.executeQuery()) {
-      // WHERE 1=0: no rows to read.
+      // WHERE FALSE: no rows to read.
     } catch (SQLException e) {
       throw new KeyManagementException(Messages.get("KeyManagementUtility.relationCheckFailed",
           new Object[]{quoteTableName(target), quoteIdentifier(target.column),
               quoteIdentifier(target.primaryKeyColumn), e.getMessage()}), e);
+    }
+  }
+
+  /**
+   * On PostgreSQL, refuses a primary key whose type is not built in, before any change. Paging and
+   * the update compare the primary key with the built-in operators, which for a type such as
+   * citext would compare differently from the type's own ordering and could skip rows.
+   */
+  private void checkPrimaryKeyType(Connection conn, ColumnTarget target) throws KeyManagementException {
+    if (!keyManager.isPostgreSQL()) {
+      return;
+    }
+    @Nullable String typeName = null;
+    boolean builtIn = false;
+    try (PreparedStatement stmt = conn.prepareStatement(SELECT_PG_PRIMARY_KEY_TYPE_SQL)) {
+      stmt.setString(1, quoteTableName(target));
+      stmt.setString(2, target.primaryKeyColumn);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          typeName = rs.getString("type_name");
+          builtIn = rs.getBoolean("built_in");
+        }
+      }
+    } catch (SQLException e) {
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.primaryKeyTypeCheckFailed",
+          new Object[]{quoteTableName(target), quoteIdentifier(target.primaryKeyColumn), e.getMessage()}), e);
+    }
+    if (!builtIn) {
+      throw new KeyManagementException(Messages.get("KeyManagementUtility.unsupportedPrimaryKeyType",
+          new Object[]{quoteTableName(target), quoteIdentifier(target.primaryKeyColumn),
+              typeName == null ? "unknown" : typeName}));
     }
   }
 
@@ -1061,6 +1169,22 @@ public class KeyManagementUtility {
     Objects.requireNonNull(columnName, Messages.get("KeyManagementUtility.columnNameNull"));
     Objects.requireNonNull(primaryKeyColumn, Messages.get("KeyManagementUtility.primaryKeyColumnNull"));
 
+    validateTableAndColumn(tableName, columnName);
+    if (!isValidIdentifier(primaryKeyColumn)) {
+      throw new IllegalArgumentException(
+          Messages.get("KeyManagementUtility.invalidPrimaryKeyColumn", new Object[]{primaryKeyColumn}));
+    }
+    if (primaryKeyColumn.equalsIgnoreCase(columnName)) {
+      throw new IllegalArgumentException(
+          Messages.get("KeyManagementUtility.primaryKeySameAsColumn", new Object[]{primaryKeyColumn}));
+    }
+    if (batchSize < 1 || batchSize > MAX_REENCRYPTION_BATCH_SIZE) {
+      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.invalidBatchSize",
+          new Object[]{String.valueOf(MAX_REENCRYPTION_BATCH_SIZE), String.valueOf(batchSize)}));
+    }
+  }
+
+  private static void validateTableAndColumn(String tableName, String columnName) {
     final String[] tableParts = tableName.split("\\.", -1);
     boolean validTable = tableParts.length <= 2;
     for (String part : tableParts) {
@@ -1073,18 +1197,6 @@ public class KeyManagementUtility {
     if (!isValidIdentifier(columnName)) {
       throw new IllegalArgumentException(
           Messages.get("KeyManagementUtility.invalidColumnName", new Object[]{columnName}));
-    }
-    if (!isValidIdentifier(primaryKeyColumn)) {
-      throw new IllegalArgumentException(
-          Messages.get("KeyManagementUtility.invalidPrimaryKeyColumn", new Object[]{primaryKeyColumn}));
-    }
-    if (primaryKeyColumn.equalsIgnoreCase(columnName)) {
-      throw new IllegalArgumentException(
-          Messages.get("KeyManagementUtility.primaryKeySameAsColumn", new Object[]{primaryKeyColumn}));
-    }
-    if (batchSize < 1 || batchSize > MAX_REENCRYPTION_BATCH_SIZE) {
-      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.invalidBatchSize",
-          new Object[]{String.valueOf(MAX_REENCRYPTION_BATCH_SIZE), String.valueOf(batchSize)}));
     }
   }
 
@@ -1366,21 +1478,35 @@ public class KeyManagementUtility {
    * Lists all columns that use a specific key ID. Useful for understanding the impact of key
    * operations.
    *
-   * @param keyId The key ID to search for
+   * @param keyId The key ID to search for: the {@code key_storage.id} value, in decimal
+   * @return List of table.column identifiers using the key
+   * @throws KeyManagementException if query fails
+   * @throws IllegalArgumentException if the key ID is not an integer
+   * @deprecated Use {@link #getColumnsUsingKey(int)}.
+   */
+  @Deprecated
+  public List<String> getColumnsUsingKey(String keyId) throws KeyManagementException {
+    Objects.requireNonNull(keyId, "Key ID cannot be null");
+    return getColumnsUsingKey(KeyManager.parseKeyId(keyId));
+  }
+
+  /**
+   * Lists all columns that use a specific key ID. Useful for understanding the impact of key
+   * operations.
+   *
+   * @param keyId The key ID to search for: the {@code key_storage.id} value
    * @return List of table.column identifiers using the key
    * @throws KeyManagementException if query fails
    */
-  public List<String> getColumnsUsingKey(String keyId) throws KeyManagementException {
-    Objects.requireNonNull(keyId, "Key ID cannot be null");
-
-    LOGGER.finest(() -> Messages.get("KeyManagementUtility.findingColumns", new Object[]{keyId}));
+  public List<String> getColumnsUsingKey(int keyId) throws KeyManagementException {
+    LOGGER.finest(() -> Messages.get("KeyManagementUtility.findingColumns", new Object[]{String.valueOf(keyId)}));
 
     Connection conn = null;
     try {
       conn = getConnection();
       try (PreparedStatement stmt = conn.prepareStatement(getSelectColumnsWithKeySql())) {
 
-        stmt.setString(1, keyId);
+        stmt.setInt(1, keyId);
 
         try (ResultSet rs = stmt.executeQuery()) {
           List<String> columns = new ArrayList<>();
@@ -1394,7 +1520,8 @@ public class KeyManagementUtility {
       }
 
     } catch (SQLException e) {
-      LOGGER.severe(() -> Messages.get("KeyManagementUtility.findColumnsFailed", new Object[]{keyId, e.getMessage()}));
+      LOGGER.severe(() -> Messages.get("KeyManagementUtility.findColumnsFailed",
+          new Object[]{String.valueOf(keyId), e.getMessage()}));
       throw new KeyManagementException(
           Messages.get("KeyManagementUtility.findColumnsForKeyFailed", new Object[]{e.getMessage(), e}));
     } finally {
@@ -1416,7 +1543,8 @@ public class KeyManagementUtility {
   public boolean validateMasterKey(String masterKeyArn) throws KeyManagementException {
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    LOGGER.finest(() -> Messages.get("KeyManagementUtility.validatingMasterKey", new Object[]{masterKeyArn}));
+    LOGGER.finest(() -> Messages.get(
+        "KeyManagementUtility.validatingMasterKey", new Object[]{Sanitizer.arn(masterKeyArn)}));
 
     try {
       DescribeKeyRequest request = DescribeKeyRequest.builder().keyId(masterKeyArn).build();
@@ -1429,14 +1557,16 @@ public class KeyManagementUtility {
               && keyMetadata.keyState() == KeyState.ENABLED
               && keyMetadata.keyUsage() == KeyUsageType.ENCRYPT_DECRYPT;
 
-      LOGGER.finest(() -> Messages.get("KeyManagementUtility.masterKeyValidated", new Object[]{masterKeyArn, isValid}));
+      LOGGER.finest(() -> Messages.get(
+          "KeyManagementUtility.masterKeyValidated", new Object[]{Sanitizer.arn(masterKeyArn), isValid}));
       return isValid;
 
     } catch (Exception e) {
       LOGGER.severe(() -> Messages.get(
-          "KeyManagementUtility.masterKeyValidationFailed", new Object[]{masterKeyArn, e.getMessage()}));
+          "KeyManagementUtility.masterKeyValidationFailed",
+          new Object[]{Sanitizer.arn(masterKeyArn), Sanitizer.errorSummary(e)}));
       throw new KeyManagementException(
-          Messages.get("KeyManagementUtility.validateMasterKeyFailed", new Object[]{e.getMessage(), e}));
+          Messages.get("KeyManagementUtility.validateMasterKeyFailed", new Object[]{Sanitizer.errorSummary(e)}));
     }
   }
 

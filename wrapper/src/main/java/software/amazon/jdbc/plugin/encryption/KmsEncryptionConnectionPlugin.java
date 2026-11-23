@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -42,6 +43,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.parser.ParameterColumnMapper.UnboundColumn;
 import software.amazon.jdbc.parser.ParameterMappingProblem;
 import software.amazon.jdbc.parser.SqlContextKeys;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
@@ -49,6 +51,7 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
+import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -57,6 +60,14 @@ import software.amazon.jdbc.util.WrapperUtils;
  * ConnectionPlugin that provides transparent column-level encryption/decryption
  * by intercepting PreparedStatement.setXxx and ResultSet.getXxx calls directly,
  * without creating wrapper objects.
+ *
+ * <p>Only bind parameters can be encrypted. A statement that writes a column configured for
+ * encryption with a client constant (a literal, or an expression that reads no column and holds no
+ * subquery) is refused, whether it is prepared or passed directly to {@code execute},
+ * {@code executeQuery}, {@code executeUpdate} or {@code addBatch}: that value is certain to be stored
+ * as plaintext. Values read from a column or a subquery, and DEFAULT, may be ciphertext the database
+ * already holds, so they are left to the database's own HMAC check, as is any statement the plugin
+ * cannot read that has no parameters to encrypt.
  */
 public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
@@ -81,6 +92,12 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         }
       });
 
+  /**
+   * Methods that take the SQL to run as their first argument. That SQL is checked before it is sent,
+   * since any value it writes is written as-is. They are the methods sqlParser parses that SQL for.
+   */
+  private static final Set<String> SQL_EXECUTION_METHODS = SqlParserConnectionPlugin.SQL_EXECUTION_METHODS;
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -104,6 +121,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
           add(JdbcMethod.PREPAREDSTATEMENT_SETBYTES.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_SETNSTRING.methodName);
           addAll(UNSUPPORTED_ENCRYPTION_SETTERS);
+          addAll(SQL_EXECUTION_METHODS);
           add(JdbcMethod.RESULTSET_GETSTRING.methodName);
           add(JdbcMethod.RESULTSET_GETINT.methodName);
           add(JdbcMethod.RESULTSET_GETLONG.methodName);
@@ -184,6 +202,12 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         return handlePrepareStatement(methodClass, exceptionClass, jdbcCallable, args);
       }
 
+      // Handle SQL passed directly to execute* / addBatch(String) — refuse unencryptable writes
+      if (SQL_EXECUTION_METHODS.contains(methodName) && args.length > 0 && args[0] instanceof String) {
+        checkExecutedSql(methodInvokeOn);
+        return jdbcCallable.call();
+      }
+
       // Handle PreparedStatement.setXxx — encrypt if needed
       if (methodName.startsWith("PreparedStatement.set") && methodInvokeOn instanceof PreparedStatement) {
         return handleSetParameter(methodClass, exceptionClass, (PreparedStatement) methodInvokeOn,
@@ -221,7 +245,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
       try {
         final StatementContext ctx = new StatementContext(pluginService.getCallContext());
-        checkUnmappedParameters(ps, ctx);
+        checkWrites(ctx.problems, ctx.unboundColumns, ctx, ps);
         statementContexts.put(ps, ctx);
       } catch (SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
@@ -232,14 +256,77 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
   }
 
   /**
-   * Fails closed when the SQL parser reported parameters it could not map to columns and those
-   * problems concern a table with encrypted columns. In strict mode the statement is closed and an
-   * exception is thrown; otherwise one warning is logged. Messages name tables, columns, parameter
-   * indexes and counts only, never SQL text.
+   * Checks SQL passed directly to an execute or addBatch method, using the analysis the SQL parser
+   * put into the call context for this call.
+   *
+   * <p>Such SQL has no bound values, so the only thing to check is the columns it writes with a
+   * client constant. Almost no statement has one, so that list is read first and the call returns
+   * before any metadata is looked up.
    */
-  private void checkUnmappedParameters(final PreparedStatement ps, final StatementContext ctx)
+  private void checkExecutedSql(final Object statement) throws SQLException {
+    if (statement instanceof Statement) {
+      try {
+        // Also registers the driver's encrypted_data type, which reads on this connection need.
+        ensureInitialized(((Statement) statement).getConnection());
+      } catch (SQLException e) {
+        LOGGER.fine(() -> Messages.get("KmsEncryptionUtility.initWithConnectionFailed",
+            new Object[]{e.getMessage()}));
+      }
+    }
+
+    final List<UnboundColumn> unboundColumns = unboundWriteColumns(pluginService.getCallContext());
+    if (unboundColumns.isEmpty()) {
+      return;
+    }
+    checkWrites(Collections.emptyList(), unboundColumns, null, null);
+  }
+
+  /**
+   * The columns the parsed statement writes with a client constant, from the call context.
+   *
+   * @throws SQLException when the context holds no parse results, which means the sqlParser plugin
+   *     is not loaded
+   */
+  @SuppressWarnings("unchecked")
+  private static List<UnboundColumn> unboundWriteColumns(final @Nullable PluginCallContext ctx)
       throws SQLException {
-    if (ctx.problems.isEmpty()) {
+    if (ctx == null || !ctx.hasAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS)) {
+      throw new SQLException(Messages.get("KmsEncryptionConnectionPlugin.missingParseContext"));
+    }
+    final List<UnboundColumn> columns = ctx.getAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, List.class);
+    return columns == null ? Collections.emptyList() : columns;
+  }
+
+  /**
+   * Fails closed on writes the plugin cannot encrypt. Messages name tables, columns, parameter
+   * indexes and counts only, never SQL text.
+   *
+   * <p>A column configured for encryption written with a client constant is refused whatever
+   * {@code encryptionFailOnUnmappedParameter} says: that value is certain to be stored as plaintext.
+   * So is a prepared statement with an executable comment that changes placeholder numbering, on a
+   * table with encrypted columns: its parameters are numbered differently by different drivers and
+   * servers, so any mapping of them could bind a value to the wrong column.
+   * Parameters the SQL parser could not map to columns, and statements it could not read, are
+   * refused when they concern a table with encrypted columns and
+   * {@code encryptionFailOnUnmappedParameter} is on; otherwise one warning is logged. That check
+   * applies to prepared statements only: SQL passed directly to execute or addBatch has no bound
+   * values, and a {@code ?} in it is not a parameter (for example PostgreSQL's JSONB {@code ?}
+   * operator). When the encryption metadata cannot be read, which columns are encrypted is unknown,
+   * so that setting decides between refusing and warning for every check.
+   *
+   * @param problems the parameters the SQL parser could not map; empty for directly executed SQL
+   * @param unboundColumns the columns written with a client constant
+   * @param ctx the parse results of the statement being prepared, whose parameter mapping and
+   *     tables the executable-comment check reads; null for directly executed SQL
+   * @param ps the statement being prepared, closed when it is refused; null when the SQL is being
+   *     executed directly
+   */
+  private void checkWrites(
+      final List<ParameterMappingProblem> problems,
+      final List<UnboundColumn> unboundColumns,
+      final @Nullable StatementContext ctx,
+      final @Nullable PreparedStatement ps) throws SQLException {
+    if (problems.isEmpty() && unboundColumns.isEmpty()) {
       return;
     }
     final MetadataManager metadataManager = encryptionUtility.getMetadataManager();
@@ -248,10 +335,18 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     }
 
     final boolean strict = encryptionUtility.isFailOnUnmappedParameter();
+    final Set<String> unencryptableTables = new LinkedHashSet<>();
+    final Set<String> unencryptableDetails = new LinkedHashSet<>();
     final Set<String> affectedTables = new LinkedHashSet<>();
-    final List<String> details = new ArrayList<>();
+    final Set<String> details = new LinkedHashSet<>();
+    final Set<String> executableCommentTables = new LinkedHashSet<>();
     try {
-      collectRelevantProblems(metadataManager, ctx.problems, affectedTables, details);
+      collectUnencryptableValues(
+          metadataManager, unboundColumns, unencryptableTables, unencryptableDetails);
+      if (ctx != null) {
+        collectExecutableCommentTables(metadataManager, ctx, problems, executableCommentTables);
+      }
+      collectRelevantProblems(metadataManager, problems, affectedTables, details);
     } catch (MetadataException e) {
       if (strict) {
         closeQuietly(ps, e);
@@ -261,6 +356,22 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
           "KmsEncryptionConnectionPlugin.unmappedParametersCheckFailed",
           new Object[] {e.getMessage()}));
       return;
+    }
+
+    if (!unencryptableDetails.isEmpty()) {
+      final SQLException exception = new SQLException(Messages.get(
+          "KmsEncryptionConnectionPlugin.unencryptableValues",
+          new Object[] {String.join(", ", unencryptableTables), String.join("; ", unencryptableDetails)}));
+      closeQuietly(ps, exception);
+      throw exception;
+    }
+
+    if (!executableCommentTables.isEmpty()) {
+      final SQLException exception = new SQLException(Messages.get(
+          "KmsEncryptionConnectionPlugin.executableComment",
+          new Object[] {String.join(", ", executableCommentTables)}));
+      closeQuietly(ps, exception);
+      throw exception;
     }
 
     if (details.isEmpty()) {
@@ -279,11 +390,81 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
         "KmsEncryptionConnectionPlugin.unmappedParametersWarning", new Object[] {tables, detail}));
   }
 
-  private static void closeQuietly(final PreparedStatement ps, final SQLException primary) {
+  private static void closeQuietly(final @Nullable PreparedStatement ps, final SQLException primary) {
+    if (ps == null) {
+      return;
+    }
     try {
       ps.close();
     } catch (SQLException closeException) {
       primary.addSuppressed(closeException);
+    }
+  }
+
+  /**
+   * Adds every unbound column that is configured for encryption to {@code details}, and its table
+   * to {@code tables}.
+   */
+  private static void collectUnencryptableValues(
+      final MetadataManager metadataManager,
+      final List<UnboundColumn> unboundColumns,
+      final Set<String> tables,
+      final Set<String> details) throws MetadataException {
+    for (UnboundColumn column : unboundColumns) {
+      final @Nullable String table = column.getTable();
+      if (table != null && metadataManager.isColumnEncrypted(table, column.getColumn())) {
+        tables.add(table);
+        details.add(Messages.get("KmsEncryptionConnectionPlugin.unboundValue",
+            new Object[] {column.getColumn(),
+                Messages.get("KmsEncryptionConnectionPlugin.valueKind." + column.getKind().name())}));
+      }
+    }
+  }
+
+  /**
+   * Adds to {@code tables} every table with encrypted columns that an executable-comment problem
+   * concerns: the tables the statement writes (or reads, for a statement that does not write), and
+   * the tables its annotations name or, for an annotation without a table, encrypt that column in,
+   * since the annotations' parameter indexes are just as uncertain.
+   */
+  private static void collectExecutableCommentTables(
+      final MetadataManager metadataManager,
+      final StatementContext ctx,
+      final List<ParameterMappingProblem> problems,
+      final Set<String> tables) throws MetadataException {
+    boolean found = false;
+    for (ParameterMappingProblem problem : problems) {
+      if (problem.getType() != ParameterMappingProblem.Type.EXECUTABLE_COMMENT) {
+        continue;
+      }
+      found = true;
+      final @Nullable String table = problem.getTable();
+      if (table != null) {
+        if (metadataManager.hasEncryptedColumns(table)) {
+          tables.add(table);
+        }
+      } else if (!problem.getCandidateTables().isEmpty()) {
+        tables.addAll(matchEncryptedTables(
+            problem.getCandidateTables(), metadataManager.getEncryptedTableNames()));
+      }
+    }
+    if (!found) {
+      return;
+    }
+    // Only annotations are left in the mapping of such a statement.
+    for (String identifier : ctx.parameterColumnMapping.values()) {
+      final int dot = identifier.lastIndexOf('.');
+      if (dot > 0) {
+        if (metadataManager.hasEncryptedColumns(identifier.substring(0, dot))) {
+          tables.add(identifier.substring(0, dot));
+        }
+        continue;
+      }
+      for (String table : ctx.tables) {
+        if (metadataManager.isColumnEncrypted(table, identifier)) {
+          tables.add(table);
+        }
+      }
     }
   }
 
@@ -295,7 +476,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       final MetadataManager metadataManager,
       final List<ParameterMappingProblem> problems,
       final Set<String> affectedTables,
-      final List<String> details) throws MetadataException {
+      final Set<String> details) throws MetadataException {
     @Nullable Set<String> encryptedTableNames = null;
     for (ParameterMappingProblem problem : problems) {
       final @Nullable String table = problem.getTable();
@@ -427,31 +608,24 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       return jdbcCallable.call();
     }
 
-    // The parameter mapping carries two value formats. The positional mapping derived from the
-    // parsed statement holds bare column names, while an /*@encrypt:table.column*/ annotation holds
-    // a qualified identifier and overwrites the positional entry for that parameter. MetadataManager
-    // composes its lookup key as tableName + "." + columnName, so a qualified value has to be split
-    // here: otherwise the composed key is double-prefixed ("users" + "." + "users.ssn"), the lookup
-    // misses, and encryption is silently skipped for exactly the parameters the user marked
-    // explicitly. Splitting on the LAST dot keeps a schema-qualified "schema.table.column" intact.
-    final int separatorIndex = columnIdentifier.lastIndexOf('.');
-    final @Nullable String tableName;
-    final String columnName;
-    if (separatorIndex > 0 && separatorIndex < columnIdentifier.length() - 1) {
-      tableName = columnIdentifier.substring(0, separatorIndex);
-      columnName = columnIdentifier.substring(separatorIndex + 1);
-    } else {
-      // A bare column name: the table comes from the statement's parsed table set, as before.
-      tableName = ctx.tableName;
-      columnName = columnIdentifier;
-    }
-
-    if (tableName == null) {
+    MetadataManager metadataManager = encryptionUtility.getMetadataManager();
+    if (metadataManager == null) {
       return jdbcCallable.call();
     }
 
-    MetadataManager metadataManager = encryptionUtility.getMetadataManager();
-    if (metadataManager == null || !metadataManager.isColumnEncrypted(tableName, columnName)) {
+    // A mapping value is "table.column". A bare "column" is an /*@encrypt:column*/ annotation whose
+    // table is not certain; its value is not encrypted (for a write, the SQL parser reported it as
+    // unmapped). MetadataManager composes its lookup key as tableName + "." + columnName, so the
+    // value is split here, on the LAST dot so that a schema-qualified "schema.table.column" stays
+    // intact.
+
+    final int separatorIndex = columnIdentifier.lastIndexOf('.');
+    if (separatorIndex <= 0 || separatorIndex == columnIdentifier.length() - 1) {
+      return jdbcCallable.call();
+    }
+    final String tableName = columnIdentifier.substring(0, separatorIndex);
+    final String columnName = columnIdentifier.substring(separatorIndex + 1);
+    if (!metadataManager.isColumnEncrypted(tableName, columnName)) {
       return jdbcCallable.call();
     }
 
@@ -700,9 +874,11 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
   /** Tracks SQL analysis and parameter mappings for a PreparedStatement. */
   private static class StatementContext {
-    final @Nullable String tableName;
+    /** The tables the statement names, the ones it writes first. */
+    final List<String> tables;
     final Map<Integer, String> parameterColumnMapping;
     final List<ParameterMappingProblem> problems;
+    final List<UnboundColumn> unboundColumns;
 
     // Raw type casts from context — generic parameters (Set<String>, Map<Integer,String>)
     // cannot be checked at runtime due to type erasure. Types are documented in SqlContextKeys
@@ -716,7 +892,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       if (tables == null) {
         throw new SQLException(Messages.get("KmsEncryptionConnectionPlugin.missingParseContext"));
       }
-      this.tableName = tables.isEmpty() ? null : (String) tables.iterator().next();
+      this.tables = Collections.unmodifiableList(new ArrayList<String>(tables));
 
       this.parameterColumnMapping = new ConcurrentHashMap<>();
       Map<Integer, String> paramMapping = ctx.getAttribute(SqlContextKeys.PARAM_MAPPING, Map.class);
@@ -729,6 +905,11 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       this.problems = mappingProblems == null
           ? Collections.emptyList()
           : Collections.unmodifiableList(new ArrayList<>(mappingProblems));
+
+      List<UnboundColumn> unbound = ctx.getAttribute(SqlContextKeys.UNBOUND_WRITE_COLUMNS, List.class);
+      this.unboundColumns = unbound == null
+          ? Collections.emptyList()
+          : Collections.unmodifiableList(new ArrayList<>(unbound));
     }
 
     @Nullable String getColumnNameForParameter(int paramIndex) {
