@@ -760,8 +760,8 @@ public class KmsEncryptionIntegrationTest {
   }
 
   @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
   void testReinstallingEncryptedDataTypeKeepsData() throws Exception {
-    assumeTrue(isPg, "The encrypted_data domain exists on PostgreSQL only");
     final String schema = "kms_enc_reinstall";
     final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
     try (Connection conn = DriverManager.getConnection(
