@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.StringReader;
@@ -59,6 +60,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.postgresql.PGResultSetMetaData;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginCallContext;
 import software.amazon.jdbc.PluginService;
@@ -88,6 +90,7 @@ public class KmsEncryptionConnectionPluginTest {
   @Mock PreparedStatement mockPreparedStatement;
   @Mock ResultSet mockResultSet;
   @Mock ResultSetMetaData mockResultSetMetaData;
+  @Mock PGResultSetMetaData mockPgResultSetMetaData;
   @Mock Connection mockConnection;
   @Mock Statement mockStatement;
 
@@ -456,6 +459,7 @@ public class KmsEncryptionConnectionPluginTest {
   void test_getString_byLabel_resolvesTablePerColumn() throws Exception {
     when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(mockResultSet.findColumn("ssn")).thenReturn(2);
+    when(mockResultSetMetaData.getColumnName(2)).thenReturn("ssn");
     when(mockResultSetMetaData.getTableName(2)).thenReturn("users");
 
     ColumnEncryptionConfig config = createTestConfig(); //
@@ -473,6 +477,195 @@ public class KmsEncryptionConnectionPluginTest {
         "ResultSet.getString", () -> "raw", "ssn");
 
     assertEquals("123-45-6789", result);
+  }
+
+  @Test
+  void test_getString_byAliasLabel_decryptsBaseColumn() throws Exception {
+    // SELECT ssn AS s FROM users, read as getString("s")
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSet.findColumn("s")).thenReturn(2);
+    when(mockResultSetMetaData.getColumnName(2)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(2)).thenReturn("users");
+    stubEncryptedSsnDecryption();
+    when(mockResultSet.getBytes("s")).thenReturn(testEncrypted);
+
+    final String result = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "raw", "s");
+
+    assertEquals("123-45-6789", result);
+    verify(mockResultSet).getBytes("s");
+    verify(mockMetadataManager, never()).isColumnEncrypted("users", "s");
+  }
+
+  @Test
+  void test_getString_pg_byAliasIndex_decryptsBaseColumn() throws Exception {
+    // pgjdbc returns the label from getColumnName, so only the base column name identifies ssn.
+    usePgDialectWithAliasedSsnAt(1);
+    when(mockResultSet.getObject(1)).thenReturn(testEncrypted);
+    when(mockResultSet.getBytes(1)).thenReturn(testEncrypted);
+
+    final String result = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "raw", 1);
+
+    assertEquals("123-45-6789", result);
+  }
+
+  @Test
+  void test_getString_pg_byAliasLabel_decryptsBaseColumn() throws Exception {
+    usePgDialectWithAliasedSsnAt(1);
+    when(mockResultSet.findColumn("s")).thenReturn(1);
+    when(mockResultSet.getObject("s")).thenReturn(testEncrypted);
+    when(mockResultSet.getBytes("s")).thenReturn(testEncrypted);
+
+    final String result = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "raw", "s");
+
+    assertEquals("123-45-6789", result);
+  }
+
+  @Test
+  void test_getString_pg_expressionLabelledAsEncryptedColumn_passesThrough() throws Exception {
+    // SELECT upper(name) AS ssn FROM users: an expression has no table and no base column.
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSet.findColumn("ssn")).thenReturn(1);
+    when(mockResultSetMetaData.isWrapperFor(PGResultSetMetaData.class)).thenReturn(true);
+    when(mockResultSetMetaData.unwrap(PGResultSetMetaData.class)).thenReturn(mockPgResultSetMetaData);
+    when(mockResultSetMetaData.getColumnName(1)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(1)).thenReturn("");
+    when(mockPgResultSetMetaData.getBaseColumnName(1)).thenReturn("");
+
+    final String byLabel = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "ALICE", "ssn");
+    final String byIndex = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "ALICE", 1);
+
+    assertEquals("ALICE", byLabel);
+    assertEquals("ALICE", byIndex);
+    verifyNoInteractions(mockMetadataManager, mockEncryptionService);
+  }
+
+  @Test
+  void test_getString_pg_plainColumnLabelledAsEncryptedColumn_passesThrough() throws Exception {
+    // SELECT name AS ssn FROM users: the label names an encrypted column, the base column does not.
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSet.findColumn("ssn")).thenReturn(1);
+    when(mockResultSetMetaData.isWrapperFor(PGResultSetMetaData.class)).thenReturn(true);
+    when(mockResultSetMetaData.unwrap(PGResultSetMetaData.class)).thenReturn(mockPgResultSetMetaData);
+    when(mockResultSetMetaData.getColumnName(1)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(1)).thenReturn("users");
+    when(mockPgResultSetMetaData.getBaseColumnName(1)).thenReturn("name");
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+
+    final String byLabel = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "Alice", "ssn");
+    final String byIndex = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "Alice", 1);
+
+    assertEquals("Alice", byLabel);
+    assertEquals("Alice", byIndex);
+    verify(mockMetadataManager, never()).isColumnEncrypted("users", "ssn");
+    verifyNoInteractions(mockEncryptionService);
+  }
+
+  @Test
+  void test_getString_expressionWithLabelAsColumnName_passesThrough() throws Exception {
+    // MariaDB Connector/J returns the label from getColumnName for an expression, but no table.
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSet.findColumn("ssn")).thenReturn(1);
+    when(mockResultSetMetaData.getColumnName(1)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(1)).thenReturn("");
+
+    final String byLabel = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "ALICE", "ssn");
+    final String byIndex = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "ALICE", 1);
+
+    assertEquals("ALICE", byLabel);
+    assertEquals("ALICE", byIndex);
+    verifyNoInteractions(mockMetadataManager, mockEncryptionService);
+  }
+
+  @Test
+  void test_getString_pg_metadataNotFromPgjdbc_usesColumnName() throws Exception {
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSetMetaData.isWrapperFor(PGResultSetMetaData.class)).thenReturn(false);
+    when(mockResultSetMetaData.getColumnName(1)).thenReturn("ssn");
+    when(mockResultSetMetaData.getTableName(1)).thenReturn("users");
+    stubEncryptedSsnDecryption();
+    when(mockResultSet.getObject(1)).thenReturn(testEncrypted);
+    when(mockResultSet.getBytes(1)).thenReturn(testEncrypted);
+
+    final String result = plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> "raw", 1);
+
+    assertEquals("123-45-6789", result);
+    verify(mockResultSetMetaData, never()).unwrap(any());
+  }
+
+  @Test
+  void test_getString_unknownLabel_passesThroughToDriver() throws Exception {
+    final SQLException driverError = new SQLException("The column name nope was not found");
+    when(mockResultSet.findColumn("nope")).thenThrow(driverError);
+
+    final SQLException thrown = assertThrows(SQLException.class, () -> plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> {
+          throw driverError;
+        }, "nope"));
+
+    assertSame(driverError, thrown);
+    verifyNoInteractions(mockMetadataManager);
+  }
+
+  @Test
+  void test_getString_metadataFailure_propagates() throws Exception {
+    final SQLException failure = new SQLException("metadata unavailable");
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSetMetaData.getTableName(1)).thenThrow(failure);
+    final boolean[] called = {false};
+
+    final SQLException thrown = assertThrows(SQLException.class, () -> plugin.execute(
+        String.class, SQLException.class, mockResultSet,
+        "ResultSet.getString", () -> {
+          called[0] = true;
+          return "raw";
+        }, 1));
+
+    assertSame(failure, thrown);
+    assertFalse(called[0], "A column that cannot be checked must not be returned as-is");
+  }
+
+  /** Stubs a PostgreSQL result set whose column {@code index} is {@code users.ssn AS s}. */
+  private void usePgDialectWithAliasedSsnAt(final int index) throws Exception {
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSetMetaData.isWrapperFor(PGResultSetMetaData.class)).thenReturn(true);
+    when(mockResultSetMetaData.unwrap(PGResultSetMetaData.class)).thenReturn(mockPgResultSetMetaData);
+    when(mockResultSetMetaData.getColumnName(index)).thenReturn("s");
+    when(mockResultSetMetaData.getTableName(index)).thenReturn("users");
+    when(mockPgResultSetMetaData.getBaseColumnName(index)).thenReturn("ssn");
+    stubEncryptedSsnDecryption();
+  }
+
+  private void stubEncryptedSsnDecryption() throws Exception {
+    when(mockMetadataManager.isColumnEncrypted("users", "ssn")).thenReturn(true);
+    when(mockMetadataManager.getColumnConfig("users", "ssn")).thenReturn(createTestConfig());
+    when(mockKeyManager.decryptDataKey(anyString(), anyString())).thenReturn(testDataKey);
+    when(mockEncryptionService.decrypt(eq(testEncrypted), any(), any(), anyString(), eq(String.class)))
+        .thenReturn("123-45-6789");
   }
 
   @Test
