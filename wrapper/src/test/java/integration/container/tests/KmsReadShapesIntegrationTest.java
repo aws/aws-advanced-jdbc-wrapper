@@ -46,6 +46,7 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -63,7 +64,7 @@ import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 /**
  * Integration tests for the ways an application reads a row holding encrypted columns: by column
  * index and by label, row by row through a {@code PreparedStatement} and a plain {@code Statement},
- * through a scrollable {@code ResultSet}, and with NULL encrypted values.
+ * through a scrollable {@code ResultSet}, with NULL encrypted values, and through column aliases.
  *
  * <p>Each test reads a table with a plain {@code name} column and three encrypted columns, each with
  * its own data key: {@code ssn} and {@code email} hold {@code String} values and {@code token} holds
@@ -287,6 +288,76 @@ public class KmsReadShapesIntegrationTest {
         assertRow(ROWS.get(1), rs);
         assertTrue(rs.absolute(-3));
         assertRow(ROWS.get(0), rs);
+      }
+    }
+  }
+
+  @TestTemplate
+  void test06ReadsAliasedEncryptedColumns() throws Exception {
+    final String table = createSeededTable("kms_reads_alias");
+    final Connection conn = openPluginConnection();
+    final Row alice = ROWS.get(0);
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "SELECT name AS n, " + SSN + " AS s, " + EMAIL + " AS e, " + TOKEN + " AS t FROM " + table
+            + " WHERE name = ?")) {
+      stmt.setString(1, alice.name);
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next());
+
+        assertEquals(alice.name, rs.getString("n"));
+        assertEquals(alice.ssn, rs.getString("s"));
+        assertEquals(alice.ssn, rs.getString(2));
+        assertEquals(alice.email, rs.getString("e"));
+        assertEquals(alice.email, rs.getString(3));
+        assertArrayEquals(alice.token, rs.getBytes("t"));
+        assertArrayEquals(alice.token, rs.getBytes(4));
+
+        assertEquals(alice.ssn, rs.getObject("s"));
+        assertEquals(alice.ssn, rs.getObject(2));
+        assertArrayEquals(alice.token, (byte[]) rs.getObject("t"));
+        assertArrayEquals(alice.token, (byte[]) rs.getObject(4));
+
+        assertFalse(rs.next());
+      }
+    }
+
+    // A table alias as well as a column alias: the metadata still reports the real table.
+    try (Statement stmt = conn.createStatement();
+         ResultSet rs = stmt.executeQuery(
+             "SELECT u." + SSN + " AS s FROM " + table + " u ORDER BY u.name")) {
+      for (Row expected : ROWS) {
+        assertTrue(rs.next(), "Row " + expected.name + " not found");
+        assertEquals(expected.ssn, rs.getString("s"), "ssn of " + expected.name);
+        assertEquals(expected.ssn, rs.getString(1), "ssn of " + expected.name);
+      }
+      assertFalse(rs.next(), "Unexpected extra row");
+    }
+  }
+
+  /**
+   * A plain column or an expression labelled with an encrypted column's name is not encrypted, so it
+   * is returned as-is instead of being decrypted.
+   */
+  @TestTemplate
+  void test07ReadsColumnsLabelledWithEncryptedColumnNames() throws Exception {
+    final String table = createSeededTable("kms_reads_relabel");
+    final Connection conn = openPluginConnection();
+    final Row alice = ROWS.get(0);
+    final String upperName = alice.name.toUpperCase(Locale.ROOT);
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "SELECT name AS " + SSN + ", upper(name) AS " + EMAIL + " FROM " + table + " WHERE name = ?")) {
+      stmt.setString(1, alice.name);
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next());
+
+        assertEquals(alice.name, rs.getString(SSN));
+        assertEquals(alice.name, rs.getString(1));
+        assertEquals(upperName, rs.getString(EMAIL));
+        assertEquals(upperName, rs.getString(2));
+
+        assertFalse(rs.next());
       }
     }
   }
