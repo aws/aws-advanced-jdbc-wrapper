@@ -24,18 +24,24 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.GlobalAuroraTopologyDialect;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
@@ -47,9 +53,26 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   private final Set<String> subscribedMethods;
 
+  public static final AwsWrapperProperty INVALIDATE_ON_PRIMARY_REGION_CHANGE =
+      new AwsWrapperProperty(
+          "invalidateOnPrimaryRegionChange",
+          "true",
+          "Aurora Global Database only. When the primary region changes, close the tracked connections to the "
+              + "other instances of the new primary region, and do not accept a new connection through an "
+              + "active cluster writer endpoint that reached an instance other than the current writer.");
+
+  static {
+    PropertyDefinition.registerPluginProperties(AuroraConnectionTrackerPlugin.class);
+  }
+
   private static final AtomicLong hostListRefreshEndTimeNano = new AtomicLong(0);
 
+  // New writer (host:port) of each primary region change that has been handled, and when. A region change is
+  // detected independently by every connection that sees it; only the first one invalidates connections.
+  private static final Map<String, Long> handledPrimaryRegionChanges = new ConcurrentHashMap<>();
+
   private final PluginService pluginService;
+  private final boolean invalidateOnPrimaryRegionChange;
   private final RdsUtils rdsHelper;
   private final OpenedConnectionTracker tracker;
   private @Nullable HostSpec currentWriter = null;
@@ -67,6 +90,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     this.pluginService = pluginService;
     this.rdsHelper = rdsUtils;
     this.tracker = tracker;
+    this.invalidateOnPrimaryRegionChange = INVALIDATE_ON_PRIMARY_REGION_CHANGE.getBoolean(props);
 
     final HashSet<String> methods = new HashSet<>(
         this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(props));
@@ -99,6 +123,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
           this.pluginService.setRoutedHostSpec(identifiedHostSpec);
         }
       }
+      this.rejectIfActiveWriterEndpointMissedWriter(hostSpec, connectionHostSpec, conn, isInitialConnection);
       final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(connectionHostSpec, conn);
       this.pluginService.setTrackedConnectionNode(node);
     }
@@ -180,11 +205,106 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     } else if (!previousWriter.getHostAndPort().equals(hostSpecAfterFailover.getHostAndPort())) {
       // the writer's changed
       tracker.invalidateAllConnections(previousWriter);
+      this.invalidateIfPrimaryRegionChanged(previousWriter, hostSpecAfterFailover);
       tracker.logOpenedConnections();
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
       hostListRefreshEndTimeNano.set(0);
     }
+  }
+
+  // For tests.
+  static void clearHandledPrimaryRegionChanges() {
+    handledPrimaryRegionChanges.clear();
+  }
+
+  private boolean isGlobalDatabase() {
+    return this.invalidateOnPrimaryRegionChange
+        && this.pluginService.getDialect() instanceof GlobalAuroraTopologyDialect;
+  }
+
+  /**
+   * Aurora Global Database: when the writer moves to another region, the connections this application holds to
+   * the instances of the new primary region were opened while that region was secondary, so they are reader
+   * connections. Close them all, except connections to the new writer itself.
+   *
+   * <p>Every connection detects the same change on its own; only the first detection within
+   * {@link #TOPOLOGY_CHANGES_EXPECTED_TIME_NANO} acts on it.
+   */
+  private void invalidateIfPrimaryRegionChanged(final HostSpec previousWriter, final HostSpec newWriter) {
+    if (!this.isGlobalDatabase()) {
+      return;
+    }
+    final String previousRegion = this.rdsHelper.getRdsRegion(previousWriter.getHost());
+    final String newRegion = this.rdsHelper.getRdsRegion(newWriter.getHost());
+    if (previousRegion == null || newRegion == null || previousRegion.equalsIgnoreCase(newRegion)) {
+      return;
+    }
+
+    final long now = System.nanoTime();
+    final String newWriterHostAndPort = newWriter.getHostAndPort();
+    final Long handledAt = handledPrimaryRegionChanges.get(newWriterHostAndPort);
+    if (handledAt != null && now - handledAt < TOPOLOGY_CHANGES_EXPECTED_TIME_NANO) {
+      return;
+    }
+    final boolean firstToHandle = handledAt == null
+        ? handledPrimaryRegionChanges.putIfAbsent(newWriterHostAndPort, now) == null
+        : handledPrimaryRegionChanges.replace(newWriterHostAndPort, handledAt, now);
+    if (!firstToHandle) {
+      return;
+    }
+
+    LOGGER.info(() -> Messages.get(
+        "AuroraConnectionTrackerPlugin.primaryRegionChanged",
+        new Object[] {previousRegion, newRegion, newWriterHostAndPort}));
+    this.tracker.invalidateConnectionsInRegion(newRegion, newWriterHostAndPort);
+  }
+
+  /**
+   * Aurora Global Database: a new connection through a cluster writer endpoint whose region is now the primary
+   * region must reach the current writer. During a switchover a connection can be opened from an outdated
+   * topology (writer still in the other region), which treats the endpoint as inactive and accepts whatever
+   * instance its DNS points to, often a reader. Such a connection is closed here and the connect fails with a
+   * network-class SQL state, so that the caller (for example the initialConnection plugin) opens it again.
+   */
+  private void rejectIfActiveWriterEndpointMissedWriter(
+      final HostSpec requestedHostSpec,
+      final HostSpec connectionHostSpec,
+      final Connection conn,
+      final boolean isInitialConnection) throws SQLException {
+
+    if (!isInitialConnection
+        || !this.isGlobalDatabase()
+        || this.rdsHelper.identifyRdsType(requestedHostSpec.getHost()) != RdsUrlType.RDS_WRITER_CLUSTER
+        || !this.rdsHelper.isRdsInstance(connectionHostSpec.getHost())) {
+      return;
+    }
+
+    try {
+      // The topology this connection was opened with may be outdated; use the latest shared one.
+      this.pluginService.refreshHostList();
+    } catch (final SQLException e) {
+      return;
+    }
+    final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+    if (writer == null
+        || !this.rdsHelper.isRdsInstance(writer.getHost())
+        || !this.rdsHelper.isSameRegion(writer.getHost(), requestedHostSpec.getHost())
+        || writer.getHostAndPort().equals(connectionHostSpec.getHostAndPort())) {
+      // No known writer, the endpoint is inactive (writer in another region), or the writer was reached.
+      return;
+    }
+
+    final String message = Messages.get(
+        "AuroraConnectionTrackerPlugin.activeWriterEndpointMissedWriter",
+        new Object[] {requestedHostSpec.getHost(), connectionHostSpec.getHostAndPort(), writer.getHostAndPort()});
+    LOGGER.fine(message);
+    try {
+      conn.close();
+    } catch (final SQLException e) {
+      // ignore, the connection is discarded anyway
+    }
+    throw new SQLException(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
   }
 
   private void rememberWriter() {

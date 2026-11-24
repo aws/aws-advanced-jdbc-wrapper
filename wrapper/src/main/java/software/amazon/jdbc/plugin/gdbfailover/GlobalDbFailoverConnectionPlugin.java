@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -217,129 +218,150 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
       }
 
-      final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
-      final HostSpec writerCandidate = Utils.getWriter(updatedHosts);
+      // A Global Database switchover can move the writer into or out of the home region while this failover
+      // is still reconnecting, for example while it waits for a home reader that is restarting. The failover
+      // mode depends on the writer region, so an attempt that outlives such a change is abandoned and the mode
+      // is chosen again from the current topology.
+      while (true) {
+        final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
+        final HostSpec writerCandidate = Utils.getWriter(updatedHosts);
 
-      if (writerCandidate == null) {
-        if (this.failoverWriterTriggeredCounter != null) {
-          this.failoverWriterTriggeredCounter.inc();
-        }
-        if (this.failoverWriterFailedCounter != null) {
-          this.failoverWriterFailedCounter.inc();
-        }
-        String message = LogUtils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
-        LOGGER.severe(message);
-        throw new FailoverFailedSQLException(message);
-      }
-
-      // Check writer region
-      final String writerRegion = this.rdsHelper.getRdsRegion(writerCandidate.getHost());
-      final boolean isHomeRegion = this.homeRegion.equalsIgnoreCase(writerRegion);
-      LOGGER.finest(() ->
-          Messages.get("GlobalDbFailoverConnectionPlugin.isHomeRegion", new Object[]{isHomeRegion}));
-      GlobalDbFailoverMode currentFailoverMode = isHomeRegion
-          ? this.activeHomeFailoverMode
-          : this.inactiveHomeFailoverMode;
-      LOGGER.finest(() ->
-          Messages.get("GlobalDbFailoverConnectionPlugin.currentFailoverMode", new Object[]{currentFailoverMode}));
-
-      switch (currentFailoverMode) {
-        case STRICT_WRITER:
-          if (!isInAccessibleRegion(writerCandidate)) {
-            if (this.failoverWriterTriggeredCounter != null) {
-              this.failoverWriterTriggeredCounter.inc();
-            }
-            if (this.failoverWriterFailedCounter != null) {
-              this.failoverWriterFailedCounter.inc();
-            }
-            String message = Messages.get(
-                "GlobalDbFailoverConnectionPlugin.writerNotInAccessibleRegion",
-                new Object[]{writerRegion, this.accessibleRegions});
-            LOGGER.severe(message);
-            throw new FailoverFailedSQLException(message);
+        if (writerCandidate == null) {
+          if (this.failoverWriterTriggeredCounter != null) {
+            this.failoverWriterTriggeredCounter.inc();
           }
-          this.failoverToWriter(writerCandidate, failoverEndNano);
-          break;
-        case STRICT_HOME_READER:
-          this.failoverToAllowedHost(
-              () -> this.pluginService.getHosts().stream()
-                  .filter(x -> {
-                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
-                    return x.getRole() == HostRole.READER
-                        && region != null && region.equalsIgnoreCase(this.homeRegion);
-                  })
-                  .filter(this::isInAccessibleRegion)
-                  .collect(Collectors.toSet()),
-              HostRole.READER,
-              failoverEndNano);
-          break;
-        case STRICT_OUT_OF_HOME_READER:
-          this.failoverToAllowedHost(
-              () -> this.pluginService.getHosts().stream()
-                  .filter(x -> {
-                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
-                    return x.getRole() == HostRole.READER
-                        && region != null && !region.equalsIgnoreCase(this.homeRegion);
-                  })
-                  .filter(this::isInAccessibleRegion)
-                  .collect(Collectors.toSet()),
-              HostRole.READER,
-              failoverEndNano);
-          break;
-        case STRICT_ANY_READER:
-          this.failoverToAllowedHost(
-              () -> this.pluginService.getHosts().stream()
-                  .filter(x -> x.getRole() == HostRole.READER)
-                  .filter(this::isInAccessibleRegion)
-                  .collect(Collectors.toSet()),
-              HostRole.READER,
-              failoverEndNano);
-          break;
-        case HOME_READER_OR_WRITER:
-          this.failoverToAllowedHost(
-              () -> this.pluginService.getHosts().stream()
-                  .filter(x -> {
-                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
-                    return x.getRole() == HostRole.WRITER
-                        || (x.getRole() == HostRole.READER
-                            && region != null && region.equalsIgnoreCase(this.homeRegion));
-                  })
-                  .filter(this::isInAccessibleRegion)
-                  .collect(Collectors.toSet()),
-              null,
-              failoverEndNano);
-          break;
-        case OUT_OF_HOME_READER_OR_WRITER:
-          this.failoverToAllowedHost(
-              () -> this.pluginService.getHosts().stream()
-                  .filter(x -> {
-                    final String region = this.rdsHelper.getRdsRegion(x.getHost());
-                    return x.getRole() == HostRole.WRITER
-                        || (x.getRole() == HostRole.READER
-                            && region != null && !region.equalsIgnoreCase(this.homeRegion));
-                  })
-                  .filter(this::isInAccessibleRegion)
-                  .collect(Collectors.toSet()),
-              null,
-              failoverEndNano);
-          break;
-        case ANY_READER_OR_WRITER:
-          this.failoverToAllowedHost(
-              () -> this.pluginService.getHosts().stream()
-                  .filter(this::isInAccessibleRegion)
-                  .collect(Collectors.toSet()),
-              null,
-              failoverEndNano);
-          break;
-        default:
-          throw new UnsupportedOperationException(currentFailoverMode.toString());
-      }
+          if (this.failoverWriterFailedCounter != null) {
+            this.failoverWriterFailedCounter.inc();
+          }
+          String message = LogUtils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+          LOGGER.severe(message);
+          throw new FailoverFailedSQLException(message);
+        }
 
-      LOGGER.fine(
-          () -> Messages.get(
-              "Failover.establishedConnection",
-              new Object[]{this.pluginService.getCurrentHostSpec()}));
-      throwFailoverSuccessException();
+        // Check writer region
+        final String writerRegion = this.rdsHelper.getRdsRegion(writerCandidate.getHost());
+        final boolean isHomeRegion = this.homeRegion.equalsIgnoreCase(writerRegion);
+        LOGGER.finest(() ->
+            Messages.get("GlobalDbFailoverConnectionPlugin.isHomeRegion", new Object[]{isHomeRegion}));
+        GlobalDbFailoverMode currentFailoverMode = isHomeRegion
+            ? this.activeHomeFailoverMode
+            : this.inactiveHomeFailoverMode;
+        LOGGER.finest(() ->
+            Messages.get("GlobalDbFailoverConnectionPlugin.currentFailoverMode", new Object[]{currentFailoverMode}));
+
+        // Abandons the attempt below as soon as the writer moves into or out of the home region.
+        final BooleanSupplier primaryRegionChanged = () -> {
+          final Boolean writerInHomeRegion = this.isWriterInHomeRegion();
+          return writerInHomeRegion != null && writerInHomeRegion != isHomeRegion;
+        };
+
+        switch (currentFailoverMode) {
+          case STRICT_WRITER:
+            if (!isInAccessibleRegion(writerCandidate)) {
+              if (this.failoverWriterTriggeredCounter != null) {
+                this.failoverWriterTriggeredCounter.inc();
+              }
+              if (this.failoverWriterFailedCounter != null) {
+                this.failoverWriterFailedCounter.inc();
+              }
+              String message = Messages.get(
+                  "GlobalDbFailoverConnectionPlugin.writerNotInAccessibleRegion",
+                  new Object[]{writerRegion, this.accessibleRegions});
+              LOGGER.severe(message);
+              throw new FailoverFailedSQLException(message);
+            }
+            this.failoverToWriter(writerCandidate, failoverEndNano, primaryRegionChanged);
+            break;
+          case STRICT_HOME_READER:
+            this.failoverToAllowedHost(
+                () -> this.pluginService.getHosts().stream()
+                    .filter(x -> {
+                      final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                      return x.getRole() == HostRole.READER
+                          && region != null && region.equalsIgnoreCase(this.homeRegion);
+                    })
+                    .filter(this::isInAccessibleRegion)
+                    .collect(Collectors.toSet()),
+                HostRole.READER,
+                failoverEndNano,
+                primaryRegionChanged);
+            break;
+          case STRICT_OUT_OF_HOME_READER:
+            this.failoverToAllowedHost(
+                () -> this.pluginService.getHosts().stream()
+                    .filter(x -> {
+                      final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                      return x.getRole() == HostRole.READER
+                          && region != null && !region.equalsIgnoreCase(this.homeRegion);
+                    })
+                    .filter(this::isInAccessibleRegion)
+                    .collect(Collectors.toSet()),
+                HostRole.READER,
+                failoverEndNano,
+                primaryRegionChanged);
+            break;
+          case STRICT_ANY_READER:
+            this.failoverToAllowedHost(
+                () -> this.pluginService.getHosts().stream()
+                    .filter(x -> x.getRole() == HostRole.READER)
+                    .filter(this::isInAccessibleRegion)
+                    .collect(Collectors.toSet()),
+                HostRole.READER,
+                failoverEndNano,
+                primaryRegionChanged);
+            break;
+          case HOME_READER_OR_WRITER:
+            this.failoverToAllowedHost(
+                () -> this.pluginService.getHosts().stream()
+                    .filter(x -> {
+                      final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                      return x.getRole() == HostRole.WRITER
+                          || (x.getRole() == HostRole.READER
+                              && region != null && region.equalsIgnoreCase(this.homeRegion));
+                    })
+                    .filter(this::isInAccessibleRegion)
+                    .collect(Collectors.toSet()),
+                null,
+                failoverEndNano,
+                primaryRegionChanged);
+            break;
+          case OUT_OF_HOME_READER_OR_WRITER:
+            this.failoverToAllowedHost(
+                () -> this.pluginService.getHosts().stream()
+                    .filter(x -> {
+                      final String region = this.rdsHelper.getRdsRegion(x.getHost());
+                      return x.getRole() == HostRole.WRITER
+                          || (x.getRole() == HostRole.READER
+                              && region != null && !region.equalsIgnoreCase(this.homeRegion));
+                    })
+                    .filter(this::isInAccessibleRegion)
+                    .collect(Collectors.toSet()),
+                null,
+                failoverEndNano,
+                primaryRegionChanged);
+            break;
+          case ANY_READER_OR_WRITER:
+            this.failoverToAllowedHost(
+                () -> this.pluginService.getHosts().stream()
+                    .filter(this::isInAccessibleRegion)
+                    .collect(Collectors.toSet()),
+                null,
+                failoverEndNano,
+                primaryRegionChanged);
+            break;
+          default:
+            throw new UnsupportedOperationException(currentFailoverMode.toString());
+        }
+
+        // Every attempt above either throws or returns because the primary region changed.
+        LOGGER.info(() -> Messages.get(
+            "GlobalDbFailoverConnectionPlugin.primaryRegionChangedDuringFailover",
+            new Object[]{currentFailoverMode}));
+        if (System.nanoTime() >= failoverEndNano) {
+          LOGGER.severe(Messages.get("GlobalDbFailoverConnectionPlugin.failoverTimeout"));
+          throw new FailoverFailedSQLException(Messages.get("GlobalDbFailoverConnectionPlugin.failoverTimeout"));
+        }
+      }
 
     } catch (FailoverSuccessSQLException ex) {
       if (telemetryContext != null) {
@@ -383,7 +405,39 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     return region != null && regions.contains(region.toLowerCase(Locale.ROOT));
   }
 
+  /**
+   * Whether the writer in the current topology is in the home region.
+   *
+   * @return true or false, or null when the topology has no writer or its region can't be determined
+   */
+  protected @Nullable Boolean isWriterInHomeRegion() {
+    final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+    if (writer == null) {
+      return null;
+    }
+    final String writerRegion = this.rdsHelper.getRdsRegion(writer.getHost());
+    return writerRegion == null ? null : this.homeRegion.equalsIgnoreCase(writerRegion);
+  }
+
   protected void failoverToWriter(final HostSpec writerCandidate, final long failoverEndNano)
+      throws SQLException {
+    this.failoverToWriter(writerCandidate, failoverEndNano, null);
+  }
+
+  /**
+   * Connects to the writer and throws {@link FailoverSuccessSQLException}, or throws
+   * {@link FailoverFailedSQLException}.
+   *
+   * @param writerCandidate the writer to connect to
+   * @param failoverEndNano when the failover times out
+   * @param abandonWhen checked while connecting; when it returns true the attempt is abandoned and this method
+   *     returns normally. Null to never abandon.
+   * @throws SQLException always, unless the attempt was abandoned
+   */
+  protected void failoverToWriter(
+      final HostSpec writerCandidate,
+      final long failoverEndNano,
+      final @Nullable BooleanSupplier abandonWhen)
       throws SQLException {
 
     if (this.failoverWriterTriggeredCounter != null) {
@@ -397,7 +451,12 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
           this.properties,
           this,
           true,
-          failoverEndNano);
+          failoverEndNano,
+          abandonWhen);
+      if (result == null) {
+        // Abandoned: the caller chooses the failover mode again.
+        return;
+      }
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
       result = null;
       LOGGER.info(() -> Messages.get("Failover.establishedConnection",
@@ -434,6 +493,26 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       @Nullable HostRole verifyRole,
       final long failoverEndNano)
       throws SQLException {
+    this.failoverToAllowedHost(allowedHosts, verifyRole, failoverEndNano, null);
+  }
+
+  /**
+   * Connects to one of the allowed hosts and throws {@link FailoverSuccessSQLException}, or throws
+   * {@link FailoverFailedSQLException}.
+   *
+   * @param allowedHosts the hosts to choose from, evaluated again on every retry
+   * @param verifyRole the role the new connection must have, or null for any role
+   * @param failoverEndNano when the failover times out
+   * @param abandonWhen checked while connecting; when it returns true the attempt is abandoned and this method
+   *     returns normally. Null to never abandon.
+   * @throws SQLException always, unless the attempt was abandoned
+   */
+  protected void failoverToAllowedHost(
+      final @NonNull Supplier<Set<HostSpec>> allowedHosts,
+      @Nullable HostRole verifyRole,
+      final long failoverEndNano,
+      final @Nullable BooleanSupplier abandonWhen)
+      throws SQLException {
 
     if (this.failoverReaderTriggeredCounter != null) {
       this.failoverReaderTriggeredCounter.inc();
@@ -448,7 +527,12 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
           allowedHosts,
           this.failoverReaderHostSelectorStrategySetting,
           verifyRole,
-          failoverEndNano);
+          failoverEndNano,
+          abandonWhen);
+      if (result == null) {
+        // Abandoned: the caller chooses the failover mode again.
+        return;
+      }
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
       result = null;
       LOGGER.info(() -> Messages.get("Failover.establishedConnection",

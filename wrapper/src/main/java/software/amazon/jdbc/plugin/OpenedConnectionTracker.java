@@ -229,6 +229,31 @@ public class OpenedConnectionTracker {
     });
   }
 
+  /**
+   * Invalidates the opened connections to every tracked RDS instance endpoint in the given region, except
+   * {@code exceptHostAndPort}. Tracked keys that are not RDS endpoints (custom domains, host ids) carry no
+   * region and are left alone.
+   *
+   * @param region the AWS region, for example {@code us-east-1}
+   * @param exceptHostAndPort a host:port whose connections are kept, or null
+   */
+  public void invalidateConnectionsInRegion(final String region, final @Nullable String exceptHostAndPort) {
+    for (final String key : openedConnections.keySet()) {
+      if (key.equals(exceptHostAndPort)) {
+        continue;
+      }
+      final int colon = key.lastIndexOf(':');
+      final String host = colon > 0 ? key.substring(0, colon) : key;
+      if (!rdsUtils.isRdsInstance(host)) {
+        continue;
+      }
+      final String keyRegion = rdsUtils.getRdsRegion(host);
+      if (keyRegion != null && keyRegion.equalsIgnoreCase(region)) {
+        this.invalidateAllConnections(key);
+      }
+    }
+  }
+
   public void logOpenedConnections() {
     LOGGER.finest(() -> {
       final StringBuilder builder = new StringBuilder();
