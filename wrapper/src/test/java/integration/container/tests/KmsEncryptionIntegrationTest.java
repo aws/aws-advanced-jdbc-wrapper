@@ -274,6 +274,61 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
+  /** Each value gets a random IV, so an equality search on an encrypted column never matches. */
+  @TestTemplate
+  void testEqualitySearchOnEncryptedColumnReturnsNoRows() throws Exception {
+    String insertSql = "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)";
+    try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
+      pstmt.setString(1, TEST_NAME_1);
+      pstmt.setString(2, TEST_SSN_1);
+      pstmt.setString(3, TEST_EMAIL_1);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    try (PreparedStatement pstmt =
+        connection.prepareStatement("SELECT name FROM " + TABLE + " WHERE ssn = ?")) {
+      pstmt.setString(1, TEST_SSN_1);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertFalse(rs.next(), "WHERE on an encrypted column must not match the stored value");
+      }
+    }
+
+    // Same plaintext again: the stored ciphertexts must differ (random IV), which is why the
+    // equality search above cannot match. Read raw values over a connection without the plugin.
+    try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
+      pstmt.setString(1, TEST_NAME_2);
+      pstmt.setString(2, TEST_SSN_1);
+      pstmt.setString(3, TEST_EMAIL_2);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+    try (Connection plainConn =
+            DriverManager.getConnection(
+                ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+        PreparedStatement pstmt =
+            plainConn.prepareStatement(
+                "SELECT ssn FROM " + TABLE + " WHERE name IN (?, ?) ORDER BY name")) {
+      pstmt.setString(1, TEST_NAME_1);
+      pstmt.setString(2, TEST_NAME_2);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        byte[] first = rs.getBytes("ssn");
+        assertTrue(rs.next());
+        byte[] second = rs.getBytes("ssn");
+        assertFalse(Arrays.equals(first, second), "same plaintext must encrypt to different values");
+      }
+    }
+
+    // The row is there and decrypts: searching an unencrypted column finds it.
+    try (PreparedStatement pstmt =
+        connection.prepareStatement("SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, TEST_NAME_1);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals(TEST_SSN_1, rs.getString("ssn"));
+      }
+    }
+  }
+
   @TestTemplate
   void testUpdateEncryption() throws Exception {
     String insertSql = "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)";
