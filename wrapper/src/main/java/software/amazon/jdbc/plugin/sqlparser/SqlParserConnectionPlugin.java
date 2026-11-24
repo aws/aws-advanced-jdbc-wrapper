@@ -71,9 +71,11 @@ public class SqlParserConnectionPlugin extends AbstractConnectionPlugin {
    * Methods that take the SQL to run as their first argument. The SQL of each call is parsed, rather
    * than the statement's prepared SQL, so that plugins downstream see what is actually sent.
    *
-   * <p>{@code PreparedStatement.addBatch} and {@code CallableStatement.addBatch} are left out: they
-   * share their method name with the no-argument {@code addBatch()} called for every row of a
-   * prepared batch, and the drivers refuse {@code addBatch(String)} on a prepared statement.
+   * <p>Some drivers, such as MySQL Connector/J, accept {@code addBatch(String)} on a prepared or
+   * callable statement and send that SQL as-is. The statement wrappers report that call as
+   * {@code Statement.addBatch}, so it is covered here. {@code PreparedStatement.addBatch} and
+   * {@code CallableStatement.addBatch} are left out: they are the no-argument {@code addBatch()} run
+   * for every row of a prepared batch, which carries no SQL and stays out of the plugin pipeline.
    */
   public static final Set<String> SQL_EXECUTION_METHODS =
       Collections.unmodifiableSet(new HashSet<String>() {

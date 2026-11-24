@@ -1049,9 +1049,14 @@ public class KmsEncryptionConnectionPluginTest {
     stubEncryptedUsersSsn();
     String sql = "INSERT INTO users (name, ssn) VALUES ('a', '1')";
 
+    // Statement.addBatch on a prepared statement is addBatch(String), which some drivers, such as
+    // MySQL Connector/J, accept and send as-is.
     for (String methodName : Arrays.asList(
-        "PreparedStatement.executeUpdate", "CallableStatement.execute", "CallableStatement.executeUpdate")) {
-      assertThrows(SQLException.class, () -> executeChained(methodName, mockPreparedStatement, sql), methodName);
+        "PreparedStatement.executeUpdate", "CallableStatement.execute", "CallableStatement.executeUpdate",
+        "Statement.addBatch")) {
+      SQLException e = assertThrows(SQLException.class,
+          () -> executeChained(methodName, mockPreparedStatement, sql), methodName);
+      assertTrue(e.getMessage().contains("column ssn is written with a literal"), methodName + ": " + e.getMessage());
     }
   }
 

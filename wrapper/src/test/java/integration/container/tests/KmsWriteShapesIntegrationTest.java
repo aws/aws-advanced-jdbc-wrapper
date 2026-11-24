@@ -657,6 +657,29 @@ public class KmsWriteShapesIntegrationTest {
     assertStoredAsCiphertext(table, SSN, "LowPriority", "555-55-5555");
   }
 
+  @TestTemplate
+  void test23FailsClosedOnLiteralInPreparedAddBatch() throws Exception {
+    final String table = createEncryptedTable("kms_shapes_ps_batch", SSN);
+    final Connection conn = openPluginConnection();
+    final String sql = "INSERT INTO " + table + " (name, " + SSN + ") VALUES ('BatchLiteral', '999-99-9999')";
+
+    // Some drivers, such as MySQL Connector/J, accept addBatch(String) on a prepared statement and
+    // send that SQL as-is, so it is checked like SQL passed to a plain Statement.
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "INSERT INTO " + table + " (name, " + SSN + ") VALUES (?, ?)")) {
+      stmt.setString(1, "BatchBound");
+      stmt.setString(2, "111-11-1111");
+      stmt.addBatch();
+      assertRefused(() -> stmt.addBatch(sql), UNENCRYPTABLE);
+      // The refused SQL was not added, so the batch writes only the bound row.
+      stmt.executeBatch();
+    }
+
+    assertEquals(0, countRows(table, "BatchLiteral"));
+    assertEquals("111-11-1111", readColumn(conn, table, SSN, "BatchBound"));
+    assertStoredAsCiphertext(table, SSN, "BatchBound", "111-11-1111");
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------------------------
