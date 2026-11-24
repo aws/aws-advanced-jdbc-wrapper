@@ -75,8 +75,9 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
 
   /**
-   * Stream and LOB setters. Their values cannot be encrypted, so they are rejected when the
-   * parameter maps to an encrypted column instead of silently writing plaintext.
+   * Setters whose values cannot be encrypted: streams, LOBs, and the URL, Array, Ref, RowId and
+   * SQLXML types. They are rejected when the parameter maps to an encrypted column instead of
+   * sending the value as-is.
    */
   private static final Set<String> UNSUPPORTED_ENCRYPTION_SETTERS =
       Collections.unmodifiableSet(new HashSet<String>() {
@@ -89,6 +90,11 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
           add(JdbcMethod.PREPAREDSTATEMENT_SETCLOB.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB.methodName);
           add(JdbcMethod.PREPAREDSTATEMENT_SETBLOB.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETURL.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETARRAY.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETREF.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETROWID.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_SETSQLXML.methodName);
         }
       });
 
@@ -630,7 +636,7 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     }
 
     if (UNSUPPORTED_ENCRYPTION_SETTERS.contains(methodName)) {
-      // A stream or LOB value cannot be encrypted; passing it through would write plaintext.
+      // This setter's value cannot be encrypted; passing it through would send it as-is.
       throw new SQLException(Messages.get(
           "KmsEncryptionConnectionPlugin.unsupportedSetterForEncryptedColumn",
           new Object[] {String.valueOf(paramIndex), tableName, columnName, methodName}));
