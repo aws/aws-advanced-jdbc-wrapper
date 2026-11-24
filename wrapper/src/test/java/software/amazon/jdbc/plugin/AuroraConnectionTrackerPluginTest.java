@@ -351,44 +351,9 @@ public class AuroraConnectionTrackerPluginTest {
   }
 
   @Test
-  public void testConnectThroughActiveWriterEndpointToReaderIsRejected() throws SQLException {
-    // The shared topology already knows the writer is in this endpoint's region (us-east-2), but the
-    // endpoint's DNS still led to a reader.
+  public void testConnectionThroughWriterEndpointIsTrackedAsIs() throws SQLException {
+    // Whether the connection reached the right instance is not the tracker's concern: it tracks what it got.
     final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OHIO_1, OHIO_2));
-    useGlobalDatabase(topology);
-    final HostSpec endpoint = gdbHost(OHIO_WRITER_ENDPOINT, HostRole.WRITER);
-    when(mockPluginService.identifyConnection(mockConnection, endpoint)).thenReturn(OHIO_2);
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
-
-    final SQLException e = assertThrows(SQLException.class,
-        () -> plugin.connect("mysql", endpoint, EMPTY_PROPERTIES, true, mockConnectionFunction));
-
-    assertEquals("08001", e.getSQLState());
-    verify(mockPluginService).refreshHostList();
-    verify(mockConnection).close();
-    verify(mockTracker, never()).populateOpenedConnectionQueue(any(), any());
-  }
-
-  @Test
-  public void testConnectThroughActiveWriterEndpointToWriterIsAccepted() throws SQLException {
-    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OHIO_1, OHIO_2));
-    useGlobalDatabase(topology);
-    final HostSpec endpoint = gdbHost(OHIO_WRITER_ENDPOINT, HostRole.WRITER);
-    when(mockPluginService.identifyConnection(mockConnection, endpoint)).thenReturn(OHIO_1);
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
-
-    assertEquals(mockConnection,
-        plugin.connect("mysql", endpoint, EMPTY_PROPERTIES, true, mockConnectionFunction));
-    verify(mockConnection, never()).close();
-    verify(mockTracker).populateOpenedConnectionQueue(OHIO_1, mockConnection);
-  }
-
-  @Test
-  public void testConnectThroughInactiveWriterEndpointToReaderIsAccepted() throws SQLException {
-    // The writer is in another region: the endpoint is inactive and a reader is the expected result.
-    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
     useGlobalDatabase(topology);
     final HostSpec endpoint = gdbHost(OHIO_WRITER_ENDPOINT, HostRole.WRITER);
     when(mockPluginService.identifyConnection(mockConnection, endpoint)).thenReturn(OHIO_2);
@@ -399,21 +364,6 @@ public class AuroraConnectionTrackerPluginTest {
         plugin.connect("mysql", endpoint, EMPTY_PROPERTIES, true, mockConnectionFunction));
     verify(mockConnection, never()).close();
     verify(mockTracker).populateOpenedConnectionQueue(OHIO_2, mockConnection);
-  }
-
-  @Test
-  public void testNonInitialConnectToReaderIsAccepted() throws SQLException {
-    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OHIO_1, OHIO_2));
-    useGlobalDatabase(topology);
-    final HostSpec endpoint = gdbHost(OHIO_WRITER_ENDPOINT, HostRole.WRITER);
-    when(mockPluginService.identifyConnection(mockConnection, endpoint)).thenReturn(OHIO_2);
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
-
-    assertEquals(mockConnection,
-        plugin.connect("mysql", endpoint, EMPTY_PROPERTIES, false, mockConnectionFunction));
-    verify(mockPluginService, never()).refreshHostList();
-    verify(mockConnection, never()).close();
   }
 
   @ParameterizedTest

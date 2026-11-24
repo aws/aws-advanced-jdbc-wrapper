@@ -35,8 +35,8 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       1836 // Running in read-only mode
   ));
 
-  // ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION: "Cannot execute statement in a READ ONLY transaction".
-  // Reported with SQL state 25006, the same state PostgreSQL uses for a read-only transaction.
+  // ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION (1792): "Cannot execute statement in a READ ONLY transaction",
+  // reported with SQL state 25006.
   private static final int ERROR_READ_ONLY_TRANSACTION = 1792;
   private static final String SQLSTATE_READ_ONLY_TRANSACTION = "25006";
 

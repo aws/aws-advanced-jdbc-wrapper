@@ -41,7 +41,6 @@ import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
@@ -58,8 +57,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
           "invalidateOnPrimaryRegionChange",
           "true",
           "Aurora Global Database only. When the primary region changes, close the tracked connections to the "
-              + "other instances of the new primary region, and do not accept a new connection through an "
-              + "active cluster writer endpoint that reached an instance other than the current writer.");
+              + "other instances of the new primary region.");
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraConnectionTrackerPlugin.class);
@@ -123,7 +121,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
           this.pluginService.setRoutedHostSpec(identifiedHostSpec);
         }
       }
-      this.rejectIfActiveWriterEndpointMissedWriter(hostSpec, connectionHostSpec, conn, isInitialConnection);
       final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(connectionHostSpec, conn);
       this.pluginService.setTrackedConnectionNode(node);
     }
@@ -258,53 +255,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         "AuroraConnectionTrackerPlugin.primaryRegionChanged",
         new Object[] {previousRegion, newRegion, newWriterHostAndPort}));
     this.tracker.invalidateConnectionsInRegion(newRegion, newWriterHostAndPort);
-  }
-
-  /**
-   * Aurora Global Database: a new connection through a cluster writer endpoint whose region is now the primary
-   * region must reach the current writer. During a switchover a connection can be opened from an outdated
-   * topology (writer still in the other region), which treats the endpoint as inactive and accepts whatever
-   * instance its DNS points to, often a reader. Such a connection is closed here and the connect fails with a
-   * network-class SQL state, so that the caller (for example the initialConnection plugin) opens it again.
-   */
-  private void rejectIfActiveWriterEndpointMissedWriter(
-      final HostSpec requestedHostSpec,
-      final HostSpec connectionHostSpec,
-      final Connection conn,
-      final boolean isInitialConnection) throws SQLException {
-
-    if (!isInitialConnection
-        || !this.isGlobalDatabase()
-        || this.rdsHelper.identifyRdsType(requestedHostSpec.getHost()) != RdsUrlType.RDS_WRITER_CLUSTER
-        || !this.rdsHelper.isRdsInstance(connectionHostSpec.getHost())) {
-      return;
-    }
-
-    try {
-      // The topology this connection was opened with may be outdated; use the latest shared one.
-      this.pluginService.refreshHostList();
-    } catch (final SQLException e) {
-      return;
-    }
-    final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
-    if (writer == null
-        || !this.rdsHelper.isRdsInstance(writer.getHost())
-        || !this.rdsHelper.isSameRegion(writer.getHost(), requestedHostSpec.getHost())
-        || writer.getHostAndPort().equals(connectionHostSpec.getHostAndPort())) {
-      // No known writer, the endpoint is inactive (writer in another region), or the writer was reached.
-      return;
-    }
-
-    final String message = Messages.get(
-        "AuroraConnectionTrackerPlugin.activeWriterEndpointMissedWriter",
-        new Object[] {requestedHostSpec.getHost(), connectionHostSpec.getHostAndPort(), writer.getHostAndPort()});
-    LOGGER.fine(message);
-    try {
-      conn.close();
-    } catch (final SQLException e) {
-      // ignore, the connection is discarded anyway
-    }
-    throw new SQLException(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
   }
 
   private void rememberWriter() {
