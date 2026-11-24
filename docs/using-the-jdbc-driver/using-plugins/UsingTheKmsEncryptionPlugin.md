@@ -706,13 +706,13 @@ Rotate with KMS key rotation, not by pointing an alias at a different KMS key. T
 
 ### Moving a column to a new master key
 
-To move a column to a new master key without an outage:
+To move a column to a new master key:
 
 1. Create the new master key and grant the runtime role `kms:Decrypt` on it, and the admin role the actions in [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role).
 2. Add the new key to `encryptionAllowedMasterKeyArns` for the application and for `KeyManagementUtility`, in the same form (ARN, alias or key id) that `key_storage` will hold. Keep the old key listed.
-3. Roll the column onto the new key with `rotateDataKeyAndReencrypt()` (see [Key Rotation](#key-rotation)).
-4. Wait until every application instance has refreshed its metadata (`metadataCacheRefreshIntervalMs`) or restarted, and the re-encryption has finished.
-5. Only then remove the old key from the allow-list and from the runtime role's IAM policy.
+3. Follow the [Data key rotation procedure](#data-key-rotation-procedure), passing the new master key to `rotateDataKeyAndReencrypt()`. Reads of rows that are not converted yet fail while it runs, so plan for it as described there.
+4. Wait until every application instance has refreshed its metadata (`metadataCacheRefreshIntervalMs`) or restarted, and the final `reencryptRemainingRows()` check has passed.
+5. Only then remove the old key from the allow-list and from the runtime and admin roles' IAM policies.
 
 ### Rotating a column's data key
 
@@ -904,8 +904,6 @@ if (!repair.isComplete()) {
 
 ## Security Considerations
 
-This section covers who and what you have to trust, and how to limit it. Where to look:
-
 ### Data Protection
 
 - Encrypted data is stored as binary data in the database
@@ -1040,9 +1038,9 @@ Verify the separation by connecting as the runtime role and confirming that `INS
 The HMAC trigger is the only database-side guarantee that an encrypted column holds no plaintext, and it is an ordinary trigger. Anyone who can remove it, bypass it or run code after it can store any value. Treat these as part of the trust boundary:
 
 - **The table owner**, who can drop or disable the trigger (`DROP TRIGGER`, `ALTER TABLE ... DISABLE TRIGGER`). Make the admin role the owner of tables with encrypted columns (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role)).
-- **Roles with the `TRIGGER` privilege on the table.** On MySQL such a role can drop the trigger. On PostgreSQL it can create its own trigger, which can run after the HMAC trigger (triggers fire in name order) and replace the value it validated. Do not grant `TRIGGER` to the runtime role.
-- **Superusers**, which on RDS includes the master user and members of `rds_superuser`. They can disable triggers and are not restricted by grants.
-- **PostgreSQL `session_replication_role = replica`.** In that mode PostgreSQL does not fire ordinary triggers, so the HMAC trigger is skipped. Only a superuser, or a role granted `SET` on that parameter (PostgreSQL 15 and later), can set it, but it is also what logical replication apply workers and some bulk-load and migration tools use. Do not grant it to the runtime role.
+- **Roles with the `TRIGGER` privilege on the table.** On MySQL such a role can drop the trigger or add one that follows it and replaces the value. On PostgreSQL it can create its own trigger, which can run after the HMAC trigger (triggers fire in name order) and replace the value it validated. Do not grant `TRIGGER` to the runtime role.
+- **Superusers and the RDS master user.** A superuser can disable any trigger and is not restricted by grants. On RDS the master user (and, on PostgreSQL, members of `rds_superuser`) is not a true superuser, but is typically granted enough to drop or disable triggers and can grant itself or others the privileges above.
+- **PostgreSQL `session_replication_role = replica`.** In that mode PostgreSQL does not fire ordinary triggers, so the HMAC trigger is skipped. Only a superuser, a role granted `SET` on that parameter (PostgreSQL 15 and later), or on RDS a member of `rds_superuser`, can set it, but it is also what logical replication apply workers and some bulk-load and migration tools use. Do not grant it to the runtime role.
 - **Anyone who can change the trigger's inputs**: the function and the metadata tables it reads (see the next section).
 
 None of these is stopped by the plugin. Keep the runtime role off this list, and audit who is on it for the admin role and for any person or tool with direct database access.
