@@ -18,8 +18,10 @@ package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.postgresql.PGResultSetMetaData;
 
 /**
  * PostgreSQL-specific encrypted data handling using the EncryptedData custom type.
@@ -48,5 +50,18 @@ public class PgEncryptedDataHelper {
       return rs.getBytes((Integer) columnRef);
     }
     return rs.getBytes((String) columnRef);
+  }
+
+  /**
+   * Returns the table column that a result set column reads. pgjdbc's {@code getColumnName} returns
+   * the column label, so an aliased column would otherwise be looked up by its alias. The base
+   * column name is empty when the column is not a direct reference to a table column.
+   */
+  public @Nullable String getBaseColumnName(ResultSetMetaData metaData, int column)
+      throws SQLException {
+    if (metaData.isWrapperFor(PGResultSetMetaData.class)) {
+      return metaData.unwrap(PGResultSetMetaData.class).getBaseColumnName(column);
+    }
+    return metaData.getColumnName(column);
   }
 }

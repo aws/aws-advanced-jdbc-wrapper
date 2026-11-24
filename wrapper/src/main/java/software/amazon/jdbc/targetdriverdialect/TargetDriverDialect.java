@@ -19,6 +19,7 @@ package software.amazon.jdbc.targetdriverdialect;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Optional;
@@ -170,6 +171,22 @@ public interface TargetDriverDialect {
       throws SQLException;
 
   byte @Nullable [] getEncryptedBytes(final @NonNull ResultSet rs, Object columnRef) throws SQLException;
+
+  /**
+   * Returns the name of the table column that a result set column reads, ignoring any column alias.
+   *
+   * <p>For a column that is not a direct reference to a table column, such as an expression, some
+   * drivers return {@code null} or an empty string and others return the column label. Callers must
+   * also check that {@link ResultSetMetaData#getTableName(int)} is not empty before treating the
+   * result as a table column.
+   *
+   * @param metaData the result set metadata
+   * @param column   the column index, starting at 1
+   * @return the base column name; see above for columns that are not table columns
+   * @throws SQLException if the metadata cannot be read
+   */
+  @Nullable String getBaseColumnName(final @NonNull ResultSetMetaData metaData, int column)
+      throws SQLException;
 
   /**
    * Allows each target driver dialect to perform last-minute adjustments to the wrapper's

@@ -22,6 +22,7 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -299,6 +300,12 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
       return rs.getBytes((Integer) columnRef);
     }
     return rs.getBytes((String) columnRef);
+  }
+
+  @Override
+  public @Nullable String getBaseColumnName(@NonNull ResultSetMetaData metaData, int column)
+      throws SQLException {
+    return metaData.getColumnName(column);
   }
 
   @Override

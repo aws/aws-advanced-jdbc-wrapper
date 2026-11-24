@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.sqlparser.SqlParserConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 
 /**
@@ -677,11 +679,20 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       JdbcCallable<T, E> jdbcCallable,
       final @Nullable Object... args) throws E, SQLException {
 
-    // Determine column name from args (index or label)
-    final @Nullable String columnName = resolveColumnName(rs, args);
-    final @Nullable String tableName = resolveTableName(rs, args);
+    final @Nullable Integer columnIndex = resolveColumnIndex(rs, args);
+    if (columnIndex == null) {
+      return jdbcCallable.call();
+    }
 
-    if (columnName == null || tableName == null) {
+    // Look the column up by the table column it reads rather than by its label, so an aliased
+    // encrypted column is still decrypted and a plain column labelled with an encrypted column's
+    // name is not. Expressions have no table, though some drivers report their label as the column
+    // name, so they are returned as-is.
+    final ResultSetMetaData metaData = rs.getMetaData();
+    final @Nullable String tableName = metaData.getTableName(columnIndex);
+    final @Nullable String columnName =
+        pluginService.getTargetDriverDialect().getBaseColumnName(metaData, columnIndex);
+    if (StringUtils.isNullOrEmpty(tableName) || StringUtils.isNullOrEmpty(columnName)) {
       return jdbcCallable.call();
     }
 
@@ -723,43 +734,31 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
       throws SQLException {
     final @Nullable Object columnRef = args[0];
     if (columnRef == null) {
-      // Unreachable: callers only get here after resolveColumnName() accepted args[0] as a
+      // Unreachable: callers only get here after resolveColumnIndex() accepted args[0] as a
       // column index or label.
       return null;
     }
     return pluginService.getTargetDriverDialect().getEncryptedBytes(rs, columnRef);
   }
 
-  private @Nullable String resolveColumnName(ResultSet rs, final @Nullable Object... args)
-      throws SQLException {
-    if (args.length == 0) {
-      return null;
-    }
-    final @Nullable Object columnRef = args[0];
-    if (columnRef instanceof String) {
-      return (String) columnRef;
-    }
+  /**
+   * Returns the index of the column that a {@code ResultSet.getXxx} call reads, or {@code null} if
+   * the call has no column argument or names a label that is not in the result set. In the second
+   * case the driver's own call reports the unknown label.
+   */
+  private @Nullable Integer resolveColumnIndex(ResultSet rs, final @Nullable Object... args) {
+    final @Nullable Object columnRef = args.length > 0 ? args[0] : null;
     if (columnRef instanceof Integer) {
-      return rs.getMetaData().getColumnName((Integer) columnRef);
+      return (Integer) columnRef;
     }
-    return null;
-  }
-
-  private @Nullable String resolveTableName(ResultSet rs, final @Nullable Object... args) {
-    try {
-      final @Nullable Object columnRef = args.length > 0 ? args[0] : null;
-      int colIndex;
-      if (columnRef instanceof Integer) {
-        colIndex = (Integer) columnRef;
-      } else if (columnRef instanceof String) {
-        colIndex = rs.findColumn((String) columnRef);
-      } else {
+    if (columnRef instanceof String) {
+      try {
+        return rs.findColumn((String) columnRef);
+      } catch (SQLException e) {
         return null;
       }
-      return rs.getMetaData().getTableName(colIndex);
-    } catch (SQLException e) {
-      return null;
     }
+    return null;
   }
 
   private Class<?> getTargetType(String methodName) {
