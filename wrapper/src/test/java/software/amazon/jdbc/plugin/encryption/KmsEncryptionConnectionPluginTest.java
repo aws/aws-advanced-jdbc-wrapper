@@ -28,17 +28,28 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
 import java.io.StringReader;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.sql.Array;
+import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Connection;
+import java.sql.NClob;
 import java.sql.PreparedStatement;
+import java.sql.Ref;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.RowId;
 import java.sql.SQLException;
+import java.sql.SQLXML;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1122,28 +1133,47 @@ public class KmsEncryptionConnectionPluginTest {
     assertEquals(indexes(2), boundEncrypted(2, "PreparedStatement.setNString"));
   }
 
-  @Test
-  void test_chained_streamSetter_onEncryptedColumn_throws_elsePassesThrough() throws Exception {
+  private static final String SECRET = "123-45-6789";
+
+  static Stream<Arguments> refusedSetters() throws Exception {
+    byte[] secretBytes = SECRET.getBytes(StandardCharsets.UTF_8);
+    return Stream.of(
+        Arguments.of("PreparedStatement.setCharacterStream", new StringReader(SECRET)),
+        Arguments.of("PreparedStatement.setNCharacterStream", new StringReader(SECRET)),
+        Arguments.of("PreparedStatement.setAsciiStream", new ByteArrayInputStream(secretBytes)),
+        Arguments.of("PreparedStatement.setBinaryStream", new ByteArrayInputStream(secretBytes)),
+        Arguments.of("PreparedStatement.setUnicodeStream", new ByteArrayInputStream(secretBytes)),
+        Arguments.of("PreparedStatement.setClob", mock(Clob.class)),
+        Arguments.of("PreparedStatement.setNClob", mock(NClob.class)),
+        Arguments.of("PreparedStatement.setBlob", mock(Blob.class)),
+        Arguments.of("PreparedStatement.setURL", new URL("https://example.com/" + SECRET)),
+        Arguments.of("PreparedStatement.setArray", mock(Array.class)),
+        Arguments.of("PreparedStatement.setRef", mock(Ref.class)),
+        Arguments.of("PreparedStatement.setRowId", mock(RowId.class)),
+        Arguments.of("PreparedStatement.setSQLXML", mock(SQLXML.class)));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("refusedSetters")
+  void test_chained_refusedSetter_onEncryptedColumn_throws_elsePassesThrough(
+      String setter, Object value) throws Exception {
     stubEncryptedUsersSsn();
     prepareChained("INSERT INTO users (name, ssn) VALUES (?, ?)");
 
     SQLException e = assertThrows(SQLException.class, () -> plugin.execute(
-        Void.class, SQLException.class, mockPreparedStatement,
-        "PreparedStatement.setCharacterStream", () -> null,
-        2, new StringReader("123-45-6789")));
+        Void.class, SQLException.class, mockPreparedStatement, setter, () -> null, 2, value));
     assertTrue(e.getMessage().contains("users.ssn"), e.getMessage());
-    assertTrue(e.getMessage().contains("PreparedStatement.setCharacterStream"), e.getMessage());
-    assertFalse(e.getMessage().contains("123-45-6789"), e.getMessage());
+    assertTrue(e.getMessage().contains(setter), e.getMessage());
+    assertFalse(e.getMessage().contains(SECRET), e.getMessage());
 
     boolean[] called = {false};
     plugin.execute(
-        Void.class, SQLException.class, mockPreparedStatement,
-        "PreparedStatement.setCharacterStream", () -> {
+        Void.class, SQLException.class, mockPreparedStatement, setter, () -> {
           called[0] = true;
           return null;
         },
-        1, new StringReader("Alice"));
-    assertTrue(called[0], "Stream setter on a non-encrypted column must pass through");
+        1, value);
+    assertTrue(called[0], setter + " on a non-encrypted column must pass through");
     verify(mockPreparedStatement, never()).setBytes(anyInt(), any());
   }
 
@@ -1450,7 +1480,12 @@ public class KmsEncryptionConnectionPluginTest {
         "PreparedStatement.setClob",
         "PreparedStatement.setNClob",
         "PreparedStatement.setBlob",
-        "PreparedStatement.setUnicodeStream")) {
+        "PreparedStatement.setUnicodeStream",
+        "PreparedStatement.setURL",
+        "PreparedStatement.setArray",
+        "PreparedStatement.setRef",
+        "PreparedStatement.setRowId",
+        "PreparedStatement.setSQLXML")) {
       assertTrue(methods.contains(setter), setter);
     }
   }
