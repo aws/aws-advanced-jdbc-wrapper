@@ -459,6 +459,53 @@ class FailoverConnectionPluginTest {
     verify(mockHostListProvider, never()).getRdsUrlType();
   }
 
+  @Test
+  void test_execute_closedConnection_interruptedThread_skipFailover() throws SQLException {
+    properties.setProperty(FailoverConnectionPlugin.SKIP_FAILOVER_ON_INTERRUPTED_THREAD.name, "true");
+    when(mockConnection.isClosed()).thenReturn(true);
+    initializePlugin();
+
+    Thread.currentThread().interrupt();
+    try {
+      final SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.execute(
+          ResultSet.class,
+          SQLException.class,
+          MONITOR_METHOD_INVOKE_ON,
+          "Connection.rollback",
+          mockSqlFunction,
+          EMPTY_ARGS));
+      assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), exception.getSQLState());
+      assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+
+    verify(spyPlugin, never()).failover(any(), anyBoolean());
+    verify(mockSqlFunction, never()).call();
+  }
+
+  @Test
+  void test_execute_closedConnection_interruptedThread_skipFailoverDisabled() throws SQLException {
+    when(mockConnection.isClosed()).thenReturn(true);
+    initializePlugin();
+    doThrow(new FailoverSuccessSQLException()).when(spyPlugin).failover(any(), anyBoolean());
+
+    Thread.currentThread().interrupt();
+    try {
+      assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.execute(
+          ResultSet.class,
+          SQLException.class,
+          MONITOR_METHOD_INVOKE_ON,
+          "Connection.rollback",
+          mockSqlFunction,
+          EMPTY_ARGS));
+    } finally {
+      Thread.interrupted();
+    }
+
+    verify(spyPlugin).failover(any(), anyBoolean());
+  }
+
   private void initializePlugin() {
     spyPlugin = spy(new FailoverConnectionPlugin(mockContainer, properties));
     spyPlugin.setWriterFailoverHandler(mockWriterFailoverHandler);
