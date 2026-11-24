@@ -66,6 +66,7 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.SchemaName;
+import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /**
  * Integration test for KMS encryption functionality with JSqlParser.
@@ -103,8 +104,8 @@ public class KmsEncryptionIntegrationTest {
   private static final String DECOY_TABLE = "kms_enc_shadow_decoy";
   private static final String DECOY_KEY_NAME = "test-key-shadow-decoy";
   private static final String MISSING_TABLE = "kms_enc_no_such_table";
-  // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) bytes, before the GCM payload.
-  private static final int MIN_ENCRYPTED_LENGTH = 45;
+  // Smallest possible ciphertext: HMAC (32) + type (1) + IV (12) + GCM tag (16) bytes.
+  private static final int MIN_ENCRYPTED_LENGTH = 61;
   private static final String TEST_SSN_1 = "111-11-1111";
   private static final String TEST_NAME_1 = "Alice Test";
   private static final String TEST_EMAIL_1 = "alice@test.com";
@@ -269,6 +270,61 @@ public class KmsEncryptionIntegrationTest {
         assertTrue(rs.next());
         assertEquals(TEST_NAME_1, rs.getString("name"));
         assertNotEquals(TEST_SSN_1, rs.getString("ssn")); // Should be encrypted
+      }
+    }
+  }
+
+  /** Each value gets a random IV, so an equality search on an encrypted column never matches. */
+  @TestTemplate
+  void testEqualitySearchOnEncryptedColumnReturnsNoRows() throws Exception {
+    String insertSql = "INSERT INTO " + TABLE + " (name, ssn, email) VALUES (?, ?, ?)";
+    try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
+      pstmt.setString(1, TEST_NAME_1);
+      pstmt.setString(2, TEST_SSN_1);
+      pstmt.setString(3, TEST_EMAIL_1);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    try (PreparedStatement pstmt =
+        connection.prepareStatement("SELECT name FROM " + TABLE + " WHERE ssn = ?")) {
+      pstmt.setString(1, TEST_SSN_1);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertFalse(rs.next(), "WHERE on an encrypted column must not match the stored value");
+      }
+    }
+
+    // Same plaintext again: the stored ciphertexts must differ (random IV), which is why the
+    // equality search above cannot match. Read raw values over a connection without the plugin.
+    try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
+      pstmt.setString(1, TEST_NAME_2);
+      pstmt.setString(2, TEST_SSN_1);
+      pstmt.setString(3, TEST_EMAIL_2);
+      assertEquals(1, pstmt.executeUpdate());
+    }
+    try (Connection plainConn =
+            DriverManager.getConnection(
+                ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+        PreparedStatement pstmt =
+            plainConn.prepareStatement(
+                "SELECT ssn FROM " + TABLE + " WHERE name IN (?, ?) ORDER BY name")) {
+      pstmt.setString(1, TEST_NAME_1);
+      pstmt.setString(2, TEST_NAME_2);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        byte[] first = rs.getBytes("ssn");
+        assertTrue(rs.next());
+        byte[] second = rs.getBytes("ssn");
+        assertFalse(Arrays.equals(first, second), "same plaintext must encrypt to different values");
+      }
+    }
+
+    // The row is there and decrypts: searching an unencrypted column finds it.
+    try (PreparedStatement pstmt =
+        connection.prepareStatement("SELECT ssn FROM " + TABLE + " WHERE name = ?")) {
+      pstmt.setString(1, TEST_NAME_1);
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals(TEST_SSN_1, rs.getString("ssn"));
       }
     }
   }
@@ -756,6 +812,77 @@ public class KmsEncryptionIntegrationTest {
         stmt.execute("INSERT INTO " + TABLE + " (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
       }
     });
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void testReinstallingEncryptedDataTypeKeepsData() throws Exception {
+    final String schema = "kms_enc_reinstall";
+    final SchemaName metadataSchema = SchemaName.of(METADATA_SCHEMA);
+    try (Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+         Statement stmt = conn.createStatement()) {
+      stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+      stmt.execute("CREATE SCHEMA " + schema);
+      try {
+        // A schema of its own, so the encrypted_data domain the other tests use is not touched. The
+        // connection is closed at the end of the test, so its search_path is not restored.
+        stmt.execute("SET search_path TO " + schema);
+        // The domain as earlier versions of the script created it, with a 45-byte check.
+        stmt.execute("CREATE DOMAIN encrypted_data AS bytea CHECK (length(VALUE) >= 45)");
+        stmt.execute("CREATE TABLE reinstall_users (id INT PRIMARY KEY, ssn encrypted_data)");
+        stmt.execute("INSERT INTO reinstall_users VALUES "
+            + "(1, decode(repeat('ab', 61), 'hex')), (2, decode(repeat('cd', 50), 'hex'))");
+
+        // Upgrades the check in place, then a second run changes nothing.
+        EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
+        final long constraintOid = domainCheckOid(stmt);
+        EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
+
+        // Dropping the domain with CASCADE would drop the ssn column but keep the rows, so check the
+        // values themselves. The 50-byte value also shows that the new check skipped existing rows.
+        try (ResultSet rs = stmt.executeQuery("SELECT id, ssn FROM reinstall_users ORDER BY id")) {
+          assertTrue(rs.next());
+          assertEquals(1, rs.getInt(1));
+          assertArrayEquals(filled((byte) 0xab, 61), rs.getBytes(2), "Re-installing must keep row 1");
+          assertTrue(rs.next());
+          assertEquals(2, rs.getInt(1));
+          assertArrayEquals(filled((byte) 0xcd, 50), rs.getBytes(2), "Re-installing must keep row 2");
+          assertFalse(rs.next());
+        }
+        assertEquals(constraintOid, domainCheckOid(stmt), "A second run must leave the check unchanged");
+        try (ResultSet rs = stmt.executeQuery(
+            "SELECT count(*) FROM pg_constraint WHERE contypid = 'encrypted_data'::regtype")) {
+          rs.next();
+          assertEquals(1, rs.getInt(1), "The 45-byte check must be replaced, not kept next to the new one");
+        }
+        try (ResultSet rs = stmt.executeQuery("SELECT pg_get_constraintdef(" + constraintOid + ")")) {
+          rs.next();
+          assertTrue(rs.getString(1).contains(">= 61"), rs.getString(1));
+        }
+        final SQLException tooShort = assertThrows(SQLException.class, () -> stmt.execute(
+            "INSERT INTO reinstall_users VALUES (3, decode(repeat('ef', 50), 'hex'))"));
+        // 23514 is check_violation, so the insert failed on the domain check and not for another reason.
+        assertEquals("23514", tooShort.getSQLState(), tooShort.getMessage());
+      } finally {
+        stmt.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+      }
+    }
+  }
+
+  private static byte[] filled(final byte value, final int length) {
+    final byte[] bytes = new byte[length];
+    Arrays.fill(bytes, value);
+    return bytes;
+  }
+
+  private static long domainCheckOid(Statement stmt) throws SQLException {
+    try (ResultSet rs = stmt.executeQuery(
+        "SELECT oid FROM pg_constraint "
+            + "WHERE contypid = 'encrypted_data'::regtype AND conname = 'encrypted_data_check'")) {
+      assertTrue(rs.next(), "The encrypted_data domain has no encrypted_data_check constraint");
+      return rs.getLong(1);
+    }
   }
 
   @TestTemplate
