@@ -19,10 +19,14 @@ package software.amazon.jdbc.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -104,5 +108,33 @@ class IamAuthUtilsTest {
 
   private static String key(final String scope, final @Nullable String[] identity, final String user) {
     return IamAuthUtils.getCacheKey(scope, identity, user, HOST, 5432, Region.US_EAST_2);
+  }
+
+  @Test
+  void test_passwordFingerprint_equalForEqualPasswords() {
+    assertEquals(IamAuthUtils.getPasswordFingerprint("s3cret"), IamAuthUtils.getPasswordFingerprint("s3cret"));
+    assertNotEquals(IamAuthUtils.getPasswordFingerprint("s3cret"), IamAuthUtils.getPasswordFingerprint("s3cret2"));
+  }
+
+  @Test
+  void test_passwordFingerprint_doesNotContainPassword() {
+    final String fingerprint = IamAuthUtils.getPasswordFingerprint("s3cret");
+    assertNotNull(fingerprint);
+    assertFalse(fingerprint.contains("s3cret"));
+  }
+
+  @Test
+  void test_passwordFingerprint_distinguishesNullAndEmpty() {
+    assertNull(IamAuthUtils.getPasswordFingerprint(null));
+    assertNotNull(IamAuthUtils.getPasswordFingerprint(""));
+  }
+
+  @Test
+  void testCredentialsIdentityIsShortHexOrNone() {
+    final String identity = IamAuthUtils.getCredentialsIdentity(AwsBasicCredentials.create("AKIAEXAMPLEA", "secret"));
+
+    assertEquals(IamAuthUtils.CREDENTIALS_IDENTITY_LENGTH, identity.length());
+    assertTrue(identity.matches("[0-9a-f]+"));
+    assertEquals(IamAuthUtils.NO_CREDENTIALS_IDENTITY, IamAuthUtils.getCredentialsIdentity((AwsCredentials) null));
   }
 }

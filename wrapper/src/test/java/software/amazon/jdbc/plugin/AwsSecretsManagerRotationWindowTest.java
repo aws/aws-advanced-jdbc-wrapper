@@ -42,6 +42,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -51,6 +54,7 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.exceptions.ExceptionManager;
@@ -63,7 +67,7 @@ import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -104,7 +108,11 @@ public class AwsSecretsManagerRotationWindowTest {
   /** AWSCURRENT is never promoted for the duration of the test. */
   private static final int NEVER_PROMOTED = Integer.MAX_VALUE;
 
-  private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
+  // The cached secret is keyed on the AWS identity that read it, so tests sign with fixed credentials.
+  private static final AwsCredentialsProvider TEST_CREDENTIALS_PROVIDER =
+      StaticCredentialsProvider.create(AwsBasicCredentials.create("AKIDTESTKEY", "test-secret-key"));
+  private static final String SECRET_CACHE_KEY = AwsSecretsManagerConnectionPlugin.buildSecretCacheKey(
+      TEST_SECRET_ID, TEST_REGION, null, IamAuthUtils.getCredentialsIdentity(TEST_CREDENTIALS_PROVIDER));
   private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("test-domain").port(5432).build();
 
@@ -134,6 +142,7 @@ public class AwsSecretsManagerRotationWindowTest {
   @BeforeEach
   void init() throws SQLException {
     this.closeable = MockitoAnnotations.openMocks(this);
+    AwsCredentialsManager.setCustomHandler((hostSpec, props) -> TEST_CREDENTIALS_PROVIDER);
 
     this.props = new Properties();
     REGION_PROPERTY.set(this.props, TEST_REGION);
@@ -156,6 +165,7 @@ public class AwsSecretsManagerRotationWindowTest {
 
   @AfterEach
   void cleanUp() throws Exception {
+    AwsCredentialsManager.resetCustomHandler();
     this.closeable.close();
     CoreServicesContainer.getInstance().getStorageService().clear(Secret.class);
   }

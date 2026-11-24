@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [Unreleased]
+### :bug: Fixed
+- Fixed the ADFS and Okta authentication plugins reusing a cached IAM token for a connection that supplies a different identity provider password. The password is part of the token cache key as a fingerprint, not in plain text ([documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md)).
+- Fixed the AWS Secrets Manager plugins sharing a cached secret between connections that read it with different AWS credentials or through a different `secretsManagerEndpoint` ([documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)).
+- Fixed the c3p0 internal connection pool sharing one pool per host between database users. Pools are now keyed on the host URL and the user, as the HikariCP internal pool is by default ([documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling)).
+- Fixed the Remote Query Cache Plugin sharing Valkey client pools between connections that use a different cache user or TLS settings for the same cache endpoint. Pools are now keyed on the endpoint and those settings ([documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md#cache-connection-pooling)).
+
 ## [4.7.0] - 2026-11-19
 ### :magic_wand: Added
 - Added the Host Monitoring Plugin v3 (`efm3`), which registers each connection with its host monitor once instead of on every JDBC call, so per-call overhead no longer takes shared locks or allocates and monitor memory scales with the number of connections rather than with call volume. In the wrapper's benchmarks, which use a simulated target driver with many connections to one host, `efm3` handled about 2.7 times as many calls per millisecond as `efm2` at 8 or more threads (685-737 versus 246-268), and with 64 connections making 1,000 calls per second each it held 5-6 MB of heap instead of about 125 MB. `efm` and `efm2` are unchanged, and `efm2` remains the default ([PR #2237](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/2237), [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md#host-monitoring-plugin-v3)).

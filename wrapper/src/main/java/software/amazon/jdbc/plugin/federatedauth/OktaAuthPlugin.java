@@ -142,6 +142,7 @@ public class OktaAuthPlugin extends BaseSamlAuthPlugin {
         IDP_ENDPOINT.getString(props),
         APP_ID.getString(props),
         IDP_USERNAME.getString(props),
+        IamAuthUtils.getPasswordFingerprint(IDP_PASSWORD.getString(props)),
         IAM_ROLE_ARN.getString(props),
         IAM_IDP_ARN.getString(props)};
   }

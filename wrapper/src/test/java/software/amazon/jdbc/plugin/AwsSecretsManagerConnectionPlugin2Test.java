@@ -56,6 +56,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
@@ -67,9 +70,11 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.Secret;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -92,7 +97,11 @@ public class AwsSecretsManagerConnectionPlugin2Test {
   private static final String TEST_HOST = "test-domain";
   private static final int TEST_PORT = 5432;
 
-  private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
+  // The cached secret is keyed on the AWS identity that read it, so tests sign with fixed credentials.
+  private static final AwsCredentialsProvider TEST_CREDENTIALS_PROVIDER =
+      StaticCredentialsProvider.create(AwsBasicCredentials.create("AKIDTESTKEY", "test-secret-key"));
+  private static final String SECRET_CACHE_KEY = AwsSecretsManagerConnectionPlugin.buildSecretCacheKey(
+      TEST_SECRET_ID, TEST_REGION, null, IamAuthUtils.getCredentialsIdentity(TEST_CREDENTIALS_PROVIDER));
   private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
   private static final GetSecretValueResponse VALID_GET_SECRET_VALUE_RESPONSE =
@@ -121,6 +130,7 @@ public class AwsSecretsManagerConnectionPlugin2Test {
   @BeforeEach
   public void init() {
     closeable = MockitoAnnotations.openMocks(this);
+    AwsCredentialsManager.setCustomHandler((hostSpec, props) -> TEST_CREDENTIALS_PROVIDER);
 
     testProps = new Properties();
     REGION_PROPERTY.set(testProps, TEST_REGION);
@@ -152,6 +162,7 @@ public class AwsSecretsManagerConnectionPlugin2Test {
 
   @AfterEach
   void cleanUp() throws Exception {
+    AwsCredentialsManager.resetCustomHandler();
     closeable.close();
     cache.clear();
     AwsSecretsManagerConnectionPlugin2.pendingRefreshes.clear();
@@ -443,7 +454,7 @@ public class AwsSecretsManagerConnectionPlugin2Test {
   @Test
   public void testInterruptedDuringSynchronousFetch() throws Exception {
     final CompletableFuture<Secret> neverCompleting = new CompletableFuture<>();
-    AwsSecretsManagerConnectionPlugin2.pendingRefreshes.put(this.plugin.secretKey, neverCompleting);
+    AwsSecretsManagerConnectionPlugin2.pendingRefreshes.put(SECRET_CACHE_KEY, neverCompleting);
 
     final List<Exception> caught = new ArrayList<>();
     final boolean[] wasInterrupted = {false};

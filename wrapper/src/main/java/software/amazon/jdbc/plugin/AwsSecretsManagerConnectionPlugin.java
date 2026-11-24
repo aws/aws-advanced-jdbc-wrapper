@@ -37,6 +37,9 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -52,6 +55,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RegionUtils;
@@ -140,8 +144,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       Pattern.compile("^arn:aws:secretsmanager:(?<region>[^:\\n]*):[^:\\n]*:([^:/\\n]*[:/])?(.*)$");
 
   final Pair<String /* secretId */, String /* region */> secretKey;
-  private final BiFunction<HostSpec, Region, SecretsManagerClient>
-      secretsManagerClientFunc;
+  private final Properties props;
+  private final SecretsManagerClientFactory secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
 
   /**
@@ -171,13 +175,18 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     this(
         servicesContainer,
         props,
-        (hostSpec, region) -> {
+        (SecretsManagerClientFactory) (hostSpec, region, credentialsProvider) -> {
+          // Sign with the credentials snapshot the cache key was built from, so the cached secret is
+          // the one those credentials read. Without a snapshot, the configured provider is used.
+          final AwsCredentialsProvider provider = credentialsProvider != null
+              ? credentialsProvider
+              : AwsCredentialsManager.getProvider(hostSpec, props, region);
           final String endpoint = ENDPOINT_PROPERTY.getString(props);
           if (endpoint != null && !endpoint.isEmpty()) {
             try {
               final URI endpointURI = new URI(endpoint);
               return SecretsManagerClient.builder()
-                  .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props, region))
+                  .credentialsProvider(provider)
                   .endpointOverride(endpointURI)
                   .region(region)
                   .build();
@@ -187,7 +196,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
             }
           } else {
             return SecretsManagerClient.builder()
-                .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props, region))
+                .credentialsProvider(provider)
                 .region(region)
                 .build();
           }
@@ -198,13 +207,27 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     );
   }
 
+  // Tests pass a client function that does not need the credentials snapshot.
+  AwsSecretsManagerConnectionPlugin(
+      final FullServicesContainer servicesContainer,
+      final Properties props,
+      final BiFunction<HostSpec, Region, SecretsManagerClient> secretsManagerClientFunc,
+      final Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
+    this(
+        servicesContainer,
+        props,
+        (SecretsManagerClientFactory) (hostSpec, region, credentialsProvider) ->
+            secretsManagerClientFunc.apply(hostSpec, region),
+        getSecretValueRequestFunc);
+  }
+
   // resolveSecretExpirationTime is an overridable instance method invoked here during construction;
   // it only reads its argument and does not touch not-yet-initialized state, so the call is safe.
   @SuppressWarnings("method.invocation")
   AwsSecretsManagerConnectionPlugin(
       final FullServicesContainer servicesContainer,
       final Properties props,
-      final BiFunction<HostSpec, Region, SecretsManagerClient> secretsManagerClientFunc,
+      final SecretsManagerClientFactory secretsManagerClientFunc,
       final Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
@@ -271,6 +294,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     this.connectRetryIntervalMs =
         AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_CONNECT_RETRY_INTERVAL_MS_PROPERTY.getLong(props);
     this.secretKey = Pair.create(secretId, region.id());
+    this.props = props;
 
     this.secretsManagerClientFunc = secretsManagerClientFunc;
     this.getSecretValueRequestFunc = getSecretValueRequestFunc;
@@ -494,12 +518,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       this.fetchCredentialsCounter.inc();
     }
 
-    this.secret = this.servicesContainer.getStorageService().get(Secret.class, this.secretKey);
+    final @Nullable AwsCredentials credentials = this.resolveCredentials(hostSpec);
+    final @Nullable String cacheKey = getSecretCacheKey(credentials);
+    this.secret = cacheKey == null
+        ? null
+        : this.servicesContainer.getStorageService().get(Secret.class, cacheKey);
 
     try {
       boolean fetched = false;
       if (secret == null || forceReFetch || secret.isExpired()) {
-        this.secret = fetchAndStoreSecret(hostSpec);
+        this.secret = fetchAndStoreSecret(hostSpec, cacheKey, credentials);
         fetched = this.secret != null;
       }
       return fetched;
@@ -517,6 +545,59 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   /**
+   * Resolves the AWS credentials that read the secret. The cache key and the Secrets Manager call use
+   * this one snapshot, so a secret is never cached under credentials other than the ones that read it.
+   *
+   * @param hostSpec the host the credentials are being resolved for.
+   * @return the credentials, or {@code null} if none can be resolved.
+   */
+  protected @Nullable AwsCredentials resolveCredentials(final HostSpec hostSpec) {
+    try {
+      return AwsCredentialsManager.getProvider(hostSpec, this.props, Region.of(this.secretKey.getValue2()))
+          .resolveCredentials();
+    } catch (final SdkClientException e) {
+      LOGGER.finest(() -> Messages.get("AwsSecretsManagerConnectionPlugin.noCredentialsForCache"));
+      return null;
+    }
+  }
+
+  /**
+   * Returns the key the secret is cached under. Besides the secret ID and region, the key holds the
+   * Secrets Manager endpoint and the AWS identity that reads the secret, so a connection never uses a
+   * secret that its own AWS credentials did not fetch.
+   *
+   * @param credentials the credentials snapshot that reads the secret.
+   * @return the cache key, or {@code null} without credentials: such a connection neither reads nor
+   *     writes the shared cache.
+   */
+  @Nullable String getSecretCacheKey(final @Nullable AwsCredentials credentials) {
+    if (credentials == null) {
+      return null;
+    }
+    return buildSecretCacheKey(
+        this.secretKey.getValue1(),
+        this.secretKey.getValue2(),
+        ENDPOINT_PROPERTY.getString(this.props),
+        IamAuthUtils.getCredentialsIdentity(credentials));
+  }
+
+  static String buildSecretCacheKey(
+      final String secretId,
+      final String region,
+      final @Nullable String endpoint,
+      final @Nullable String credentialsIdentity) {
+    final StringBuilder key = new StringBuilder();
+    for (final @Nullable String part : new @Nullable String[] {secretId, region, endpoint, credentialsIdentity}) {
+      if (part == null) {
+        key.append("-1:");
+      } else {
+        key.append(part.length()).append(':').append(part);
+      }
+    }
+    return key.toString();
+  }
+
+  /**
    * Fetches the latest credentials from the AWS Secrets Manager service and stores them in the shared cache.
    * Service-specific exceptions are translated into a {@link SQLException} (or {@link RuntimeException} for a
    * misconfigured endpoint), preserving the original error handling.
@@ -525,11 +606,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @return the freshly fetched {@link Secret}, or {@code null} if none was returned.
    * @throws SQLException if the credentials could not be fetched.
    */
-  protected Secret fetchAndStoreSecret(final HostSpec hostSpec) throws SQLException {
+  protected Secret fetchAndStoreSecret(
+      final HostSpec hostSpec,
+      final @Nullable String cacheKey,
+      final @Nullable AwsCredentials credentials) throws SQLException {
     try {
-      final Secret fetched = fetchLatestCredentials(hostSpec);
-      if (fetched != null) {
-        this.servicesContainer.getStorageService().set(this.secretKey, fetched);
+      final Secret fetched = fetchLatestCredentials(hostSpec, credentials);
+      if (fetched != null && cacheKey != null) {
+        this.servicesContainer.getStorageService().set(cacheKey, fetched);
       }
       return fetched;
     } catch (final SecretsManagerException | JsonProcessingException exception) {
@@ -580,8 +664,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @throws SecretsManagerException if credentials can't be fetched from the AWS Secrets Manager service.
    * @throws JsonProcessingException if credentials can't be read from the JSON object returned by the SDK.
    */
-  Secret fetchLatestCredentials(final HostSpec hostSpec)
+  Secret fetchLatestCredentials(final HostSpec hostSpec, final @Nullable AwsCredentials credentials)
       throws SecretsManagerException, JsonProcessingException, SQLException {
+    final @Nullable AwsCredentialsProvider credentialsProvider =
+        credentials == null ? null : StaticCredentialsProvider.create(credentials);
     // When invoked on a connecting thread, reuse (and lazily build) the client owned by
     // connectInternal so retries share one client. Otherwise (e.g. the awsSecretsManager2 async
     // refresh) build a client scoped to this single fetch and close it when done.
@@ -590,12 +676,13 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (clientHolder != null) {
       SecretsManagerClient reusedClient = clientHolder.client;
       if (reusedClient == null) {
-        reusedClient = secretsManagerClientFunc.apply(hostSpec, Region.of(this.secretKey.getValue2()));
+        reusedClient = secretsManagerClientFunc.create(
+            hostSpec, Region.of(this.secretKey.getValue2()), credentialsProvider);
         clientHolder.client = reusedClient;
       }
       client = reusedClient;
     } else {
-      client = secretsManagerClientFunc.apply(hostSpec, Region.of(this.secretKey.getValue2()));
+      client = secretsManagerClientFunc.create(hostSpec, Region.of(this.secretKey.getValue2()), credentialsProvider);
     }
     final GetSecretValueRequest request = getSecretValueRequestFunc.apply(this.secretKey.getValue1());
 
@@ -730,5 +817,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           this.password == null ? "<null>" : "***",
           this.expirationTime);
     }
+  }
+
+  /** Builds the Secrets Manager client, signing with the given credentials snapshot when there is one. */
+  @FunctionalInterface
+  interface SecretsManagerClientFactory {
+    SecretsManagerClient create(
+        HostSpec hostSpec, Region region, @Nullable AwsCredentialsProvider credentialsProvider);
   }
 }

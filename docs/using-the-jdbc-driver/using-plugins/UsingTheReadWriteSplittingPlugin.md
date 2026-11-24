@@ -163,6 +163,8 @@ To configure the internal connection pool with [c3p0](https://www.mchange.com/pr
 connectionPoolType=c3p0&cp-MaxConnectionAge=3600&cp-MaxPoolSize=15
 ```
 
+Both pool types keep a separate pool for each host and database user, so connections for different users never share physical connections.
+
 ### Activate and configure with custom connection provider
 
 Alternative way to activate and configure internal connection pool is described below. This approach provides additional configurable options and may be helpful for some scenarios. The sample code [here](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) provides a useful example of how to enable this feature. The steps are as follows:

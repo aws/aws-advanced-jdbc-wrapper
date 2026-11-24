@@ -17,10 +17,14 @@
 package software.amazon.jdbc.util;
 
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.logging.Logger;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -36,6 +40,13 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class IamAuthUtils {
+
+  /** The number of hex characters kept from the hash in a credentials identity. */
+  public static final int CREDENTIALS_IDENTITY_LENGTH = 16;
+  /** The credentials identity used when there is no access key ID. */
+  public static final String NO_CREDENTIALS_IDENTITY = "none";
+  private static final String PASSWORD_FINGERPRINT_ALGORITHM = "HmacSHA256";
+  private static final byte[] PASSWORD_FINGERPRINT_KEY = newPasswordFingerprintKey();
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthUtils.class.getName());
   private static final String TELEMETRY_FETCH_TOKEN = "fetch authentication token";
@@ -102,20 +113,37 @@ public class IamAuthUtils {
 
   /**
    * Returns a value that identifies the AWS credentials the provider currently resolves to, for use as a
-   * cache key component. It is derived from the access key ID, so it changes whenever the provider starts
-   * returning different credentials (for example, after the profile in the credentials file is edited, or
-   * when temporary credentials are refreshed). The access key ID is hashed so the raw ID is not kept in
-   * the cache key.
+   * cache key component. See {@link #getCredentialsIdentity(AwsCredentials)}.
    *
    * @param credentialsProvider the provider that will sign the token.
-   * @return a SHA-256 hash of the resolved access key ID, Base64-encoded.
+   * @return the identity of the resolved credentials.
    */
   public static String getCredentialsIdentity(final AwsCredentialsProvider credentialsProvider) {
-    final AwsCredentials credentials = credentialsProvider.resolveCredentials();
+    return getCredentialsIdentity(credentialsProvider.resolveCredentials());
+  }
+
+  /**
+   * Returns a value that identifies the given AWS credentials, for use as a cache key component. It is
+   * derived from the access key ID, so it changes whenever the credentials change (for example, after
+   * the profile in the credentials file is edited, or when temporary credentials are refreshed). The
+   * access key ID is hashed so the raw ID is not kept in the cache key; the secret key is never read.
+   *
+   * @param credentials the credentials, or {@code null}.
+   * @return the first {@value #CREDENTIALS_IDENTITY_LENGTH} hex characters of the SHA-256 hash of the
+   *     access key ID, or {@value #NO_CREDENTIALS_IDENTITY} if there is no access key ID.
+   */
+  public static String getCredentialsIdentity(final @Nullable AwsCredentials credentials) {
+    final @Nullable String accessKeyId = credentials == null ? null : credentials.accessKeyId();
+    if (StringUtils.isNullOrEmpty(accessKeyId)) {
+      return NO_CREDENTIALS_IDENTITY;
+    }
     try {
-      final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      final byte[] hash = digest.digest(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
-      return Base64.getEncoder().encodeToString(hash);
+      final byte[] hash = MessageDigest.getInstance("SHA-256").digest(accessKeyId.getBytes(StandardCharsets.UTF_8));
+      final StringBuilder hex = new StringBuilder(CREDENTIALS_IDENTITY_LENGTH);
+      for (int i = 0; i < CREDENTIALS_IDENTITY_LENGTH / 2; i++) {
+        hex.append(String.format("%02x", hash[i]));
+      }
+      return hex.toString();
     } catch (final NoSuchAlgorithmException e) {
       throw new IllegalStateException(Messages.get("IamAuthUtils.sha256NotAvailable"), e);
     }
@@ -130,6 +158,35 @@ public class IamAuthUtils {
       return "\\0";
     }
     return component.replace("\\", "\\\\").replace(":", "\\:");
+  }
+
+  /**
+   * Returns a value derived from a password that a token cache key can include in place of the
+   * password itself. The value is an HMAC-SHA256 of the password under a random key generated once
+   * per JVM, so equal passwords give equal values within one JVM, but the value cannot be reversed or
+   * compared with a precomputed table.
+   *
+   * @param password the password, or {@code null}.
+   * @return the Base64-encoded fingerprint, or {@code null} if the password is {@code null}. An empty
+   *     password has a fingerprint, so it is distinguished from an absent one.
+   */
+  public static @Nullable String getPasswordFingerprint(final @Nullable String password) {
+    if (password == null) {
+      return null;
+    }
+    try {
+      final Mac mac = Mac.getInstance(PASSWORD_FINGERPRINT_ALGORITHM);
+      mac.init(new SecretKeySpec(PASSWORD_FINGERPRINT_KEY, PASSWORD_FINGERPRINT_ALGORITHM));
+      return Base64.getEncoder().encodeToString(mac.doFinal(password.getBytes(StandardCharsets.UTF_8)));
+    } catch (final GeneralSecurityException e) {
+      throw new IllegalStateException(Messages.get("IamAuthUtils.hmacSha256NotAvailable"), e);
+    }
+  }
+
+  private static byte[] newPasswordFingerprintKey() {
+    final byte[] key = new byte[32];
+    new SecureRandom().nextBytes(key);
+    return key;
   }
 
   public static IamTokenUtility getTokenUtility() {

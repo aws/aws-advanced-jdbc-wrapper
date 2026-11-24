@@ -52,6 +52,7 @@ import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -281,14 +282,49 @@ class FederatedAuthPluginTest {
     verify(mockStorageService, times(1)).set(eq(cacheKey(keyPrefix, "idpUserB")), any(TokenInfo.class));
   }
 
+  @Test
+  void testCachedTokenNotReusedForDifferentIdpPassword() throws SQLException {
+    final String keyPrefix = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
+    // The token cache is checked before the IdP, so a token cached for the right password must not be
+    // returned to a connection that supplies a different one.
+    FederatedAuthPlugin.IDP_USERNAME.set(props, "idpUser");
+    FederatedAuthPlugin.IDP_PASSWORD.set(props, "wrongPassword");
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(keyPrefix, "idpUser", "rightPassword", null))))
+        .thenReturn(TEST_TOKEN_INFO);
+
+    final FederatedAuthPlugin plugin =
+        new FederatedAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+    plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
+
+    verify(mockIamTokenUtils, times(1)).generateAuthenticationToken(
+        mockAwsCredentialsProvider,
+        Region.US_EAST_2,
+        HOST_SPEC.getHost(),
+        DEFAULT_PORT,
+        DB_USER);
+    verify(mockStorageService, times(1))
+        .set(eq(cacheKey(keyPrefix, "idpUser", "wrongPassword", null)), any(TokenInfo.class));
+  }
+
   private static String cacheKey(final String regionHostPortUser, final @Nullable String idpUser) {
     return cacheKey(regionHostPortUser, idpUser, null);
   }
 
   private static String cacheKey(
       final String regionHostPortUser, final @Nullable String idpUser, final @Nullable String roleArn) {
+    return cacheKey(regionHostPortUser, idpUser, null, roleArn);
+  }
+
+  private static String cacheKey(
+      final String regionHostPortUser,
+      final @Nullable String idpUser,
+      final @Nullable String idpPassword,
+      final @Nullable String roleArn) {
+    // The IdP password is in the key as a fingerprint; Base64 has no character that needs escaping.
+    final @Nullable String passwordFingerprint = IamAuthUtils.getPasswordFingerprint(idpPassword);
     return "federatedAuth:" + regionHostPortUser + ":\\0:443:urn\\:amazon\\:webservices:"
         + (idpUser == null ? "\\0" : idpUser) + ":"
+        + (passwordFingerprint == null ? "\\0" : passwordFingerprint) + ":"
         + (roleArn == null ? "\\0" : roleArn.replace(":", "\\:")) + ":\\0";
   }
 }
