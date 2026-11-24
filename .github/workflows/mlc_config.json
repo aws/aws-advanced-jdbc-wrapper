@@ -5,9 +5,11 @@
     "aliveStatusCodes treats 403 as reachable: several documentation sites answer 403 to the",
     "link checker's user agent even though the page is fine. ignorePatterns skips dev.mysql.com",
     "entirely because it blocks CI runners outright rather than just returning a bot challenge.",
-    "openliberty.io is skipped for the same reason: it is not reliably reachable from CI runners."
+    "openliberty.io is skipped for the same reason: it is not reliably reachable from CI runners.",
+    "503 is also treated as reachable: github.com throttles bursts of requests from shared CI",
+    "runner IPs with 503 responses, and retryOn429 does not retry them."
   ],
-  "aliveStatusCodes": [200, 206, 403],
+  "aliveStatusCodes": [200, 206, 403, 503],
   "ignorePatterns": [
     {
       "pattern": "^https://dev\\.mysql\\.com/"
