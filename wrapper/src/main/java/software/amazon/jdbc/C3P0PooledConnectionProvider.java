@@ -48,8 +48,10 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
   // A null shouldDisposeFunc is valid (SlidingExpirationCache stores it in a @Nullable field); only
   // the constructor parameter is typed @NonNull, so the argument is suppressed here.
+  // Pools are keyed on the host URL and the database user, so that connections for different users
+  // never share a pool of physical connections authenticated as someone else.
   @SuppressWarnings("argument")
-  protected static final SlidingExpirationCache<String, ComboPooledDataSource> databasePools =
+  protected static final SlidingExpirationCache<Pair<String, String>, ComboPooledDataSource> databasePools =
       new SlidingExpirationCache<>(null, ComboPooledDataSource::close);
 
   protected static final Map<String, HostSelector> acceptedStrategies =
@@ -110,7 +112,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
     dialect.prepareConnectProperties(copy, protocol, hostSpec, true);
 
     final ComboPooledDataSource ds = databasePools.computeIfAbsent(
-        hostSpec.getUrl(),
+        Pair.create(hostSpec.getUrl(), getPoolKey(copy)),
         (key) -> createDataSource(protocol, hostSpec, copy, targetDriverDialect),
         poolExpirationCheckNanos
     );
@@ -118,6 +120,13 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
     return new ConnectionInfo(ds.getConnection(), true);
+  }
+
+  // The user is always part of the key, to avoid sharing connections authenticated as one user
+  // with another user.
+  protected String getPoolKey(final Properties props) {
+    final String user = props.getProperty(PropertyDefinition.USER.name);
+    return user == null ? "" : user;
   }
 
   // Values come from stringPropertyNames(), so getProperty(p) is non-null; only the stub types
@@ -227,7 +236,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       } catch (SQLException e) {
         // ignore
       }
-      pools.add(Pair.create(key, poolInfo));
+      pools.add(Pair.create(key.toString(), poolInfo));
     });
     state.add(Pair.create("pools", pools));
     return state;

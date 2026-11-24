@@ -31,6 +31,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
@@ -38,7 +40,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -77,7 +78,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
   static final ExecutorService refreshExecutor = ExecutorFactory.newCachedThreadPool("aws-sm2-refresh");
 
   /** At most one in-flight refresh per {@code (secretId, region)} key. */
-  static final ConcurrentMap<Pair<String, String>, CompletableFuture<Secret>> pendingRefreshes =
+  static final ConcurrentMap<String, CompletableFuture<Secret>> pendingRefreshes =
       new ConcurrentHashMap<>();
 
   public AwsSecretsManagerConnectionPlugin2(final FullServicesContainer servicesContainer, final Properties props) {
@@ -127,11 +128,15 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
     }
 
     try {
-      final Secret cachedSecret = this.servicesContainer.getStorageService().get(Secret.class, this.secretKey);
+      final @Nullable AwsCredentials credentials = this.resolveCredentials(hostSpec);
+      final @Nullable String cacheKey = getSecretCacheKey(credentials);
+      final Secret cachedSecret = cacheKey == null
+          ? null
+          : this.servicesContainer.getStorageService().get(Secret.class, cacheKey);
 
       if (cachedSecret == null || forceReFetch) {
         // Cache miss (first connection) or forced re-fetch (login-failure retry): block once.
-        this.secret = fetchSynchronously(hostSpec);
+        this.secret = fetchSynchronously(hostSpec, cacheKey, credentials);
         return this.secret != null;
       }
 
@@ -145,7 +150,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
           telemetryContext.setAttribute("usedStaleCredentials", "true");
         }
         this.secret = cachedSecret;
-        triggerAsyncRefresh(hostSpec);
+        triggerAsyncRefresh(hostSpec, cacheKey, credentials);
         return false;
       }
 
@@ -170,9 +175,13 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
    * Synchronously obtains the latest credentials, joining an in-flight background refresh if one
    * exists (so a login-failure retry does not start a redundant fetch).
    */
-  private Secret fetchSynchronously(final HostSpec hostSpec) throws SQLException {
+  private Secret fetchSynchronously(
+      final HostSpec hostSpec,
+      final @Nullable String cacheKey,
+      final @Nullable AwsCredentials credentials) throws SQLException {
     try {
-      return triggerAsyncRefresh(hostSpec).get(SYNC_FETCH_CREDENTIALS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      return triggerAsyncRefresh(hostSpec, cacheKey, credentials)
+          .get(SYNC_FETCH_CREDENTIALS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
       throw new SQLException(
@@ -204,9 +213,28 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
    *
    * @return the future for the (possibly already running) refresh.
    */
-  CompletableFuture<Secret> triggerAsyncRefresh(final HostSpec hostSpec) {
+  CompletableFuture<Secret> triggerAsyncRefresh(
+      final HostSpec hostSpec,
+      final @Nullable String cacheKey,
+      final @Nullable AwsCredentials credentials) {
+    if (cacheKey == null) {
+      // Without credentials there is no identity to share a refresh with, so fetch on its own.
+      return CompletableFuture.supplyAsync(() -> {
+        try {
+          if (this.fetchCredentialsCounter != null) {
+            this.fetchCredentialsCounter.inc();
+          }
+          return fetchAndStoreSecret(hostSpec, null, null);
+        } catch (final SQLException e) {
+          throw new CompletionException(e);
+        }
+      }, refreshExecutor);
+    }
     final AtomicBoolean triggered = new AtomicBoolean(false);
-    final CompletableFuture<Secret> future = pendingRefreshes.compute(this.secretKey, (key, existing) -> {
+    // Keyed like the cached secret, so connections with different AWS identities never join each
+    // other's refresh.
+    final String refreshKey = cacheKey;
+    final CompletableFuture<Secret> future = pendingRefreshes.compute(refreshKey, (key, existing) -> {
       if (existing != null && !existing.isDone()) {
         return existing; // a refresh is already in flight
       }
@@ -216,7 +244,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
           if (this.fetchCredentialsCounter != null) {
             this.fetchCredentialsCounter.inc();
           }
-          return fetchAndStoreSecret(hostSpec);
+          return fetchAndStoreSecret(hostSpec, cacheKey, credentials);
         } catch (final SQLException e) {
           throw new CompletionException(e);
         }
@@ -231,7 +259,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
                   "AwsSecretsManagerConnectionPlugin2.asyncRefreshFailed",
                   new Object[] {this.secretKey.getValue1()}));
         }
-        pendingRefreshes.remove(this.secretKey, future);
+        pendingRefreshes.remove(refreshKey, future);
       });
     }
     return future;

@@ -295,6 +295,8 @@ cache reads but may write their database results to the cache.
 
 The plugin uses a dedicated connection pool to Valkey server with configurable connection timeout and the pool size. In addition, it supports TLS and non TLS connections
 
+Connections in the same JVM share a client pool only when they use the same cache endpoint and the same cache connection settings: TLS, CA certificate, IAM authentication, IAM region, cache name and user name.
+
 ### Cache Authentication
 
 The plugin supports plain username/password authentication for generic Valkey deployments, and IAM authentication for AWS ElastiCache.

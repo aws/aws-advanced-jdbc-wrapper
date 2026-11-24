@@ -42,6 +42,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -360,8 +361,7 @@ public class CacheConnection {
       int port = Integer.parseInt(hostnameAndPort[1]);
       String host = hostnameAndPort[0];
 
-      // Appending RW and RO tag to the server address to make it unique in case RO and RW has same endpoint
-      String poolKey = (isRead ? "RO:" : "RW:") + serverAddr;
+      String poolKey = this.getPoolKey(isRead, serverAddr);
       GenericObjectPool<BaseClient> pool = endpointToPoolRegistry.get(poolKey);
 
       if (pool == null) {
@@ -399,6 +399,42 @@ public class CacheConnection {
       LOGGER.log(Level.WARNING, errorMsg, e);
       throw new RuntimeException(errorMsg, e);
     }
+  }
+
+  /**
+   * Returns the key of the shared client pool for the given server. Clients authenticate when they are
+   * created, so the key includes the settings that change how a client connects and which user it
+   * authenticates as: connections that use a different user or TLS settings for the same server get
+   * separate pools.
+   */
+  String getPoolKey(final boolean isRead, final String serverAddr) {
+    final StringBuilder key = new StringBuilder();
+    // The RO and RW tags keep the pools apart when both roles use the same endpoint.
+    appendPoolKeyPart(key, isRead ? "RO" : "RW");
+    appendPoolKeyPart(key, serverAddr);
+    appendPoolKeyPart(key, String.valueOf(this.useSSL));
+    appendPoolKeyPart(key, this.cacheTlsCaCertBytes == null ? null : sha256Base64(this.cacheTlsCaCertBytes));
+    appendPoolKeyPart(key, String.valueOf(this.iamAuthEnabled));
+    appendPoolKeyPart(key, this.cacheIamRegion);
+    appendPoolKeyPart(key, this.cacheName);
+    appendPoolKeyPart(key, this.cacheUsername);
+    return key.toString();
+  }
+
+  private static String sha256Base64(final byte[] value) {
+    try {
+      return Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(value));
+    } catch (final NoSuchAlgorithmException e) {
+      throw new IllegalStateException(Messages.get("CacheConnection.sha256NotSupported"), e);
+    }
+  }
+
+  private static void appendPoolKeyPart(final StringBuilder key, final @Nullable String value) {
+    if (value == null) {
+      key.append("-1:");
+      return;
+    }
+    key.append(value.length()).append(':').append(value);
   }
 
   private static GenericObjectPoolConfig<BaseClient> createPoolConfig() {

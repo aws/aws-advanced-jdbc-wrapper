@@ -144,8 +144,9 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
           Messages.get("OktaAuthPlugin.unableToDetermineRegion", new Object[] {BaseSamlAuthPlugin.IAM_REGION_NAME}));
     }
 
-    // The token is signed with the role assumed for the federated user, so the IdP, the user and the
-    // role are part of the key: connections using different identities must not share a token.
+    // The token is signed with the role assumed for the federated user, so the IdP, the user, the
+    // user's password and the role are part of the key: connections using different identities, or a
+    // password the IdP did not accept, must not reuse a token. The password is kept as a fingerprint.
     final String cacheKey = IamAuthUtils.getCacheKey(
         this.getCacheKeyScope(),
         this.getCredentialsIdentity(props),

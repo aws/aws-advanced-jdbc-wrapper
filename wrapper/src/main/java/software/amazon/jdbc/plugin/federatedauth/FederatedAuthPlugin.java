@@ -169,6 +169,7 @@ public class FederatedAuthPlugin extends BaseSamlAuthPlugin {
         IDP_PORT.getString(props),
         RELAYING_PARTY_ID.getString(props),
         IDP_USERNAME.getString(props),
+        IamAuthUtils.getPasswordFingerprint(IDP_PASSWORD.getString(props)),
         IAM_ROLE_ARN.getString(props),
         IAM_IDP_ARN.getString(props)};
   }

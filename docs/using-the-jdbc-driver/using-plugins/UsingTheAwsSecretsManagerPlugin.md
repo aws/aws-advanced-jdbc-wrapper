@@ -82,6 +82,8 @@ An alternative version of this plugin, `awsSecretsManager2`, is available. It us
 
 Both plugins share the same credential cache and use identical configuration parameters. To switch, simply change the plugin code from `awsSecretsManager` to `awsSecretsManager2`.
 
+A cached secret is shared only by connections that read the same secret in the same region, through the same `secretsManagerEndpoint`, with the same AWS credentials. A connection that uses different AWS credentials fetches the secret itself. A connection for which no AWS credentials can be resolved does not use the shared cache.
+
 For details, see [AWS Secrets Manager Connection Plugin v2](./UsingTheAwsSecretsManagerPlugin2.md).
 
 ## Telemetry Metrics
