@@ -1,8 +1,30 @@
 -- PostgreSQL domain for HMAC-verified encrypted data
 -- Format: [HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
-DROP DOMAIN IF EXISTS encrypted_data CASCADE;
-CREATE DOMAIN encrypted_data AS bytea
-CHECK (length(VALUE) >= 45);
+-- Minimum length: 32 (HMAC) + 1 (type) + 12 (IV) + 0 (ciphertext) + 16 (GCM tag) = 61.
+--
+-- This script is safe to run again on a database that already holds encrypted data. The domain is
+-- created only when it does not exist yet; dropping it would drop every column of this type, with
+-- its data. On an existing install with an older length check, only that check is replaced. The
+-- new check is added NOT VALID, so existing values are not re-checked and the script cannot fail on
+-- old rows; new values are checked.
+-- examples/EncryptSpring/src/main/resources/schema.sql has a copy of these objects; keep the two in
+-- sync.
+DO $$
+BEGIN
+    IF to_regtype('encrypted_data') IS NULL THEN
+        CREATE DOMAIN encrypted_data AS bytea
+            CONSTRAINT encrypted_data_check CHECK (length(VALUE) >= 61);
+    ELSIF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+         WHERE contypid = 'encrypted_data'::regtype
+           AND conname = 'encrypted_data_check'
+           AND pg_get_constraintdef(oid) LIKE 'CHECK ((length(VALUE) >= 61))%') THEN
+        ALTER DOMAIN encrypted_data DROP CONSTRAINT IF EXISTS encrypted_data_check;
+        ALTER DOMAIN encrypted_data
+            ADD CONSTRAINT encrypted_data_check CHECK (length(VALUE) >= 61) NOT VALID;
+    END IF;
+END
+$$;
 
 -- Helper function to verify HMAC using HMAC key (two-key format).
 -- Like the trigger below, its search_path is pinned to pg_catalog, pg_temp so a session cannot
@@ -34,7 +56,7 @@ RETURNS boolean
 SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
-    RETURN length(data::bytea) >= 45;
+    RETURN length(data::bytea) >= 61;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE STRICT;
 

@@ -100,7 +100,7 @@ public class KmsTriggerIntegrationTest {
   private static final String KEY_NAME = "test-key-trig-ssn";
   private static final String PLAINTEXT = "123-45-6789";
   // At least 61 bytes, so it passes every length check and only the trigger's HMAC check can reject it
-  // (the PostgreSQL domain rejects anything under 45 bytes before a trigger runs).
+  // (the PostgreSQL domain rejects anything under 61 bytes before a trigger runs).
   private static final String LONG_PLAINTEXT =
       "plain-text-social-security-number-that-is-long-enough-to-pass-length-checks-123";
   private static final SecureRandom RANDOM = new SecureRandom();
