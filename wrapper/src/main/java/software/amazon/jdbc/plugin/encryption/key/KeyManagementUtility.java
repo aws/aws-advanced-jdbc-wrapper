@@ -173,7 +173,7 @@ public class KeyManagementUtility {
   }
 
   // Rotation generates the new data key the same way, so it refuses a column whose algorithm needs
-  // a key of another length, such as an AES-128-GCM column set up with a 128-bit key.
+  // a key of another length, such as an existing AES-128-GCM column with a 128-bit key.
   private static void requireRotatableAlgorithm(String tableName, String columnName, String algorithm)
       throws UnsupportedAlgorithmException {
     if (!EncryptionAlgorithm.AES_256_GCM.equals(algorithm)) {
@@ -1437,8 +1437,7 @@ public class KeyManagementUtility {
    * @param columnName Name of the column
    * @param masterKeyArn ARN of the master key to use
    * @param algorithm Encryption algorithm to use. Only AES-256-GCM (the default if null or blank) is
-   *     accepted, because the data key created is always 256 bits. For an AES-128-GCM column, create
-   *     a 128-bit data key yourself and register the column directly.
+   *     accepted, because the data key created is always 256 bits.
    * @throws KeyManagementException if initialization fails
    * @throws IllegalArgumentException if the algorithm is not AES-256-GCM
    */

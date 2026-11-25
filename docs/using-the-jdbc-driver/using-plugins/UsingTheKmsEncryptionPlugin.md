@@ -286,7 +286,7 @@ try (Connection connection = DriverManager.getConnection(
 
 An `EncryptionConfig` built with `EncryptionConfig.builder()` requires `kmsRegion`. Its other settings default to the defaults of the matching [connection properties](#connection-properties).
 
-`KeyManagementUtility` creates only AES-256-GCM data keys. `initializeEncryptionForColumn()` and `generateAndStoreDataKey()` throw an `IllegalArgumentException` for any other algorithm, such as `AES-128-GCM`, before they call KMS or change the database. To use AES-128-GCM, create the keys yourself as shown below.
+`KeyManagementUtility` creates only AES-256-GCM data keys. `initializeEncryptionForColumn()` and `generateAndStoreDataKey()` throw an `IllegalArgumentException` for any other algorithm, such as `AES-128-GCM`, before they call KMS or change the database.
 
 **Alternative: create the keys yourself.** Generate a data key from KMS and a separate random HMAC key, store both in `key_storage`, then register the column with the returned `id`:
 
@@ -346,7 +346,7 @@ try (PreparedStatement stmt = conn.prepareStatement(
 
 `KeyManagementUtility` names its keys `key-<table>-<column>-<timestamp>`; the example follows that pattern so the queries in [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption) find the key.
 
-The `encryption_algorithm` value must match the length of the data key. For an `AES-128-GCM` column, generate a 128-bit data key with `DataKeySpec.AES_128`, store `AES_128` as its `key_spec`, and register the column with `AES-128-GCM`. A 256-bit key on an `AES-128-GCM` column makes every read and write of the column fail with an invalid key length error.
+Register new columns with `AES-256-GCM` and a 256-bit data key (`DataKeySpec.AES_256`), as in the example.
 
 ### 6. Create Application Tables
 
@@ -673,7 +673,7 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 - `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
 - Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.
 - Table names are matched against the metadata case-sensitively. Use the same spelling in statements as in `encryption_metadata`.
-- `KeyManagementUtility` creates only AES-256-GCM data keys. An `AES-128-GCM` column needs a 128-bit data key you create yourself (see [Configure Column Encryption](#5-configure-column-encryption)). `rotateDataKey()` and `rotateDataKeyAndReencrypt()` refuse such a column before they change anything. To rotate it, create a new 128-bit data key, point `encryption_metadata.key_id` at it, and run `reencryptRemainingRows()` with the previous key id (see [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption)).
+- Only AES-256-GCM is supported for new columns, and `KeyManagementUtility` creates only AES-256-GCM data keys. A column already set up with `AES-128-GCM` and a 128-bit data key keeps working, but `rotateDataKey()` and `rotateDataKeyAndReencrypt()` refuse it before they change anything.
 
 ### What the plugin does not protect
 
