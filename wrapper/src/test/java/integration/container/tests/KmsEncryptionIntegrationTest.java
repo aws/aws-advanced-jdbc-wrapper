@@ -1176,6 +1176,43 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
+  /**
+   * The runtime role of the hardening guide holds only SELECT on the metadata tables. On PostgreSQL,
+   * information_schema hides the constraints of such tables, so the validator must read them from the
+   * catalog and still accept a well-formed schema.
+   */
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.PG)
+  void testSchemaValidatorAcceptsWellFormedSchemaAsSelectOnlyRole() throws Exception {
+    final String role = "kms_validator_select_only";
+    final String password = "Kms-" + java.util.UUID.randomUUID();
+    final SchemaName schema = SchemaName.of(METADATA_SCHEMA);
+    try (Connection admin = DriverManager.getConnection(
+        ConnectionStringHelper.getUrl(), ConnectionStringHelper.getDefaultProperties());
+         Statement stmt = admin.createStatement()) {
+      try {
+        stmt.execute("DROP ROLE IF EXISTS " + role);
+        stmt.execute("CREATE ROLE " + role + " LOGIN PASSWORD '" + password + "'");
+        stmt.execute("GRANT USAGE ON SCHEMA " + schema + " TO " + role);
+        stmt.execute("GRANT SELECT ON " + schema + ".key_storage, " + schema
+            + ".encryption_metadata TO " + role);
+
+        final Properties props = ConnectionStringHelper.getDefaultProperties();
+        props.setProperty("user", role);
+        props.setProperty("password", password);
+        try (Connection runtime = DriverManager.getConnection(ConnectionStringHelper.getUrl(), props)) {
+          final SchemaValidator.ValidationResult result =
+              new SchemaValidator(schema).validateSchema(runtime);
+          assertTrue(result.isValid(), () -> "schema validation failed: " + result.getIssues());
+        }
+      } finally {
+        stmt.execute("REVOKE ALL ON ALL TABLES IN SCHEMA " + schema + " FROM " + role);
+        stmt.execute("REVOKE ALL ON SCHEMA " + schema + " FROM " + role);
+        stmt.execute("DROP ROLE IF EXISTS " + role);
+      }
+    }
+  }
+
   /** A schema that does not exist is reported as missing both tables rather than passing. */
   @TestTemplate
   void testSchemaValidatorReportsMissingTables() throws Exception {

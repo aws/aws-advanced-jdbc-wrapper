@@ -212,7 +212,7 @@ public final class KmsTestUtility {
         stmt.execute(
             "CREATE TABLE " + metadataSchema + ".key_storage ("
                 + "id SERIAL PRIMARY KEY, "
-                + "key_id VARCHAR(255) NOT NULL, "
+                + "key_id VARCHAR(255) UNIQUE NOT NULL, "
                 + "name VARCHAR(255) NOT NULL, "
                 + "master_key_arn VARCHAR(512) NOT NULL, "
                 + "encrypted_data_key TEXT NOT NULL, "
@@ -234,7 +234,7 @@ public final class KmsTestUtility {
         stmt.execute(
             "CREATE TABLE " + metadataSchema + ".key_storage ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                + "key_id VARCHAR(255) NOT NULL, "
+                + "key_id VARCHAR(255) UNIQUE NOT NULL, "
                 + "name VARCHAR(255) NOT NULL, "
                 + "master_key_arn VARCHAR(512) NOT NULL, "
                 + "encrypted_data_key TEXT NOT NULL, "

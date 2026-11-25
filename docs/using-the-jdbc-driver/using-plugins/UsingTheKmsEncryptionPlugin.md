@@ -195,7 +195,7 @@ MySQL does not support DOMAINs. Encrypted columns use `VARBINARY(256)` instead (
 ```sql
 CREATE TABLE encrypt.key_storage (
     id SERIAL PRIMARY KEY,
-    key_id VARCHAR(255) NOT NULL,
+    key_id VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     master_key_arn VARCHAR(512) NOT NULL,
     encrypted_data_key TEXT NOT NULL,
@@ -221,7 +221,7 @@ CREATE TABLE encrypt.encryption_metadata (
 ```sql
 CREATE TABLE encrypt.key_storage (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    key_id VARCHAR(255) NOT NULL,
+    key_id VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     master_key_arn VARCHAR(512) NOT NULL,
     encrypted_data_key TEXT NOT NULL,
@@ -243,7 +243,23 @@ CREATE TABLE encrypt.encryption_metadata (
 );
 ```
 
-`key_storage.key_id` is a unique identifier for the key row (the plugin writes a random UUID). If your `key_storage` was created without it, add it with `ALTER TABLE encrypt.key_storage ADD COLUMN key_id VARCHAR(255) NOT NULL DEFAULT ''` and backfill. `encryption_metadata.key_id` is the integer `id` of the column's row in `key_storage`. `table_name` is the bare table name, without a schema prefix.
+`key_storage.key_id` is a unique identifier for the key row (the plugin writes a random UUID). If your `key_storage` was created without it, add and backfill it before upgrading, because the plugin now writes this column when it creates a key.
+
+**PostgreSQL** (13 or later):
+```sql
+ALTER TABLE encrypt.key_storage ADD COLUMN key_id VARCHAR(255);
+UPDATE encrypt.key_storage SET key_id = gen_random_uuid()::text;
+ALTER TABLE encrypt.key_storage ALTER COLUMN key_id SET NOT NULL, ADD UNIQUE (key_id);
+```
+
+**MySQL:**
+```sql
+ALTER TABLE encrypt.key_storage ADD COLUMN key_id VARCHAR(255);
+UPDATE encrypt.key_storage SET key_id = UUID();
+ALTER TABLE encrypt.key_storage MODIFY key_id VARCHAR(255) NOT NULL, ADD UNIQUE (key_id);
+```
+
+`encryption_metadata.key_id` is the integer `id` of the column's row in `key_storage`. `table_name` is the bare table name, without a schema prefix.
 
 ### 5. Configure Column Encryption
 
@@ -317,14 +333,15 @@ new SecureRandom().nextBytes(hmacKey);
 int keyId;
 try (PreparedStatement stmt = conn.prepareStatement(
     "INSERT INTO encrypt.key_storage "
-        + "(name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
-        + "VALUES (?, ?, ?, ?, ?)",
+        + "(name, master_key_arn, encrypted_data_key, hmac_key, key_spec, key_id) "
+        + "VALUES (?, ?, ?, ?, ?, ?)",
     Statement.RETURN_GENERATED_KEYS)) {
   stmt.setString(1, "key-users-ssn-1");
   stmt.setString(2, masterKeyArn);
   stmt.setString(3, encryptedDataKey);
   stmt.setBytes(4, hmacKey);
   stmt.setString(5, "AES_256");
+  stmt.setString(6, UUID.randomUUID().toString());
   stmt.executeUpdate();
   try (ResultSet rs = stmt.getGeneratedKeys()) {
     rs.next();

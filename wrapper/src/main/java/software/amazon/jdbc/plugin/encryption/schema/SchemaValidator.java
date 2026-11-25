@@ -36,10 +36,13 @@ import software.amazon.jdbc.plugin.encryption.model.SchemaName;
  * Validates that the required database schema for encryption metadata exists and has the correct
  * structure.
  *
- * <p>Tables are looked up in the configured metadata schema through {@code information_schema},
- * which PostgreSQL and MySQL both expose. (On MySQL a "schema" is a database.) The lookup never
- * depends on the session's default schema. The user running the validation must be able to see the
- * tables: {@code information_schema} only lists tables and constraints the user has privileges on.
+ * <p>Tables and columns are looked up in the configured metadata schema through {@code
+ * information_schema}, which PostgreSQL and MySQL both expose. (On MySQL a "schema" is a database.)
+ * Constraints are read from {@code information_schema} on MySQL and from {@code pg_catalog} on
+ * PostgreSQL, whose {@code information_schema} hides constraints on tables the user holds only
+ * {@code SELECT} on. The lookup never depends on the session's default schema. The user running the
+ * validation must be able to see the tables: {@code information_schema} only lists tables the user
+ * has privileges on.
  */
 public class SchemaValidator {
 
@@ -77,8 +80,9 @@ public class SchemaValidator {
       "SELECT column_name FROM information_schema.columns"
           + " WHERE LOWER(table_schema) = ? AND LOWER(table_name) = ?";
 
-  // One row per column of every PRIMARY KEY and UNIQUE constraint on the table.
-  private static final String KEY_CONSTRAINTS_SQL =
+  // MySQL: one row per column of every PRIMARY KEY and UNIQUE constraint on the table. MySQL lists a
+  // table in information_schema for any user with a privilege on it, so a SELECT-only role sees it.
+  private static final String MYSQL_KEY_CONSTRAINTS_SQL =
       "SELECT tc.constraint_name, kcu.column_name"
           + " FROM information_schema.table_constraints tc"
           + " JOIN information_schema.key_column_usage kcu"
@@ -90,27 +94,45 @@ public class SchemaValidator {
           + "   AND LOWER(tc.table_schema) = ? AND LOWER(tc.table_name) = ?"
           + " ORDER BY tc.constraint_name, kcu.ordinal_position";
 
-  // One row per column of every foreign key on the table, with the column it references. The
-  // referenced column is found through the referenced constraint, which both engines expose.
-  private static final String FOREIGN_KEYS_SQL =
-      "SELECT fk.column_name, ref.table_name, ref.column_name"
-          + " FROM information_schema.referential_constraints rc"
-          + " JOIN information_schema.key_column_usage fk"
-          + "   ON fk.constraint_schema = rc.constraint_schema"
-          + "  AND fk.constraint_name = rc.constraint_name"
-          + " JOIN information_schema.key_column_usage ref"
-          + "   ON ref.constraint_schema = rc.unique_constraint_schema"
-          + "  AND ref.constraint_name = rc.unique_constraint_name"
-          + "  AND ref.ordinal_position = fk.position_in_unique_constraint"
-          + " WHERE LOWER(fk.table_schema) = ? AND LOWER(fk.table_name) = ?";
-
   // MySQL and MariaDB record the referenced table and column directly, which avoids the ambiguity of
-  // joining on constraint names (a primary key is named PRIMARY in every table).
+  // joining on constraint names (a primary key is named PRIMARY in every table). The referenced
+  // table must be in the same schema.
   private static final String MYSQL_FOREIGN_KEYS_SQL =
       "SELECT column_name, referenced_table_name, referenced_column_name"
           + " FROM information_schema.key_column_usage"
           + " WHERE LOWER(table_schema) = ? AND LOWER(table_name) = ?"
-          + "   AND referenced_table_name IS NOT NULL";
+          + "   AND referenced_table_name IS NOT NULL"
+          + "   AND referenced_table_schema = table_schema";
+
+  // PostgreSQL: information_schema.table_constraints, referential_constraints and key_column_usage
+  // only show tables the user owns or holds a privilege other than SELECT on, which would hide the
+  // constraints from the SELECT-only runtime role. pg_catalog is not filtered by privileges.
+  // contype is "p" for PRIMARY KEY and "u" for UNIQUE.
+  private static final String PG_KEY_CONSTRAINTS_SQL =
+      "SELECT c.conname, a.attname"
+          + " FROM pg_catalog.pg_constraint c"
+          + " JOIN pg_catalog.pg_class t ON t.oid = c.conrelid"
+          + " JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace"
+          + " CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord)"
+          + " JOIN pg_catalog.pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum"
+          + " WHERE c.contype = (CASE ? WHEN 'PRIMARY KEY' THEN 'p' ELSE 'u' END)::\"char\""
+          + "   AND LOWER(n.nspname) = ? AND LOWER(t.relname) = ?"
+          + " ORDER BY c.conname, k.ord";
+
+  // PostgreSQL: one row per column of every foreign key on the table, with the column it references.
+  // The referenced table must be in the same schema.
+  private static final String PG_FOREIGN_KEYS_SQL =
+      "SELECT a.attname, rt.relname, ra.attname"
+          + " FROM pg_catalog.pg_constraint c"
+          + " JOIN pg_catalog.pg_class t ON t.oid = c.conrelid"
+          + " JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace"
+          + " JOIN pg_catalog.pg_class rt ON rt.oid = c.confrelid"
+          + " CROSS JOIN LATERAL unnest(c.conkey, c.confkey) AS k(attnum, refnum)"
+          + " JOIN pg_catalog.pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum"
+          + " JOIN pg_catalog.pg_attribute ra ON ra.attrelid = rt.oid AND ra.attnum = k.refnum"
+          + " WHERE c.contype = 'f'::\"char\""
+          + "   AND rt.relnamespace = t.relnamespace"
+          + "   AND LOWER(n.nspname) = ? AND LOWER(t.relname) = ?";
 
   private final SchemaName metadataSchema;
 
@@ -250,7 +272,9 @@ public class SchemaValidator {
       Connection connection, String table, String constraintType, List<String> columnNames)
       throws SQLException {
     Map<String, Set<String>> columnsByConstraint = new LinkedHashMap<>();
-    try (PreparedStatement stmt = connection.prepareStatement(KEY_CONSTRAINTS_SQL)) {
+    try (PreparedStatement stmt =
+        connection.prepareStatement(
+            isMySql(connection) ? MYSQL_KEY_CONSTRAINTS_SQL : PG_KEY_CONSTRAINTS_SQL)) {
       stmt.setString(1, constraintType);
       stmt.setString(2, schemaKey());
       stmt.setString(3, table.toLowerCase(Locale.ROOT));
@@ -274,15 +298,18 @@ public class SchemaValidator {
     return columnsByConstraint.containsValue(wanted);
   }
 
+  private static boolean isMySql(Connection connection) throws SQLException {
+    final String product = connection.getMetaData().getDatabaseProductName();
+    return product != null && product.toLowerCase(Locale.ROOT).matches(".*(mysql|mariadb).*");
+  }
+
   /** Checks if a foreign key exists between the specified tables and columns. */
   private boolean hasForeignKey(
       Connection connection, String fromTable, String fromColumn, String toTable, String toColumn)
       throws SQLException {
-    final String product = connection.getMetaData().getDatabaseProductName();
-    final boolean mysql =
-        product != null && product.toLowerCase(Locale.ROOT).matches(".*(mysql|mariadb).*");
     try (PreparedStatement stmt =
-        connection.prepareStatement(mysql ? MYSQL_FOREIGN_KEYS_SQL : FOREIGN_KEYS_SQL)) {
+        connection.prepareStatement(
+            isMySql(connection) ? MYSQL_FOREIGN_KEYS_SQL : PG_FOREIGN_KEYS_SQL)) {
       stmt.setString(1, schemaKey());
       stmt.setString(2, fromTable.toLowerCase(Locale.ROOT));
       try (ResultSet rs = stmt.executeQuery()) {
