@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -174,8 +175,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
 
     // A token is only valid for the credentials that signed it, so the resolved credentials are part of
     // the key: connections that sign with different credentials must not share a token.
-    final AwsCredentialsProvider credentialsProvider = AwsCredentialsManager.getProvider(hostSpec, props, region);
-    final String cacheKey = this.getCacheKey(credentialsProvider, user, host.getHost(), port, region);
+    // The credentials are resolved once and used for both the key and the signature, so a token is never
+    // cached under a key for credentials other than the ones that signed it.
+    final AwsCredentials credentials =
+        AwsCredentialsManager.getReusableProvider(hostSpec, props, region, false).resolveCredentials();
+    final String cacheKey = this.getCacheKey(credentials, user, host.getHost(), port, region);
     final TokenInfo tokenInfo = this.servicesContainer.getStorageService().get(TokenInfo.class, cacheKey);
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
@@ -200,7 +204,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           host.getHost(),
           port,
           region,
-          credentialsProvider);
+          StaticCredentialsProvider.create(credentials));
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
@@ -233,10 +237,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       if (this.fetchTokenCounter != null) {
         this.fetchTokenCounter.inc();
       }
-      // Use a fresh provider, which may resolve newer credentials, and key the new token by them.
-      final AwsCredentialsProvider retryCredentialsProvider =
-          AwsCredentialsManager.getProvider(hostSpec, props, region);
-      final String retryCacheKey = this.getCacheKey(retryCredentialsProvider, user, host.getHost(), port, region);
+      // Build a new provider so rotated credentials are picked up, and key the new token by them.
+      final AwsCredentials retryCredentials =
+          AwsCredentialsManager.getReusableProvider(hostSpec, props, region, true).resolveCredentials();
+      final String retryCacheKey = this.getCacheKey(retryCredentials, user, host.getHost(), port, region);
       final String token = IamAuthUtils.generateAuthenticationToken(
           iamTokenUtility,
           pluginService,
@@ -244,7 +248,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
           host.getHost(),
           port,
           region,
-          retryCredentialsProvider);
+          StaticCredentialsProvider.create(retryCredentials));
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
@@ -266,14 +270,14 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
   }
 
   private String getCacheKey(
-      final AwsCredentialsProvider credentialsProvider,
+      final AwsCredentials credentials,
       final String user,
       final String host,
       final int port,
       final Region region) {
     return IamAuthUtils.getCacheKey(
         CACHE_KEY_SCOPE,
-        new @Nullable String[] {IamAuthUtils.getCredentialsIdentity(credentialsProvider)},
+        new @Nullable String[] {IamAuthUtils.getCredentialsIdentity(credentials)},
         user,
         host,
         port,

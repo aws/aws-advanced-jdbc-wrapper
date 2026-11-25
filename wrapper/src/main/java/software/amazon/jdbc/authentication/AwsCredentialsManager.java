@@ -16,6 +16,10 @@
 
 package software.amazon.jdbc.authentication;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -30,6 +34,7 @@ public class AwsCredentialsManager {
   private static @Nullable AwsCredentialsProviderHandler handler = null;
 
   private static final ResourceLock lock = new ResourceLock();
+  private static final Map<List<@Nullable Object>, AwsCredentialsProvider> reusableProviders = new HashMap<>();
 
   public static void setCustomHandler(final @Nullable AwsCredentialsProviderHandler customHandler) {
     try (ResourceLock ignored = lock.obtain()) {
@@ -71,6 +76,51 @@ public class AwsCredentialsManager {
       }
 
       return provider;
+    }
+  }
+
+  /**
+   * Same as {@link #getProvider(HostSpec, Properties, Region)}, but reuses the default and login-session
+   * providers across calls, so the AWS SDK can serve credentials from the provider's own cache instead of
+   * walking the credentials provider chain each time. A provider is reused only for the same
+   * {@code awsProfile}, {@code allowAwsLoginSession} and region, the only connection properties that
+   * select it. Providers returned by a custom handler are never reused, since a handler may return a
+   * different identity for each connection.
+   *
+   * @param hostSpec the host being connected to.
+   * @param props    the connection properties.
+   * @param region   the region already resolved for the connection.
+   * @param refresh  if true, a new provider replaces the reused one, so that credentials that changed
+   *                 since the provider was built are picked up.
+   * @return the credentials provider to use for the connection.
+   */
+  public static AwsCredentialsProvider getReusableProvider(
+      final HostSpec hostSpec, final Properties props, final @Nullable Region region, final boolean refresh) {
+    try (ResourceLock ignored = lock.obtain()) {
+      final AwsCredentialsProvider handlerProvider = handler == null
+          ? null
+          : handler.getAwsCredentialsProvider(hostSpec, props);
+      if (handlerProvider != null) {
+        return handlerProvider;
+      }
+      final List<@Nullable Object> key = Arrays.asList(
+          PropertyDefinition.AWS_PROFILE.getString(props),
+          PropertyDefinition.ALLOW_AWS_LOGIN_SESSION.getBoolean(props),
+          region);
+      AwsCredentialsProvider provider = refresh ? null : reusableProviders.get(key);
+      if (provider == null) {
+        // A replaced provider is not closed: another connection may still be using it.
+        provider = getDefaultProvider(props, region);
+        reusableProviders.put(key, provider);
+      }
+      return provider;
+    }
+  }
+
+  /** Drops all providers kept by {@link #getReusableProvider}. */
+  public static void clearReusableProviders() {
+    try (ResourceLock ignored = lock.obtain()) {
+      reusableProviders.clear();
     }
   }
 

@@ -57,6 +57,13 @@ public class IamAuthUtils {
     }
   }
 
+  /**
+   * Builds a token cache key that is not scoped to a signing identity.
+   *
+   * @deprecated tokens cached under this key can be served to a connection that signs with different
+   *     credentials. Use {@link #getCacheKey(String, String[], String, String, int, Region)} instead.
+   */
+  @Deprecated
   public static String getCacheKey(
       final @Nullable String user,
       final String hostname,
@@ -101,17 +108,15 @@ public class IamAuthUtils {
   }
 
   /**
-   * Returns a value that identifies the AWS credentials the provider currently resolves to, for use as a
-   * cache key component. It is derived from the access key ID, so it changes whenever the provider starts
-   * returning different credentials (for example, after the profile in the credentials file is edited, or
-   * when temporary credentials are refreshed). The access key ID is hashed so the raw ID is not kept in
-   * the cache key.
+   * Returns a value that identifies the given AWS credentials, for use as a cache key component. It is
+   * derived from the access key ID, so it changes whenever different credentials are used (for example,
+   * after the profile in the credentials file is edited, or when temporary credentials are refreshed).
+   * The access key ID is hashed so the raw ID is not kept in the cache key.
    *
-   * @param credentialsProvider the provider that will sign the token.
-   * @return a SHA-256 hash of the resolved access key ID, Base64-encoded.
+   * @param credentials the credentials that sign the token.
+   * @return a SHA-256 hash of the access key ID, Base64-encoded.
    */
-  public static String getCredentialsIdentity(final AwsCredentialsProvider credentialsProvider) {
-    final AwsCredentials credentials = credentialsProvider.resolveCredentials();
+  public static String getCredentialsIdentity(final AwsCredentials credentials) {
     try {
       final MessageDigest digest = MessageDigest.getInstance("SHA-256");
       final byte[] hash = digest.digest(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
