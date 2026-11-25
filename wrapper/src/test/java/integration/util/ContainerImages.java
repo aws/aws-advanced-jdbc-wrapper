@@ -114,9 +114,16 @@ public final class ContainerImages {
     return DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0");
   }
 
-  /** Used as a Dockerfile {@code FROM}, so this returns the raw coordinate. */
+  /**
+   * Used as a Dockerfile {@code FROM}, so this returns the raw coordinate.
+   *
+   * <p>The image build runs {@code apt-get update}, which fails once the image's Debian release is
+   * dropped from apt.postgresql.org (16-3.4 was bullseye, whose bullseye-pgdg suite now returns 404).
+   * Move to a newer PostGIS tag when that happens; keep PostgreSQL 16 so the pgvector package name
+   * still matches.
+   */
   public static String postgis() {
-    return "postgis/postgis:16-3.4";
+    return "postgis/postgis:16-3.7";
   }
 
   /**
