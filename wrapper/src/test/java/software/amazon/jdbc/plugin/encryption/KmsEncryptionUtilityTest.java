@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.encryption;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -65,6 +66,45 @@ public class KmsEncryptionUtilityTest {
     props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, "arn:aws:kms:us-east-1:111111111111:key/abc");
 
     assertDoesNotThrow(() -> utility.initialize(props));
+  }
+
+  @Test
+  void initialize_takesTheRegionFromTheKeyArn_withoutModifyingTheProperties() throws Exception {
+    final Properties props = new Properties();
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, "arn:aws:kms:eu-west-1:111111111111:key/abc");
+    final Properties before = new Properties();
+    before.putAll(props);
+
+    utility.initialize(props);
+
+    assertEquals("eu-west-1", utility.getConfig().getKmsRegion());
+    assertEquals(before, props);
+  }
+
+  @Test
+  void initialize_doesNotModifyTheProperties_whenTheRegionIsSet() throws Exception {
+    final Properties props = props();
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, "alias/payments");
+    final Properties before = new Properties();
+    before.putAll(props);
+
+    utility.initialize(props);
+
+    assertEquals("us-east-1", utility.getConfig().getKmsRegion());
+    assertEquals(before, props);
+  }
+
+  @Test
+  void initialize_refusesToStart_withoutARegionOrAKeyArn() {
+    final Properties props = new Properties();
+    props.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, "alias/payments");
+    final Properties before = new Properties();
+    before.putAll(props);
+
+    final SQLException e = assertThrows(SQLException.class, () -> utility.initialize(props));
+
+    assertTrue(e.getMessage().contains(EncryptionConfig.KMS_REGION.name + " is required"), e.getMessage());
+    assertEquals(before, props);
   }
 
   private static Properties props() {

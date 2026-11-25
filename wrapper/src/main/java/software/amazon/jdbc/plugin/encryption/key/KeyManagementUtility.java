@@ -146,12 +146,48 @@ public class KeyManagementUtility {
     }
   }
 
-  // A refused master key is reported as is, so callers can tell it apart from a KMS or database
-  // failure by its SQL state.
-  private static void rethrowIfUnauthorizedMasterKey(Exception e) throws KeyManagementException {
-    if (e instanceof KeyManagementException
-        && KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE.equals(((KeyManagementException) e).getSQLState())) {
-      throw (KeyManagementException) e;
+  // A refused master key or algorithm is reported as is, so callers can tell it apart from a KMS or
+  // database failure by its SQL state: KEY07 for a master key, KEY06 for an algorithm.
+  private static void rethrowIfRefused(Exception e) throws KeyManagementException {
+    if (!(e instanceof KeyManagementException)) {
+      return;
+    }
+    final KeyManagementException kme = (KeyManagementException) e;
+    if (kme instanceof UnsupportedAlgorithmException
+        || KeyManagementException.UNAUTHORIZED_MASTER_KEY_STATE.equals(kme.getSQLState())) {
+      throw kme;
+    }
+  }
+
+  // KeyManager.generateDataKey always asks KMS for a 256-bit key, so any other algorithm would be
+  // stored with a key of the wrong length and every read and write of the column would fail.
+  private static String requireCreatableAlgorithm(final @Nullable String algorithm) {
+    if (algorithm == null || algorithm.trim().isEmpty()) {
+      return EncryptionAlgorithm.AES_256_GCM;
+    }
+    if (!EncryptionAlgorithm.AES_256_GCM.equals(algorithm)) {
+      throw new IllegalArgumentException(Messages.get("KeyManagementUtility.unsupportedAlgorithm",
+          new Object[]{Sanitizer.replaceControlCharacters(algorithm)}));
+    }
+    return algorithm;
+  }
+
+  // Rotation generates the new data key the same way, so it refuses a column whose algorithm needs
+  // a key of another length, such as an AES-128-GCM column set up with a 128-bit key.
+  private static void requireRotatableAlgorithm(String tableName, String columnName, String algorithm)
+      throws UnsupportedAlgorithmException {
+    if (!EncryptionAlgorithm.AES_256_GCM.equals(algorithm)) {
+      throw new UnsupportedAlgorithmException(Messages.get("KeyManagementUtility.rotateUnsupportedAlgorithm",
+          new Object[]{tableName, columnName, Sanitizer.replaceControlCharacters(algorithm)}));
+    }
+  }
+
+  /** Thrown before any change when a column's algorithm needs a data key this utility cannot create. */
+  private static final class UnsupportedAlgorithmException extends KeyManagementException {
+    private static final long serialVersionUID = 1L;
+
+    private UnsupportedAlgorithmException(String message) {
+      super(message, INVALID_KEY_METADATA_STATE, (Throwable) null);
     }
   }
 
@@ -350,19 +386,19 @@ public class KeyManagementUtility {
    * @param tableName Name of the table
    * @param columnName Name of the column
    * @param masterKeyArn ARN of the master key to use
-   * @param algorithm Encryption algorithm (defaults to AES-256-GCM if null)
+   * @param algorithm Encryption algorithm: AES-256-GCM, the default if null or blank, is the only
+   *     one accepted, because the data key created is always 256 bits
    * @throws KeyManagementException if key generation or storage fails
+   * @throws IllegalArgumentException if the algorithm is not AES-256-GCM
    */
   public void generateAndStoreDataKey(
-      String tableName, String columnName, String masterKeyArn, String algorithm)
+      String tableName, String columnName, String masterKeyArn, final @Nullable String algorithm)
       throws KeyManagementException {
     Objects.requireNonNull(tableName, "Table name cannot be null");
     Objects.requireNonNull(columnName, "Column name cannot be null");
     Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-    if (algorithm == null || algorithm.trim().isEmpty()) {
-      algorithm = EncryptionAlgorithm.AES_256_GCM;
-    }
+    final String columnAlgorithm = requireCreatableAlgorithm(algorithm);
 
     LOGGER.info(() -> Messages.get(
         "KeyManagementUtility.generatingDataKey", new Object[]{tableName, columnName, Sanitizer.arn(masterKeyArn)}));
@@ -395,7 +431,7 @@ public class KeyManagementUtility {
       int generatedKeyId = keyManager.storeKeyMetadata(tableName, columnName, keyMetadata);
 
       // Store encryption metadata using the generated integer key ID
-      storeEncryptionMetadata(tableName, columnName, algorithm, generatedKeyId);
+      storeEncryptionMetadata(tableName, columnName, columnAlgorithm, generatedKeyId);
 
       // Refresh metadata cache
       metadataManager.refreshMetadata();
@@ -405,7 +441,7 @@ public class KeyManagementUtility {
 
 
     } catch (Exception e) {
-      rethrowIfUnauthorizedMasterKey(e);
+      rethrowIfRefused(e);
       LOGGER.severe(() -> Messages.get(
           "KeyManagementUtility.dataKeyStoreFailed", new Object[]{tableName, columnName, e.getMessage()}));
       throw new KeyManagementException(
@@ -445,8 +481,8 @@ public class KeyManagementUtility {
    * @param columnName      Name of the column
    * @param newMasterKeyArn The master key to wrap the new data key with, or null to keep the
    *     current one (requires {@code encryptionAllowedMasterKeyArns})
-   * @throws KeyManagementException if the column holds data, the master key is not allowed, or key
-   *     rotation fails
+   * @throws KeyManagementException if the column holds data, its encryption algorithm is not
+   *     AES-256-GCM, the master key is not allowed, or key rotation fails
    * @throws IllegalArgumentException if no master key is given and no allow-list is configured, or
    *     a table or column name is not a valid identifier
    */
@@ -457,7 +493,7 @@ public class KeyManagementUtility {
     validateTableAndColumn(tableName, columnName);
     requireTargetMasterKey(newMasterKeyArn);
 
-    requireEmptyColumn(tableName, columnName);
+    requireEmptyRotatableColumn(tableName, columnName);
 
     LOGGER.info(() -> Messages.get("KeyManagementUtility.rotatingKey", new Object[]{tableName, columnName}));
 
@@ -508,7 +544,7 @@ public class KeyManagementUtility {
           "KeyManagementUtility.keyRotated", new Object[]{tableName, columnName, currentConfig.getKeyId(), newKeyId}));
 
     } catch (Exception e) {
-      rethrowIfUnauthorizedMasterKey(e);
+      rethrowIfRefused(e);
       LOGGER.severe(() -> Messages.get(
           "KeyManagementUtility.keyRotationFailed",
           new Object[]{tableName, columnName, Sanitizer.errorSummary(e)}));
@@ -563,8 +599,8 @@ public class KeyManagementUtility {
    *     current one (requires {@code encryptionAllowedMasterKeyArns})
    * @param batchSize Rows per transaction, 1 to {@link #MAX_REENCRYPTION_BATCH_SIZE}
    * @return the counts of re-encrypted, already-current and unmatched rows
-   * @throws KeyManagementException if the master key is not allowed, or the pre-check, the key
-   *     creation, the switch or a batch fails
+   * @throws KeyManagementException if the column's encryption algorithm is not AES-256-GCM, the
+   *     master key is not allowed, or the pre-check, the key creation, the switch or a batch fails
    * @throws IllegalArgumentException if an identifier or the batch size is invalid, or no master
    *     key is given and no allow-list is configured
    */
@@ -591,6 +627,7 @@ public class KeyManagementUtility {
       final StoredKey oldKey = current.key;
       keysToClear.add(oldKey);
       oldKeyId = oldKey.id;
+      requireRotatableAlgorithm(tableName, columnName, current.algorithm);
       // The batches decrypt the old data key, so refuse an unlisted master key before the switch.
       keyManager.authorizeMasterKey(oldKey.masterKeyArn);
       final ColumnTarget column = new ColumnTarget(
@@ -1020,11 +1057,14 @@ public class KeyManagementUtility {
    * Throws if the column holds a non-null value, before anything is changed. Switching the data
    * key does not re-encrypt rows, so it would make every existing value unreadable.
    */
-  private void requireEmptyColumn(String tableName, String columnName) throws KeyManagementException {
+  // The algorithm is checked first: a column that cannot be rotated at all is reported as such,
+  // rather than pointing the caller at rotateDataKeyAndReencrypt, which refuses it too.
+  private void requireEmptyRotatableColumn(String tableName, String columnName) throws KeyManagementException {
     Connection conn = null;
     try {
       conn = getConnection();
       final CurrentColumnKey current = loadCurrentKey(conn, tableName, columnName);
+      requireRotatableAlgorithm(tableName, columnName, current.algorithm);
       final ColumnTarget target =
           new ColumnTarget(schemaPrefix(tableName), current.storedTable, current.storedColumn, "");
       try (PreparedStatement stmt = conn.prepareStatement(getSelectAnyValueSql(target));
@@ -1396,12 +1436,16 @@ public class KeyManagementUtility {
    * @param tableName Name of the table
    * @param columnName Name of the column
    * @param masterKeyArn ARN of the master key to use
-   * @param algorithm Encryption algorithm to use
+   * @param algorithm Encryption algorithm to use. Only AES-256-GCM (the default if null or blank) is
+   *     accepted, because the data key created is always 256 bits. For an AES-128-GCM column, create
+   *     a 128-bit data key yourself and register the column directly.
    * @throws KeyManagementException if initialization fails
+   * @throws IllegalArgumentException if the algorithm is not AES-256-GCM
    */
   public void initializeEncryptionForColumn(
-      String tableName, String columnName, String masterKeyArn, String algorithm)
+      String tableName, String columnName, String masterKeyArn, final @Nullable String algorithm)
       throws KeyManagementException {
+    requireCreatableAlgorithm(algorithm);
     LOGGER.info(() -> Messages.get("KeyManagementUtility.initColumnEncryption", new Object[]{tableName, columnName}));
 
     // Check if column is already encrypted

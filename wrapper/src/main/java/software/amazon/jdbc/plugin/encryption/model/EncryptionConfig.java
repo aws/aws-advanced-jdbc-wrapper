@@ -26,6 +26,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
@@ -37,9 +42,22 @@ import software.amazon.jdbc.util.Messages;
  */
 public class EncryptionConfig {
 
+  private static final Logger LOGGER = Logger.getLogger(EncryptionConfig.class.getName());
+
+  // The region field of a KMS key or alias ARN, in any partition (aws, aws-cn, aws-us-gov, ...).
+  private static final Pattern KMS_ARN_REGION_PATTERN = Pattern.compile("^arn:[^:]+:kms:([^:]*):");
+
+  // The configuration is loaded for every connection, so each region mismatch is warned about once.
+  // Keyed by the configured region and the regions of the key ARNs, never by the ARNs themselves.
+  private static final Set<String> WARNED_REGION_MISMATCHES = ConcurrentHashMap.newKeySet();
+
   // Property definitions using AwsWrapperProperty
   public static final AwsWrapperProperty KMS_REGION =
-      new AwsWrapperProperty("kms.region", null, "AWS KMS region for encryption operations");
+      new AwsWrapperProperty(
+          "kms.region",
+          null,
+          "AWS KMS region for encryption operations. If unset, the region is taken from the key ARNs "
+              + "in encryptionAllowedMasterKeyArns.");
 
   public static final AwsWrapperProperty ALLOWED_MASTER_KEY_ARNS =
       new AwsWrapperProperty(
@@ -335,11 +353,6 @@ public class EncryptionConfig {
   public static EncryptionConfig fromProperties(Properties properties) {
     Builder builder = builder();
 
-    String region = KMS_REGION.getString(properties);
-    if (region != null) {
-      builder.kmsRegion(region);
-    }
-
     builder.cacheEnabled(METADATA_CACHE_ENABLED.getBoolean(properties));
     builder.cacheExpirationMinutes(METADATA_CACHE_EXPIRATION_MINUTES.getInteger(properties));
     builder.maxRetries(KEY_MANAGEMENT_MAX_RETRIES.getInteger(properties));
@@ -355,27 +368,95 @@ public class EncryptionConfig {
     builder.encryptionMetadataSchema(ENCRYPTION_METADATA_SCHEMA.getString(properties));
     builder.failOnUnmappedParameter(FAIL_ON_UNMAPPED_PARAMETER.getBoolean(properties));
     builder.allowedMasterKeyArns(ALLOWED_MASTER_KEY_ARNS.getString(properties));
+    builder.kmsRegion(resolveKmsRegion(KMS_REGION.getString(properties), builder.allowedMasterKeyArns));
 
     return builder.build();
+  }
+
+  /**
+   * Returns the KMS region to use: {@code kms.region} when it is set, otherwise the region of the
+   * key ARNs in the allow-list. Alias names ({@code alias/...}) and bare
+   * key ids carry no region and are skipped.
+   *
+   * @throws IllegalArgumentException if {@code kms.region} is not set and the allow-list has no key
+   *     ARN, or has key ARNs in more than one region
+   */
+  private static String resolveKmsRegion(
+      final @Nullable String configuredRegion, final List<String> allowedMasterKeyArns) {
+    final Set<String> arnRegions = new TreeSet<>();
+    for (final String key : allowedMasterKeyArns) {
+      final @Nullable String region = regionFromArn(key);
+      if (region != null) {
+        arnRegions.add(region);
+      }
+    }
+
+    if (configuredRegion != null && !configuredRegion.trim().isEmpty()) {
+      final String region = configuredRegion.trim();
+      // A KMS client serves one region, so calls with a key from another region fail. The entry is
+      // only reported, not refused: an unused leftover, or the replica of a multi-region key listed
+      // for a deployment in another region, does not stop this one from working.
+      if ((arnRegions.size() > 1 || (arnRegions.size() == 1 && !arnRegions.contains(region)))
+          && WARNED_REGION_MISMATCHES.add(region + " " + arnRegions)) {
+        LOGGER.warning(() -> Messages.get("EncryptionConfig.kmsRegionMismatch",
+            new Object[]{KMS_REGION.name, region, ALLOWED_MASTER_KEY_ARNS.name}));
+      }
+      return region;
+    }
+
+    if (arnRegions.isEmpty()) {
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.kmsRegionRequired",
+          new Object[]{KMS_REGION.name, ALLOWED_MASTER_KEY_ARNS.name}));
+    }
+    if (arnRegions.size() > 1) {
+      throw new IllegalArgumentException(Messages.get("EncryptionConfig.kmsRegionAmbiguous",
+          new Object[]{KMS_REGION.name, ALLOWED_MASTER_KEY_ARNS.name}));
+    }
+    return arnRegions.iterator().next();
+  }
+
+  private static @Nullable String regionFromArn(final String key) {
+    final Matcher matcher = KMS_ARN_REGION_PATTERN.matcher(key);
+    if (!matcher.find()) {
+      return null;
+    }
+    // The group always participates in a match, so it is never null here.
+    final @Nullable String region = matcher.group(1);
+    return region == null || region.isEmpty() ? null : region;
+  }
+
+  private static String defaultOf(final AwsWrapperProperty property) {
+    final @Nullable String defaultValue = property.defaultValue;
+    if (defaultValue == null) {
+      throw new IllegalStateException(property.name + " has no default");
+    }
+    return defaultValue;
   }
 
   public static Builder builder() {
     return new Builder();
   }
 
+  /**
+   * Builder for {@link EncryptionConfig}. {@code kmsRegion} is required; every other setting defaults
+   * to the default of its connection property.
+   */
   public static class Builder {
     private String kmsRegion;
-    private boolean cacheEnabled = true;
-    private int cacheExpirationMinutes = 60; // Default 1 hour
-    private int maxRetries = 5;
-    private Duration retryBackoffBase = Duration.ofMillis(100);
-    private boolean auditLoggingEnabled = false;
-    private boolean dataKeyCacheEnabled = true;
-    private int dataKeyCacheMaxSize = 1000;
-    private Duration dataKeyCacheExpiration = Duration.ofMinutes(30);
-    private Duration metadataRefreshInterval = Duration.ofMinutes(5);
-    private SchemaName encryptionMetadataSchema = SchemaName.of("encrypt"); // Default schema name
-    private boolean failOnUnmappedParameter = true;
+    private boolean cacheEnabled = Boolean.parseBoolean(defaultOf(METADATA_CACHE_ENABLED));
+    private int cacheExpirationMinutes = Integer.parseInt(defaultOf(METADATA_CACHE_EXPIRATION_MINUTES));
+    private int maxRetries = Integer.parseInt(defaultOf(KEY_MANAGEMENT_MAX_RETRIES));
+    private Duration retryBackoffBase =
+        Duration.ofMillis(Long.parseLong(defaultOf(KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS)));
+    private boolean auditLoggingEnabled = Boolean.parseBoolean(defaultOf(AUDIT_LOGGING_ENABLED));
+    private boolean dataKeyCacheEnabled = Boolean.parseBoolean(defaultOf(DATA_KEY_CACHE_ENABLED));
+    private int dataKeyCacheMaxSize = Integer.parseInt(defaultOf(DATA_KEY_CACHE_MAX_SIZE));
+    private Duration dataKeyCacheExpiration =
+        Duration.ofMillis(Long.parseLong(defaultOf(DATA_KEY_CACHE_EXPIRATION_MS)));
+    private Duration metadataRefreshInterval =
+        Duration.ofMillis(Long.parseLong(defaultOf(METADATA_CACHE_REFRESH_INTERVAL_MS)));
+    private SchemaName encryptionMetadataSchema = SchemaName.of(defaultOf(ENCRYPTION_METADATA_SCHEMA));
+    private boolean failOnUnmappedParameter = Boolean.parseBoolean(defaultOf(FAIL_ON_UNMAPPED_PARAMETER));
     private List<String> allowedMasterKeyArns = new ArrayList<>();
 
     public Builder kmsRegion(String kmsRegion) {

@@ -105,12 +105,14 @@ public class EncryptingDataSourceFactory {
    *     key_storage.master_key_arn. Each column's master key is read from key_storage; this list
    *     does not choose it. While a column is rotated onto a new master key, list both, for example
    *     {@code "arn:aws:kms:us-east-1:123456789012:key/old,arn:aws:kms:us-east-1:123456789012:key/new"}.
-   * @param region The AWS region
+   * @param region The KMS region, or null to take it from the key ARNs in
+   *     {@code allowedMasterKeyArns}
    * @return An EncryptingDataSource instance
-   * @throws SQLException if encryption initialization fails
+   * @throws SQLException if encryption initialization fails, including when the region is null and
+   *     none can be taken from the key ARNs
    */
   public static EncryptingDataSource createWithDefaults(
-      DataSource dataSource, String allowedMasterKeyArns, String region) throws SQLException {
+      DataSource dataSource, String allowedMasterKeyArns, final @Nullable String region) throws SQLException {
     Properties encryptionProperties = createDefaultEncryptionProperties(allowedMasterKeyArns, region);
     return create(dataSource, encryptionProperties);
   }
@@ -158,14 +160,17 @@ public class EncryptingDataSourceFactory {
    * Creates default encryption properties.
    *
    * @param allowedMasterKeyArns Comma-separated master keys the encryption may use
-   * @param region The AWS region
+   * @param region The KMS region, or null to take it from the key ARNs
    * @return Properties with default encryption settings
    */
-  private static Properties createDefaultEncryptionProperties(String allowedMasterKeyArns, String region) {
+  private static Properties createDefaultEncryptionProperties(
+      String allowedMasterKeyArns, final @Nullable String region) {
     Properties properties = new Properties();
 
     // KMS configuration
-    properties.setProperty(EncryptionConfig.KMS_REGION.name, region != null ? region : "us-east-1");
+    if (region != null) {
+      properties.setProperty(EncryptionConfig.KMS_REGION.name, region);
+    }
     if (allowedMasterKeyArns != null) {
       properties.setProperty(EncryptionConfig.ALLOWED_MASTER_KEY_ARNS.name, allowedMasterKeyArns);
     }
