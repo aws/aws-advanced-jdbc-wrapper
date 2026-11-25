@@ -80,6 +80,18 @@ public class SchemaValidator {
       "SELECT column_name FROM information_schema.columns"
           + " WHERE LOWER(table_schema) = ? AND LOWER(table_name) = ?";
 
+  // PostgreSQL variants: functions and operators are schema-qualified so that objects a user creates
+  // in a schema earlier on the search_path cannot shadow them.
+  private static final String PG_TABLE_EXISTS_SQL =
+      "SELECT 1 FROM information_schema.tables"
+          + " WHERE pg_catalog.lower(table_schema) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(table_name) OPERATOR(pg_catalog.=) ?";
+
+  private static final String PG_COLUMNS_SQL =
+      "SELECT column_name FROM information_schema.columns"
+          + " WHERE pg_catalog.lower(table_schema) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(table_name) OPERATOR(pg_catalog.=) ?";
+
   // MySQL: one row per column of every PRIMARY KEY and UNIQUE constraint on the table. MySQL lists a
   // table in information_schema for any user with a privilege on it, so a SELECT-only role sees it.
   private static final String MYSQL_KEY_CONSTRAINTS_SQL =
@@ -111,12 +123,16 @@ public class SchemaValidator {
   private static final String PG_KEY_CONSTRAINTS_SQL =
       "SELECT c.conname, a.attname"
           + " FROM pg_catalog.pg_constraint c"
-          + " JOIN pg_catalog.pg_class t ON t.oid = c.conrelid"
-          + " JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace"
-          + " CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord)"
-          + " JOIN pg_catalog.pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum"
-          + " WHERE c.contype = (CASE ? WHEN 'PRIMARY KEY' THEN 'p' ELSE 'u' END)::\"char\""
-          + "   AND LOWER(n.nspname) = ? AND LOWER(t.relname) = ?"
+          + " JOIN pg_catalog.pg_class t ON t.oid OPERATOR(pg_catalog.=) c.conrelid"
+          + " JOIN pg_catalog.pg_namespace n ON n.oid OPERATOR(pg_catalog.=) t.relnamespace"
+          + " CROSS JOIN LATERAL pg_catalog.unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord)"
+          + " JOIN pg_catalog.pg_attribute a ON a.attrelid OPERATOR(pg_catalog.=) t.oid"
+          + "  AND a.attnum OPERATOR(pg_catalog.=) k.attnum"
+          + " WHERE c.contype OPERATOR(pg_catalog.=)"
+          + "   (CASE WHEN ? OPERATOR(pg_catalog.=) 'PRIMARY KEY' THEN 'p' ELSE 'u' END)"
+          + "   ::pg_catalog.\"char\""
+          + "   AND pg_catalog.lower(n.nspname) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(t.relname) OPERATOR(pg_catalog.=) ?"
           + " ORDER BY c.conname, k.ord";
 
   // PostgreSQL: one row per column of every foreign key on the table, with the column it references.
@@ -124,15 +140,18 @@ public class SchemaValidator {
   private static final String PG_FOREIGN_KEYS_SQL =
       "SELECT a.attname, rt.relname, ra.attname"
           + " FROM pg_catalog.pg_constraint c"
-          + " JOIN pg_catalog.pg_class t ON t.oid = c.conrelid"
-          + " JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace"
-          + " JOIN pg_catalog.pg_class rt ON rt.oid = c.confrelid"
-          + " CROSS JOIN LATERAL unnest(c.conkey, c.confkey) AS k(attnum, refnum)"
-          + " JOIN pg_catalog.pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum"
-          + " JOIN pg_catalog.pg_attribute ra ON ra.attrelid = rt.oid AND ra.attnum = k.refnum"
-          + " WHERE c.contype = 'f'::\"char\""
-          + "   AND rt.relnamespace = t.relnamespace"
-          + "   AND LOWER(n.nspname) = ? AND LOWER(t.relname) = ?";
+          + " JOIN pg_catalog.pg_class t ON t.oid OPERATOR(pg_catalog.=) c.conrelid"
+          + " JOIN pg_catalog.pg_namespace n ON n.oid OPERATOR(pg_catalog.=) t.relnamespace"
+          + " JOIN pg_catalog.pg_class rt ON rt.oid OPERATOR(pg_catalog.=) c.confrelid"
+          + " CROSS JOIN LATERAL pg_catalog.unnest(c.conkey, c.confkey) AS k(attnum, refnum)"
+          + " JOIN pg_catalog.pg_attribute a ON a.attrelid OPERATOR(pg_catalog.=) t.oid"
+          + "  AND a.attnum OPERATOR(pg_catalog.=) k.attnum"
+          + " JOIN pg_catalog.pg_attribute ra ON ra.attrelid OPERATOR(pg_catalog.=) rt.oid"
+          + "  AND ra.attnum OPERATOR(pg_catalog.=) k.refnum"
+          + " WHERE c.contype OPERATOR(pg_catalog.=) 'f'::pg_catalog.\"char\""
+          + "   AND rt.relnamespace OPERATOR(pg_catalog.=) t.relnamespace"
+          + "   AND pg_catalog.lower(n.nspname) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(t.relname) OPERATOR(pg_catalog.=) ?";
 
   private final SchemaName metadataSchema;
 
@@ -186,7 +205,8 @@ public class SchemaValidator {
 
   /** Checks if a table exists in the metadata schema. */
   private boolean tableExists(Connection connection, String table) throws SQLException {
-    try (PreparedStatement stmt = connection.prepareStatement(TABLE_EXISTS_SQL)) {
+    try (PreparedStatement stmt =
+        connection.prepareStatement(isMySql(connection) ? TABLE_EXISTS_SQL : PG_TABLE_EXISTS_SQL)) {
       stmt.setString(1, schemaKey());
       stmt.setString(2, table.toLowerCase(Locale.ROOT));
       try (ResultSet rs = stmt.executeQuery()) {
@@ -199,7 +219,8 @@ public class SchemaValidator {
   private List<String> validateTableColumns(
       Connection connection, String table, Set<String> requiredColumns) throws SQLException {
     Set<String> existingColumns = new HashSet<>();
-    try (PreparedStatement stmt = connection.prepareStatement(COLUMNS_SQL)) {
+    try (PreparedStatement stmt =
+        connection.prepareStatement(isMySql(connection) ? COLUMNS_SQL : PG_COLUMNS_SQL)) {
       stmt.setString(1, schemaKey());
       stmt.setString(2, table.toLowerCase(Locale.ROOT));
       try (ResultSet rs = stmt.executeQuery()) {
