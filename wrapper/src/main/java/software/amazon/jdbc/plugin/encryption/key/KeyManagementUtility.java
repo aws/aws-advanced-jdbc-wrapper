@@ -187,7 +187,7 @@ public class KeyManagementUtility {
     private static final long serialVersionUID = 1L;
 
     private UnsupportedAlgorithmException(String message) {
-      super(message, INVALID_KEY_METADATA_STATE, (Throwable) null);
+      super(message, INVALID_KEY_METADATA_STATE, null);
     }
   }
 
