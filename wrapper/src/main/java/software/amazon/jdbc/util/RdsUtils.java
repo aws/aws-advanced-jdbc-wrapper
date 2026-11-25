@@ -199,6 +199,15 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.global\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
+  // The lookups below, except isRdsProxyEndpointDns(), match against this one list. They share cachedPatterns,
+  // so a match cached by one of them must mean the same thing to the others.
+  private static final Pattern[] RDS_DNS_PATTERNS = {
+      AURORA_DNS_PATTERN,
+      AURORA_CHINA_DNS_PATTERN,
+      AURORA_OLD_CHINA_DNS_PATTERN,
+      AURORA_GOV_DNS_PATTERN,
+      AURORA_GLOBAL_WRITER_DNS_PATTERN};
+
   private static final Pattern RDS_PROXY_ENDPOINT_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\.endpoint\\."
@@ -245,8 +254,7 @@ public class RdsUtils {
 
   public boolean isRdsDns(final String host) {
     final String preparedHost = getPreparedHost(host);
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, DNS_GROUP);
     if (group != null) {
       cachedDnsPatterns.put(preparedHost, group);
@@ -286,8 +294,7 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     if (getRegexGroup(matcher, DNS_GROUP) != null) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
@@ -301,8 +308,7 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     if (getRegexGroup(matcher, DNS_GROUP) == null) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
@@ -316,8 +322,7 @@ public class RdsUtils {
       return "?";
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, DOMAIN_GROUP);
     return group == null ? "?" : "?." + group;
   }
@@ -328,8 +333,7 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, REGION_GROUP);
     if (group != null) {
       return group;
@@ -536,9 +540,7 @@ public class RdsUtils {
     if (cached != null) {
       return cached;
     }
-    final Matcher matcher = cacheMatcher(host,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN,
-        AURORA_GOV_DNS_PATTERN, AURORA_GLOBAL_WRITER_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(host, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, DNS_GROUP);
     if (group != null) {
       cachedDnsPatterns.put(host, group);
