@@ -548,7 +548,18 @@ public class BlueGreenStatusMonitor {
                 .collect(Collectors.toSet()));
       }
 
-      if (!this.connectionHostSpecCorrect.get() && statusInfo != null) {
+      final boolean targetNotChosen = !this.connectionHostSpecCorrect.get();
+      if (targetNotChosen && statusInfo != null && this.isFinishedSwitchoverPhase(statusInfo.phase)) {
+        // A row that reports a finished switchover belongs to a deployment that is gone. After the rename its
+        // endpoint is the production cluster, which is what this monitor connected to (the application's
+        // endpoint) and would be taken for the Blue or Green cluster of the next deployment, with no later
+        // re-targeting. Keep the connection as it is until a row of a new deployment shows up.
+        final BlueGreenPhase finishedPhase = statusInfo.phase;
+        final String finishedEndpoint = statusInfo.endpoint;
+        LOGGER.finest(() -> Messages.get("bgd.ignoringFinishedStatusForTarget",
+            new Object[] {this.role, finishedPhase, finishedEndpoint}));
+
+      } else if (targetNotChosen && statusInfo != null) {
         // We connected to an initialHostSpec that might be not the desired Blue or Green cluster.
         // We need to reconnect to a correct one.
 
@@ -615,6 +626,17 @@ public class BlueGreenStatusMonitor {
     } catch (Exception e) {
       LOGGER.log(Level.FINEST, e, () -> Messages.get("bgd.unhandledException", new Object[] {this.role}));
     }
+  }
+
+  /**
+   * Whether a phase reports a switchover that has already finished, as
+   * {@code BlueGreenStatusProvider.isFinishedSwitchoverStatus} does for a context that never saw the deployment.
+   *
+   * @param phase the phase of a status row.
+   * @return true for POST and COMPLETED.
+   */
+  protected boolean isFinishedSwitchoverPhase(final @Nullable BlueGreenPhase phase) {
+    return phase == BlueGreenPhase.POST || phase == BlueGreenPhase.COMPLETED;
   }
 
   protected boolean isConnectionClosed(@Nullable Connection conn) {
