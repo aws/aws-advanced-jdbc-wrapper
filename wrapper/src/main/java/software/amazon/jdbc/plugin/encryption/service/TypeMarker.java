@@ -40,6 +40,8 @@ public enum TypeMarker {
   LOCAL_TIME(12, LocalTime.class),
   LOCAL_DATE_TIME(13, LocalDateTime.class),
   BYTE_ARRAY(14, byte[].class),
+  SHORT(15, Short.class),
+  BYTE(16, Byte.class),
   GENERIC(99, Object.class);
 
   private final byte value;
@@ -110,6 +112,12 @@ public enum TypeMarker {
     }
     if (obj instanceof byte[]) {
       return BYTE_ARRAY;
+    }
+    if (obj instanceof Short) {
+      return SHORT;
+    }
+    if (obj instanceof Byte) {
+      return BYTE;
     }
     return GENERIC;
   }

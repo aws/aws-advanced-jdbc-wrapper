@@ -17,14 +17,16 @@
 package software.amazon.jdbc.plugin.encryption.schema;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -33,27 +35,23 @@ import software.amazon.jdbc.plugin.encryption.model.SchemaName;
 /**
  * Validates that the required database schema for encryption metadata exists and has the correct
  * structure.
+ *
+ * <p>Tables and columns are looked up in the configured metadata schema through {@code
+ * information_schema}, which PostgreSQL and MySQL both expose. (On MySQL a "schema" is a database.)
+ * Constraints are read from {@code information_schema} on MySQL and from {@code pg_catalog} on
+ * PostgreSQL, whose {@code information_schema} hides constraints on tables the user holds only
+ * {@code SELECT} on. The lookup never depends on the session's default schema. The user running the
+ * validation must be able to see the tables: {@code information_schema} only lists tables the user
+ * has privileges on.
  */
 public class SchemaValidator {
 
-  private final SchemaName metadataSchema;
-
-  public SchemaValidator(SchemaName metadataSchema) {
-    this.metadataSchema = Objects.requireNonNull(metadataSchema, "Metadata schema cannot be null");
-  }
-
-  private String getEncryptionMetadataTable() {
-    return metadataSchema + ".encryption_metadata";
-  }
-
-  private String getKeyStorageTable() {
-    return metadataSchema + ".key_storage";
-  }
+  private static final String ENCRYPTION_METADATA_TABLE = "encryption_metadata";
+  private static final String KEY_STORAGE_TABLE = "key_storage";
 
   private static final Set<String> REQUIRED_ENCRYPTION_METADATA_COLUMNS =
       new HashSet<>(
           Arrays.asList(
-              "id",
               "table_name",
               "column_name",
               "encryption_algorithm",
@@ -65,12 +63,109 @@ public class SchemaValidator {
       new HashSet<>(
           Arrays.asList(
               "id",
+              "key_id",
               "name",
               "master_key_arn",
               "encrypted_data_key",
+              "hmac_key",
               "key_spec",
               "created_at",
               "last_used_at"));
+
+  private static final String TABLE_EXISTS_SQL =
+      "SELECT 1 FROM information_schema.tables"
+          + " WHERE LOWER(table_schema) = ? AND LOWER(table_name) = ?";
+
+  private static final String COLUMNS_SQL =
+      "SELECT column_name FROM information_schema.columns"
+          + " WHERE LOWER(table_schema) = ? AND LOWER(table_name) = ?";
+
+  // PostgreSQL variants: functions and operators are schema-qualified so that objects a user creates
+  // in a schema earlier on the search_path cannot shadow them.
+  private static final String PG_TABLE_EXISTS_SQL =
+      "SELECT 1 FROM information_schema.tables"
+          + " WHERE pg_catalog.lower(table_schema) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(table_name) OPERATOR(pg_catalog.=) ?";
+
+  private static final String PG_COLUMNS_SQL =
+      "SELECT column_name FROM information_schema.columns"
+          + " WHERE pg_catalog.lower(table_schema) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(table_name) OPERATOR(pg_catalog.=) ?";
+
+  // MySQL: one row per column of every PRIMARY KEY and UNIQUE constraint on the table. MySQL lists a
+  // table in information_schema for any user with a privilege on it, so a SELECT-only role sees it.
+  private static final String MYSQL_KEY_CONSTRAINTS_SQL =
+      "SELECT tc.constraint_name, kcu.column_name"
+          + " FROM information_schema.table_constraints tc"
+          + " JOIN information_schema.key_column_usage kcu"
+          + "   ON kcu.constraint_schema = tc.constraint_schema"
+          + "  AND kcu.constraint_name = tc.constraint_name"
+          + "  AND kcu.table_schema = tc.table_schema"
+          + "  AND kcu.table_name = tc.table_name"
+          + " WHERE tc.constraint_type = ?"
+          + "   AND LOWER(tc.table_schema) = ? AND LOWER(tc.table_name) = ?"
+          + " ORDER BY tc.constraint_name, kcu.ordinal_position";
+
+  // MySQL and MariaDB record the referenced table and column directly, which avoids the ambiguity of
+  // joining on constraint names (a primary key is named PRIMARY in every table). The referenced
+  // table must be in the same schema.
+  private static final String MYSQL_FOREIGN_KEYS_SQL =
+      "SELECT column_name, referenced_table_name, referenced_column_name"
+          + " FROM information_schema.key_column_usage"
+          + " WHERE LOWER(table_schema) = ? AND LOWER(table_name) = ?"
+          + "   AND referenced_table_name IS NOT NULL"
+          + "   AND referenced_table_schema = table_schema";
+
+  // PostgreSQL: information_schema.table_constraints, referential_constraints and key_column_usage
+  // only show tables the user owns or holds a privilege other than SELECT on, which would hide the
+  // constraints from the SELECT-only runtime role. pg_catalog is not filtered by privileges.
+  // contype is "p" for PRIMARY KEY and "u" for UNIQUE.
+  private static final String PG_KEY_CONSTRAINTS_SQL =
+      "SELECT c.conname, a.attname"
+          + " FROM pg_catalog.pg_constraint c"
+          + " JOIN pg_catalog.pg_class t ON t.oid OPERATOR(pg_catalog.=) c.conrelid"
+          + " JOIN pg_catalog.pg_namespace n ON n.oid OPERATOR(pg_catalog.=) t.relnamespace"
+          + " CROSS JOIN LATERAL pg_catalog.unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord)"
+          + " JOIN pg_catalog.pg_attribute a ON a.attrelid OPERATOR(pg_catalog.=) t.oid"
+          + "  AND a.attnum OPERATOR(pg_catalog.=) k.attnum"
+          + " WHERE c.contype OPERATOR(pg_catalog.=)"
+          + "   (CASE WHEN ? OPERATOR(pg_catalog.=) 'PRIMARY KEY' THEN 'p' ELSE 'u' END)"
+          + "   ::pg_catalog.\"char\""
+          + "   AND pg_catalog.lower(n.nspname) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(t.relname) OPERATOR(pg_catalog.=) ?"
+          + " ORDER BY c.conname, k.ord";
+
+  // PostgreSQL: one row per column of every foreign key on the table, with the column it references.
+  // The referenced table must be in the same schema.
+  private static final String PG_FOREIGN_KEYS_SQL =
+      "SELECT a.attname, rt.relname, ra.attname"
+          + " FROM pg_catalog.pg_constraint c"
+          + " JOIN pg_catalog.pg_class t ON t.oid OPERATOR(pg_catalog.=) c.conrelid"
+          + " JOIN pg_catalog.pg_namespace n ON n.oid OPERATOR(pg_catalog.=) t.relnamespace"
+          + " JOIN pg_catalog.pg_class rt ON rt.oid OPERATOR(pg_catalog.=) c.confrelid"
+          + " CROSS JOIN LATERAL pg_catalog.unnest(c.conkey, c.confkey) AS k(attnum, refnum)"
+          + " JOIN pg_catalog.pg_attribute a ON a.attrelid OPERATOR(pg_catalog.=) t.oid"
+          + "  AND a.attnum OPERATOR(pg_catalog.=) k.attnum"
+          + " JOIN pg_catalog.pg_attribute ra ON ra.attrelid OPERATOR(pg_catalog.=) rt.oid"
+          + "  AND ra.attnum OPERATOR(pg_catalog.=) k.refnum"
+          + " WHERE c.contype OPERATOR(pg_catalog.=) 'f'::pg_catalog.\"char\""
+          + "   AND rt.relnamespace OPERATOR(pg_catalog.=) t.relnamespace"
+          + "   AND pg_catalog.lower(n.nspname) OPERATOR(pg_catalog.=) ?"
+          + "   AND pg_catalog.lower(t.relname) OPERATOR(pg_catalog.=) ?";
+
+  private final SchemaName metadataSchema;
+
+  public SchemaValidator(SchemaName metadataSchema) {
+    this.metadataSchema = Objects.requireNonNull(metadataSchema, "Metadata schema cannot be null");
+  }
+
+  private String qualified(String table) {
+    return metadataSchema + "." + table;
+  }
+
+  private String schemaKey() {
+    return metadataSchema.getValue().toLowerCase(Locale.ROOT);
+  }
 
   /**
    * Validates that all required tables and columns exist in the database.
@@ -82,28 +177,25 @@ public class SchemaValidator {
   public ValidationResult validateSchema(Connection connection) throws SQLException {
     List<String> issues = new ArrayList<>();
 
-    // Validate encryption_metadata table
-    String encryptionMetadataTable = getEncryptionMetadataTable();
-    if (!tableExists(connection, encryptionMetadataTable)) {
-      issues.add("Table '" + encryptionMetadataTable + "' does not exist");
+    boolean encryptionMetadataExists = tableExists(connection, ENCRYPTION_METADATA_TABLE);
+    if (!encryptionMetadataExists) {
+      issues.add("Table '" + qualified(ENCRYPTION_METADATA_TABLE) + "' does not exist");
     } else {
       issues.addAll(
           validateTableColumns(
-              connection, encryptionMetadataTable, REQUIRED_ENCRYPTION_METADATA_COLUMNS));
+              connection, ENCRYPTION_METADATA_TABLE, REQUIRED_ENCRYPTION_METADATA_COLUMNS));
       issues.addAll(validateEncryptionMetadataConstraints(connection));
     }
 
-    // Validate key_storage table
-    String keyStorageTable = getKeyStorageTable();
-    if (!tableExists(connection, keyStorageTable)) {
-      issues.add("Table '" + keyStorageTable + "' does not exist");
+    boolean keyStorageExists = tableExists(connection, KEY_STORAGE_TABLE);
+    if (!keyStorageExists) {
+      issues.add("Table '" + qualified(KEY_STORAGE_TABLE) + "' does not exist");
     } else {
-      issues.addAll(
-          validateTableColumns(connection, keyStorageTable, REQUIRED_KEY_STORAGE_COLUMNS));
+      issues.addAll(validateTableColumns(connection, KEY_STORAGE_TABLE, REQUIRED_KEY_STORAGE_COLUMNS));
       issues.addAll(validateKeyStorageConstraints(connection));
     }
 
-    // Validate foreign key relationship
+    // The foreign key can only be checked once both tables are known to be sound.
     if (issues.isEmpty()) {
       issues.addAll(validateForeignKeyConstraints(connection));
     }
@@ -111,198 +203,143 @@ public class SchemaValidator {
     return new ValidationResult(issues.isEmpty(), issues);
   }
 
-  /** Checks if a table exists in the database. */
-  private boolean tableExists(Connection connection, String tableName) throws SQLException {
-    DatabaseMetaData metaData = connection.getMetaData();
-
-    // Get current schema
-    String currentSchema = getCurrentSchema(connection);
-
-    // Only check in the current schema to avoid cross-contamination
-    try (ResultSet rs =
-        metaData.getTables(null, currentSchema, tableName, new String[] {"TABLE"})) {
-      return rs.next();
-    }
-  }
-
-  /**
-   * Gets the current schema name from the connection. The function is schema-qualified so that a
-   * function of the same name earlier in the session's search_path is not called instead.
-   */
-  private @Nullable String getCurrentSchema(Connection connection) throws SQLException {
-    try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT pg_catalog.current_schema()")) {
-      if (rs.next()) {
-        return rs.getString(1);
+  /** Checks if a table exists in the metadata schema. */
+  private boolean tableExists(Connection connection, String table) throws SQLException {
+    try (PreparedStatement stmt =
+        connection.prepareStatement(isMySql(connection) ? TABLE_EXISTS_SQL : PG_TABLE_EXISTS_SQL)) {
+      stmt.setString(1, schemaKey());
+      stmt.setString(2, table.toLowerCase(Locale.ROOT));
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next();
       }
     }
-    return null;
   }
 
   /** Validates that all required columns exist in a table. */
   private List<String> validateTableColumns(
-      Connection connection, String tableName, Set<String> requiredColumns) throws SQLException {
-    List<String> issues = new ArrayList<>();
+      Connection connection, String table, Set<String> requiredColumns) throws SQLException {
     Set<String> existingColumns = new HashSet<>();
-
-    DatabaseMetaData metaData = connection.getMetaData();
-    String currentSchema = getCurrentSchema(connection);
-
-    // Try with current schema first
-    try (ResultSet rs = metaData.getColumns(null, currentSchema, tableName, null)) {
-      while (rs.next()) {
-        // COLUMN_NAME is non-null per the JDBC spec; the guard only satisfies the nullness checker.
-        final @Nullable String columnName = rs.getString("COLUMN_NAME");
-        if (columnName != null) {
-          existingColumns.add(columnName.toLowerCase());
-        }
-      }
-    }
-
-    // If no columns found, try without schema
-    if (existingColumns.isEmpty()) {
-      try (ResultSet rs = metaData.getColumns(null, null, tableName, null)) {
+    try (PreparedStatement stmt =
+        connection.prepareStatement(isMySql(connection) ? COLUMNS_SQL : PG_COLUMNS_SQL)) {
+      stmt.setString(1, schemaKey());
+      stmt.setString(2, table.toLowerCase(Locale.ROOT));
+      try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          final @Nullable String columnName = rs.getString("COLUMN_NAME");
+          // column_name is never null in information_schema; the guard satisfies the nullness checker.
+          final @Nullable String columnName = rs.getString(1);
           if (columnName != null) {
-            existingColumns.add(columnName.toLowerCase());
+            existingColumns.add(columnName.toLowerCase(Locale.ROOT));
           }
         }
       }
     }
 
+    List<String> issues = new ArrayList<>();
     for (String requiredColumn : requiredColumns) {
-      if (!existingColumns.contains(requiredColumn.toLowerCase())) {
+      if (!existingColumns.contains(requiredColumn.toLowerCase(Locale.ROOT))) {
         issues.add(
-            String.format("Table '%s' is missing required column '%s'", tableName, requiredColumn));
+            String.format(
+                "Table '%s' is missing required column '%s'", qualified(table), requiredColumn));
       }
     }
-
     return issues;
   }
 
-  /** Validates constraints specific to encryption_metadata table. */
+  /** Validates constraints specific to the encryption_metadata table. */
   private List<String> validateEncryptionMetadataConstraints(Connection connection)
       throws SQLException {
     List<String> issues = new ArrayList<>();
-
-    // Check for unique constraint on table_name, column_name
-    String encryptionMetadataTable = getEncryptionMetadataTable();
-    if (!hasUniqueConstraint(
-        connection, encryptionMetadataTable, Arrays.asList("table_name", "column_name"))) {
+    // A primary key is a unique constraint, so either one satisfies this.
+    List<String> columns = Arrays.asList("table_name", "column_name");
+    if (!hasKeyConstraint(connection, ENCRYPTION_METADATA_TABLE, "PRIMARY KEY", columns)
+        && !hasKeyConstraint(connection, ENCRYPTION_METADATA_TABLE, "UNIQUE", columns)) {
       issues.add(
           "Table '"
-              + encryptionMetadataTable
+              + qualified(ENCRYPTION_METADATA_TABLE)
               + "' is missing unique constraint on (table_name, column_name)");
     }
-
     return issues;
   }
 
-  /** Validates constraints specific to key_storage table. */
+  /** Validates constraints specific to the key_storage table. */
   private List<String> validateKeyStorageConstraints(Connection connection) throws SQLException {
     List<String> issues = new ArrayList<>();
-
-    // Check for primary key on id
-    String keyStorageTable = getKeyStorageTable();
-    if (!hasPrimaryKey(connection, keyStorageTable, "id")) {
-      issues.add("Table '" + keyStorageTable + "' is missing primary key on 'id'");
+    if (!hasKeyConstraint(
+        connection, KEY_STORAGE_TABLE, "PRIMARY KEY", java.util.Collections.singletonList("id"))) {
+      issues.add("Table '" + qualified(KEY_STORAGE_TABLE) + "' is missing primary key on 'id'");
     }
-
     return issues;
   }
 
-  /** Validates foreign key constraints between tables. */
+  /** Validates the foreign key from encryption_metadata.key_id to key_storage.id. */
   private List<String> validateForeignKeyConstraints(Connection connection) throws SQLException {
     List<String> issues = new ArrayList<>();
-
-    // Check for foreign key from encryption_metadata.key_id to key_storage.id
-    String encryptionMetadataTable = getEncryptionMetadataTable();
-    String keyStorageTable = getKeyStorageTable();
-    if (!hasForeignKey(connection, encryptionMetadataTable, "key_id", keyStorageTable, "id")) {
+    if (!hasForeignKey(connection, ENCRYPTION_METADATA_TABLE, "key_id", KEY_STORAGE_TABLE, "id")) {
       issues.add(
           "Missing foreign key constraint from "
-              + encryptionMetadataTable
+              + qualified(ENCRYPTION_METADATA_TABLE)
               + ".key_id to "
-              + keyStorageTable
+              + qualified(KEY_STORAGE_TABLE)
               + ".id");
     }
-
     return issues;
   }
 
-  /** Checks if a unique constraint exists on the specified columns. */
-  private boolean hasUniqueConstraint(
-      Connection connection, String tableName, List<String> columnNames) throws SQLException {
-    DatabaseMetaData metaData = connection.getMetaData();
-    String currentSchema = getCurrentSchema(connection);
-    try (ResultSet rs = metaData.getIndexInfo(null, currentSchema, tableName, true, false)) {
-      Set<String> indexColumns = new HashSet<>();
-      String currentIndexName = null;
-
-      while (rs.next()) {
-        String indexName = rs.getString("INDEX_NAME");
-        String columnName = rs.getString("COLUMN_NAME");
-
-        if (currentIndexName == null || !currentIndexName.equals(indexName)) {
-          // Check previous index
-          if (indexColumns.size() == columnNames.size()
-              && indexColumns.containsAll(
-                  columnNames.stream()
-                      .map(String::toLowerCase)
-                      .collect(java.util.stream.Collectors.toList()))) {
-            return true;
+  /**
+   * Checks whether the table has a constraint of the given type covering exactly the given
+   * columns.
+   */
+  private boolean hasKeyConstraint(
+      Connection connection, String table, String constraintType, List<String> columnNames)
+      throws SQLException {
+    Map<String, Set<String>> columnsByConstraint = new LinkedHashMap<>();
+    try (PreparedStatement stmt =
+        connection.prepareStatement(
+            isMySql(connection) ? MYSQL_KEY_CONSTRAINTS_SQL : PG_KEY_CONSTRAINTS_SQL)) {
+      stmt.setString(1, constraintType);
+      stmt.setString(2, schemaKey());
+      stmt.setString(3, table.toLowerCase(Locale.ROOT));
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          final @Nullable String constraintName = rs.getString(1);
+          final @Nullable String columnName = rs.getString(2);
+          if (constraintName != null && columnName != null) {
+            columnsByConstraint
+                .computeIfAbsent(constraintName, k -> new HashSet<>())
+                .add(columnName.toLowerCase(Locale.ROOT));
           }
-          // Start new index
-          currentIndexName = indexName;
-          indexColumns.clear();
-        }
-
-        if (columnName != null) {
-          indexColumns.add(columnName.toLowerCase());
         }
       }
-
-      // Check last index
-      return indexColumns.size() == columnNames.size()
-          && indexColumns.containsAll(
-              columnNames.stream()
-                  .map(String::toLowerCase)
-                  .collect(java.util.stream.Collectors.toList()));
     }
+
+    Set<String> wanted = new HashSet<>();
+    for (String columnName : columnNames) {
+      wanted.add(columnName.toLowerCase(Locale.ROOT));
+    }
+    return columnsByConstraint.containsValue(wanted);
   }
 
-  /** Checks if a primary key exists on the specified column. */
-  private boolean hasPrimaryKey(Connection connection, String tableName, String columnName)
-      throws SQLException {
-    DatabaseMetaData metaData = connection.getMetaData();
-    String currentSchema = getCurrentSchema(connection);
-    try (ResultSet rs = metaData.getPrimaryKeys(null, currentSchema, tableName)) {
-      while (rs.next()) {
-        if (columnName.equalsIgnoreCase(rs.getString("COLUMN_NAME"))) {
-          return true;
-        }
-      }
-    }
-    return false;
+  private static boolean isMySql(Connection connection) throws SQLException {
+    final String product = connection.getMetaData().getDatabaseProductName();
+    return product != null && product.toLowerCase(Locale.ROOT).matches(".*(mysql|mariadb).*");
   }
 
   /** Checks if a foreign key exists between the specified tables and columns. */
   private boolean hasForeignKey(
       Connection connection, String fromTable, String fromColumn, String toTable, String toColumn)
       throws SQLException {
-    DatabaseMetaData metaData = connection.getMetaData();
-    String currentSchema = getCurrentSchema(connection);
-    try (ResultSet rs = metaData.getImportedKeys(null, currentSchema, fromTable)) {
-      while (rs.next()) {
-        String fkColumnName = rs.getString("FKCOLUMN_NAME");
-        String pkTableName = rs.getString("PKTABLE_NAME");
-        String pkColumnName = rs.getString("PKCOLUMN_NAME");
-
-        if (fromColumn.equalsIgnoreCase(fkColumnName)
-            && toTable.equalsIgnoreCase(pkTableName)
-            && toColumn.equalsIgnoreCase(pkColumnName)) {
-          return true;
+    try (PreparedStatement stmt =
+        connection.prepareStatement(
+            isMySql(connection) ? MYSQL_FOREIGN_KEYS_SQL : PG_FOREIGN_KEYS_SQL)) {
+      stmt.setString(1, schemaKey());
+      stmt.setString(2, fromTable.toLowerCase(Locale.ROOT));
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          if (fromColumn.equalsIgnoreCase(rs.getString(1))
+              && toTable.equalsIgnoreCase(rs.getString(2))
+              && toColumn.equalsIgnoreCase(rs.getString(3))) {
+            return true;
+          }
         }
       }
     }
