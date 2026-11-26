@@ -21,18 +21,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 
 public class AwsCredentialsManager {
   private static @Nullable AwsCredentialsProviderHandler handler = null;
 
+  private static final Logger LOGGER = Logger.getLogger(AwsCredentialsManager.class.getName());
   private static final ResourceLock lock = new ResourceLock();
   private static final Map<List<@Nullable Object>, AwsCredentialsProvider> reusableProviders = new HashMap<>();
 
@@ -117,9 +121,19 @@ public class AwsCredentialsManager {
     }
   }
 
-  /** Drops all providers kept by {@link #getReusableProvider}. */
+  /** Closes and drops all providers kept by {@link #getReusableProvider}. */
   public static void clearReusableProviders() {
     try (ResourceLock ignored = lock.obtain()) {
+      for (final AwsCredentialsProvider provider : reusableProviders.values()) {
+        if (provider instanceof SdkAutoCloseable) {
+          try {
+            ((SdkAutoCloseable) provider).close();
+          } catch (final RuntimeException e) {
+            // A provider that fails to close must not keep the others from being closed.
+            LOGGER.fine(() -> Messages.get("AwsCredentialsManager.providerCloseFailed", new Object[] {e}));
+          }
+        }
+      }
       reusableProviders.clear();
     }
   }

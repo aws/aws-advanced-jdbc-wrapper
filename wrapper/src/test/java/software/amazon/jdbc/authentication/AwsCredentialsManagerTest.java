@@ -136,6 +136,17 @@ class AwsCredentialsManagerTest {
   }
 
   @Test
+  public void testClearReusableProvidersDropsProviders() {
+    final Properties props = new Properties();
+    final AwsCredentialsProvider first =
+        AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false);
+
+    AwsCredentialsManager.clearReusableProviders();
+
+    assertNotSame(first, AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false));
+  }
+
+  @Test
   public void testReusableProviderNotUsedForCustomHandler() {
     final Properties props = new Properties();
     AwsCredentialsManager.setCustomHandler((hostSpec, p) -> mockProvider1);

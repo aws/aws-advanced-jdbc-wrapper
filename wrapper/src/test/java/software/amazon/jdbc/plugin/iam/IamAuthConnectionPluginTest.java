@@ -302,7 +302,7 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testCachedTokenReusedForDifferentProfilesWithSameCredentials() throws SQLException, IOException {
-    // The key follows the credentials the default provider resolves, not the configured profile name.
+    // The key follows the credentials the default provider resolves, not the configured profile name:
     useCredentialsFile();
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(PG_KEY_PREFIX, SAME_KEY_CREDENTIALS))))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
@@ -328,7 +328,7 @@ class IamAuthConnectionPluginTest {
 
   /**
    * Makes the default credentials provider read profiles from a temporary credentials file, where
-   * profileA and profileB share an access key ID and profileC has a different one.
+   * profileA and profileB have the same credentials and profileC has different ones.
    */
   private void useCredentialsFile() throws IOException {
     // Credentials from system properties, environment variables or web identity take precedence over
@@ -338,9 +338,9 @@ class IamAuthConnectionPluginTest {
         && System.getenv("AWS_WEB_IDENTITY_TOKEN_FILE") == null);
 
     final Path credentialsFile = tempDir.resolve("credentials");
-    final String content = "[profileA]\naws_access_key_id = AKIASAMEKEY\naws_secret_access_key = secretA\n"
-        + "[profileB]\naws_access_key_id = AKIASAMEKEY\naws_secret_access_key = secretB\n"
-        + "[profileC]\naws_access_key_id = AKIAOTHERKEY\naws_secret_access_key = secretC\n";
+    final String content = "[profileA]\naws_access_key_id = AKIASAMEKEY\naws_secret_access_key = secret\n"
+        + "[profileB]\naws_access_key_id = AKIASAMEKEY\naws_secret_access_key = secret\n"
+        + "[profileC]\naws_access_key_id = AKIAOTHERKEY\naws_secret_access_key = secret\n";
     Files.write(credentialsFile, content.getBytes(StandardCharsets.UTF_8));
 
     for (final String name : new String[] {SHARED_CREDENTIALS_FILE_PROPERTY, CONFIG_FILE_PROPERTY}) {

@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -108,19 +109,46 @@ public class IamAuthUtils {
   }
 
   /**
-   * Returns a value that identifies the given AWS credentials, for use as a cache key component. It is
-   * derived from the access key ID, so it changes whenever different credentials are used (for example,
-   * after the profile in the credentials file is edited, or when temporary credentials are refreshed).
-   * The access key ID is hashed so the raw ID is not kept in the cache key.
+   * Returns a value that identifies the given AWS credentials, for use as a cache key component. It covers
+   * the access key ID, the secret access key and, for temporary credentials, the session token, so it
+   * changes whenever different credentials are used (for example, after the profile in the credentials
+   * file is edited, or when temporary credentials are refreshed). The secret is included because the
+   * access key ID alone is not secret: without it, a connection with the right access key ID and a wrong
+   * secret would be handed a token signed with the real secret. The values are hashed so none of them is
+   * kept in the cache key.
    *
    * @param credentials the credentials that sign the token.
-   * @return a SHA-256 hash of the access key ID, Base64-encoded.
+   * @return a SHA-256 hash of the credentials, Base64-encoded.
    */
   public static String getCredentialsIdentity(final AwsCredentials credentials) {
+    final MessageDigest digest = newSha256();
+    digest.update(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
+    digest.update((byte) 0);
+    digest.update(credentials.secretAccessKey().getBytes(StandardCharsets.UTF_8));
+    if (credentials instanceof AwsSessionCredentials) {
+      digest.update((byte) 0);
+      digest.update(((AwsSessionCredentials) credentials).sessionToken().getBytes(StandardCharsets.UTF_8));
+    }
+    return Base64.getEncoder().encodeToString(digest.digest());
+  }
+
+  /**
+   * Hashes a secret cache key component, such as a password, so it can be part of the key without being
+   * kept in it.
+   *
+   * @param secret the value to hash.
+   * @return a SHA-256 hash of the value, Base64-encoded, or null if the value is null.
+   */
+  public static @Nullable String hashCacheKeySecret(final @Nullable String secret) {
+    if (secret == null) {
+      return null;
+    }
+    return Base64.getEncoder().encodeToString(newSha256().digest(secret.getBytes(StandardCharsets.UTF_8)));
+  }
+
+  private static MessageDigest newSha256() {
     try {
-      final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      final byte[] hash = digest.digest(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
-      return Base64.getEncoder().encodeToString(hash);
+      return MessageDigest.getInstance("SHA-256");
     } catch (final NoSuchAlgorithmException e) {
       throw new IllegalStateException(Messages.get("IamAuthUtils.sha256NotAvailable"), e);
     }

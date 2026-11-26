@@ -19,6 +19,8 @@ package software.amazon.jdbc.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -70,16 +72,45 @@ class IamAuthUtilsTest {
   }
 
   @Test
-  void testCredentialsIdentityFollowsAccessKeyId() {
-    final String identityA = IamAuthUtils.getCredentialsIdentity(
+  void testCredentialsIdentityCoversAccessKeyIdAndSecret() {
+    final String identity = IamAuthUtils.getCredentialsIdentity(
         AwsBasicCredentials.create("AKIAEXAMPLEA", "secret1"));
-    final String identityB = IamAuthUtils.getCredentialsIdentity(
-        AwsBasicCredentials.create("AKIAEXAMPLEB", "secret1"));
-    final String identityARotatedSecret = IamAuthUtils.getCredentialsIdentity(
-        AwsBasicCredentials.create("AKIAEXAMPLEA", "secret2"));
 
-    assertNotEquals(identityA, identityB);
-    assertEquals(identityA, identityARotatedSecret);
+    assertEquals(identity, IamAuthUtils.getCredentialsIdentity(
+        AwsBasicCredentials.create("AKIAEXAMPLEA", "secret1")));
+    assertNotEquals(identity, IamAuthUtils.getCredentialsIdentity(
+        AwsBasicCredentials.create("AKIAEXAMPLEB", "secret1")));
+    // The access key ID isn't secret, so the same ID with a wrong secret must not match.
+    assertNotEquals(identity, IamAuthUtils.getCredentialsIdentity(
+        AwsBasicCredentials.create("AKIAEXAMPLEA", "secret2")));
+  }
+
+  @Test
+  void testCredentialsIdentityCoversSessionToken() {
+    assertNotEquals(
+        IamAuthUtils.getCredentialsIdentity(AwsSessionCredentials.create("ASIAEXAMPLE", "secret", "token1")),
+        IamAuthUtils.getCredentialsIdentity(AwsSessionCredentials.create("ASIAEXAMPLE", "secret", "token2")));
+    assertNotEquals(
+        IamAuthUtils.getCredentialsIdentity(AwsBasicCredentials.create("ASIAEXAMPLE", "secret")),
+        IamAuthUtils.getCredentialsIdentity(AwsSessionCredentials.create("ASIAEXAMPLE", "secret", "token1")));
+  }
+
+  @Test
+  void testCredentialsIdentityComponentsCannotCollide() {
+    // Without a separator, both would hash "AKIAsecret".
+    assertNotEquals(
+        IamAuthUtils.getCredentialsIdentity(AwsBasicCredentials.create("AKIA", "secret")),
+        IamAuthUtils.getCredentialsIdentity(AwsBasicCredentials.create("AKIAs", "ecret")));
+  }
+
+  @Test
+  void testHashCacheKeySecret() {
+    assertNull(IamAuthUtils.hashCacheKeySecret(null));
+    final String hash = IamAuthUtils.hashCacheKeySecret("password1");
+    assertNotNull(hash);
+    assertEquals(hash, IamAuthUtils.hashCacheKeySecret("password1"));
+    assertNotEquals(hash, IamAuthUtils.hashCacheKeySecret("password2"));
+    assertFalse(hash.contains("password1"));
   }
 
   @Test

@@ -49,6 +49,7 @@ import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -198,7 +199,8 @@ class OktaAuthPluginTest {
         new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     final String key = cacheKey(
-        "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser", "expectedUser");
+        "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser",
+        "expectedUser", "expectedPassword", null);
     when(mockStorageService.get(eq(TokenInfo.class), eq(key))).thenReturn(TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
@@ -271,14 +273,48 @@ class OktaAuthPluginTest {
     verify(mockStorageService, times(1)).set(eq(cacheKey(keyPrefix, "idpUserB")), any(TokenInfo.class));
   }
 
+  @Test
+  void testCachedTokenNotReusedForDifferentIdpPassword() throws SQLException {
+    // A connection with the right IdP user name but a different password must authenticate to the IdP
+    // instead of being handed the token cached for the real credentials.
+    final String keyPrefix = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
+    OktaAuthPlugin.IDP_USERNAME.set(props, "idpUser");
+    OktaAuthPlugin.IDP_PASSWORD.set(props, "wrongPassword");
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(keyPrefix, "idpUser", "realPassword", null))))
+        .thenReturn(TEST_TOKEN_INFO);
+
+    final OktaAuthPlugin plugin =
+        new OktaAuthPlugin(mockServicesContainer, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+    plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
+
+    verify(mockIamTokenUtils, times(1)).generateAuthenticationToken(
+        mockAwsCredentialsProvider,
+        Region.US_EAST_2,
+        HOST_SPEC.getHost(),
+        DEFAULT_PORT,
+        DB_USER);
+    verify(mockStorageService, times(1)).set(
+        eq(cacheKey(keyPrefix, "idpUser", "wrongPassword", null)), any(TokenInfo.class));
+  }
+
   private static String cacheKey(final String regionHostPortUser, final @Nullable String idpUser) {
     return cacheKey(regionHostPortUser, idpUser, null);
   }
 
   private static String cacheKey(
       final String regionHostPortUser, final @Nullable String idpUser, final @Nullable String roleArn) {
+    return cacheKey(regionHostPortUser, idpUser, null, roleArn);
+  }
+
+  private static String cacheKey(
+      final String regionHostPortUser,
+      final @Nullable String idpUser,
+      final @Nullable String idpPassword,
+      final @Nullable String roleArn) {
+    final @Nullable String passwordHash = IamAuthUtils.hashCacheKeySecret(idpPassword);
     return "okta:" + regionHostPortUser + ":\\0:\\0:"
         + (idpUser == null ? "\\0" : idpUser) + ":"
+        + (passwordHash == null ? "\\0" : passwordHash) + ":"
         + (roleArn == null ? "\\0" : roleArn.replace(":", "\\:")) + ":\\0";
   }
 }
