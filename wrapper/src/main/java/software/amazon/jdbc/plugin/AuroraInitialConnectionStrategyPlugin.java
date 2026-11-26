@@ -26,10 +26,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.jetbrains.annotations.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
@@ -218,11 +219,18 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     try {
       while (System.nanoTime() < endTimeNano) {
-        HostSpec candidateHost = null;
+        final AtomicReference<@Nullable HostSpec> attemptedHostRef = new AtomicReference<>(null);
 
         try {
-          candidateHost = this.openCandidateConnection(
-              originalConnectHost, urlType, substitutionStrategy, props, connectFunc, candidateConnHolder);
+          final HostSpec candidateHost = this.openCandidateConnection(
+              originalConnectHost,
+              urlType,
+              substitutionStrategy,
+              props,
+              connectFunc,
+              candidateConnHolder,
+              attemptedHostRef);
+          attemptedHostRef.set(candidateHost);
 
           final Connection candidateConn = candidateConnHolder.get();
           if (candidateConn == null) {
@@ -285,19 +293,29 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
             throw WrapperUtils.wrapExceptionIfNeeded(SQLException.class, ex);
           }
 
-          if (candidateHost != null) {
-            this.pluginService.setAvailability(candidateHost, HostAvailability.NOT_AVAILABLE);
+          final boolean isNetworkException =
+              this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect());
+          final boolean isWriterReadOnlyRetry =
+              !isNetworkException
+                  && this.pluginService.isReadOnlyConnectionException(
+                      ex, this.pluginService.getTargetDriverDialect())
+                  && (roleToVerify == HostRole.WRITER
+                  || substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER);
+
+          final @Nullable HostSpec attemptedHost = attemptedHostRef.get();
+          if (attemptedHost != null && !isWriterReadOnlyRetry) {
+            this.pluginService.setAvailability(attemptedHost, HostAvailability.NOT_AVAILABLE);
           }
 
-          if (this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect())) {
-            // Retry connection.
-            continue;
-          }
-
-          if (this.pluginService.isReadOnlyConnectionException(ex, this.pluginService.getTargetDriverDialect())
-              && (roleToVerify == HostRole.WRITER
-              || substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER)) {
-            // Retry connection.
+          if (isNetworkException || isWriterReadOnlyRetry) {
+            // Pull any topology update already recorded by the monitor (without blocking for 5s),
+            // wake the monitor if topology is still stale, delay before retrying, and re-sync the
+            // host list afterwards so any updates finished during the delay take effect next attempt.
+            this.forceRefreshHostListSafely(false, 0);
+            this.delay(this.retryDelayMs);
+            if (System.nanoTime() < endTimeNano) {
+              this.forceRefreshHostListSafely(false, 0);
+            }
             continue;
           }
 
@@ -343,8 +361,24 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc,
       final @NonNull AtomicConnection candidateConnHolder)
       throws SQLException {
+    return this.openCandidateConnection(
+        originalConnectHost, urlType, substitutionStrategy, props, connectFunc, candidateConnHolder, null);
+  }
+
+  private HostSpec openCandidateConnection(
+      final @NonNull HostSpec originalConnectHost,
+      final @NonNull RdsUrlType urlType,
+      final @NonNull InstanceSubstitutionStrategy substitutionStrategy,
+      final @NonNull Properties props,
+      final @NonNull JdbcCallable<Connection, SQLException> connectFunc,
+      final @NonNull AtomicConnection candidateConnHolder,
+      final @Nullable AtomicReference<@Nullable HostSpec> attemptedHostRef)
+      throws SQLException {
 
     if (substitutionStrategy.equals(InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE)) {
+      if (attemptedHostRef != null) {
+        attemptedHostRef.set(originalConnectHost);
+      }
       candidateConnHolder.set(connectFunc.call());
       return originalConnectHost;
     }
@@ -352,6 +386,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     final HostSpec candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
     if (candidateHost != null && this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
       // Topology is already available; connect to the selected instance.
+      if (attemptedHostRef != null) {
+        attemptedHostRef.set(candidateHost);
+      }
       candidateConnHolder.set(this.pluginService.connect(candidateHost, props, this));
       return candidateHost;
     }
@@ -360,6 +397,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     // Connect via the initial endpoint. This connection also confirms the dialect (done by
     // DefaultConnectionPlugin on the initial connection), which is a prerequisite for fetching the
     // topology, and it serves as a fallback connection if instance selection or connection fails.
+    if (attemptedHostRef != null) {
+      attemptedHostRef.set(originalConnectHost);
+    }
     candidateConnHolder.set(connectFunc.call());
 
     if (this.waitForInitialTopologyMs <= 0) {
@@ -370,6 +410,14 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     return this.waitForTopologyAndConnectToInstance(
         originalConnectHost, urlType, substitutionStrategy, props, candidateConnHolder);
+  }
+
+  private void forceRefreshHostListSafely(final boolean verifyTopology, final long timeoutMs) {
+    try {
+      this.pluginService.forceRefreshHostList(verifyTopology, timeoutMs);
+    } catch (final SQLException ex) {
+      // Ignore refresh failures during retry so the outer connect retry timeout stays in control.
+    }
   }
 
   /**
