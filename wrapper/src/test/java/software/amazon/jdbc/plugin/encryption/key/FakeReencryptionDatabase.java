@@ -129,6 +129,10 @@ final class FakeReencryptionDatabase {
     this.metadataKeyId = keyId;
   }
 
+  void setAlgorithm(String algorithm) {
+    this.algorithm = algorithm;
+  }
+
   int getMetadataKeyId() {
     return metadataKeyId;
   }

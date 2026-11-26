@@ -1196,7 +1196,7 @@ Encrypts/decrypts database column values transparently using AWS KMS. Universall
 
 | Name | Default | Description |
 |---|---|---|
-| `kms.region` | `us-east-1` | AWS KMS region. |
+| `kms.region` | (region of the key ARNs) | AWS KMS region. If unset, taken from the key ARNs in `encryptionAllowedMasterKeyArns`; the plugin refuses to start if no key ARN names a region (alias names such as `alias/payments` and bare key ids do not) or they name more than one. The AWS SDK default region is not used. |
 | `encryptionFailOnUnmappedParameter` | `true` | Available since version 4.6.0. Reject, at prepare time, a statement on a table with encrypted columns whose parameters cannot be reliably mapped to columns. `false` only logs a WARNING, and values bound to encrypted columns may then be written unencrypted. Writing an encrypted column with a literal or a constant expression in an `INSERT` with a column list or an `UPDATE` is refused either way while the encryption metadata can be read, in prepared and directly executed SQL. |
 | `encryptionAllowedMasterKeyArns` | (none) | Comma-separated KMS master keys the plugin may use, matching `key_storage.master_key_arn` exactly (ARN, alias, or key id). Other keys are refused with SQL state `KEY07`. **Required.** |
 | `metadataCacheEnabled` | `true` | Enable metadata caching. Do not set to `false` in production: a metadata connection is opened per statement touching an encrypted column. |

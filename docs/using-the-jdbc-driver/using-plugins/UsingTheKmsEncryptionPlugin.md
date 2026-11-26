@@ -302,7 +302,9 @@ try (Connection connection = DriverManager.getConnection(
 
 `KeyManagementUtility` also has a constructor that takes a `DataSource` instead of a `Connection`. The KMS key you pass is stored in `key_storage.master_key_arn` as given, and the plugin's `encryptionAllowedMasterKeyArns` must list it in exactly that form.
 
-An `EncryptionConfig` built with `EncryptionConfig.builder()` requires `kmsRegion`. Its defaults differ from the connection property defaults in two places: `maxRetries` is 5 (the `keyManagementMaxRetries` property defaults to 3) and the data key cache expiration is 30 minutes (the `dataKeyCacheExpirationMs` property defaults to 1 hour).
+An `EncryptionConfig` built with `EncryptionConfig.builder()` requires `kmsRegion`. Its other settings default to the defaults of the matching [connection properties](#connection-properties).
+
+`KeyManagementUtility` creates only AES-256-GCM data keys. `initializeEncryptionForColumn()` and `generateAndStoreDataKey()` throw an `IllegalArgumentException` for any other algorithm, such as `AES-128-GCM`, before they call KMS or change the database.
 
 **Alternative: create the keys yourself.** Generate a data key from KMS and a separate random HMAC key, store both in `key_storage`, then register the column with the returned `id`:
 
@@ -362,6 +364,8 @@ try (PreparedStatement stmt = conn.prepareStatement(
 ```
 
 `KeyManagementUtility` names its keys `key-<table>-<column>-<timestamp>`; the example follows that pattern so the queries in [Finishing or repairing a re-encryption](#finishing-or-repairing-a-re-encryption) find the key.
+
+Register new columns with `AES-256-GCM` and a 256-bit data key (`DataKeySpec.AES_256`), as in the example.
 
 ### 6. Create Application Tables
 
@@ -440,7 +444,7 @@ FROM users;
 
 | Property | Available Since Version | Description | Required | Default |
 |----------|-------------------------|-------------|----------|---------|
-| `kms.region` | 4.0.0 | AWS KMS region for encryption operations | No | `us-east-1` |
+| `kms.region` | 4.0.0 | AWS KMS region for encryption operations. If not set, the region is taken from the key ARNs in `encryptionAllowedMasterKeyArns`; alias names such as `alias/payments` and bare key ids do not name a region (alias ARNs do). The plugin refuses to start if it is not set and no key ARN names a region, or the key ARNs name more than one; it does not fall back to the AWS SDK default region (`AWS_REGION`, the profile, or instance metadata). If it is set and a key ARN names another region, the plugin logs a warning, because KMS calls with that key fail. | No | The region of the key ARNs in `encryptionAllowedMasterKeyArns` |
 | `encryptionAllowedMasterKeyArns` | 4.7.0 | Comma-separated list of the KMS master keys the plugin may use. The plugin refuses to start without it. Each entry must match a `key_storage.master_key_arn` value exactly (the same ARN, alias, or key id that was used to set up the column). A data key that names any other master key, or none, is refused before KMS is called. See [Restricting the KMS keys the application can use](#restricting-the-kms-keys-the-application-can-use). | Yes | None |
 | `encryptionMetadataSchema` | 4.0.0 | Schema name for encryption metadata tables | No | `encrypt` |
 | `encryptionFailOnUnmappedParameter` | 4.6.0 | When `true` (default), the plugin rejects a statement on a table with encrypted columns with a `SQLException` at prepare time if it cannot reliably map the statement's parameters to columns (see [Limitations](#limitations)). When `false`, the plugin only logs a WARNING and prepares the statement; values bound to encrypted columns may then be written unencrypted, and only the HMAC trigger rejects them. While the encryption metadata can be read, it does not affect the writes in [Statements always refused](#statements-always-refused). | No | `true` |
@@ -465,7 +469,7 @@ Properties props = new Properties();
 props.setProperty("user", "username");
 props.setProperty("password", "password");
 props.setProperty("wrapperPlugins", "sqlParser,kmsEncryption"); // kmsEncryption requires sqlParser
-props.setProperty("kms.region", "us-east-1"); // Defaults to us-east-1 if not set
+props.setProperty("kms.region", "us-east-1"); // Optional when encryptionAllowedMasterKeyArns lists key ARNs: defaults to their region
 // Required: the KMS master keys the plugin may use, as recorded in key_storage.master_key_arn
 props.setProperty("encryptionAllowedMasterKeyArns",
     "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
@@ -688,6 +692,7 @@ Statements on tables without encrypted columns are never rejected. If you encoun
 - `CallableStatement` setters are not intercepted; values passed to stored procedures are not encrypted.
 - Values that come from a CTE or from another column (`INSERT INTO users (ssn) SELECT ssn FROM staging`) are not encrypted by the plugin.
 - Table names are matched against the metadata case-sensitively. Use the same spelling in statements as in `encryption_metadata`.
+- Only AES-256-GCM is supported for new columns, and `KeyManagementUtility` creates only AES-256-GCM data keys. A column already set up with `AES-128-GCM` and a 128-bit data key keeps working, but `rotateDataKey()` and `rotateDataKeyAndReencrypt()` refuse it before they change anything.
 
 ### What the plugin does not protect
 

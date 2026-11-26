@@ -590,10 +590,14 @@ public class KeyManagementUtilityReencryptionTest {
   }
 
   private static ColumnEncryptionConfig columnConfig(TestKey key) {
+    return columnConfig(key, ALGORITHM);
+  }
+
+  private static ColumnEncryptionConfig columnConfig(TestKey key, String algorithm) {
     return ColumnEncryptionConfig.builder()
         .tableName(TABLE)
         .columnName(COLUMN)
-        .algorithm(ALGORITHM)
+        .algorithm(algorithm)
         .keyId(key.id)
         .keyMetadata(KeyMetadata.builder()
             .keyId(key.id)
@@ -701,6 +705,85 @@ public class KeyManagementUtilityReencryptionTest {
     assertDecryptsTo("one", db.getRow(1), keyC);
     assertDecryptsTo("two", db.getRow(2), keyC);
     assertDecryptsTo("three", db.getRow(3), keyC);
+  }
+
+  // ---- AES-128-GCM columns: rotation refuses them, re-encryption into a user-created key works --
+
+  @Test
+  void rotate_refusesAnAes128GcmColumn_beforeCallingKms_andChangesNothing() throws Exception {
+    init(false, TABLE);
+    db.setAlgorithm(EncryptionAlgorithm.AES_128_GCM);
+    final TestKey key = createKey("key-users-ssn-1", 16);
+    db.setMetadataKeyId(key.id);
+    db.putRow(1, encryptionService.encrypt("v1", key.dataKey, key.hmacKey, EncryptionAlgorithm.AES_128_GCM));
+    final Map<Long, byte[]> before = db.getRows();
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKeyAndReencrypt(TABLE, COLUMN, PK, null, 10));
+
+    assertEquals(KeyManagementException.INVALID_KEY_METADATA_STATE, exception.getSQLState());
+    assertTrue(exception.getMessage().contains(EncryptionAlgorithm.AES_128_GCM), exception.getMessage());
+    assertTrue(exception.getMessage().contains("Nothing was changed"), exception.getMessage());
+    verifyNoInteractions(kmsClient);
+    assertEquals(key.id, db.getMetadataKeyId());
+    assertEquals(1, db.getKeyCount());
+    assertRowsEqual(before, db.getRows());
+    assertEquals(0, db.getCommitCount());
+    assertTrue(db.isAutoCommit());
+  }
+
+  @Test
+  void legacyRotateDataKey_refusesAnAes128GcmColumn_beforeCallingKms() throws Exception {
+    init(false, TABLE);
+    db.setAlgorithm(EncryptionAlgorithm.AES_128_GCM);
+    final TestKey key = createKey("key-users-ssn-1", 16);
+    db.setMetadataKeyId(key.id);
+    when(metadataManager.getColumnConfig(TABLE, COLUMN)).thenReturn(columnConfig(key, EncryptionAlgorithm.AES_128_GCM));
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKey(TABLE, COLUMN, null));
+
+    assertEquals(KeyManagementException.INVALID_KEY_METADATA_STATE, exception.getSQLState());
+    assertTrue(exception.getMessage().startsWith("Cannot rotate the data key of users.ssn"), exception.getMessage());
+    assertTrue(exception.getMessage().contains(EncryptionAlgorithm.AES_128_GCM), exception.getMessage());
+    verifyNoInteractions(kmsClient);
+    assertEquals(key.id, db.getMetadataKeyId());
+    assertEquals(1, db.getKeyCount());
+  }
+
+  @Test
+  void legacyRotateDataKey_reportsTheAlgorithm_notTheData_forAnAes128GcmColumnWithData() throws Exception {
+    init(false, TABLE);
+    db.setAlgorithm(EncryptionAlgorithm.AES_128_GCM);
+    final TestKey key = createKey("key-users-ssn-1", 16);
+    db.setMetadataKeyId(key.id);
+    db.putRow(1, encryptionService.encrypt("v1", key.dataKey, key.hmacKey, EncryptionAlgorithm.AES_128_GCM));
+
+    final KeyManagementException exception = assertThrows(KeyManagementException.class,
+        () -> utility.rotateDataKey(TABLE, COLUMN, null));
+
+    assertTrue(exception.getMessage().contains(EncryptionAlgorithm.AES_128_GCM), exception.getMessage());
+    assertFalse(exception.getMessage().contains("rotateDataKeyAndReencrypt"), exception.getMessage());
+    verifyNoInteractions(kmsClient);
+    assertEquals(1, db.getKeyCount());
+  }
+
+  @Test
+  void repair_aes128GcmColumn_withA128BitKeyTheUserCreated_reencryptsIntoTheCurrentKey() throws Exception {
+    init(false, TABLE);
+    db.setAlgorithm(EncryptionAlgorithm.AES_128_GCM);
+    final TestKey oldKey = createKey("old", 16);
+    final TestKey currentKey = createKey("current", 16);
+    db.setMetadataKeyId(currentKey.id);
+    db.putRow(1, encryptionService.encrypt("v1", oldKey.dataKey, oldKey.hmacKey, EncryptionAlgorithm.AES_128_GCM));
+
+    final DataKeyReencryptionResult result =
+        utility.reencryptRemainingRows(TABLE, COLUMN, PK, Collections.singletonList(oldKey.id), 10);
+
+    assertEquals(1, result.getReencryptedCount());
+    assertEquals("v1", encryptionService.decrypt(
+        db.getRow(1), currentKey.dataKey, currentKey.hmacKey, EncryptionAlgorithm.AES_128_GCM, Object.class));
+    verify(kmsClient, never()).generateDataKey(any(GenerateDataKeyRequest.class));
   }
 
   // ---- 6. validation and rejection -----------------------------------------------------------
@@ -1228,8 +1311,12 @@ public class KeyManagementUtilityReencryptionTest {
   }
 
   private TestKey createKey(String name) {
+    return createKey(name, 32);
+  }
+
+  private TestKey createKey(String name, int dataKeyLength) {
     final byte[] blob = randomBytes(16);
-    final byte[] dataKey = randomBytes(32);
+    final byte[] dataKey = randomBytes(dataKeyLength);
     final byte[] hmacKey = randomBytes(32);
     kmsPlaintexts.put(base64(blob), dataKey);
     final int id = db.addKey(name, MASTER_KEY_ARN, base64(blob), hmacKey);

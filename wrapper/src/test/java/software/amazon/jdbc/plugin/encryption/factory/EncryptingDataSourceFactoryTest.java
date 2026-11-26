@@ -74,6 +74,42 @@ public class EncryptingDataSourceFactoryTest {
     dataSource.close();
   }
 
+  @Test
+  void createWithDefaults_takesTheRegionFromTheKeyArn_whenItIsNull() throws Exception {
+    final EncryptingDataSource dataSource = EncryptingDataSourceFactory.createWithDefaults(
+        mock(DataSource.class), "arn:aws:kms:ap-southeast-2:111111111111:key/abc", null);
+    assertEquals("ap-southeast-2", dataSource.getEncryptionPlugin().getConfig().getKmsRegion());
+    dataSource.close();
+  }
+
+  @Test
+  void createWithDefaults_refusesToStart_withoutARegionOrAKeyArn() {
+    final SQLException e = assertThrows(SQLException.class,
+        () -> EncryptingDataSourceFactory.createWithDefaults(mock(DataSource.class), "alias/payments", null));
+
+    assertTrue(e.getMessage().contains(EncryptionConfig.KMS_REGION.name + " is required"), e.getMessage());
+  }
+
+  @Test
+  void build_takesTheRegionFromTheKeyArn_withoutARegion() throws Exception {
+    final EncryptingDataSource dataSource = new EncryptingDataSourceFactory.Builder()
+        .dataSource(mock(DataSource.class))
+        .allowedMasterKeyArns("arn:aws:kms:ca-central-1:111111111111:key/abc")
+        .build();
+    assertEquals("ca-central-1", dataSource.getEncryptionPlugin().getConfig().getKmsRegion());
+    dataSource.close();
+  }
+
+  @Test
+  void build_refusesToStart_withoutARegionOrAKeyArn() {
+    final SQLException e = assertThrows(SQLException.class, () -> new EncryptingDataSourceFactory.Builder()
+        .dataSource(mock(DataSource.class))
+        .allowedMasterKeyArns("alias/payments")
+        .build());
+
+    assertTrue(e.getMessage().contains(EncryptionConfig.KMS_REGION.name + " is required"), e.getMessage());
+  }
+
   private static EncryptingDataSourceFactory.Builder builder() {
     return new EncryptingDataSourceFactory.Builder()
         .dataSource(mock(DataSource.class))

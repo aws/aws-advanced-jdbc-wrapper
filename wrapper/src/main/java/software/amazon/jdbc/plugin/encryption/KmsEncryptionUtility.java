@@ -306,19 +306,16 @@ public class KmsEncryptionUtility {
   }
 
   /**
-   * Loads configuration from properties.
+   * Loads configuration from properties. The properties are only read: when {@code kms.region} is
+   * not set, the region is taken from the key ARNs in {@code encryptionAllowedMasterKeyArns}.
    *
    * @param properties Configuration properties
    * @return EncryptionConfig instance
-   * @throws SQLException if configuration is invalid
+   * @throws SQLException if configuration is invalid, including when no region is set and none can
+   *     be taken from the key ARNs
    */
   private EncryptionConfig loadConfiguration(Properties properties) throws SQLException {
     try {
-      // Set default region if not provided
-      if (!properties.containsKey("kms.region")) {
-        properties.setProperty("kms.region", "us-east-1");
-      }
-
       EncryptionConfig config = EncryptionConfig.fromProperties(properties);
 
       LOGGER.info(() -> Messages.get("KmsEncryptionUtility.configLoaded", new Object[]{config.getKmsRegion(),

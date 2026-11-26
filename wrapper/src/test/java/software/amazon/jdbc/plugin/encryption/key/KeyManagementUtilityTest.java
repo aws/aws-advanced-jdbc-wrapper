@@ -17,10 +17,13 @@
 package software.amazon.jdbc.plugin.encryption.key;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,9 +37,14 @@ import java.util.Arrays;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionAlgorithm;
 
 public class KeyManagementUtilityTest {
 
@@ -44,7 +52,12 @@ public class KeyManagementUtilityTest {
   private PreparedStatement stmt;
   private ResultSet rs;
   private KeyManager keyManager;
+  private KmsClient kmsClient;
+  private MetadataManager metadataManager;
+  private EncryptionConfig config;
   private KeyManagementUtility utility;
+
+  private static final String MASTER_KEY_ARN = "arn:aws:kms:us-east-1:123456789012:key/test-master-key";
 
   @BeforeEach
   void setUp() throws Exception {
@@ -53,10 +66,11 @@ public class KeyManagementUtilityTest {
     rs = mock(ResultSet.class);
     when(conn.prepareStatement(anyString())).thenReturn(stmt);
     when(stmt.executeQuery()).thenReturn(rs);
-    final EncryptionConfig config = EncryptionConfig.builder().kmsRegion("us-east-1").build();
-    final KmsClient kmsClient = mock(KmsClient.class);
+    config = EncryptionConfig.builder().kmsRegion("us-east-1").build();
+    kmsClient = mock(KmsClient.class);
+    metadataManager = mock(MetadataManager.class);
     keyManager = new KeyManager(kmsClient, conn, true, config);
-    utility = new KeyManagementUtility(keyManager, mock(MetadataManager.class), conn, kmsClient, config);
+    utility = new KeyManagementUtility(keyManager, metadataManager, conn, kmsClient, config);
   }
 
   @AfterEach
@@ -92,5 +106,49 @@ public class KeyManagementUtilityTest {
 
     assertTrue(e.getMessage().contains("some-key"), e.getMessage());
     verifyNoInteractions(conn);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {EncryptionAlgorithm.AES_128_GCM, "aes-256-gcm", "AES-512-GCM", "AES-256-GCM\n"})
+  void initializeEncryptionForColumn_refusesAnyAlgorithmButAes256Gcm_beforeAnyLookupOrKmsCall(String algorithm) {
+    final IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> utility.initializeEncryptionForColumn("users", "ssn", MASTER_KEY_ARN, algorithm));
+
+    assertTrue(e.getMessage().contains("only AES-256-GCM"), e.getMessage());
+    verifyNoInteractions(kmsClient, metadataManager, conn);
+  }
+
+  @Test
+  void initializeEncryptionForColumn_refusalNamesTheAlgorithm_withoutControlCharacters() {
+    final IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> utility.initializeEncryptionForColumn("users", "ssn", MASTER_KEY_ARN, "AES-128-GCM\nSEVERE: forged"));
+
+    assertTrue(e.getMessage().contains("AES-128-GCM"), e.getMessage());
+    assertFalse(e.getMessage().contains("\n"), e.getMessage());
+  }
+
+  @Test
+  void generateAndStoreDataKey_refusesAes128Gcm_beforeCallingKms() {
+    assertThrows(IllegalArgumentException.class,
+        () -> utility.generateAndStoreDataKey("users", "ssn", MASTER_KEY_ARN, EncryptionAlgorithm.AES_128_GCM));
+
+    verifyNoInteractions(kmsClient, metadataManager, conn);
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", " ", EncryptionAlgorithm.AES_256_GCM})
+  void generateAndStoreDataKey_storesAes256Gcm_forTheDefaultOrExplicitAlgorithm(String algorithm) throws Exception {
+    final KeyManager mockKeyManager = mock(KeyManager.class);
+    when(mockKeyManager.generateDataKey(MASTER_KEY_ARN)).thenReturn(new KeyManager.DataKeyResult("ZW5jcnlwdGVk"));
+    when(mockKeyManager.storeKeyMetadata(eq("users"), eq("ssn"), any(KeyMetadata.class))).thenReturn(7);
+    when(stmt.executeUpdate()).thenReturn(1);
+    final KeyManagementUtility mockedUtility =
+        new KeyManagementUtility(mockKeyManager, metadataManager, conn, kmsClient, config);
+
+    mockedUtility.generateAndStoreDataKey("users", "ssn", MASTER_KEY_ARN, algorithm);
+
+    verify(stmt).setString(3, EncryptionAlgorithm.AES_256_GCM);
+    verify(stmt).setInt(4, 7);
   }
 }
