@@ -107,7 +107,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final String PG_ACCESS_ERROR = "28P01";
   private static final int TEST_PORT = 5432;
   private static final long EXPIRATION_TIME = 900;
-  private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
+  private static final String SECRET_CACHE_KEY =
+      AwsSecretsManagerConnectionPlugin.buildSecretCacheKey(TEST_SECRET_ID, TEST_REGION, "username", "password");
   private static final AwsSecretsManagerConnectionPlugin.Secret TEST_SECRET =
       new AwsSecretsManagerConnectionPlugin.Secret(
           TEST_USERNAME,
@@ -181,6 +182,39 @@ public class AwsSecretsManagerConnectionPluginTest {
     closeable.close();
     CoreServicesContainer.getInstance().getStorageService().clear(Secret.class);
     TEST_PROPS.clear();
+  }
+
+  /**
+   * A cached Secret holds the user name and password already picked with one configuration's JSON key
+   * names. A plugin that reads other keys of the same secret must not be served that entry, so it goes
+   * to Secrets Manager and stores its own Secret under its own key.
+   */
+  @Test
+  public void testDifferentSecretKeyNamesDoNotShareACacheEntry() throws SQLException {
+    when(mockStorageService.get(eq(Secret.class), eq(SECRET_CACHE_KEY))).thenReturn(TEST_SECRET);
+    final Properties props = new Properties();
+    REGION_PROPERTY.set(props, TEST_REGION);
+    SECRET_ID_PROPERTY.set(props, TEST_SECRET_ID);
+    AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_USERNAME_PROPERTY.set(props, "app_user");
+    AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_SECRET_PASSWORD_PROPERTY.set(props, "app_password");
+    when(mockSecretsManagerClient.getSecretValue(mockGetValueRequest)).thenReturn(
+        GetSecretValueResponse.builder()
+            .secretString("{\"app_user\": \"appUser\", \"app_password\": \"appPass\", \""
+                + "username\": \"" + TEST_USERNAME + "\", \"password\": \"" + TEST_PASSWORD + "\"}")
+            .build());
+    final AwsSecretsManagerConnectionPlugin appPlugin = new AwsSecretsManagerConnectionPlugin(
+        mockServicesContainer, props, (host, r) -> mockSecretsManagerClient, (id) -> mockGetValueRequest);
+    final String appCacheKey =
+        AwsSecretsManagerConnectionPlugin.buildSecretCacheKey(TEST_SECRET_ID, TEST_REGION, "app_user", "app_password");
+    assertNotEquals(SECRET_CACHE_KEY, appCacheKey);
+    assertEquals(appCacheKey, appPlugin.secretCacheKey);
+
+    appPlugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, props, true, this.connectFunc);
+
+    verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
+    verify(mockStorageService).set(eq(appCacheKey), any(Secret.class));
+    assertEquals("appUser", props.get(PropertyDefinition.USER.name));
+    assertEquals("appPass", props.get(PropertyDefinition.PASSWORD.name));
   }
 
   /**
