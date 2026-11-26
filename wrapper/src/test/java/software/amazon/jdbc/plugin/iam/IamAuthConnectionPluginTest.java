@@ -18,15 +18,21 @@ package software.amazon.jdbc.plugin.iam;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -35,12 +41,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
@@ -48,10 +57,12 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -64,11 +75,19 @@ class IamAuthConnectionPluginTest {
   private static final String GENERATED_TOKEN = "generatedToken";
   private static final String TEST_TOKEN = "testToken";
   private static final int DEFAULT_PG_PORT = 5432;
+  private static final String SHARED_CREDENTIALS_FILE_PROPERTY = "aws.sharedCredentialsFile";
+  private static final String CONFIG_FILE_PROPERTY = "aws.configFile";
+  private static final AwsCredentials SAME_KEY_CREDENTIALS = AwsBasicCredentials.create("AKIASAMEKEY", "secret");
+  private static final AwsCredentials OTHER_KEY_CREDENTIALS = AwsBasicCredentials.create("AKIAOTHERKEY", "secret");
+  private static final AwsCredentials CREDENTIALS_A = AwsBasicCredentials.create("AKIAEXAMPLEA", "secretA");
+  private static final AwsCredentials CREDENTIALS_B = AwsBasicCredentials.create("AKIAEXAMPLEB", "secretB");
   private static final int DEFAULT_MYSQL_PORT = 3306;
-  private static final String PG_CACHE_KEY = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+  private static final String PG_CACHE_KEY = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+      + DEFAULT_PG_PORT + ":postgresqlUser");
+  private static final String MYSQL_CACHE_KEY = cacheKey("us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
+      + DEFAULT_MYSQL_PORT + ":mysqlUser");
+  private static final String PG_KEY_PREFIX = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
       + DEFAULT_PG_PORT + ":postgresqlUser";
-  private static final String MYSQL_CACHE_KEY = "us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
-      + DEFAULT_MYSQL_PORT + ":mysqlUser";
   private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
   private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
   private static final HostSpec PG_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -92,6 +111,9 @@ class IamAuthConnectionPluginTest {
   @Mock private RdsUtils mockRdsUtils;
   @Mock private IamTokenUtility mockIamTokenUtils;
   private AutoCloseable closable;
+  private AwsCredentials currentCredentials;
+  private final Properties savedSystemProperties = new Properties();
+  @TempDir Path tempDir;
 
   @BeforeEach
   public void init() {
@@ -101,6 +123,11 @@ class IamAuthConnectionPluginTest {
     props.setProperty(PropertyDefinition.PASSWORD.name, "postgresqlPassword");
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     IamAuthConnectionPlugin.clearCache();
+    AwsCredentialsManager.clearReusableProviders();
+    // Sign with fixed credentials instead of the default chain, so the tests control the identity.
+    currentCredentials = CREDENTIALS_A;
+    AwsCredentialsManager.setCustomHandler(
+        (hostSpec, properties) -> StaticCredentialsProvider.create(currentCredentials));
 
     when(mockRdsUtils.getRdsRegion(anyString())).thenReturn("us-east-2");
     when(mockIamTokenUtils.generateAuthenticationToken(
@@ -121,6 +148,16 @@ class IamAuthConnectionPluginTest {
 
   @AfterEach
   public void cleanUp() throws Exception {
+    AwsCredentialsManager.resetCustomHandler();
+    AwsCredentialsManager.clearReusableProviders();
+    for (final String name : new String[] {SHARED_CREDENTIALS_FILE_PROPERTY, CONFIG_FILE_PROPERTY}) {
+      final String saved = savedSystemProperties.getProperty(name);
+      if (saved == null) {
+        System.clearProperty(name);
+      } else {
+        System.setProperty(name, saved);
+      }
+    }
     closable.close();
   }
 
@@ -162,8 +199,8 @@ class IamAuthConnectionPluginTest {
     final String invalidIamDefaultPort = "0";
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, invalidIamDefaultPort);
 
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-        + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -177,8 +214,8 @@ class IamAuthConnectionPluginTest {
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-        + DEFAULT_PG_PORT + ":postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + DEFAULT_PG_PORT + ":postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -204,7 +241,7 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testConnectWithSpecifiedPort() throws SQLException {
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:" + "postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -215,8 +252,8 @@ class IamAuthConnectionPluginTest {
   public void testConnectWithSpecifiedIamDefaultPort() throws SQLException {
     final String iamDefaultPort = "9999";
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, iamDefaultPort);
-    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-        + iamDefaultPort + ":postgresqlUser";
+    final String cacheKeyWithNewPort = cacheKey("us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + iamDefaultPort + ":postgresqlUser");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewPort)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -226,7 +263,7 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectWithSpecifiedRegion() throws SQLException {
     final String cacheKeyWithNewRegion =
-        "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":" + "postgresqlUser";
+        cacheKey("us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":postgresqlUser");
     props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-west-1");
     when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKeyWithNewRegion)))
         .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
@@ -249,6 +286,74 @@ class IamAuthConnectionPluginTest {
         "pg.testdb.us-east-2.rds.amazonaws.com");
   }
 
+  @Test
+  public void testCachedTokenNotReusedForDifferentCredentials() throws SQLException {
+    // A token cached for one set of credentials must not be handed to a connection that signs with
+    // another, e.g. after the profile in the credentials file was changed, or when a custom
+    // credentials handler returns a different identity.
+    when(mockStorageService.get(eq(TokenInfo.class), eq(PG_CACHE_KEY)))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+    currentCredentials = CREDENTIALS_B;
+
+    testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, PG_HOST_SPEC.getHost(),
+        cacheKey(PG_KEY_PREFIX, CREDENTIALS_B));
+  }
+
+  @Test
+  public void testCachedTokenReusedForDifferentProfilesWithSameCredentials() throws SQLException, IOException {
+    // The key follows the credentials the default provider resolves, not the configured profile name:
+    useCredentialsFile();
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(PG_KEY_PREFIX, SAME_KEY_CREDENTIALS))))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+    props.setProperty(PropertyDefinition.AWS_PROFILE.name, "profileB");
+
+    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
+    verify(mockIamTokenUtils, never()).generateAuthenticationToken(
+        any(AwsCredentialsProvider.class), any(Region.class), anyString(), anyInt(), anyString());
+  }
+
+  @Test
+  public void testCachedTokenNotReusedForProfileWithDifferentCredentials() throws SQLException, IOException {
+    useCredentialsFile();
+    when(mockStorageService.get(eq(TokenInfo.class), eq(cacheKey(PG_KEY_PREFIX, SAME_KEY_CREDENTIALS))))
+        .thenReturn(new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+    props.setProperty(PropertyDefinition.AWS_PROFILE.name, "profileC");
+
+    testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, PG_HOST_SPEC.getHost(),
+        cacheKey(PG_KEY_PREFIX, OTHER_KEY_CREDENTIALS));
+  }
+
+  /**
+   * Makes the default credentials provider read profiles from a temporary credentials file, where
+   * profileA and profileB have the same credentials and profileC has different ones.
+   */
+  private void useCredentialsFile() throws IOException {
+    // Credentials from system properties, environment variables or web identity take precedence over
+    // profiles in the default chain, so the test only applies when none are set.
+    assumeTrue(System.getProperty("aws.accessKeyId") == null && System.getenv("AWS_ACCESS_KEY_ID") == null);
+    assumeTrue(System.getProperty("aws.webIdentityTokenFile") == null
+        && System.getenv("AWS_WEB_IDENTITY_TOKEN_FILE") == null);
+
+    final Path credentialsFile = tempDir.resolve("credentials");
+    final String content = "[profileA]\naws_access_key_id = AKIASAMEKEY\naws_secret_access_key = secret\n"
+        + "[profileB]\naws_access_key_id = AKIASAMEKEY\naws_secret_access_key = secret\n"
+        + "[profileC]\naws_access_key_id = AKIAOTHERKEY\naws_secret_access_key = secret\n";
+    Files.write(credentialsFile, content.getBytes(StandardCharsets.UTF_8));
+
+    for (final String name : new String[] {SHARED_CREDENTIALS_FILE_PROPERTY, CONFIG_FILE_PROPERTY}) {
+      final String current = System.getProperty(name);
+      if (current != null) {
+        savedSystemProperties.setProperty(name, current);
+      }
+    }
+    System.setProperty(SHARED_CREDENTIALS_FILE_PROPERTY, credentialsFile.toString());
+    System.setProperty(CONFIG_FILE_PROPERTY, tempDir.resolve("config").toString());
+    AwsCredentialsManager.resetCustomHandler();
+  }
+
   public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
 
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockServicesContainer, mockIamTokenUtils);
@@ -268,6 +373,14 @@ class IamAuthConnectionPluginTest {
       final String protocol,
       final HostSpec hostSpec,
       final String expectedHost) throws SQLException {
+    testGenerateToken(protocol, hostSpec, expectedHost, PG_CACHE_KEY);
+  }
+
+  private void testGenerateToken(
+      final String protocol,
+      final HostSpec hostSpec,
+      final String expectedHost,
+      final String expectedCacheKey) throws SQLException {
     final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockServicesContainer, mockIamTokenUtils);
     final IamAuthConnectionPlugin spyPlugin = Mockito.spy(targetPlugin);
 
@@ -277,7 +390,7 @@ class IamAuthConnectionPluginTest {
         () -> spyPlugin.connect(protocol, hostSpec, props, true, mockLambda));
 
     verify(mockIamTokenUtils).generateAuthenticationToken(
-        any(DefaultCredentialsProvider.class),
+        any(AwsCredentialsProvider.class),
         eq(Region.US_EAST_2),
         eq(expectedHost),
         eq(DEFAULT_PG_PORT),
@@ -291,7 +404,17 @@ class IamAuthConnectionPluginTest {
     verify(mockStorageService, times(1)).set(keyArgumentCaptor.capture(), tokenArgumentCaptor.capture());
     final Object actualKey = keyArgumentCaptor.getValue();
     final TokenInfo actualToken = tokenArgumentCaptor.getValue();
-    assertEquals(PG_CACHE_KEY, actualKey);
+    assertEquals(expectedCacheKey, actualKey);
     assertEquals(GENERATED_TOKEN, actualToken.getToken());
+  }
+
+  /** Builds the expected key for a connection that signs with {@link #CREDENTIALS_A}. */
+  private static String cacheKey(final String regionHostPortUser) {
+    return cacheKey(regionHostPortUser, CREDENTIALS_A);
+  }
+
+  private static String cacheKey(final String regionHostPortUser, final AwsCredentials credentials) {
+    return "iam:" + regionHostPortUser + ":"
+        + IamAuthUtils.getCredentialsIdentity(credentials);
   }
 }

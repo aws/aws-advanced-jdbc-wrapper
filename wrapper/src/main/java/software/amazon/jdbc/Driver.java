@@ -454,6 +454,7 @@ public class Driver implements java.sql.Driver {
     ConnectionProviderManager.releaseResources();
     InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();
+    AwsCredentialsManager.clearReusableProviders();
     clearCaches();
     DriverImportantEventService.clear();
   }

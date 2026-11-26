@@ -130,4 +130,21 @@ public class OktaAuthPlugin extends BaseSamlAuthPlugin {
   void checkIdpCredentialsWithFallback(Properties props) {
     this.samlUtils.checkIdpCredentialsWithFallback(IDP_USERNAME, IDP_PASSWORD, props);
   }
+
+  @Override
+  String getCacheKeyScope() {
+    return "okta";
+  }
+
+  @Override
+  @Nullable String[] getCredentialsIdentity(Properties props) {
+    return new @Nullable String[] {
+        IDP_ENDPOINT.getString(props),
+        APP_ID.getString(props),
+        IDP_USERNAME.getString(props),
+        // Hashed, so a connection with the right user name but a wrong password doesn't get the cached token.
+        IamAuthUtils.hashCacheKeySecret(IDP_PASSWORD.getString(props)),
+        IAM_ROLE_ARN.getString(props),
+        IAM_IDP_ARN.getString(props)};
+  }
 }

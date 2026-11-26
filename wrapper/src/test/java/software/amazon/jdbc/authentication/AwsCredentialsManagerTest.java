@@ -17,6 +17,8 @@
 package software.amazon.jdbc.authentication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -29,8 +31,10 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class AwsCredentialsManagerTest {
@@ -49,10 +53,13 @@ class AwsCredentialsManagerTest {
     when(mockHandler.getAwsCredentialsProvider(any(HostSpec.class),
         any(Properties.class))).thenReturn(mockProvider1);
     AwsCredentialsManager.resetCustomHandler();
+    AwsCredentialsManager.clearReusableProviders();
   }
 
   @AfterEach
   void tearDown() throws Exception {
+    AwsCredentialsManager.resetCustomHandler();
+    AwsCredentialsManager.clearReusableProviders();
     closeable.close();
   }
 
@@ -86,5 +93,68 @@ class AwsCredentialsManagerTest {
   public void testNullProvider() {
     AwsCredentialsManager.setCustomHandler(((hostSpec, props) -> null));
     assertTrue(AwsCredentialsManager.getProvider(mockHostSpec, mockProps) instanceof DefaultCredentialsProvider);
+  }
+
+  @Test
+  public void testReusableProviderReusedForSameSettings() {
+    final Properties props = new Properties();
+    PropertyDefinition.AWS_PROFILE.set(props, "profileA");
+
+    final AwsCredentialsProvider first =
+        AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false);
+
+    assertSame(first, AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false));
+  }
+
+  @Test
+  public void testReusableProviderNotSharedAcrossProfilesOrRegions() {
+    final Properties propsA = new Properties();
+    PropertyDefinition.AWS_PROFILE.set(propsA, "profileA");
+    final Properties propsB = new Properties();
+    PropertyDefinition.AWS_PROFILE.set(propsB, "profileB");
+
+    final AwsCredentialsProvider providerA =
+        AwsCredentialsManager.getReusableProvider(mockHostSpec, propsA, Region.US_EAST_2, false);
+
+    assertNotSame(providerA, AwsCredentialsManager.getReusableProvider(mockHostSpec, propsB, Region.US_EAST_2, false));
+    assertNotSame(providerA, AwsCredentialsManager.getReusableProvider(mockHostSpec, propsA, Region.US_WEST_2, false));
+    assertNotSame(providerA, AwsCredentialsManager.getReusableProvider(mockHostSpec, new Properties(),
+        Region.US_EAST_2, false));
+  }
+
+  @Test
+  public void testReusableProviderRefreshReplacesProvider() {
+    final Properties props = new Properties();
+    final AwsCredentialsProvider first =
+        AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false);
+
+    final AwsCredentialsProvider refreshed =
+        AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, true);
+
+    assertNotSame(first, refreshed);
+    assertSame(refreshed, AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false));
+  }
+
+  @Test
+  public void testClearReusableProvidersDropsProviders() {
+    final Properties props = new Properties();
+    final AwsCredentialsProvider first =
+        AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false);
+
+    AwsCredentialsManager.clearReusableProviders();
+
+    assertNotSame(first, AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false));
+  }
+
+  @Test
+  public void testReusableProviderNotUsedForCustomHandler() {
+    final Properties props = new Properties();
+    AwsCredentialsManager.setCustomHandler((hostSpec, p) -> mockProvider1);
+    assertSame(mockProvider1, AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false));
+
+    // The handler's provider must not have been kept for later connections that use the default provider.
+    AwsCredentialsManager.resetCustomHandler();
+    assertTrue(AwsCredentialsManager.getReusableProvider(mockHostSpec, props, Region.US_EAST_2, false)
+        instanceof DefaultCredentialsProvider);
   }
 }
