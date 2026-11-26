@@ -165,7 +165,7 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
-              new Object[] {cachedTokenInfo.getToken()}));
+              new Object[] {TokenInfo.maskToken(cachedTokenInfo.getToken())}));
       PropertyDefinition.PASSWORD.set(props, cachedTokenInfo.getToken());
     } else {
       updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost(), credentialsProvider);
@@ -229,7 +229,7 @@ public abstract class BaseSamlAuthPlugin extends AbstractConnectionPlugin {
     LOGGER.finest(
         () -> Messages.get(
             "AuthenticationToken.generatedNewToken",
-            new Object[] {token}));
+            new Object[] {TokenInfo.maskToken(token)}));
     PropertyDefinition.PASSWORD.set(props, token);
     this.servicesContainer.getStorageService().set(
         cacheKey,

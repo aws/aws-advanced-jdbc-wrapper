@@ -154,6 +154,15 @@ class ConnectionUrlParserTest {
     assertEquals(expected, ConnectionUrlParser.maskUrlPassword(url));
   }
 
+  /** The exception for a URL without a protocol quotes the URL, so the password in it must be masked. */
+  @Test
+  void testGetProtocolErrorMasksPassword() {
+    final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        () -> new ConnectionUrlParser().getProtocol("host:5432/db?user=foo&password=s3cret"));
+    assertFalse(ex.getMessage().contains("s3cret"));
+    assertTrue(ex.getMessage().contains("password=***"));
+  }
+
   @ParameterizedTest
   @MethodSource("encodedParams")
   void testEncodedParams(final String url, final String expected) {
