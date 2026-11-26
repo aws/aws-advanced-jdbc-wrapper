@@ -83,7 +83,8 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
       final Matcher matcher = FederatedAuthPlugin.SAML_RESPONSE_PATTERN.matcher(content);
       if (!matcher.find()) {
-        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.failedLogin", new Object[] {content}));
+        SamlUtils.logResponseBody(LOGGER, content);
+        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.failedLogin"));
       }
 
       // return SAML Response value
@@ -91,7 +92,8 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       // The named group is mandatory in the pattern and matched (find() returned true above), so
       // this is always non-null; the guard preserves the existing failure semantics otherwise.
       if (samlResponse == null) {
-        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.failedLogin", new Object[] {content}));
+        SamlUtils.logResponseBody(LOGGER, content);
+        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.failedLogin"));
       }
       return samlResponse;
     } catch (final IOException e) {
@@ -117,11 +119,9 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       final StatusLine statusLine = resp.getStatusLine();
       // Check HTTP Status Code is 2xx Success
       if (statusLine.getStatusCode() / 100 != 2) {
+        SamlUtils.logResponseBody(LOGGER, EntityUtils.toString(resp.getEntity()));
         throw new IOException(Messages.get("AdfsCredentialsProviderFactory.signOnPageRequestFailed",
-            new Object[] {
-                statusLine.getStatusCode(),
-                statusLine.getReasonPhrase(),
-                EntityUtils.toString(resp.getEntity())}));
+            new Object[] {statusLine.getStatusCode(), statusLine.getReasonPhrase()}));
       }
       return EntityUtils.toString(resp.getEntity());
     }
@@ -141,11 +141,9 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       final StatusLine statusLine = resp.getStatusLine();
       // Check HTTP Status Code is 2xx Success
       if (statusLine.getStatusCode() / 100 != 2) {
+        SamlUtils.logResponseBody(LOGGER, EntityUtils.toString(resp.getEntity()));
         throw new IOException(Messages.get("AdfsCredentialsProviderFactory.signOnPagePostActionRequestFailed",
-            new Object[] {
-                statusLine.getStatusCode(),
-                statusLine.getReasonPhrase(),
-                EntityUtils.toString(resp.getEntity())}));
+            new Object[] {statusLine.getStatusCode(), statusLine.getReasonPhrase()}));
       }
       return EntityUtils.toString(resp.getEntity());
     }

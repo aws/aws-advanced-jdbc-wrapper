@@ -17,6 +17,9 @@
 package software.amazon.jdbc.plugin.federatedauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -25,6 +28,7 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.Properties;
@@ -127,5 +131,44 @@ class AdfsCredentialsProviderFactoryTest {
     assertEquals("Password=" + PASSWORD, params[1]);
     assertEquals("Kmsi=true", params[2]);
     assertEquals("AuthMethod=FormsAuthentication", params[3]);
+  }
+
+  /**
+   * The IdP's response body is a whole sign-in page that can carry the user name and form state. It
+   * must not end up in the exception the application sees; the status code and reason are enough.
+   */
+  @Test
+  void testNonSuccessStatusDoesNotPutTheResponseBodyInTheException() throws IOException {
+    final String responseBody = "<html>Sign-in page for " + USERNAME + "</html>";
+    when(mockHttpClient.execute(any(HttpUriRequest.class))).thenReturn(mockHttpGetSignInPageResponse);
+    when(mockStatusLine.getStatusCode()).thenReturn(401);
+    when(mockStatusLine.getReasonPhrase()).thenReturn("Unauthorized");
+    when(mockSignInPageHttpEntity.getContent())
+        .thenReturn(new ByteArrayInputStream(responseBody.getBytes(StandardCharsets.UTF_8)));
+
+    final SQLException ex = assertThrows(SQLException.class,
+        () -> this.adfsCredentialsProviderFactory.getSamlAssertion(props));
+
+    assertTrue(ex.getMessage().contains("401"));
+    assertTrue(ex.getMessage().contains("Unauthorized"));
+    assertFalse(ex.getMessage().contains(USERNAME));
+    assertFalse(ex.getMessage().contains("Sign-in page"));
+  }
+
+  @Test
+  void testMissingSamlResponseDoesNotPutTheResponseBodyInTheException() throws IOException {
+    final String responseBody = "<html>Wrong password for " + USERNAME + "</html>";
+    when(mockHttpClient.execute(any(HttpUriRequest.class))).thenReturn(
+        mockHttpGetSignInPageResponse,
+        mockHttpPostSignInResponse);
+    when(mockSamlHttpEntity.getContent())
+        .thenReturn(new ByteArrayInputStream(responseBody.getBytes(StandardCharsets.UTF_8)));
+
+    final SQLException ex = assertThrows(SQLException.class,
+        () -> this.adfsCredentialsProviderFactory.getSamlAssertion(props));
+
+    assertTrue(ex.getMessage().contains("Could not obtain SAML Assertion"));
+    assertFalse(ex.getMessage().contains(USERNAME));
+    assertFalse(ex.getMessage().contains("Wrong password"));
   }
 }
