@@ -22,6 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -111,6 +115,15 @@ class IamAuthUtilsTest {
     assertEquals(hash, IamAuthUtils.hashCacheKeySecret("password1"));
     assertNotEquals(hash, IamAuthUtils.hashCacheKeySecret("password2"));
     assertFalse(hash.contains("password1"));
+  }
+
+  @Test
+  void testHashCacheKeySecretIsNotPlainSha256() throws NoSuchAlgorithmException {
+    // A plain, unsalted SHA-256 of a password could be cracked offline if a cache key were ever logged.
+    final String plainSha256 = Base64.getEncoder().encodeToString(
+        MessageDigest.getInstance("SHA-256").digest("password1".getBytes(StandardCharsets.UTF_8)));
+
+    assertNotEquals(plainSha256, IamAuthUtils.hashCacheKeySecret("password1"));
   }
 
   @Test

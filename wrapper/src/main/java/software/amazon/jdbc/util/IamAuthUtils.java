@@ -17,10 +17,12 @@
 package software.amazon.jdbc.util;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.logging.Logger;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -40,6 +42,12 @@ public class IamAuthUtils {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthUtils.class.getName());
   private static final String TELEMETRY_FETCH_TOKEN = "fetch authentication token";
+  private static final String CACHE_KEY_HMAC_ALGORITHM = "HmacSHA256";
+  private static final byte[] CACHE_KEY_HMAC_SECRET = new byte[32];
+
+  static {
+    new SecureRandom().nextBytes(CACHE_KEY_HMAC_SECRET);
+  }
 
   public static HostSpec getIamHost(final @Nullable String iamHost, final HostSpec hostSpec) {
     if (!StringUtils.isNullOrEmpty(iamHost)) {
@@ -114,22 +122,22 @@ public class IamAuthUtils {
    * changes whenever different credentials are used (for example, after the profile in the credentials
    * file is edited, or when temporary credentials are refreshed). The secret is included because the
    * access key ID alone is not secret: without it, a connection with the right access key ID and a wrong
-   * secret would be handed a token signed with the real secret. The values are hashed so none of them is
-   * kept in the cache key.
+   * secret would be handed a token signed with the real secret. The values are combined with an HMAC
+   * (see {@link #newHmac()}), so none of them is kept in the cache key.
    *
    * @param credentials the credentials that sign the token.
-   * @return a SHA-256 hash of the credentials, Base64-encoded.
+   * @return an HMAC-SHA256 of the credentials, Base64-encoded.
    */
   public static String getCredentialsIdentity(final AwsCredentials credentials) {
-    final MessageDigest digest = newSha256();
-    digest.update(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
-    digest.update((byte) 0);
-    digest.update(credentials.secretAccessKey().getBytes(StandardCharsets.UTF_8));
+    final Mac mac = newHmac();
+    mac.update(credentials.accessKeyId().getBytes(StandardCharsets.UTF_8));
+    mac.update((byte) 0);
+    mac.update(credentials.secretAccessKey().getBytes(StandardCharsets.UTF_8));
     if (credentials instanceof AwsSessionCredentials) {
-      digest.update((byte) 0);
-      digest.update(((AwsSessionCredentials) credentials).sessionToken().getBytes(StandardCharsets.UTF_8));
+      mac.update((byte) 0);
+      mac.update(((AwsSessionCredentials) credentials).sessionToken().getBytes(StandardCharsets.UTF_8));
     }
-    return Base64.getEncoder().encodeToString(digest.digest());
+    return Base64.getEncoder().encodeToString(mac.doFinal());
   }
 
   /**
@@ -137,20 +145,28 @@ public class IamAuthUtils {
    * kept in it.
    *
    * @param secret the value to hash.
-   * @return a SHA-256 hash of the value, Base64-encoded, or null if the value is null.
+   * @return an HMAC-SHA256 of the value, Base64-encoded, or null if the value is null.
    */
   public static @Nullable String hashCacheKeySecret(final @Nullable String secret) {
     if (secret == null) {
       return null;
     }
-    return Base64.getEncoder().encodeToString(newSha256().digest(secret.getBytes(StandardCharsets.UTF_8)));
+    return Base64.getEncoder().encodeToString(newHmac().doFinal(secret.getBytes(StandardCharsets.UTF_8)));
   }
 
-  private static MessageDigest newSha256() {
+  /**
+   * Returns an HMAC-SHA256 keyed with a random secret generated once per process. Cache keys only need
+   * to be stable within the process, and the random key means a cache key that ends up in a log or an
+   * error message can't be used to recover a password or AWS secret with an offline dictionary attack,
+   * as a plain, unsalted hash could.
+   */
+  private static Mac newHmac() {
     try {
-      return MessageDigest.getInstance("SHA-256");
-    } catch (final NoSuchAlgorithmException e) {
-      throw new IllegalStateException(Messages.get("IamAuthUtils.sha256NotAvailable"), e);
+      final Mac mac = Mac.getInstance(CACHE_KEY_HMAC_ALGORITHM);
+      mac.init(new SecretKeySpec(CACHE_KEY_HMAC_SECRET, CACHE_KEY_HMAC_ALGORITHM));
+      return mac;
+    } catch (final GeneralSecurityException e) {
+      throw new IllegalStateException(Messages.get("IamAuthUtils.hmacNotAvailable"), e);
     }
   }
 
