@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -90,7 +89,9 @@ public class BlueGreenStatusMonitor {
 
   protected final HostSpec initialHostSpec;
 
-  protected final ExecutorService executorService = Executors.newFixedThreadPool(1);
+  // Both executors come from ExecutorFactory so their threads are daemon threads: a monitor that is
+  // still running when the application's main thread returns must not keep the JVM alive.
+  protected final ExecutorService executorService = ExecutorFactory.newSingleThreadExecutor("bg-status-monitor");
   protected final ExecutorService openConnectionExecutorService =
       ExecutorFactory.newSingleThreadExecutor("open-connection");
 
@@ -307,6 +308,10 @@ public class BlueGreenStatusMonitor {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+    }
+    if (stop) {
+      // The monitoring loop is the only submitter; once it has stopped, nothing else uses this executor.
+      this.openConnectionExecutorService.shutdownNow();
     }
   }
 
@@ -845,8 +850,8 @@ public class BlueGreenStatusMonitor {
     final CountDownLatch resultReady = new CountDownLatch(1);
     final AtomicInteger completedCount = new AtomicInteger(0);
 
-    ExecutorService parallelConnExecutor = Executors.newFixedThreadPool(
-        Math.min(candidateIps.size(), 15));
+    ExecutorService parallelConnExecutor = ExecutorFactory.newFixedThreadPool(
+        Math.min(candidateIps.size(), 15), "bg-connect-to-ip");
 
     final boolean trackUnclosedConnections = PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(this.props);
 

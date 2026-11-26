@@ -36,6 +36,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin;
 import software.amazon.jdbc.plugin.cache.DataLocalCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.plugin.efm.v3.HostMonitorV3Impl;
@@ -451,6 +452,7 @@ public class Driver implements java.sql.Driver {
     BatchingEventPublisher.releaseResources();
     OpenedConnectionTracker.releaseResources();
     HostMonitorV3Impl.releaseAbortExecutor();
+    BlueGreenConnectionPlugin.releaseResources();
     ConnectionProviderManager.releaseResources();
     InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();

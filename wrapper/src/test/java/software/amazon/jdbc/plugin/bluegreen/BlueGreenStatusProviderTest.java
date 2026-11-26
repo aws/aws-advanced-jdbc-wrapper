@@ -1017,4 +1017,35 @@ class BlueGreenStatusProviderTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("green-node").build()));
     return provider;
   }
+
+  @Test
+  void stopStopsBothMonitorsAndForgetsThem() {
+    final BlueGreenStatusProvider provider = newProvider();
+    final BlueGreenStatusMonitor sourceMonitor = mock(BlueGreenStatusMonitor.class);
+    final BlueGreenStatusMonitor targetMonitor = mock(BlueGreenStatusMonitor.class);
+    provider.monitors[BlueGreenRole.SOURCE.getValue()] = sourceMonitor;
+    provider.monitors[BlueGreenRole.TARGET.getValue()] = targetMonitor;
+
+    provider.stop();
+
+    verify(sourceMonitor).setStop(true);
+    verify(targetMonitor).setStop(true);
+    assertNull(provider.monitors[BlueGreenRole.SOURCE.getValue()]);
+    assertNull(provider.monitors[BlueGreenRole.TARGET.getValue()]);
+  }
+
+  /** Driver.releaseResources() must reach every provider in the JVM, otherwise their monitors run on. */
+  @Test
+  void releaseResourcesStopsEveryProviderAndForgetsIt() {
+    final BlueGreenStatusProvider first = mock(BlueGreenStatusProvider.class);
+    final BlueGreenStatusProvider second = mock(BlueGreenStatusProvider.class);
+    BlueGreenConnectionPlugin.provider.put("bgd-1", first);
+    BlueGreenConnectionPlugin.provider.put("bgd-2", second);
+
+    BlueGreenConnectionPlugin.releaseResources();
+
+    verify(first).stop();
+    verify(second).stop();
+    assertTrue(BlueGreenConnectionPlugin.provider.isEmpty());
+  }
 }
