@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class RdsUtilsTests {
 
@@ -123,6 +125,10 @@ public class RdsUtilsTests {
 
   private static final String globalDbWriterCluster =
       "global-cluster-test-name.global-XYZ.global.rds.amazonaws.com";
+  private static final String globalDbWriterClusterTrailingDot =
+      "global-cluster-test-name.global-XYZ.global.rds.amazonaws.com.";
+  private static final String globalDbWriterClusterUpperCase =
+      "GLOBAL-CLUSTER-TEST-NAME.GLOBAL-XYZ.GLOBAL.RDS.AMAZONAWS.COM";
 
   @BeforeEach
   public void setupTests() {
@@ -443,6 +449,73 @@ public class RdsUtilsTests {
   public void testIsGlobalDbWriterClusterDns() {
     assertFalse(target.isGlobalDbWriterClusterDns(usEastRegionCluster));
     assertTrue(target.isGlobalDbWriterClusterDns(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testIsRdsDnsForGlobalDbWriterCluster() {
+    assertTrue(target.isRdsDns(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testGetRdsClusterIdForGlobalDbWriterCluster() {
+    assertNull(target.getRdsClusterId(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testGetRdsGlobalClusterId() {
+    assertEquals("global-cluster-test-name", target.getRdsGlobalClusterId(globalDbWriterCluster));
+    assertEquals("global-cluster-test-name", target.getRdsGlobalClusterId(globalDbWriterClusterTrailingDot));
+    assertEquals("GLOBAL-CLUSTER-TEST-NAME", target.getRdsGlobalClusterId(globalDbWriterClusterUpperCase));
+
+    assertNull(target.getRdsGlobalClusterId(usEastRegionCluster));
+    assertNull(target.getRdsGlobalClusterId(usEastRegionClusterReadOnly));
+    assertNull(target.getRdsGlobalClusterId(usEastRegionInstance));
+    assertNull(target.getRdsGlobalClusterId(usEastRegionCustomDomain));
+    assertNull(target.getRdsGlobalClusterId("example.com"));
+  }
+
+  @Test
+  public void testGetRdsInstanceHostPatternForGlobalDbWriterCluster() {
+    assertEquals("?", target.getRdsInstanceHostPattern(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testGlobalDbWriterClusterIsNotAnInstance() {
+    assertFalse(target.isRdsInstance(globalDbWriterCluster));
+    assertNull(target.getRdsInstanceId(globalDbWriterCluster));
+    assertNull(target.getRdsRegion(globalDbWriterCluster));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {globalDbWriterCluster, globalDbWriterClusterTrailingDot, globalDbWriterClusterUpperCase})
+  public void testGlobalDbWriterClusterLookupsDoNotDependOnCallOrder(final String host) {
+    final boolean isRdsDns = target.isRdsDns(host);
+    RdsUtils.clearCache();
+    final String clusterId = target.getRdsClusterId(host);
+    RdsUtils.clearCache();
+    final String globalClusterId = target.getRdsGlobalClusterId(host);
+    RdsUtils.clearCache();
+    final String instanceHostPattern = target.getRdsInstanceHostPattern(host);
+    RdsUtils.clearCache();
+    final String instanceId = target.getRdsInstanceId(host);
+    RdsUtils.clearCache();
+    final String region = target.getRdsRegion(host);
+    RdsUtils.clearCache();
+    final boolean isRdsInstance = target.isRdsInstance(host);
+    RdsUtils.clearCache();
+    assertNull(clusterId);
+    assertEquals(host.substring(0, host.indexOf('.')), globalClusterId);
+    assertEquals("?", instanceHostPattern);
+
+    // Production code classifies the host first, which caches its match.
+    assertEquals(RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER, target.identifyRdsType(host));
+    assertEquals(isRdsDns, target.isRdsDns(host));
+    assertEquals(clusterId, target.getRdsClusterId(host));
+    assertEquals(globalClusterId, target.getRdsGlobalClusterId(host));
+    assertEquals(instanceHostPattern, target.getRdsInstanceHostPattern(host));
+    assertEquals(instanceId, target.getRdsInstanceId(host));
+    assertEquals(region, target.getRdsRegion(host));
+    assertEquals(isRdsInstance, target.isRdsInstance(host));
   }
 
   @Test

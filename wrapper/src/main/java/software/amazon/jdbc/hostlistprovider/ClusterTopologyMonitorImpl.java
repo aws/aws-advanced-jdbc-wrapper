@@ -315,8 +315,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor
 
   /**
    * Determines whether a connection failure is a permanent DNS-resolution failure caused by a
-   * configuration problem: the instance template is the bare "?" placeholder (built only when the
-   * connection host is not a recognized RDS endpoint and no clusterInstanceHostPattern was supplied),
+   * configuration problem: the connection host is not a recognized RDS endpoint, no
+   * clusterInstanceHostPattern was supplied (so the instance template is the bare "?" placeholder),
    * and the underlying cause is an {@link UnknownHostException}. In that case the derived instance
    * endpoints can never resolve, so retrying until the failover timeout is pointless.
    *

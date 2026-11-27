@@ -199,6 +199,15 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.global\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
+  // The lookups below, except isRdsProxyEndpointDns(), match against this one list. They share cachedPatterns,
+  // so a match cached by one of them must mean the same thing to the others.
+  private static final Pattern[] RDS_DNS_PATTERNS = {
+      AURORA_DNS_PATTERN,
+      AURORA_CHINA_DNS_PATTERN,
+      AURORA_OLD_CHINA_DNS_PATTERN,
+      AURORA_GOV_DNS_PATTERN,
+      AURORA_GLOBAL_WRITER_DNS_PATTERN};
+
   private static final Pattern RDS_PROXY_ENDPOINT_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\.endpoint\\."
@@ -245,8 +254,7 @@ public class RdsUtils {
 
   public boolean isRdsDns(final String host) {
     final String preparedHost = getPreparedHost(host);
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, DNS_GROUP);
     if (group != null) {
       cachedDnsPatterns.put(preparedHost, group);
@@ -286,9 +294,31 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
-    if (getRegexGroup(matcher, DNS_GROUP) != null) {
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
+    final String dnsGroup = getRegexGroup(matcher, DNS_GROUP);
+    if (dnsGroup != null && !isGlobalWriterDnsGroup(dnsGroup)) {
+      return getRegexGroup(matcher, INSTANCE_GROUP);
+    }
+
+    return null;
+  }
+
+  /**
+   * Returns the Global Database identifier from a global writer endpoint, or null for any other host. Unlike
+   * {@link #getRdsClusterId(String)}, which returns the name of a regional DB cluster, this returns the name of a
+   * global cluster.
+   *
+   * @param host the host name to parse
+   * @return the global cluster identifier, or null if the host is not a global writer endpoint
+   */
+  public @Nullable String getRdsGlobalClusterId(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    if (StringUtils.isNullOrEmpty(preparedHost)) {
+      return null;
+    }
+
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
+    if (isGlobalWriterDnsGroup(getRegexGroup(matcher, DNS_GROUP))) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
 
@@ -301,8 +331,7 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     if (getRegexGroup(matcher, DNS_GROUP) == null) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
@@ -316,8 +345,11 @@ public class RdsUtils {
       return "?";
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
+    if (isGlobalWriterDnsGroup(getRegexGroup(matcher, DNS_GROUP))) {
+      // A global writer endpoint has no AWS region, so no instance endpoint pattern can be built from it.
+      return "?";
+    }
     final String group = getRegexGroup(matcher, DOMAIN_GROUP);
     return group == null ? "?" : "?." + group;
   }
@@ -328,8 +360,7 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, REGION_GROUP);
     if (group != null) {
       return group;
@@ -396,8 +427,7 @@ public class RdsUtils {
   }
 
   public boolean isGlobalDbWriterClusterDns(final String host) {
-    final String dnsGroup = getDnsGroup(getPreparedHost(host));
-    return dnsGroup != null && dnsGroup.equalsIgnoreCase("global-");
+    return isGlobalWriterDnsGroup(getDnsGroup(getPreparedHost(host)));
   }
 
   public boolean isIP(final String ip) {
@@ -528,6 +558,11 @@ public class RdsUtils {
     }
   }
 
+  // Every check for a Global Database writer endpoint goes through here, so they all agree on which hosts those are.
+  private static boolean isGlobalWriterDnsGroup(final @Nullable String dnsGroup) {
+    return "global-".equalsIgnoreCase(dnsGroup);
+  }
+
   private @Nullable String getDnsGroup(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
@@ -536,9 +571,7 @@ public class RdsUtils {
     if (cached != null) {
       return cached;
     }
-    final Matcher matcher = cacheMatcher(host,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN,
-        AURORA_GOV_DNS_PATTERN, AURORA_GLOBAL_WRITER_DNS_PATTERN);
+    final Matcher matcher = cacheMatcher(host, RDS_DNS_PATTERNS);
     final String group = getRegexGroup(matcher, DNS_GROUP);
     if (group != null) {
       cachedDnsPatterns.put(host, group);

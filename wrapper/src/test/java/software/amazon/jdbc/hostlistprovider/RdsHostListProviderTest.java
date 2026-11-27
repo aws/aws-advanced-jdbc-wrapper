@@ -17,7 +17,9 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -38,6 +40,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +59,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorInitializer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -216,5 +223,45 @@ class RdsHostListProviderTest {
 
     final List<HostSpec> result = rdsHostListProvider.getStoredTopology();
     assertEquals(expected, result);
+  }
+
+  @Test
+  void testInitSettings_globalWriterHostDoesNotWarnAboutMissingInstancePattern() throws SQLException {
+    final String nonRdsHost = "url";
+    final String globalWriterHost = "global-cluster-test-name.global-XYZ.global.rds.amazonaws.com";
+    final List<String> warnings = new ArrayList<>();
+    final Handler handler = new Handler() {
+      @Override
+      public void publish(final LogRecord record) {
+        if (record.getLevel() == Level.WARNING) {
+          warnings.add(record.getMessage());
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+    final Logger logger = Logger.getLogger(RdsHostListProvider.class.getName());
+    logger.addHandler(handler);
+    try {
+      // A host that is not an RDS endpoint still gets the warning.
+      getRdsHostListProvider("jdbc:someprotocol://" + nonRdsHost);
+      assertTrue(warnings.contains(
+          Messages.get("RdsHostListProvider.nonRdsHostNoInstancePattern", new Object[] {nonRdsHost})));
+
+      // A global writer endpoint is a recognized RDS endpoint, even though it has no instance pattern.
+      warnings.clear();
+      final RdsHostListProvider provider = getRdsHostListProvider("jdbc:someprotocol://" + globalWriterHost);
+      assertEquals("?", provider.instanceTemplate.getHost());
+      assertFalse(warnings.contains(
+          Messages.get("RdsHostListProvider.nonRdsHostNoInstancePattern", new Object[] {globalWriterHost})));
+    } finally {
+      logger.removeHandler(handler);
+    }
   }
 }
