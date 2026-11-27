@@ -38,7 +38,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -77,7 +76,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
   static final ExecutorService refreshExecutor = ExecutorFactory.newCachedThreadPool("aws-sm2-refresh");
 
   /** At most one in-flight refresh per {@code (secretId, region)} key. */
-  static final ConcurrentMap<Pair<String, String>, CompletableFuture<Secret>> pendingRefreshes =
+  static final ConcurrentMap<String, CompletableFuture<Secret>> pendingRefreshes =
       new ConcurrentHashMap<>();
 
   public AwsSecretsManagerConnectionPlugin2(final FullServicesContainer servicesContainer, final Properties props) {
@@ -127,7 +126,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
     }
 
     try {
-      final Secret cachedSecret = this.servicesContainer.getStorageService().get(Secret.class, this.secretKey);
+      final Secret cachedSecret = this.servicesContainer.getStorageService().get(Secret.class, this.secretCacheKey);
 
       if (cachedSecret == null || forceReFetch) {
         // Cache miss (first connection) or forced re-fetch (login-failure retry): block once.
@@ -206,7 +205,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
    */
   CompletableFuture<Secret> triggerAsyncRefresh(final HostSpec hostSpec) {
     final AtomicBoolean triggered = new AtomicBoolean(false);
-    final CompletableFuture<Secret> future = pendingRefreshes.compute(this.secretKey, (key, existing) -> {
+    final CompletableFuture<Secret> future = pendingRefreshes.compute(this.secretCacheKey, (key, existing) -> {
       if (existing != null && !existing.isDone()) {
         return existing; // a refresh is already in flight
       }
@@ -231,7 +230,7 @@ public class AwsSecretsManagerConnectionPlugin2 extends AwsSecretsManagerConnect
                   "AwsSecretsManagerConnectionPlugin2.asyncRefreshFailed",
                   new Object[] {this.secretKey.getValue1()}));
         }
-        pendingRefreshes.remove(this.secretKey, future);
+        pendingRefreshes.remove(this.secretCacheKey, future);
       });
     }
     return future;

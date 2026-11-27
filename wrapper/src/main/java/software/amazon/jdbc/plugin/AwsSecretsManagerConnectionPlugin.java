@@ -140,6 +140,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       Pattern.compile("^arn:aws:secretsmanager:(?<region>[^:\\n]*):[^:\\n]*:([^:/\\n]*[:/])?(.*)$");
 
   final Pair<String /* secretId */, String /* region */> secretKey;
+
+  /**
+   * The key the fetched {@link Secret} is stored under. A cached Secret already holds the user name and
+   * password picked out of the secret JSON with this plugin's {@code secretsManagerSecretUsernameProperty}
+   * and {@code secretsManagerSecretPasswordProperty}, so two configurations that read different fields of
+   * the same secret must not share an entry; the key therefore includes both field names.
+   */
+  final String secretCacheKey;
   private final BiFunction<HostSpec, Region, SecretsManagerClient>
       secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
@@ -271,6 +279,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     this.connectRetryIntervalMs =
         AwsSecretsManagerConnectionPlugin.SECRETS_MANAGER_CONNECT_RETRY_INTERVAL_MS_PROPERTY.getLong(props);
     this.secretKey = Pair.create(secretId, region.id());
+    this.secretCacheKey = buildSecretCacheKey(secretId, region.id(), this.secretUsername, this.secretPassword);
 
     this.secretsManagerClientFunc = secretsManagerClientFunc;
     this.getSecretValueRequestFunc = getSecretValueRequestFunc;
@@ -494,7 +503,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       this.fetchCredentialsCounter.inc();
     }
 
-    this.secret = this.servicesContainer.getStorageService().get(Secret.class, this.secretKey);
+    this.secret = this.servicesContainer.getStorageService().get(Secret.class, this.secretCacheKey);
 
     try {
       boolean fetched = false;
@@ -529,7 +538,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     try {
       final Secret fetched = fetchLatestCredentials(hostSpec);
       if (fetched != null) {
-        this.servicesContainer.getStorageService().set(this.secretKey, fetched);
+        this.servicesContainer.getStorageService().set(this.secretCacheKey, fetched);
       }
       return fetched;
     } catch (final SecretsManagerException | JsonProcessingException exception) {
@@ -570,6 +579,19 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
               new Object[] {exception.getMessage()}));
       throw new SQLException(exception);
     }
+  }
+
+  /**
+   * Builds the storage key for a fetched {@link Secret}. Every part is length-prefixed so that two
+   * different combinations of parts can never produce the same key.
+   */
+  static String buildSecretCacheKey(
+      final String secretId, final String region, final String usernameKey, final String passwordKey) {
+    final StringBuilder key = new StringBuilder();
+    for (final String part : new String[] {secretId, region, usernameKey, passwordKey}) {
+      key.append(part.length()).append(':').append(part);
+    }
+    return key.toString();
   }
 
   /**

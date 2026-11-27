@@ -70,7 +70,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.Secret;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -92,7 +91,8 @@ public class AwsSecretsManagerConnectionPlugin2Test {
   private static final String TEST_HOST = "test-domain";
   private static final int TEST_PORT = 5432;
 
-  private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
+  private static final String SECRET_CACHE_KEY =
+      AwsSecretsManagerConnectionPlugin.buildSecretCacheKey(TEST_SECRET_ID, TEST_REGION, "username", "password");
   private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
   private static final GetSecretValueResponse VALID_GET_SECRET_VALUE_RESPONSE =
@@ -443,7 +443,7 @@ public class AwsSecretsManagerConnectionPlugin2Test {
   @Test
   public void testInterruptedDuringSynchronousFetch() throws Exception {
     final CompletableFuture<Secret> neverCompleting = new CompletableFuture<>();
-    AwsSecretsManagerConnectionPlugin2.pendingRefreshes.put(this.plugin.secretKey, neverCompleting);
+    AwsSecretsManagerConnectionPlugin2.pendingRefreshes.put(this.plugin.secretCacheKey, neverCompleting);
 
     final List<Exception> caught = new ArrayList<>();
     final boolean[] wasInterrupted = {false};
