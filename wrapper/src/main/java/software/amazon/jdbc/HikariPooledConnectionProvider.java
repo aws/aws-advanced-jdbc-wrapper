@@ -48,6 +48,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
@@ -381,9 +382,15 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       return this.poolMapping.getKey(hostSpec, props);
     }
 
-    // Otherwise use default map key
-    String user = props.getProperty(PropertyDefinition.USER.name);
-    return user == null ? "" : user;
+    // Otherwise use the default map key: the user, plus the database when one is set. HostSpec.getUrl()
+    // is "host:port/" without a database, so without this a caller asking for another database on the
+    // same instance with the same user would be handed connections to the first caller's database.
+    // The password is deliberately not part of the key: it changes with every IAM or Secrets Manager
+    // rotation and is re-applied to the pool on each connect (see setPassword in connect()).
+    final String user = props.getProperty(PropertyDefinition.USER.name);
+    final String database = PropertyDefinition.DATABASE.getString(props);
+    final String userKey = user == null ? "" : user;
+    return StringUtils.isNullOrEmpty(database) ? userKey : userKey + "/" + database;
   }
 
   @Override
