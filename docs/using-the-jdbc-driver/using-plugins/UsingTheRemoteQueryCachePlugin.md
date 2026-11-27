@@ -36,6 +36,9 @@ ResultSet rs = stmt.executeQuery("/* CACHE_PARAM(ttl=300s) */ select * from myta
 ...
 ```
 
+> [!WARNING]
+> `dataCache` and `remoteQueryCache` are incompatible together, do not enable both for the same connection.
+
 ### Database multi-tenancy opt-in
 
 > [!CAUTION]
@@ -151,12 +154,15 @@ When `cacheEnableDatabaseMultiTenancy` is disabled, the key parts are joined wit
 contain `_` can produce the same key, for example schema `tenant_a` with user `reader` and schema
 `tenant` with user `a_reader`. Use distinct `cacheKeyPrefix` values for such names.
 
-When database multi-tenancy protection is enabled, the PostgreSQL authorization session state is
-acquired from the database and updated after statements such as `SET ROLE`,
-`SET SESSION AUTHORIZATION`, `SET search_path`, their corresponding `RESET` commands, successful
-JDBC `Connection.setSchema(...)` calls, and transaction completion. Transaction completion
-invalidates transaction-local state so that it is reacquired before caching resumes. If this state
-cannot be determined, the query bypasses both cache reads and cache writes.
+When database multi-tenancy protection is enabled, the plugin reads the PostgreSQL authorization
+session state, such as the session user, current user, and search path, from the database and
+includes it in the cache key. Changes it recognizes, such as `SET ROLE`,
+`SET SESSION AUTHORIZATION`, `SET search_path`, their `RESET` forms, and
+`Connection.setSchema(...)`, cause the state to be read again before caching resumes; until then,
+queries bypass the cache. Changes the plugin does not recognize, such as a role or search path
+changed inside a SQL function, may not be detected, and results may be cached under the previous
+state. This tracking is best-effort and is not a security boundary; see
+[Security scope and application requirements](#security-scope-and-application-requirements).
 
 Database multi-tenancy protection is disabled by default. When
 `cacheEnableDatabaseMultiTenancy=false`, the plugin preserves legacy cache eligibility,
@@ -171,18 +177,24 @@ supported database dialects whose authorization state can be determined safely. 
 MySQL, and MariaDB are currently supported. Other dialects, or a supported dialect whose state is
 unavailable, bypass both cache reads and writes.
 
-Enabling this protection reads authorization state when a physical connection is established or
-switched, after recognized authorization-state changes, and at transaction completion. Normal
-cache hits and cache misses do not issue an authorization-state query. MySQL servers that do not
-support `CURRENT_ROLE()` require one fallback query when authorization state is refreshed.
+Enabling this protection reads authorization state from the database when a connection is
+established and at other points where the state may have changed, such as after authorization-state
+changes the plugin recognizes. It does not issue this query inside an application transaction, while
+auto-commit is off, or on normal cache hits and misses, so changes the plugin does not recognize may
+go undetected; while the state is unknown, queries bypass the cache. MySQL servers that do not
+support `CURRENT_ROLE()` require one fallback query when the state is read.
 Enabling this protection also reduces cacheability: the bypass and disable rules below apply, a
 connection that disables caching does not use the cache again, and each authorization context has
 separate cache entries, which lowers hit rates.
 
-When database multi-tenancy protection is enabled, the MySQL and MariaDB authorization session
-state is acquired from the database and updated after operations such as `SET ROLE`, `USE`,
-`RESET CONNECTION`, and successful JDBC `Connection.setCatalog(...)` calls. MySQL servers that do
-not support roles omit only the active-role component.
+When database multi-tenancy protection is enabled, the plugin also reads the MySQL and MariaDB
+authorization session state, such as the authenticated account, active roles, and current database,
+and includes it in the cache key. Changes it recognizes, such as `SET ROLE`, `USE`,
+`RESET CONNECTION`, and `Connection.setCatalog(...)`, cause the state to be read again before
+caching resumes; until then, queries bypass the cache. MySQL servers that do not support roles omit
+only the active-role component. Changes the plugin does not recognize may not be detected, and
+results may be cached under the previous state; see
+[Security scope and application requirements](#security-scope-and-application-requirements).
 Opaque statements and session-variable use such as `CALL`, `DO`, user-defined variable references
 (`@variable`, with or without surrounding whitespace), `HANDLER`, and dynamically prepared SQL
 (`EXECUTE`) disable remote query caching for that connection. An account name with an unquoted user
@@ -221,6 +233,10 @@ failed operations mark the state untracked. The original JDBC exception is prese
 An unknown authorization state bypasses caching until a later refresh succeeds. An untracked state
 cannot be represented safely and remains disabled for that wrapper connection. Returning a
 connection to an application connection pool does not by itself clear the untracked state.
+The plugin does not query the database for authorization state while auto-commit is off or a
+transaction is open, so changes made then are not reflected until the state is next read. Until
+then, queries may bypass the cache, and changes the plugin does not recognize may go undetected.
+See [Security scope and application requirements](#security-scope-and-application-requirements).
 When database multi-tenancy protection is disabled, the plugin preserves legacy behavior:
 callable and multi-statement queries remain eligible for caching, while transaction queries bypass
 cache reads but may write their database results to the cache.
@@ -271,9 +287,10 @@ cache reads but may write their database results to the cache.
 > `cacheKeyPrefix`, or cache cluster.
 >
 > Internal connection pools (`connectionPoolType`) return the database session to the pool
-> without resetting it, and the next wrapper connection starts with caching enabled again. Do not
-> use them with statements that disable caching, such as PostgreSQL `set_config(...)` or
-> MySQL/MariaDB `SET @variable`.
+> without resetting it, and the next wrapper connection starts with caching enabled again. The same
+> applies to an application server's XA connection pool and to a pooling target data source such
+> as `PGPoolingDataSource`. Do not use them with statements that disable caching, such as
+> PostgreSQL `set_config(...)` or MySQL/MariaDB `SET @variable`.
 >
 > Anyone who can connect to the cache cluster can read and overwrite every cached result.
 > `cacheKeyPrefix` only separates keys; it does not restrict access. Protect the cache cluster as
@@ -313,6 +330,7 @@ The plugin includes a health monitoring subsystem to avoid cascading failures wh
 
 ### Limitations
 
+- The plugin is not supported together with the [Data Local Cache Plugin](./UsingTheDataCachePlugin.md) (`dataCache`) on the same connection. See the warning in [Using the Remote Query Cache Plugin](#using-the-remote-query-cache-plugin).
 - The plugin currently doesn't support large objects as they are typically not optimal for caching. This includes:
   * CLOB (Character Large Object): `ResultSet.getClob()` and `ResultSet.getNClob()`
   * BLOB (Binary Large Object): `ResultSet.getBlob()`

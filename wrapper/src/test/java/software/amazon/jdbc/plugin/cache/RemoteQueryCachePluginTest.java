@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -44,6 +45,7 @@ import java.sql.Statement;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +72,18 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public class RemoteQueryCachePluginTest {
+  private static final AuthorizationSessionState TENANT_A_STATE = new AuthorizationSessionState(
+      "application_user",
+      "tenant_a",
+      "\"tenant_a\", public",
+      "[\"pg_catalog\",\"tenant_a\",\"public\"]");
+
+  private static final AuthorizationSessionState TENANT_B_STATE = new AuthorizationSessionState(
+      "application_user",
+      "tenant_b",
+      "\"tenant_b\", public",
+      "[\"pg_catalog\",\"tenant_b\",\"public\"]");
+
   private Properties props;
   private final String methodName = "Statement.executeQuery";
   private AutoCloseable closeable;
@@ -1570,6 +1584,263 @@ public class RemoteQueryCachePluginTest {
       assertEquals(expected.getObject(i), actual.getObject(i));
       i++;
     }
+  }
+
+  @Test
+  void test_notifyConnectionChanged_withAutoCommitOffMarksStateUnknownWithoutQuery()
+      throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+
+    plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.CONNECTION_OBJECT_CHANGED));
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertNull(state.get());
+    assertHintedQueryBypassesCache();
+  }
+
+  @Test
+  void test_notifyConnectionChanged_insideTransactionMarksStateUnknownWithoutQuery()
+      throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+
+    plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.CONNECTION_OBJECT_CHANGED));
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertNull(state.get());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"Connection.commit", "Connection.rollback"})
+  void test_execute_transactionEndWithAutoCommitOffMarksKnownStateUnknown(
+      final String transactionMethod) throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    state.set(TENANT_A_STATE);
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        transactionMethod,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertNull(state.get());
+    assertHintedQueryBypassesCache();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"COMMIT", "ROLLBACK"})
+  void test_execute_transactionEndStatementWithAutoCommitOffMarksKnownStateUnknown(
+      final String sql) throws Exception {
+    // MySQL and MariaDB report these statements as having no authorization impact.
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    state.set(TENANT_A_STATE);
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {sql});
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertNull(state.get());
+    assertHintedQueryBypassesCache();
+  }
+
+  @Test
+  void test_execute_postgresqlCommitStatementWithAutoCommitOffMarksStateUnknown()
+      throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    state.set(TENANT_A_STATE);
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact("COMMIT"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"COMMIT"});
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertNull(state.get());
+  }
+
+  @Test
+  void test_execute_setAutoCommitTrueAfterTransactionRefreshesKnownState() throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    state.set(TENANT_A_STATE);
+    when(mockConnection.getAutoCommit()).thenReturn(false, true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+        mockCallable,
+        new Object[] {true});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+    assertSame(TENANT_B_STATE, state.get());
+  }
+
+  @Test
+  void test_execute_setAutoCommitStatementAfterTransactionRefreshesKnownState() throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    state.set(TENANT_A_STATE);
+    when(mockConnection.getAutoCommit()).thenReturn(false, true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET autocommit=1"});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+    assertSame(TENANT_B_STATE, state.get());
+  }
+
+  @Test
+  void test_execute_setRoleInsideBeginStaysUnknownUntilCommit() throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    state.set(TENANT_A_STATE);
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockTargetDriverDialect.getAuthorizationStateImpact("SET ROLE tenant_b"))
+        .thenReturn(AuthorizationStateImpact.TRACKED);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"SET ROLE tenant_b"});
+
+    verify(mockSessionStateService, never()).refreshAuthorizationState();
+    assertNull(state.get());
+
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        JdbcMethod.STATEMENT_EXECUTE.methodName,
+        mockCallable,
+        new Object[] {"COMMIT"});
+
+    verify(mockSessionStateService).refreshAuthorizationState();
+    assertSame(TENANT_B_STATE, state.get());
+  }
+
+  @Test
+  void test_execute_poolTurningAutoCommitOffAfterConnectStopsCachingAfterCommit()
+      throws Exception {
+    configureAuthorizationTracking();
+    final AtomicReference<AuthorizationSessionState> state = useStatefulAuthorizationState();
+    when(mockConnection.getAutoCommit()).thenReturn(true);
+
+    // The state is read at connect, before the pool turns auto-commit off.
+    plugin.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION));
+    assertSame(TENANT_B_STATE, state.get());
+
+    when(mockConnection.getAutoCommit()).thenReturn(false);
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockConnection,
+        JdbcMethod.CONNECTION_COMMIT.methodName,
+        mockCallable,
+        new Object[] {});
+
+    verify(mockSessionStateService, times(1)).refreshAuthorizationState();
+    assertNull(state.get());
+    assertHintedQueryBypassesCache();
+  }
+
+  @Test
+  void test_execute_multiTenancyCacheKeyHasStableFormat() throws Exception {
+    props.setProperty("user", "application_user");
+    configureAuthorizationTracking();
+    final String expectedCacheKey = "9:orders_db6:public16:application_user"
+        + "16:application_user8:tenant_a18:\"tenant_a\", public"
+        + "34:[\"pg_catalog\",\"tenant_a\",\"public\"]0:0:20:select * from orders";
+
+    when(mockSessionStateService.getAuthorizationState()).thenReturn(Optional.of(TENANT_A_STATE));
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.of("orders_db"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.of("public"));
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("tenant-a-order");
+
+    plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    verify(mockCacheConn).readFromCache(expectedCacheKey);
+    verify(mockCacheConn).writeToCache(eq(expectedCacheKey), any(), eq(50));
+  }
+
+  /**
+   * Backs the mocked session state service with a real value: a refresh reads
+   * {@link #TENANT_B_STATE}, and marking the state unknown clears it.
+   */
+  private AtomicReference<AuthorizationSessionState> useStatefulAuthorizationState()
+      throws SQLException {
+    final AtomicReference<AuthorizationSessionState> state = new AtomicReference<>();
+    when(mockSessionStateService.getAuthorizationState())
+        .thenAnswer(invocation -> Optional.ofNullable(state.get()));
+    doAnswer(invocation -> {
+      state.set(TENANT_B_STATE);
+      return null;
+    }).when(mockSessionStateService).refreshAuthorizationState();
+    doAnswer(invocation -> {
+      state.set(null);
+      return null;
+    }).when(mockSessionStateService).markAuthorizationStateUnknown();
+    return state;
+  }
+
+  private void assertHintedQueryBypassesCache() throws Exception {
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    final ResultSet result = plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        methodName,
+        mockCallable,
+        new String[] {"/*+CACHE_PARAM(ttl=50s)*/ select * from orders"});
+
+    assertSame(mockResult1, result);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCacheConn, never()).writeToCache(anyString(), any(), anyInt());
   }
 
   private void configureAuthorizationTracking() {

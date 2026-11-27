@@ -16,6 +16,9 @@
 
 package software.amazon.jdbc.plugin.cache;
 
+import static software.amazon.jdbc.plugin.cache.CacheAuthorizationTracker.appendAuthorizationStateParts;
+import static software.amazon.jdbc.plugin.cache.CacheAuthorizationTracker.appendCacheKeyPart;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -31,8 +34,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,13 +47,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.states.AuthorizationSessionState;
 import software.amazon.jdbc.states.SessionStateService;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect.AuthorizationStateImpact;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.SqlMethodAnalyzer;
-import software.amazon.jdbc.util.SqlMethodAnalyzer.SqlStatementAnalysis;
 import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -70,7 +67,6 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  */
 public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
   private static final Logger LOGGER = Logger.getLogger(RemoteQueryCachePlugin.class.getName());
-  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
@@ -87,27 +83,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
 
   private static final Set<String> DATABASE_MULTI_TENANCY_SUBSCRIBED_METHODS =
-      buildDatabaseMultiTenancySubscribedMethods();
-
-  private static Set<String> buildDatabaseMultiTenancySubscribedMethods() {
-    final Set<String> methods = new HashSet<>(DEFAULT_SUBSCRIBED_METHODS);
-    methods.addAll(Arrays.asList(
-        JdbcMethod.CONNECTION_COMMIT.methodName,
-        JdbcMethod.CONNECTION_ROLLBACK.methodName,
-        JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
-        JdbcMethod.CONNECTION_SETCATALOG.methodName,
-        JdbcMethod.CONNECTION_SETSCHEMA.methodName,
-        JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-        JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-        JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
-        JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
-        JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
-        JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-        JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-        JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName,
-        JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName));
-    return Collections.unmodifiableSet(methods);
-  }
+      CacheAuthorizationTracker.withTrackedMethods(DEFAULT_SUBSCRIBED_METHODS);
 
   private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
       new AwsWrapperProperty(
@@ -155,9 +131,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
   private final @Nullable TelemetryCounter totalQueryCounter;
   private final @Nullable TelemetryCounter malformedHintCounter;
   private final @Nullable TelemetryCounter cacheBypassCounter;
-  private final AtomicBoolean authorizationStateWarningLogged = new AtomicBoolean(false);
-  private final AtomicBoolean untrackedAuthorizationStateWarningLogged = new AtomicBoolean(false);
-  private final AtomicLong connectionGeneration = new AtomicLong();
+  private final CacheAuthorizationTracker authorizationTracker;
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -169,6 +143,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       throw new RuntimeException(Messages.get("RemoteQueryCachePlugin.notInClassPath", new Object[]{e}));
     }
     this.pluginService = servicesContainer.getPluginService();
+    this.authorizationTracker = new CacheAuthorizationTracker(this.pluginService, false);
     this.telemetryFactory = servicesContainer.getTelemetryFactory();
 
     // Register CacheMonitor type with MonitorService
@@ -219,33 +194,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       return OldConnectionSuggestedAction.NO_OPINION;
     }
 
-    if (!changes.contains(NodeChangeOptions.INITIAL_CONNECTION)
-        && !changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
-      return OldConnectionSuggestedAction.NO_OPINION;
-    }
-
-    this.connectionGeneration.incrementAndGet();
-
-    if (!this.pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
-      return OldConnectionSuggestedAction.NO_OPINION;
-    }
-
-    final SessionStateService sessionStateService =
-        this.pluginService.getSessionStateService();
-    sessionStateService.enableAuthorizationStateTracking();
-
-    try {
-      sessionStateService.refreshAuthorizationState();
-    } catch (final SQLException e) {
-      sessionStateService.markAuthorizationStateUnknown();
-      logAuthorizationStateUnavailable(e);
-      return OldConnectionSuggestedAction.NO_OPINION;
-    }
-
-    if (!sessionStateService.getAuthorizationState().isPresent()) {
-      logAuthorizationStateUnavailable(null);
-    }
-
+    this.authorizationTracker.notifyConnectionChanged(changes);
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
@@ -258,19 +207,11 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       // Fetch and record the schema name if the session state doesn't currently have it
       SessionStateService sessionStateService = pluginService.getSessionStateService();
       @Nullable AuthorizationSessionState authorizationState = null;
-      if (this.enableDatabaseMultiTenancy
-          && pluginService.getTargetDriverDialect().supportsAuthorizationSessionState()) {
-        if (sessionStateService.hasUntrackedAuthorizationState()) {
-          logUntrackedAuthorizationState();
+      if (this.enableDatabaseMultiTenancy) {
+        authorizationState = this.authorizationTracker.getAuthorizationStateForCacheKey();
+        if (authorizationState == null) {
           return null;
         }
-        final Optional<AuthorizationSessionState> currentAuthorizationState =
-            sessionStateService.getAuthorizationState();
-        if (!currentAuthorizationState.isPresent()) {
-          logAuthorizationStateUnavailable(null);
-          return null;
-        }
-        authorizationState = currentAuthorizationState.get();
       }
 
       Optional<String> catalog = sessionStateService.getCatalog();
@@ -318,15 +259,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       appendCacheKeyPart(cacheKey, schemaName);
       appendCacheKeyPart(cacheKey, dbUserName);
       if (authorizationState != null) {
-        appendCacheKeyPart(cacheKey, authorizationState.getSessionUser());
-        appendCacheKeyPart(cacheKey, authorizationState.getCurrentUser());
-        appendCacheKeyPart(cacheKey, authorizationState.getSearchPath());
-        appendCacheKeyPart(cacheKey, authorizationState.getResolvedSearchPath());
-        // PostgreSQL SET ROLE changes current_user, while MySQL and MariaDB keep
-        // CURRENT_USER() unchanged and expose active roles separately through CURRENT_ROLE().
-        // Include both values to partition cache entries by the effective authorization context.
-        appendCacheKeyPart(cacheKey, authorizationState.getActiveRoles());
-        appendCacheKeyPart(cacheKey, authorizationState.getCurrentDatabase());
+        appendAuthorizationStateParts(cacheKey, authorizationState);
       }
       appendCacheKeyPart(cacheKey, query);
       return cacheKey.toString();
@@ -334,36 +267,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       LOGGER.log(Level.WARNING, Messages.get("RemoteQueryCachePlugin.errorGettingSessionState"), e);
       return null;
     }
-  }
-
-  private void logAuthorizationStateUnavailable(final @Nullable SQLException exception) {
-    if (!this.authorizationStateWarningLogged.compareAndSet(false, true)) {
-      return;
-    }
-    if (exception == null) {
-      LOGGER.warning(Messages.get("RemoteQueryCachePlugin.authorizationStateUnavailable"));
-    } else {
-      LOGGER.log(
-          Level.WARNING,
-          Messages.get("RemoteQueryCachePlugin.authorizationStateUnavailable"),
-          exception);
-    }
-  }
-
-  private void logUntrackedAuthorizationState() {
-    if (this.untrackedAuthorizationStateWarningLogged.compareAndSet(false, true)) {
-      LOGGER.warning(Messages.get("RemoteQueryCachePlugin.untrackedAuthorizationState"));
-    }
-  }
-
-  private static void appendCacheKeyPart(
-      final StringBuilder cacheKey,
-      final @Nullable String value) {
-    if (value == null) {
-      cacheKey.append("-1:");
-      return;
-    }
-    cacheKey.append(value.length()).append(':').append(value);
   }
 
   private @Nullable ResultSet fetchResultSetFromCache(String cacheQueryKey) throws SQLException {
@@ -536,23 +439,14 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
       if (!this.enableDatabaseMultiTenancy) {
         // Preserve default cache eligibility when authorization-state tracking is disabled.
         cacheQueryKey = getCacheQueryKey(mainQuery);
-      } else if (!methodName.startsWith("CallableStatement.")
-          && isSingleStatement(mainQuery)) {
-        final TargetDriverDialect targetDriverDialect = pluginService.getTargetDriverDialect();
-        // A missing dialect means the authorization impact of the SQL cannot be determined.
-        // Fail closed by bypassing the cache.
-        if (targetDriverDialect != null
-            && targetDriverDialect.supportsAuthorizationSessionState()
-            && targetDriverDialect.getAuthorizationStateImpact(mainQuery)
-                == AuthorizationStateImpact.NONE) {
-          cacheQueryKey = getCacheQueryKey(mainQuery);
-        }
+      } else if (this.authorizationTracker.isCacheableQuery(methodName, mainQuery)) {
+        cacheQueryKey = getCacheQueryKey(mainQuery);
       }
     }
 
     if (cacheQueryKey != null) {
       if (this.enableDatabaseMultiTenancy) {
-        cacheLookupGeneration = this.connectionGeneration.get();
+        cacheLookupGeneration = this.authorizationTracker.getConnectionGeneration();
       }
       cacheContext = telemetryFactory.openTelemetryContext(
           TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.NESTED);
@@ -622,7 +516,7 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
 
     if (needToCache
         && (!this.enableDatabaseMultiTenancy
-            || cacheLookupGeneration == this.connectionGeneration.get())) {
+            || cacheLookupGeneration == this.authorizationTracker.getConnectionGeneration())) {
       final ResultSet dbResult = result;
       final Integer ttl = configuredQueryTtl;
       // Secure mode reuses the lookup key so authorization state cannot differ between cache read
@@ -654,125 +548,8 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
     if (!this.enableDatabaseMultiTenancy) {
       return jdbcMethodFunc.call();
     }
-
-    final TargetDriverDialect targetDriverDialect =
-        this.pluginService.getTargetDriverDialect();
-    final SessionStateService sessionStateService =
-        this.pluginService.getSessionStateService();
-    if (!targetDriverDialect.supportsAuthorizationSessionState()
-        || !sessionStateService.isAuthorizationStateTrackingEnabled()
-        || sessionStateService.hasUntrackedAuthorizationState()) {
-      return jdbcMethodFunc.call();
-    }
-
-    final boolean isBatchExecution = methodName.endsWith(".executeBatch");
-    if (isBatchExecution) {
-      // Batch entries cannot be inspected portably and may partially succeed.
-      sessionStateService.markAuthorizationStateUntracked();
-      return jdbcMethodFunc.call();
-    }
-
-    // Both transaction questions below ask about the same SQL, so it is parsed once here.
-    final SqlStatementAnalysis sqlAnalysis = sqlMethodAnalyzer.analyze(jdbcMethodArgs);
-    final boolean doesSwitchAutoCommitFalseTrue =
-        sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
-            this.pluginService.getCurrentConnection(),
-            methodName,
-            jdbcMethodArgs,
-            sqlAnalysis);
-    final boolean isStatementExecution = isStatementExecutionMethod(methodName);
-    final boolean isDatabaseContextSetter =
-        JdbcMethod.CONNECTION_SETCATALOG.methodName.equals(methodName)
-            || JdbcMethod.CONNECTION_SETSCHEMA.methodName.equals(methodName);
-    final @Nullable String sql =
-        isStatementExecution ? getStatementText(methodInvokeOn, jdbcMethodArgs) : null;
-    final AuthorizationStateImpact impact;
-    if (methodName.startsWith("CallableStatement.execute")) {
-      impact = AuthorizationStateImpact.UNTRACKED;
-    } else if (isStatementExecution && sql == null) {
-      // The executed SQL cannot be inspected, so it may have changed session state.
-      impact = AuthorizationStateImpact.UNTRACKED;
-    } else {
-      impact = targetDriverDialect.getAuthorizationStateImpact(sql);
-    }
-
-    T result;
-    boolean executionSucceeded = false;
-    try {
-      result = jdbcMethodFunc.call();
-      executionSucceeded = true;
-    } finally {
-      if (!executionSucceeded) {
-        if (impact == AuthorizationStateImpact.UNTRACKED) {
-          sessionStateService.markAuthorizationStateUntracked();
-        } else if (impact == AuthorizationStateImpact.TRACKED) {
-          sessionStateService.markAuthorizationStateUnknown();
-        }
-      }
-    }
-
-    final Connection currentConnection = this.pluginService.getCurrentConnection();
-    if (methodInvokeOn instanceof Connection && methodInvokeOn != currentConnection) {
-      return result;
-    }
-
-    if (impact == AuthorizationStateImpact.UNTRACKED) {
-      // Custom settings and opaque calls can change authorization context that is not represented
-      // by AuthorizationSessionState. Once observed, caching must remain disabled for this
-      // connection rather than risk reusing results across security contexts.
-      sessionStateService.markAuthorizationStateUntracked();
-      return result;
-    }
-
-    final boolean doesCloseTransaction =
-        sqlMethodAnalyzer.doesCloseTransaction(
-            currentConnection,
-            methodName,
-            jdbcMethodArgs,
-            sqlAnalysis);
-    if (impact != AuthorizationStateImpact.TRACKED
-        && !isDatabaseContextSetter
-        && !doesCloseTransaction
-        && !doesSwitchAutoCommitFalseTrue) {
-      return result;
-    }
-
-    try {
-      if (!currentConnection.getAutoCommit()) {
-        // Avoid issuing an internal query inside the application's transaction. Transaction-local
-        // authorization state is reacquired when autoCommit is switched back to true.
-        sessionStateService.markAuthorizationStateUnknown();
-      } else {
-        sessionStateService.refreshAuthorizationState();
-      }
-    } catch (final SQLException e) {
-      sessionStateService.markAuthorizationStateUnknown();
-      LOGGER.log(
-          Level.WARNING,
-          Messages.get("RemoteQueryCachePlugin.errorRefreshingAuthorizationSessionState"),
-          e);
-    }
-
-    return result;
-  }
-
-  private static boolean isStatementExecutionMethod(final String methodName) {
-    return methodName.startsWith("Statement.execute")
-        || methodName.startsWith("PreparedStatement.execute")
-        || methodName.startsWith("CallableStatement.execute");
-  }
-
-  private static boolean isSingleStatement(final @Nullable String sql) {
-    if (StringUtils.isNullOrEmpty(sql)) {
-      return false;
-    }
-
-    String candidate = sql.trim();
-    if (candidate.endsWith(";")) {
-      candidate = candidate.substring(0, candidate.length() - 1);
-    }
-    // A semicolon inside a literal can cause a conservative cache bypass, which is safe.
-    return candidate.indexOf(';') < 0;
+    return this.authorizationTracker.execute(
+        methodInvokeOn, methodName, jdbcMethodFunc, jdbcMethodArgs);
   }
 
   private void incrCounter(@Nullable TelemetryCounter counter) {
@@ -795,25 +572,6 @@ public class RemoteQueryCachePlugin extends AbstractConnectionPlugin implements 
         return pluginService.getTargetDriverDialect().getSQLQueryString((PreparedStatement) methodInvokeOn);
       } catch (Exception e) {
         // Unable to get the query string, bypass caching
-        LOGGER.log(Level.FINE, Messages.get("RemoteQueryCachePlugin.unableToGetQueryString"), e);
-        return null;
-      }
-    }
-    return null;
-  }
-
-  // Returns the executed SQL without driver-specific formatting, for session-state analysis only.
-  private @Nullable String getStatementText(
-      final Object methodInvokeOn, final @Nullable Object[] jdbcMethodArgs) {
-    if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
-      return jdbcMethodArgs[0].toString().trim();
-    }
-
-    if (methodInvokeOn instanceof PreparedStatement) {
-      try {
-        return pluginService.getTargetDriverDialect()
-            .getSQLStatementText((PreparedStatement) methodInvokeOn);
-      } catch (Exception e) {
         LOGGER.log(Level.FINE, Messages.get("RemoteQueryCachePlugin.unableToGetQueryString"), e);
         return null;
       }

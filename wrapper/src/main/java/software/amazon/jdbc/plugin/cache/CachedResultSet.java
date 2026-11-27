@@ -318,6 +318,27 @@ public class CachedResultSet implements ResultSet {
     wasNullFlag = false;
   }
 
+  // Shares the rows, metadata and column-name index of another result set, none of which is
+  // modified after construction.
+  private CachedResultSet(final CachedResultSet source) {
+    this.columnNames = source.columnNames;
+    this.rows = source.rows;
+    this.metadata = source.metadata;
+    this.currentRow = -1;
+    this.closed = false;
+    this.wasNullFlag = false;
+  }
+
+  /**
+   * Returns a result set over the same rows with its own cursor and closed state, so that callers
+   * served from one cache entry do not move each other's position. The rows are shared, not copied.
+   *
+   * @return a new result set positioned before the first row
+   */
+  CachedResultSet copyWithOwnCursor() {
+    return new CachedResultSet(this);
+  }
+
   // Serialize the content of metadata and data rows for the current CachedResultSet into a byte array
   public byte[] serializeIntoByteArray() throws SQLException {
     // Serialize the metadata and then the rows

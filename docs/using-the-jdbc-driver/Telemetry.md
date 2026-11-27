@@ -193,9 +193,9 @@ The `iam`, `federatedAuth`, and `okta` plugins share one token cache, so the thr
 
 | Metric name                | Metric type | Description                                                      |
 |----------------------------|-------------|------------------------------------------------------------------|
-| dataCache.cache.hit        | Counter     | Number of times the cache was consulted and found a cached entry |
-| dataCache.cache.miss       | Counter     | Number of times the cache was consulted and no match was found   |
-| dataCache.cache.totalCalls | Counter     | Total number of calls to the cache                               |
+| dataCache.cache.hit        | Counter     | Number of calls served from the cache |
+| dataCache.cache.miss       | Counter     | Number of cacheable calls with no usable cached result, including expired ones. Calls that bypassed the cache are not counted |
+| dataCache.cache.totalCalls | Counter     | Number of calls that return a result set, including calls whose SQL did not match `dataCacheTriggerCondition` and calls that bypassed the cache |
 | dataCache.cache.size       | Gauge       | Size of the data cache                                           |
 
 ### Remote Query Cache plugin — `remoteQueryCache`
