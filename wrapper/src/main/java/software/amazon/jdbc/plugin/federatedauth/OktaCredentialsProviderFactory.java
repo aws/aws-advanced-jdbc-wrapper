@@ -82,11 +82,9 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
         final StatusLine statusLine = resp.getStatusLine();
         // Check HTTP Status Code is 2xx Success
         if (statusLine.getStatusCode() / 100 != 2) {
+          SamlUtils.logResponseBody(LOGGER, EntityUtils.toString(resp.getEntity()));
           throw new IOException(Messages.get("OktaCredentialsProviderFactory.samlRequestFailed",
-              new Object[] {
-                  statusLine.getStatusCode(),
-                  statusLine.getReasonPhrase(),
-                  EntityUtils.toString(resp.getEntity())}));
+              new Object[] {statusLine.getStatusCode(), statusLine.getReasonPhrase()}));
         }
 
         final HttpEntity responseEntity = resp.getEntity();

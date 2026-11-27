@@ -19,8 +19,10 @@ package software.amazon.jdbc.plugin.federatedauth;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Properties;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -63,6 +65,15 @@ public class SamlUtils {
     if (!matcher.find()) {
       throw new IOException(errorMessage);
     }
+  }
+
+  /**
+   * Logs the body of a failed IdP response at FINEST only. SEVERE is enabled by default and the body
+   * is a whole sign-in page, which can carry the user name and form state, so it must not reach the
+   * default log or the exception the application receives; those get the status code and reason.
+   */
+  static void logResponseBody(final Logger logger, final @Nullable String body) {
+    logger.finest(() -> Messages.get("SAMLCredentialsProviderFactory.idpResponseBody", new Object[] {body}));
   }
 
 }
