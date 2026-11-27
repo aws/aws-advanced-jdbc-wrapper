@@ -93,7 +93,7 @@ public class BlueGreenStatusProvider {
 
   public static final AwsWrapperProperty BG_DROP_BLUE_CONNECTIONS = new AwsWrapperProperty(
       "bgDropBlueConnections", "true",
-      "If set to true, allows to drops all connections to blue cluster when Blue/Green switchover starts.");
+      "If set to true, abort tracked blue connections during a Blue/Green Deployment switchover.");
 
   public static final AwsWrapperProperty BG_DEPLOYMENT_REMOVED_GRACE_MS = new AwsWrapperProperty(
       "bgDeploymentRemovedGraceMs", "30000",
@@ -177,6 +177,7 @@ public class BlueGreenStatusProvider {
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected @Nullable OpenedConnectionTracker tracker = null;
   protected final boolean dropBlueConnectionsSetting;
+  private final long dropBlueConnectionsGraceMs;
   protected boolean blueConnectionsDropped = false;
 
   // initMonitoring() creates and starts the monitor threads; it only reads fields assigned earlier
@@ -204,17 +205,18 @@ public class BlueGreenStatusProvider {
     this.deploymentRemovedGraceNano =
         TimeUnit.MILLISECONDS.toNanos(BG_DEPLOYMENT_REMOVED_GRACE_MS.getLong(props));
 
+    this.dropBlueConnectionsGraceMs = BlueGreenConnectionPlugin.BG_DROP_BLUE_CONNECTIONS_GRACE_MS.getLong(props);
+    this.dropBlueConnectionsSetting = BG_DROP_BLUE_CONNECTIONS.getBoolean(props);
+    if (dropBlueConnectionsSetting) {
+      this.tracker = new OpenedConnectionTracker(this.pluginService);
+    }
+
     final Dialect dialect = this.pluginService.getDialect();
     if (dialect instanceof BlueGreenDialect) {
       this.initMonitoring();
     } else {
       LOGGER.warning(() -> Messages.get("bgd.unsupportedDialect",
           new Object[] {this.bgdId, dialect.getClass().getSimpleName()}));
-    }
-
-    this.dropBlueConnectionsSetting = BG_DROP_BLUE_CONNECTIONS.getBoolean(props);
-    if (dropBlueConnectionsSetting) {
-      this.tracker = new OpenedConnectionTracker(this.pluginService);
     }
   }
 
@@ -788,8 +790,15 @@ public class BlueGreenStatusProvider {
     }
 
     try {
-      sourceInterimStatus.startTopology.forEach(x -> trackerCopy.invalidateAllConnections(x));
-      this.phaseTimeNano.putIfAbsent("Blue connections dropped",
+      final String event;
+      if (this.dropBlueConnectionsGraceMs == 0) {
+        sourceInterimStatus.startTopology.forEach(trackerCopy::invalidateAllConnections);
+        event = "Blue connections dropped";
+      } else {
+        trackerCopy.scheduleInvalidation(sourceInterimStatus.startTopology, this.dropBlueConnectionsGraceMs);
+        event = "Blue connection grace period started";
+      }
+      this.phaseTimeNano.putIfAbsent(event,
           new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
     } catch (Exception ex) {
       LOGGER.log(Level.WARNING, ex,

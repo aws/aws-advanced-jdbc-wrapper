@@ -1125,7 +1125,8 @@ Tracks Blue/Green deployment status and routes connections to the right side dur
 | `bgIncreasedMs` | `1000` | Increased interval (during status changes). |
 | `bgHighMs` | `100` | High-frequency interval (during switchover). |
 | `bgSwitchoverTimeoutMs` | `180000` | Switchover timeout. |
-| `bgDropBlueConnections` | `true` | Drop all blue connections at switchover start. |
+| `bgDropBlueConnections` | `true` | Drop tracked blue connections during switchover. |
+| `bgDropBlueConnectionsGraceMs` | `0` | Delay the Blue/Green plugin’s abort request by this many milliseconds when `bgDropBlueConnections=true`. |
 | `bgReleaseOnBlueDnsUpdate` | `true` | Release held traffic once all blue endpoints resolve to new IPs, without waiting for a post-`SWITCHOVER_IN_PROGRESS` status. |
 | `bgDeploymentRemovedGraceMs` | `30000` | **Since 4.5.0.** How long the deployment must be continuously absent from the blue database's status information before it is treated as deleted and the monitoring context is reset. |
 | `bgEndpointUnreachableMs` | `60000` | **Since 4.5.0.** How long a monitoring endpoint must be continuously unreachable before it is reported as unreachable and the deployment is reported as not ready for switchover. |

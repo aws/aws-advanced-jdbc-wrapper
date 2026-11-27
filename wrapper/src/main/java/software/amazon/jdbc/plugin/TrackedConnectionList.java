@@ -50,6 +50,15 @@ public class TrackedConnectionList {
       this.connectionRef = connectionRef;
       this.ownerList = ownerList;
     }
+
+    // Aliases can reside in separately locked lists. Only one invalidation may claim the connection.
+    private @Nullable Connection takeConnection() {
+      synchronized (this.connectionRef) {
+        final Connection connection = this.connectionRef.get();
+        this.connectionRef.clear();
+        return connection;
+      }
+    }
   }
 
   /**
@@ -59,7 +68,11 @@ public class TrackedConnectionList {
    * @return the node representing this connection, for O(1) removal later
    */
   public Node add(final Connection connection) {
-    final Node node = new Node(new WeakReference<>(connection), this);
+    return addReference(new WeakReference<>(connection));
+  }
+
+  Node addReference(final WeakReference<Connection> connectionRef) {
+    final Node node = new Node(connectionRef, this);
     lock.lock();
     try {
       if (tail == null) {
@@ -84,13 +97,17 @@ public class TrackedConnectionList {
    * @param node the node to remove
    */
   public void remove(final Node node) {
+    removeAndGet(node);
+  }
+
+  @Nullable Connection removeAndGet(final Node node) {
     if (node == null) {
-      return;
+      return null;
     }
     lock.lock();
     try {
       if (node.removed) {
-        return;
+        return null;
       }
       node.removed = true;
 
@@ -109,6 +126,19 @@ public class TrackedConnectionList {
       node.prev = null;
       node.next = null;
       size--;
+      return node.takeConnection();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  // Keep nodes tracked during the grace period so normal close and failover can still remove them.
+  void collectNodes(final List<Node> snapshot) {
+    lock.lock();
+    try {
+      for (Node node = head; node != null; node = node.next) {
+        snapshot.add(node);
+      }
     } finally {
       lock.unlock();
     }
@@ -127,7 +157,7 @@ public class TrackedConnectionList {
       Node current = head;
       while (current != null) {
         current.removed = true;
-        final Connection conn = current.connectionRef.get();
+        final Connection conn = current.takeConnection();
         if (conn != null) {
           connections.add(conn);
         }
@@ -158,6 +188,7 @@ public class TrackedConnectionList {
         final Node next = current.next;
         if (predicate.test(current.connectionRef)) {
           current.removed = true;
+          current.connectionRef.clear();
           if (current.prev != null) {
             current.prev.next = current.next;
           } else {

@@ -52,6 +52,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       "bgConnectTimeoutMs", "30000",
       "Connect timeout (in msec) during Blue/Green Deployment switchover.");
 
+  public static final AwsWrapperProperty BG_DROP_BLUE_CONNECTIONS_GRACE_MS = new AwsWrapperProperty(
+      "bgDropBlueConnectionsGraceMs", "0",
+      "Time (in msec) to allow running calls to finish before aborting tracked blue connections.")
+      .nonNegative();
+
   public static final AwsWrapperProperty BGD_ID = new AwsWrapperProperty(
       "bgdId", "1",
       "Blue/Green Deployment identifier that helps the driver to distinguish different deployments.");
@@ -109,6 +114,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     this.props = props;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.providerSupplier = providerSupplier;
+    // The shared provider is initialized after connect. Reject invalid settings before opening a connection.
+    BG_DROP_BLUE_CONNECTIONS_GRACE_MS.getLong(props);
     final String bgdIdValue = BGD_ID.getString(this.props);
     // BGD_ID declares a non-null default ("1"), so getString never returns null here; if it ever
     // were null, trim() would throw NPE, preserving the prior Objects.requireNonNull behavior.

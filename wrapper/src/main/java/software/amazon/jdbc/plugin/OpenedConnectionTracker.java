@@ -16,10 +16,14 @@
 
 package software.amazon.jdbc.plugin;
 
+import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -103,23 +107,23 @@ public class OpenedConnectionTracker {
       return null;
     }
 
-    // Check if the connection was established using an instance endpoint
-    if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
-      final TrackedConnectionList.Node node = trackConnection(hostSpec.getHostAndPort(), conn);
-      logOpenedConnections();
-      return node;
-    }
-
-    // It might be a custom domain name. Let's track by hostId and custom domain name
-    TrackedConnectionList.Node lastNode = null;
-    if (!StringUtils.isNullOrEmpty(hostSpec.getHostId())) {
-      lastNode = trackConnection(hostSpec.getHostId(), conn);
-    }
-    if (!StringUtils.isNullOrEmpty(hostSpec.getHostAndPort())) {
-      lastNode = trackConnection(hostSpec.getHostAndPort(), conn);
+    // Share the reference so closing or invalidating a connection also invalidates its aliases.
+    final WeakReference<Connection> connectionRef = new WeakReference<>(conn);
+    final boolean instanceEndpoint = rdsUtils.isRdsInstance(hostSpec.getHost());
+    final String hostId = hostSpec.getHostId();
+    final String hostAndPort = hostSpec.getHostAndPort();
+    TrackedConnectionList.Node node = null;
+    // Publish all aliases together so a switchover snapshot cannot split a registration.
+    try (ResourceLock ignored = lock.obtain()) {
+      if (!instanceEndpoint && !StringUtils.isNullOrEmpty(hostId)) {
+        node = trackConnection(hostId, connectionRef);
+      }
+      if (instanceEndpoint || !StringUtils.isNullOrEmpty(hostAndPort)) {
+        node = trackConnection(hostAndPort, connectionRef);
+      }
     }
     logOpenedConnections();
-    return lastNode;
+    return node;
   }
 
   /**
@@ -155,6 +159,56 @@ public class OpenedConnectionTracker {
     } finally {
       if (telemetryContext != null) {
         telemetryContext.closeContext();
+      }
+    }
+  }
+
+  /**
+   * Schedules invalidation of the connections currently tracked for these hosts. Endpoints can
+   * point to the new deployment by the time the grace period expires.
+   */
+  public void scheduleInvalidation(final List<HostSpec> hosts, final long graceMs) {
+    final Set<String> keys = new HashSet<>();
+    for (HostSpec host : hosts) {
+      keys.add(host.getHostAndPort());
+      keys.add(host.getHost());
+      final String hostId = host.getHostId();
+      if (hostId != null) {
+        keys.add(hostId);
+      }
+    }
+    try (ResourceLock ignored = lock.obtain()) {
+      final List<TrackedConnectionList.Node> snapshot = new ArrayList<>();
+      for (String key : keys) {
+        final TrackedConnectionList list = openedConnections.get(key);
+        if (list != null) {
+          list.collectNodes(snapshot);
+        }
+      }
+      scheduleInvalidation(() -> invalidateSnapshot(snapshot), graceMs);
+    }
+  }
+
+  void scheduleInvalidation(final Runnable task, final long graceMs) {
+    final ExecutorService worker = getOrCreateInvalidateExecutor();
+    getOrCreatePruneExecutor().schedule(() -> worker.execute(task), graceMs, TimeUnit.MILLISECONDS);
+  }
+
+  private static void invalidateSnapshot(final List<TrackedConnectionList.Node> snapshot) {
+    final Set<Connection> connections = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (TrackedConnectionList.Node node : snapshot) {
+      final Connection conn = node.ownerList.removeAndGet(node);
+      if (conn != null) {
+        connections.add(conn);
+      }
+    }
+    LOGGER.finest(() -> Messages.get("OpenedConnectionTracker.invalidatingSnapshot",
+        new Object[] {connections.size()}));
+    for (Connection conn : connections) {
+      try {
+        conn.abort(abortConnectionExecutor);
+      } catch (SQLException | RuntimeException ex) {
+        // Continue aborting the remaining connections.
       }
     }
   }
@@ -198,17 +252,14 @@ public class OpenedConnectionTracker {
     }
   }
 
-  private TrackedConnectionList.@Nullable Node trackConnection(
-      final String instanceEndpoint, final Connection connection) {
-    if (connection == null) {
-      return null;
-    }
+  private TrackedConnectionList.Node trackConnection(
+      final String instanceEndpoint, final WeakReference<Connection> connectionRef) {
     getOrCreatePruneExecutor();
     final TrackedConnectionList connectionList =
         openedConnections.computeIfAbsent(
             instanceEndpoint,
             (k) -> new TrackedConnectionList());
-    return connectionList.add(connection);
+    return connectionList.addReference(connectionRef);
   }
 
   private void invalidateConnections(final @Nullable TrackedConnectionList connectionList) {
@@ -281,7 +332,11 @@ public class OpenedConnectionTracker {
   }
 
   public static void clearCache() {
-    openedConnections.clear();
+    try (ResourceLock ignored = lock.obtain()) {
+      // Pending grace periods may still hold nodes from these lists.
+      openedConnections.values().forEach(list -> list.removeIf(ref -> true));
+      openedConnections.clear();
+    }
   }
 
   public static void releaseResources() {
@@ -292,7 +347,7 @@ public class OpenedConnectionTracker {
       if (invalidateConnectionsExecutorService != null) {
         invalidateConnectionsExecutorService.shutdownNow();
       }
-      openedConnections.clear();
+      clearCache();
     }
   }
 }

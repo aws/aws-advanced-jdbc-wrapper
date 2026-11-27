@@ -20,11 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -37,6 +40,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -44,6 +48,7 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
@@ -87,6 +92,69 @@ class BlueGreenStatusProviderTest {
 
   private BlueGreenStatusProvider newProvider() {
     return new BlueGreenStatusProvider(mockServicesContainer, props, BGD_ID, CLUSTER_ID);
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = "0")
+  void defaultOrExplicitZeroGraceDropsBlueImmediately(final String graceMs) {
+    BlueGreenConnectionPlugin.BG_DROP_BLUE_CONNECTIONS_GRACE_MS.set(props, graceMs);
+    final BlueGreenStatusProvider provider = newProvider();
+    final OpenedConnectionTracker tracker = mock(OpenedConnectionTracker.class);
+    provider.tracker = tracker;
+    final BlueGreenInterimStatus source = collectedInterimStatus(BlueGreenPhase.IN_PROGRESS, "blue", false);
+    provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] = source;
+
+    provider.dropBlueConnections();
+    verify(tracker).invalidateAllConnections(source.startTopology.get(0));
+    verifyNoMoreInteractions(tracker);
+  }
+
+  @Test
+  void positiveGraceSchedulesOnceAndAllowsPhaseChanges() {
+    BlueGreenConnectionPlugin.BG_DROP_BLUE_CONNECTIONS_GRACE_MS.set(props, "200");
+    final TestableProvider provider = newTestableProvider();
+    final OpenedConnectionTracker tracker = mock(OpenedConnectionTracker.class);
+    provider.tracker = tracker;
+    final BlueGreenInterimStatus source = collectedInterimStatus(BlueGreenPhase.IN_PROGRESS, "blue", false);
+    provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] = source;
+
+    provider.latestStatusPhase = BlueGreenPhase.IN_PROGRESS;
+    provider.updateSummaryStatus(BlueGreenRole.SOURCE, source);
+    assertTrue(provider.phaseTimeNano.containsKey("Blue connection grace period started"));
+    assertFalse(provider.summaryStatus.getExecuteRouting().isEmpty());
+    provider.updateSummaryStatus(BlueGreenRole.SOURCE, source);
+    provider.latestStatusPhase = BlueGreenPhase.POST;
+    provider.updateSummaryStatus(BlueGreenRole.SOURCE, source);
+    assertEquals(BlueGreenPhase.POST, provider.summaryStatus.getCurrentPhase());
+    provider.latestStatusPhase = BlueGreenPhase.COMPLETED;
+    provider.blueDnsUpdateCompleted = true;
+    provider.greenDnsRemoved = true;
+    provider.updateSummaryStatus(BlueGreenRole.SOURCE, source);
+    assertEquals(BlueGreenPhase.COMPLETED, provider.summaryStatus.getCurrentPhase());
+
+    verify(tracker).scheduleInvalidation(source.startTopology, 200L);
+    verifyNoMoreInteractions(tracker);
+  }
+
+  @Test
+  void disabledDropSkipsGracePeriod() {
+    BlueGreenStatusProvider.BG_DROP_BLUE_CONNECTIONS.set(props, "false");
+    BlueGreenConnectionPlugin.BG_DROP_BLUE_CONNECTIONS_GRACE_MS.set(props, "200");
+    final BlueGreenStatusProvider provider = newProvider();
+    final OpenedConnectionTracker tracker = mock(OpenedConnectionTracker.class);
+    provider.tracker = tracker;
+    provider.interimStatuses[BlueGreenRole.SOURCE.getValue()] =
+        collectedInterimStatus(BlueGreenPhase.IN_PROGRESS, "blue", false);
+    provider.dropBlueConnections();
+    verifyNoInteractions(tracker);
+  }
+
+  @Test
+  void rejectsNegativeDropGrace() {
+    BlueGreenConnectionPlugin.BG_DROP_BLUE_CONNECTIONS_GRACE_MS.set(props, "-1");
+    assertThrows(IllegalArgumentException.class, () -> new BlueGreenConnectionPlugin(mockServicesContainer, props));
+    assertThrows(IllegalArgumentException.class, this::newProvider);
   }
 
   private BlueGreenInterimStatus interimStatus(final BlueGreenPhase phase) {
