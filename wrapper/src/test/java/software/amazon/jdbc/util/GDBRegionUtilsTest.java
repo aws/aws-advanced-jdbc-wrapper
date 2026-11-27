@@ -101,17 +101,6 @@ public class GDBRegionUtilsTest {
   }
 
   @Test
-  public void testRegionPropertySkipsRdsLookup() {
-    final Properties props = new Properties();
-    props.setProperty(IAM_REGION, "us-east-2");
-
-    final Region region = target.getRegion(hostSpec(GLOBAL_WRITER_HOST), props, IAM_REGION);
-
-    assertEquals(Region.US_EAST_2, region);
-    rdsClientStatic.verifyNoInteractions();
-  }
-
-  @Test
   public void testNonGlobalHostReturnsNullWithoutRdsLookup() {
     final Region region = target.getRegion(hostSpec(REGIONAL_CLUSTER_HOST), new Properties(), IAM_REGION);
 

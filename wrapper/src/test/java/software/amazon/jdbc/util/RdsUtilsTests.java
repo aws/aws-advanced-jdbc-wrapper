@@ -497,6 +497,12 @@ public class RdsUtilsTests {
     RdsUtils.clearCache();
     final String instanceHostPattern = target.getRdsInstanceHostPattern(host);
     RdsUtils.clearCache();
+    final String instanceId = target.getRdsInstanceId(host);
+    RdsUtils.clearCache();
+    final String region = target.getRdsRegion(host);
+    RdsUtils.clearCache();
+    final boolean isRdsInstance = target.isRdsInstance(host);
+    RdsUtils.clearCache();
     assertNull(clusterId);
     assertEquals(host.substring(0, host.indexOf('.')), globalClusterId);
     assertEquals("?", instanceHostPattern);
@@ -507,6 +513,9 @@ public class RdsUtilsTests {
     assertEquals(clusterId, target.getRdsClusterId(host));
     assertEquals(globalClusterId, target.getRdsGlobalClusterId(host));
     assertEquals(instanceHostPattern, target.getRdsInstanceHostPattern(host));
+    assertEquals(instanceId, target.getRdsInstanceId(host));
+    assertEquals(region, target.getRdsRegion(host));
+    assertEquals(isRdsInstance, target.isRdsInstance(host));
   }
 
   @Test
