@@ -158,7 +158,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
               .port(this.initialHostSpec.getPort())
               .build();
 
-      // A bare "?" template means the connection host is not a recognized RDS endpoint and no
+      // A bare "?" template usually means the connection host is not a recognized RDS endpoint and no
       // clusterInstanceHostPattern was supplied. In that case the driver cannot build resolvable
       // DB instance endpoints from the topology, so topology monitoring / instance-level failover
       // will not work. Warn the user (this is easy to hit silently when upgrading). A Global Database
