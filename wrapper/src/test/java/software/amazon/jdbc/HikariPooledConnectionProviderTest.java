@@ -39,6 +39,7 @@ import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -171,6 +172,38 @@ class HikariPooledConnectionProviderTest {
         }
       }
     }
+  }
+
+  /**
+   * HostSpec.getUrl() carries no database, so the default key has to: two callers with the same user
+   * but different databases on one instance must not share a pool.
+   */
+  @Test
+  void testDefaultMappingSeparatesDatabases() throws SQLException {
+    when(mockHostSpec.getUrl()).thenReturn("url");
+    provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any(), any());
+    doReturn(new ConnectInfo("url", new Properties()))
+        .when(mockTargetDriverDialect).prepareConnectInfo(anyString(), any(), any());
+
+    final Properties propsDb1 = getDefaultProps();
+    final Properties propsDb2 = getDefaultProps();
+    propsDb2.setProperty(PropertyDefinition.DATABASE.name, "otherdb");
+
+    provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, propsDb1);
+    provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, propsDb2);
+
+    final Set<Pair> expectedKeys = new HashSet<>(Arrays.asList(
+        Pair.create("url", user1 + "/" + db),
+        Pair.create("url", user1 + "/otherdb")));
+    assertEquals(expectedKeys, provider.getKeys());
+    assertEquals(user1, provider.getPoolKey(mockHostSpec, getPropsWithoutDatabase()));
+  }
+
+  private Properties getPropsWithoutDatabase() {
+    final Properties props = getDefaultProps();
+    props.remove(PropertyDefinition.DATABASE.name);
+    return props;
   }
 
   @Test
