@@ -458,7 +458,20 @@ public class RdsUtilsTests {
 
   @Test
   public void testGetRdsClusterIdForGlobalDbWriterCluster() {
-    assertEquals("global-cluster-test-name", target.getRdsClusterId(globalDbWriterCluster));
+    assertNull(target.getRdsClusterId(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testGetRdsGlobalClusterId() {
+    assertEquals("global-cluster-test-name", target.getRdsGlobalClusterId(globalDbWriterCluster));
+    assertEquals("global-cluster-test-name", target.getRdsGlobalClusterId(globalDbWriterClusterTrailingDot));
+    assertEquals("GLOBAL-CLUSTER-TEST-NAME", target.getRdsGlobalClusterId(globalDbWriterClusterUpperCase));
+
+    assertNull(target.getRdsGlobalClusterId(usEastRegionCluster));
+    assertNull(target.getRdsGlobalClusterId(usEastRegionClusterReadOnly));
+    assertNull(target.getRdsGlobalClusterId(usEastRegionInstance));
+    assertNull(target.getRdsGlobalClusterId(usEastRegionCustomDomain));
+    assertNull(target.getRdsGlobalClusterId("example.com"));
   }
 
   @Test
@@ -480,14 +493,19 @@ public class RdsUtilsTests {
     RdsUtils.clearCache();
     final String clusterId = target.getRdsClusterId(host);
     RdsUtils.clearCache();
+    final String globalClusterId = target.getRdsGlobalClusterId(host);
+    RdsUtils.clearCache();
     final String instanceHostPattern = target.getRdsInstanceHostPattern(host);
     RdsUtils.clearCache();
+    assertNull(clusterId);
+    assertEquals(host.substring(0, host.indexOf('.')), globalClusterId);
     assertEquals("?", instanceHostPattern);
 
     // Production code classifies the host first, which caches its match.
     assertEquals(RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER, target.identifyRdsType(host));
     assertEquals(isRdsDns, target.isRdsDns(host));
     assertEquals(clusterId, target.getRdsClusterId(host));
+    assertEquals(globalClusterId, target.getRdsGlobalClusterId(host));
     assertEquals(instanceHostPattern, target.getRdsInstanceHostPattern(host));
   }
 

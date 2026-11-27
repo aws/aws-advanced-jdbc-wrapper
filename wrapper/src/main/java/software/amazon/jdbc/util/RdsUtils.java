@@ -295,7 +295,30 @@ public class RdsUtils {
     }
 
     final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
-    if (getRegexGroup(matcher, DNS_GROUP) != null) {
+    final String dnsGroup = getRegexGroup(matcher, DNS_GROUP);
+    if (dnsGroup != null && !isGlobalWriterDnsGroup(dnsGroup)) {
+      return getRegexGroup(matcher, INSTANCE_GROUP);
+    }
+
+    return null;
+  }
+
+  /**
+   * Returns the Global Database identifier from a global writer endpoint, or null for any other host. Unlike
+   * {@link #getRdsClusterId(String)}, which returns the name of a regional DB cluster, this returns the name of a
+   * global cluster.
+   *
+   * @param host the host name to parse
+   * @return the global cluster identifier, or null if the host is not a global writer endpoint
+   */
+  public @Nullable String getRdsGlobalClusterId(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    if (StringUtils.isNullOrEmpty(preparedHost)) {
+      return null;
+    }
+
+    final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
+    if (isGlobalWriterDnsGroup(getRegexGroup(matcher, DNS_GROUP))) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
 

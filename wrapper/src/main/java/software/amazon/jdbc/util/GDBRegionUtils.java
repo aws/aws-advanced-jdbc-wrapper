@@ -58,8 +58,8 @@ public class GDBRegionUtils extends RegionUtils {
       return region;
     }
 
-    final String clusterId = rdsUtils.getRdsClusterId(hostSpec.getHost());
-    final String writerClusterArn = findWriterClusterArn(hostSpec, props, clusterId);
+    final String globalClusterId = rdsUtils.getRdsGlobalClusterId(hostSpec.getHost());
+    final String writerClusterArn = findWriterClusterArn(hostSpec, props, globalClusterId);
 
     if (StringUtils.isNullOrEmpty(writerClusterArn)) {
       return null;
