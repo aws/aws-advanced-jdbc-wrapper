@@ -51,6 +51,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.HostIdCacheService;
 import software.amazon.jdbc.util.LogUtils;
@@ -972,7 +973,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public List<Pair<String, Object>> getSnapshotState() {
     List<Pair<String, Object>> state = new ArrayList<>();
     PropertyUtils.addSnapshotState(state, "properties", this.props);
-    state.add(Pair.create("originalUrl", this.originalUrl));
+    state.add(Pair.create("originalUrl", ConnectionUrlParser.maskUrlPassword(this.originalUrl)));
     state.add(Pair.create("currentConnection",
         this.currentConnection != null ? this.currentConnection.toString() : null));
     state.add(Pair.create("currentHostSpec",

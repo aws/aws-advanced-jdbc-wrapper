@@ -40,10 +40,19 @@ public class TokenInfo {
     return Instant.now().isAfter(this.expiration);
   }
 
+  /**
+   * Returns a form of the token that is safe to log: the first 10 and last 5 characters. A full IAM
+   * or SAML authentication token is a usable database credential for up to 15 minutes, so it must
+   * never reach a log line as is.
+   */
+  public static String maskToken(final String token) {
+    return StringUtils.mask(token, 10, 5);
+  }
+
   @Override
   public String toString() {
     return String.format("TokenInfo@%s [token=%s, expiration=%s]",
         Integer.toHexString(System.identityHashCode(this)),
-        StringUtils.mask(this.token, 10, 5), this.expiration);
+        maskToken(this.token), this.expiration);
   }
 }

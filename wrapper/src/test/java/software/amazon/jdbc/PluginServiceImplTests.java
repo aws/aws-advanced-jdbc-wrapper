@@ -1265,4 +1265,25 @@ public class PluginServiceImplTests {
         configurationProfile,
         sessionStateService);
   }
+
+  /** The snapshot is meant to be shared in support requests, so the URL's password must be masked. */
+  @Test
+  public void testSnapshotStateMasksUrlPassword() throws SQLException {
+    final PluginServiceImpl target = new PluginServiceImpl(
+        servicesContainer,
+        new ExceptionManager(),
+        PROPERTIES,
+        "jdbc:aws-wrapper:postgresql://host:5432/db?user=foo&password=s3cret",
+        DRIVER_PROTOCOL,
+        dialectManager,
+        mockTargetDriverDialect,
+        configurationProfile,
+        sessionStateService);
+
+    final List<Pair<String, Object>> state = target.getSnapshotState();
+
+    final Pair<String, Object> originalUrl = state.stream()
+        .filter(x -> "originalUrl".equals(x.getValue1())).findFirst().orElseThrow(AssertionError::new);
+    assertEquals("jdbc:aws-wrapper:postgresql://host:5432/db?user=foo&password=***", originalUrl.getValue2());
+  }
 }

@@ -346,7 +346,7 @@ public class ConnectionUrlParser {
       throw new IllegalArgumentException(
           Messages.get(
               "ConnectionUrlParser.protocolNotFound",
-              new Object[] {url}));
+              new Object[] {maskUrlPassword(url)}));
     }
     return url.substring(0, index + 2);
   }

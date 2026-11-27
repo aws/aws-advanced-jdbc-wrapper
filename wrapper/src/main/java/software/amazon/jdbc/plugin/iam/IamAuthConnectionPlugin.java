@@ -190,7 +190,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
-              new Object[] {cachedTokenInfo.getToken()}));
+              new Object[] {TokenInfo.maskToken(cachedTokenInfo.getToken())}));
       props.setProperty(iamTokenPropertyName, cachedTokenInfo.getToken());
     } else {
       final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
@@ -208,7 +208,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
-              new Object[] {token}));
+              new Object[] {TokenInfo.maskToken(token)}));
 
       props.setProperty(iamTokenPropertyName, token);
       this.servicesContainer.getStorageService().set(
@@ -252,7 +252,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
-              new Object[] {token}));
+              new Object[] {TokenInfo.maskToken(token)}));
       props.setProperty(iamTokenPropertyName, token);
       this.servicesContainer.getStorageService().set(
           retryCacheKey,
