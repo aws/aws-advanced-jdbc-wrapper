@@ -70,6 +70,9 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   static {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
+    // The provider's properties are part of this plugin's configuration; register them when the plugin
+    // loads, which is before the first connect strips wrapper properties from what the target driver sees.
+    PropertyDefinition.registerPluginProperties(BlueGreenStatusProvider.class);
   }
 
   protected static final String BG_SKIP_ROUTING_IN_FORCE_CONNECT = "3a864d24-568f-4b55-a227-6f649ae3021a";

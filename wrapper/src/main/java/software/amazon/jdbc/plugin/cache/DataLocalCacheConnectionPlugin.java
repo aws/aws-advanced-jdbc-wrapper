@@ -89,6 +89,9 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
 
   static {
     PropertyDefinition.registerPluginProperties(DataLocalCacheConnectionPlugin.class);
+    // The monitor's properties are part of this plugin's configuration; register them when the plugin
+    // loads, which is before the first connect strips wrapper properties from what the target driver sees.
+    PropertyDefinition.registerPluginProperties(CacheMonitor.class);
   }
 
   private final TelemetryFactory telemetryFactory;
