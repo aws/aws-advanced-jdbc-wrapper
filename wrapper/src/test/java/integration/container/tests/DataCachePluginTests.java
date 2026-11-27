@@ -112,16 +112,20 @@ public class DataCachePluginTests {
     ResultSet testResultSet = testStatement.executeQuery("select id, name from testTable");
     assertTrue(testResultSet.isWrapperFor(CachedResultSet.class));
 
+    // A cache hit has its own cursor, so the earlier result set is still past its last row.
+    assertFalse(resultSet.next());
+
     // It's expected to get cached data
-    assertTrue(resultSet.next());
-    assertEquals(1, resultSet.getObject(1));
-    assertEquals("name1", resultSet.getObject(2));
-    assertTrue(resultSet.next());
-    assertEquals(2, resultSet.getObject(1));
-    assertEquals("name2", resultSet.getObject(2));
-    assertTrue(resultSet.next());
-    assertEquals(3, resultSet.getObject(1));
-    assertEquals("name3", resultSet.getObject(2));
+    assertTrue(testResultSet.next());
+    assertEquals(1, testResultSet.getObject(1));
+    assertEquals("name1", testResultSet.getObject(2));
+    assertTrue(testResultSet.next());
+    assertEquals(2, testResultSet.getObject(1));
+    assertEquals("name2", testResultSet.getObject(2));
+    assertTrue(testResultSet.next());
+    assertEquals(3, testResultSet.getObject(1));
+    assertEquals("name3", testResultSet.getObject(2));
+    assertFalse(testResultSet.next());
 
     printTable();
 

@@ -73,6 +73,7 @@ When delivering a final configuration:
   - Setting `wrapperLoggerLevel=ALL` in production (log volume and PII risk).
   - Disabling TLS on a public DB endpoint.
   - Combining mutually-exclusive plugins (see §10).
+  - Loading `dataCache` and `remoteQueryCache` together. The combination is not supported, and the wrapper does not reject it (see §10.1).
 
 ### 1.6 Hard rules
 
@@ -645,6 +646,7 @@ Never use these together:
 - `auroraStaleDns` + `srw`
 - `auroraStaleDns` + `gdbReadWriteSplitting`
 - `limitless` + `failover` / `failover2` / `gdbFailover` / `customEndpoint` / `fastestResponseStrategy` / `bg` / read-write splitting plugins
+- `dataCache` + `remoteQueryCache` (not supported together; the wrapper does not reject it)
 
 See the full matrix in §10.
 
@@ -652,12 +654,10 @@ See the full matrix in §10.
 
 These work anywhere with anything:
 - `kmsEncryption` — column-level encryption via AWS KMS
-- `remoteQueryCache` — remote (Valkey) query result cache
 - `driverMetaData` — overrides driver name reported to DB
 - `dev` — developer/debug helper
 - `executionTime` — logs JDBC method execution time
 - `logQuery` — logs SQL statements executed
-- `dataCache` — local result cache for matching SQL
 
 ---
 
@@ -1206,24 +1206,28 @@ Encrypts/decrypts database column values transparently using AWS KMS. Universall
 | `dataKeyCacheExpirationMs` | `3600000` | Data key TTL (1 h). |
 | `encryptionMetadataSchema` | `encrypt` | DB schema name for encryption metadata tables. |
 
-### 5.21 `dataCache` — Local query result cache (universal)
+### 5.21 `dataCache` — Local query result cache (PostgreSQL JDBC, MySQL Connector/J, MariaDB Connector/J)
 
 Caches SQL `ResultSet`s in-process for queries matching a regex.
 
 | Name | Default | Description |
 |---|---|---|
-| `dataCacheTriggerCondition` | (none) | Regex matched against the full SQL text; matching queries are cached. |
+| `dataCacheTriggerCondition` | (none) | Regex matched against the full SQL text; matching `Statement.executeQuery(String)` results are cached, subject to the isolation rules below. |
 | `dataCacheTtlMs` | `300000` | Available since version 4.5.0. How long a cached result stays valid. Nothing invalidates a cached result on write, so this bounds staleness. `0` disables expiration. |
-| `dataCacheMaxSize` | `1000` | Available since version 4.5.0. Maximum number of distinct SQL statements held in the cache. `0` means no limit. |
+| `dataCacheMaxSize` | `1000` | Available since version 4.5.0. Maximum number of distinct cache keys held in the cache. `0` means no limit. |
+
+> Cached results are keyed on the SQL text plus the host, port, catalog, schema, `user` and authorization session state (role, `search_path`, current database) of the connection, so connections with different database identities do not share them. This is best-effort hardening, not a security boundary. Caching requires the PostgreSQL JDBC driver, MySQL Connector/J or MariaDB Connector/J, and is turned off for a connection after untracked session changes such as `SET app.tenant_id = ...` or a batch. Only `Statement.executeQuery(String)` results are cached.
 
 > This is a read-through cache with **no invalidation**. Do not recommend it for data an application reads back after writing. For a shared, per-query opt-in cache use `remoteQueryCache` instead. See [Data Local Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDataCachePlugin.md).
+
+> [!WARNING]\n> **Never combine `dataCache` with `remoteQueryCache`.** The combination is not supported and the wrapper does not detect or reject it. Recommend one cache per datasource, never both. See §10.1.
 
 > [!WARNING]\
 > Setting `dataCacheTtlMs=0` and `dataCacheMaxSize=0` together leaves the cache unbounded in both staleness and size. That was the behaviour before version 4.5.0 and is not recommended.
 
 Both `dataCacheTtlMs` and `dataCacheMaxSize` reject negative values: a negative value throws `IllegalArgumentException` when the property is read, rather than being treated as "unlimited". Use `0` for that.
 
-### 5.22 `remoteQueryCache` — Remote query result cache (universal)
+### 5.22 `remoteQueryCache` — Remote query result cache
 
 Caches read-only query results in a remote Valkey/ElastiCache cluster, using SQL hint comments to opt in.
 
@@ -1262,6 +1266,8 @@ props.setProperty("cacheEnableDatabaseMultiTenancy", "true");
 
 See [Remote Query Cache Plugin](./using-the-jdbc-driver/using-plugins/UsingTheRemoteQueryCachePlugin.md#security-scope-and-application-requirements)
 for supported state, limitations, fail-closed behavior, and performance implications.
+
+> [!WARNING]\n> **Never combine `remoteQueryCache` with `dataCache`.** The combination is not supported and the wrapper does not detect or reject it. Recommend one cache per datasource, never both. See §10.1.
 
 ### 5.23 `logQuery` — SQL logging (universal)
 
@@ -1585,6 +1591,7 @@ These combinations are **forbidden**:
 | `limitless` + `auroraConnectionTracker` | No Aurora topology. |
 | `limitless` + `initialConnection` | No instance mapping needed. |
 | `limitless` + `auroraStaleDns` | Same. |
+| `dataCache` + `remoteQueryCache` | Not supported, and the wrapper does not reject it. Each plugin treats the other's cached result as a database result. With the default order (`dataCache` at weight 300 runs before `remoteQueryCache` at 350), a remote hit is copied into the local cache and served until `dataCacheTtlMs` expires, ignoring the hint TTL. With `remoteQueryCache` first, a local hit, which can include rows from a rolled-back transaction, is published to the shared remote cache with a new TTL. With `cacheEnableDatabaseMultiTenancy=true`, both plugins also track authorization state separately, doubling the state reads and warnings. Pick one cache. |
 
 ### 10.2 Database type compatibility (summary)
 
@@ -1850,6 +1857,7 @@ Pool-specific options use the `cp-` prefix and map to `com.zaxxer.hikari.HikariC
 - **`leastConnections` reader strategy** — required. The strategy throws if used without an internal pool because it has no per-host connection counts to compare.
 - **Single-cluster apps with HikariCP already wrapping the data source** — usually unnecessary. The external pool already gives connection reuse. The internal pool is most useful when the wrapper itself needs to maintain pools across multiple targets (i.e., R/W splitting).
 - **Multiple clusters in one app** — the internal pool keys by `clusterId`, so each cluster gets its own pool, much like external Hikari instances would.
+- **`dataCache`, or `remoteQueryCache` with `cacheEnableDatabaseMultiTenancy=true`** — the internal pool returns sessions without resetting them, so a setting such as `SET app.tenant_id` that one connection applied is still in effect for the next, and caching is enabled again. Do not run untracked session SQL on internal-pool connections with these caches.
 
 **Limiting connection age:** set `cp-MaxLifetime` (HikariCP, milliseconds, default 30 min) or `cp-MaxConnectionAge` (c3p0, seconds) to cap how long a physical connection lives in the internal pool. Do this whenever the `connectionLifetime` plugin is used with the internal pool. The plugin evicts an expired connection from the pool, but a replacement taken from the pool may already be older than `connectionLifetimeMs`, because the plugin starts timing a connection when it receives it.
 
@@ -2295,6 +2303,7 @@ Flag these whenever they appear in user configs:
 | GDB deployment with no cross-region network reachability and `gdbMonitoringConnectionPriority` left at default | Default is `strict-writer-primary` — when GDB primary is the peer region, the monitor can't connect, topology updates stop, and failover behavior degrades | Set `gdbMonitoringConnectionPriority` to a value the deployment can reach (e.g., `<home-region>` or `strict-writer-<home-region>,strict-reader-<home-region>`); also set `gdbAccessibleRegions=<home-region>` |
 | `wrapperLoggerLevel=ALL` or `FINEST` in production | Excessive log volume; some logs may include connection metadata | Use `INFO` in prod; `FINER` for diagnosis |
 | Combining mutually-exclusive plugins (see §10.1) | Plugins fight each other or duplicate work | Pick one |
+| `dataCache` and `remoteQueryCache` in the same `wrapperPlugins` | Not supported. Results move between the two caches as if they were database results, so remote hits outlive their hint TTL locally and local hits can be published to the shared cache (see §10.1) | Use one cache per datasource. Prefer `remoteQueryCache` for shared, per-query opt-in caching and `dataCache` for in-process reference data |
 | Disabling `verifyInitialConnectionRole` with custom/instance endpoints + read-write splitting | RW splitter can route based on assumed (wrong) role | Keep `verifyInitialConnectionRole=true` |
 | Read/write splitting plugin (`readWriteSplitting` / `srw` / `gdbReadWriteSplitting`) without an internal connection pool | Each `setReadOnly()` flip can open a fresh physical connection to the target host; transactional apps that toggle read-only per request churn connections and may hit per-instance limits | Enable `connectionPoolType=hikari` (or `c3p0`); also required for the `leastConnections` reader strategy |
 | MySQL + read/write splitting (especially behind RDS Proxy) | Each reader/writer switch sends `SET autocommit` / `SET SESSION TRANSACTION ...` round trips, even when the values did not change | Set `useLocalSessionState=true` (MySQL Connector/J). If session settings are made only before the connections open, also set `rwTransferSessionStateOnSwitch=false` (§6.3) |
