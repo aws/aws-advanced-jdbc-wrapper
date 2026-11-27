@@ -13,8 +13,13 @@ permissions:
 
 jobs:
   hibernate-integration-tests:
-    name: 'Run Hibernate ORM integration tests'
+    name: 'Run Hibernate ORM integration tests [${{ matrix.engine }}]'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Split by engine like run-hibernate-orm-tests-codebuild.yml; see the reason there.
+      matrix:
+        engine: [ mysql, pg ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -40,28 +45,31 @@ jobs:
       - name: 'Run Hibernate ORM integration tests'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: |
-          ./gradlew --no-parallel --no-daemon test-hibernate-only
+          ./gradlew --no-parallel --no-daemon test-hibernate-only \
+            -Dtest-no-mysql-engine=${{ matrix.engine != 'mysql' }} \
+            -Dtest-no-pg-engine=${{ matrix.engine != 'pg' }}
       - name: Mask data
+        if: ${{ !cancelled() }}
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
       - name: 'Archive junit results'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: junit-report
+          name: junit-report-${{ matrix.engine }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: html-summary-report
+          name: html-summary-report-${{ matrix.engine }}
           path: ./wrapper/build/report
           retention-days: 5
       - name: 'Archive container reports'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: container-reports
+          name: container-reports-${{ matrix.engine }}
           path: ./wrapper/build/test-results/*.tar.gz
           retention-days: 5
