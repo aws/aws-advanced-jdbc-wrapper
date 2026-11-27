@@ -52,6 +52,10 @@ public class WeightedRandomHostSelector implements HostSelector {
   static final Pattern HOST_WEIGHT_PAIRS_PATTERN =
       Pattern.compile("((?<host>[^:/?#]*):(?<weight>[0-9]*))");
 
+  static {
+    PropertyDefinition.registerPluginProperties(WeightedRandomHostSelector.class);
+  }
+
   private Map<String, Integer> cachedHostWeightMap;
   private String cachedHostWeightMapString;
   private Random random;

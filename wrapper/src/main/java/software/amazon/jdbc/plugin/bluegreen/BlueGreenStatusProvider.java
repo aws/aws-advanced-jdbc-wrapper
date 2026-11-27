@@ -107,6 +107,10 @@ public class BlueGreenStatusProvider {
           + "the driver reports it as unreachable and reports the deployment as not ready for "
           + "switchover.");
 
+  static {
+    PropertyDefinition.registerPluginProperties(BlueGreenStatusProvider.class);
+  }
+
   private static final String MONITORING_PROPERTY_PREFIX = "blue-green-monitoring-";
   private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
   private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));

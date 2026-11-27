@@ -28,6 +28,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 
@@ -48,6 +49,10 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
           "false",
           "Set to true if you are providing a connection string with multiple comma-delimited hosts and your "
               + "cluster has only one writer. The writer must be the first host in the connection string");
+
+  static {
+    PropertyDefinition.registerPluginProperties(ConnectionStringHostListProvider.class);
+  }
 
   public ConnectionStringHostListProvider(
       final @NonNull Properties properties,

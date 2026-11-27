@@ -35,6 +35,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
@@ -73,6 +74,10 @@ public class CacheMonitor extends AbstractMonitor {
           "cacheHealthCheckInHealthyState",
           "false",
           "Whether to run health checks (pings) in healthy state.");
+
+  static {
+    PropertyDefinition.registerPluginProperties(CacheMonitor.class);
+  }
 
   private static final Map<String, ClusterHealthState> clusterStates = new ConcurrentHashMap<>();
   private final long inFlightWriteSizeLimitBytes;
