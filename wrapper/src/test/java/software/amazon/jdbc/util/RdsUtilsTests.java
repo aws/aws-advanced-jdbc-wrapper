@@ -463,7 +463,7 @@ public class RdsUtilsTests {
 
   @Test
   public void testGetRdsInstanceHostPatternForGlobalDbWriterCluster() {
-    assertEquals("?.XYZ.global.rds.amazonaws.com", target.getRdsInstanceHostPattern(globalDbWriterCluster));
+    assertEquals("?", target.getRdsInstanceHostPattern(globalDbWriterCluster));
   }
 
   @Test
@@ -482,6 +482,7 @@ public class RdsUtilsTests {
     RdsUtils.clearCache();
     final String instanceHostPattern = target.getRdsInstanceHostPattern(host);
     RdsUtils.clearCache();
+    assertEquals("?", instanceHostPattern);
 
     // Production code classifies the host first, which caches its match.
     assertEquals(RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER, target.identifyRdsType(host));

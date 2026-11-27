@@ -323,6 +323,10 @@ public class RdsUtils {
     }
 
     final Matcher matcher = cacheMatcher(preparedHost, RDS_DNS_PATTERNS);
+    if (isGlobalWriterDnsGroup(getRegexGroup(matcher, DNS_GROUP))) {
+      // A global writer endpoint has no AWS region, so no instance endpoint pattern can be built from it.
+      return "?";
+    }
     final String group = getRegexGroup(matcher, DOMAIN_GROUP);
     return group == null ? "?" : "?." + group;
   }
@@ -400,8 +404,7 @@ public class RdsUtils {
   }
 
   public boolean isGlobalDbWriterClusterDns(final String host) {
-    final String dnsGroup = getDnsGroup(getPreparedHost(host));
-    return dnsGroup != null && dnsGroup.equalsIgnoreCase("global-");
+    return isGlobalWriterDnsGroup(getDnsGroup(getPreparedHost(host)));
   }
 
   public boolean isIP(final String ip) {
@@ -530,6 +533,11 @@ public class RdsUtils {
     } catch (IllegalStateException | IllegalArgumentException e) {
       return null;
     }
+  }
+
+  // Every check for a Global Database writer endpoint goes through here, so they all agree on which hosts those are.
+  private static boolean isGlobalWriterDnsGroup(final @Nullable String dnsGroup) {
+    return "global-".equalsIgnoreCase(dnsGroup);
   }
 
   private @Nullable String getDnsGroup(final String host) {
