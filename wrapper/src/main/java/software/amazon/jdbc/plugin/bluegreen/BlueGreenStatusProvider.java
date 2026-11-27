@@ -1554,16 +1554,7 @@ public class BlueGreenStatusProvider {
    */
   protected void resetContext() {
     LOGGER.finest(() -> Messages.get("bgd.resetContext"));
-    final BlueGreenStatusMonitor sourceMonitor = this.monitors[BlueGreenRole.SOURCE.getValue()];
-    this.monitors[BlueGreenRole.SOURCE.getValue()] = null;
-    if (sourceMonitor != null) {
-      sourceMonitor.setStop(true);
-    }
-    final BlueGreenStatusMonitor targetMonitor = this.monitors[BlueGreenRole.TARGET.getValue()];
-    this.monitors[BlueGreenRole.TARGET.getValue()] = null;
-    if (targetMonitor != null) {
-      targetMonitor.setStop(true);
-    }
+    this.stopMonitors();
 
     this.rollback = false;
     this.summaryStatus = null;
@@ -1593,6 +1584,32 @@ public class BlueGreenStatusProvider {
     this.blueConnectionsDropped = false;
 
     this.initMonitoring();
+  }
+
+  /**
+   * Stops both status monitors and forgets them. Used when the context is reset (fresh monitors are
+   * started right after) and when the driver releases its resources (no replacement is started).
+   */
+  protected void stopMonitors() {
+    final BlueGreenStatusMonitor sourceMonitor = this.monitors[BlueGreenRole.SOURCE.getValue()];
+    this.monitors[BlueGreenRole.SOURCE.getValue()] = null;
+    if (sourceMonitor != null) {
+      sourceMonitor.setStop(true);
+    }
+    final BlueGreenStatusMonitor targetMonitor = this.monitors[BlueGreenRole.TARGET.getValue()];
+    this.monitors[BlueGreenRole.TARGET.getValue()] = null;
+    if (targetMonitor != null) {
+      targetMonitor.setStop(true);
+    }
+  }
+
+  /**
+   * Stops the status monitors of this provider. Called from {@link software.amazon.jdbc.Driver#releaseResources()}
+   * through {@link BlueGreenConnectionPlugin#releaseResources()}; the provider is discarded afterwards.
+   */
+  public void stop() {
+    LOGGER.finest(() -> Messages.get("bgd.stopProvider", new Object[] {this.bgdId}));
+    this.stopMonitors();
   }
 
   protected void startSwitchoverTimer() {

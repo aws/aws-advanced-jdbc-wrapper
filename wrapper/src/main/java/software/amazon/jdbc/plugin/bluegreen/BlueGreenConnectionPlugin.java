@@ -348,6 +348,18 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
+  /**
+   * Stops every Blue/Green status provider in this JVM and forgets it. Called from
+   * {@link software.amazon.jdbc.Driver#releaseResources()}. A later connection with the plugin
+   * creates a fresh provider.
+   */
+  public static void releaseResources() {
+    for (final BlueGreenStatusProvider statusProvider : provider.values()) {
+      statusProvider.stop();
+    }
+    provider.clear();
+  }
+
   protected void initProvider() {
     try {
       this.clusterId = this.pluginService.getHostListProvider().getClusterId();

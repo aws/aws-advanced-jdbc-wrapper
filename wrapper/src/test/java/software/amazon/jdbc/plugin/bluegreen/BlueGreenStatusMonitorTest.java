@@ -33,6 +33,8 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -179,5 +181,26 @@ class BlueGreenStatusMonitorTest {
 
     assertTrue(monitor.connectionHostSpecCorrect.get());
     assertEquals(GREEN_CLUSTER, monitor.connectionHostSpec.get().getHost());
+  }
+
+  /**
+   * A monitor loop that is still running when the application's main thread returns must not keep
+   * the JVM alive, so its threads have to be daemon threads like every other wrapper thread.
+   */
+  @Test
+  void monitorThreadsAreDaemonThreads() throws Exception {
+    final BlueGreenStatusMonitor monitor = newMonitor();
+    try {
+      final Future<Boolean> loopThreadIsDaemon =
+          monitor.executorService.submit(() -> Thread.currentThread().isDaemon());
+      final Future<Boolean> openConnectionThreadIsDaemon =
+          monitor.openConnectionExecutorService.submit(() -> Thread.currentThread().isDaemon());
+      assertTrue(loopThreadIsDaemon.get(5, TimeUnit.SECONDS));
+      assertTrue(openConnectionThreadIsDaemon.get(5, TimeUnit.SECONDS));
+    } finally {
+      monitor.setStop(true);
+    }
+    assertTrue(monitor.executorService.isShutdown());
+    assertTrue(monitor.openConnectionExecutorService.isShutdown());
   }
 }
