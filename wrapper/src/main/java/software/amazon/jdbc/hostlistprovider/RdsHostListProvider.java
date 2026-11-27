@@ -161,8 +161,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       // A bare "?" template means the connection host is not a recognized RDS endpoint and no
       // clusterInstanceHostPattern was supplied. In that case the driver cannot build resolvable
       // DB instance endpoints from the topology, so topology monitoring / instance-level failover
-      // will not work. Warn the user (this is easy to hit silently when upgrading).
-      if ("?".equals(this.instanceTemplate.getHost())) {
+      // will not work. Warn the user (this is easy to hit silently when upgrading). A Global Database
+      // writer endpoint also yields "?" because it has no region, but it is a recognized RDS endpoint.
+      if ("?".equals(this.instanceTemplate.getHost())
+          && !rdsHelper.isRdsDns(this.initialHostSpec.getHost())) {
         LOGGER.warning(
             () -> Messages.get(
                 "RdsHostListProvider.nonRdsHostNoInstancePattern",
