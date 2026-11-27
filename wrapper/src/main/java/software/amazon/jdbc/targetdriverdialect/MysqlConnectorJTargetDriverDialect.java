@@ -26,6 +26,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.sql.CommonDataSource;
@@ -35,6 +38,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SynchronousExecutor;
 
 public class MysqlConnectorJTargetDriverDialect extends MysqlCompatibleTargetDriverDialect {
 
@@ -45,6 +50,12 @@ public class MysqlConnectorJTargetDriverDialect extends MysqlCompatibleTargetDri
   private static final String PREPARED_STATEMENT_QUERY_HEADER = "PreparedStatement:";
   private static final Pattern PREPARED_STATEMENT_HEADER_PATTERN =
       Pattern.compile("^[\\w.$]+PreparedStatement(?:\\[\\d+\\])?: ");
+  private static final Logger LOGGER = Logger.getLogger(MysqlConnectorJTargetDriverDialect.class.getName());
+
+  // Same bound as GenericTargetDriverDialect.ping(), which uses isValid(10).
+  protected static final int PING_TIMEOUT_SEC = 10;
+  protected static final int PING_TIMEOUT_MS = (int) TimeUnit.SECONDS.toMillis(PING_TIMEOUT_SEC);
+  protected static final Executor networkTimeoutExecutor = new SynchronousExecutor();
 
   private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<String>() {
@@ -137,15 +148,46 @@ public class MysqlConnectorJTargetDriverDialect extends MysqlCompatibleTargetDri
     helper.registerDriver();
   }
 
+  /**
+   * Pings the node with a lightweight query. Both a network timeout and a query timeout bound the
+   * call: the query timeout alone does not free a thread blocked in a socket read on a half-open
+   * connection, and the ping connection is not watched by any failure-detection plugin. A network
+   * timeout the caller already set is left alone; a default of zero (no timeout) is replaced for
+   * the duration of the ping and restored afterwards.
+   */
   @Override
   public boolean ping(@NonNull Connection connection) {
+    int originalNetworkTimeout = 0;
+    boolean timeoutChanged = false;
     try {
-      try (final Statement statement = connection.createStatement();
-          final ResultSet resultSet = statement.executeQuery("/* ping */ SELECT 1")) {
-        return true;
+      originalNetworkTimeout = connection.getNetworkTimeout();
+      if (originalNetworkTimeout == 0) {
+        connection.setNetworkTimeout(networkTimeoutExecutor, PING_TIMEOUT_MS);
+        timeoutChanged = true;
+      }
+      try (final Statement statement = connection.createStatement()) {
+        statement.setQueryTimeout(PING_TIMEOUT_SEC);
+        try (final ResultSet resultSet = statement.executeQuery("/* ping */ SELECT 1")) {
+          return true;
+        }
       }
     } catch (SQLException e) {
       return false;
+    } finally {
+      if (timeoutChanged) {
+        restoreNetworkTimeout(connection, originalNetworkTimeout);
+      }
+    }
+  }
+
+  private static void restoreNetworkTimeout(final Connection connection, final int originalNetworkTimeout) {
+    try {
+      if (!connection.isClosed()) {
+        connection.setNetworkTimeout(networkTimeoutExecutor, originalNetworkTimeout);
+      }
+    } catch (SQLException e) {
+      LOGGER.finest(() -> Messages.get(
+          "MysqlConnectorJTargetDriverDialect.failedToRestoreNetworkTimeout", new Object[] {e.getMessage()}));
     }
   }
 
