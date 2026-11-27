@@ -933,7 +933,7 @@ if (!repair.isComplete()) {
 ### Data Protection
 
 - Encrypted data is stored as binary data in the database
-- The original data never leaves your application - encryption/decryption happens locally using data keys from KMS
+- Values written through the plugin are encrypted in your application before they are sent - encryption/decryption happens locally using data keys from KMS (see [What the plugin does not protect](#what-the-plugin-does-not-protect) for values the plugin does not encrypt)
 - Only encryption keys are managed by AWS KMS, not the actual data
 - Use different KMS keys for different environments (dev, staging, prod)
 - Restrict access to the tables in the metadata schema. The HMAC keys in `key_storage` are stored in plaintext so that the triggers can read them. A user that can both read `key_storage` and write an encrypted column can compute a valid HMAC for any value, so the trigger stops plaintext that reaches the column by mistake, not a user who deliberately misuses that access. The application's database user needs `SELECT` on `key_storage` and `encryption_metadata`. On PostgreSQL the trigger function runs with the privileges of the user whose statement fires it, so every user that writes an encrypted column needs `SELECT` on both tables as well. On MySQL the trigger runs as its definer, so writers need no access to the metadata tables. Only the user that runs `KeyManagementUtility` needs to write to them (see [Separating the runtime role from the admin role](#separating-the-runtime-role-from-the-admin-role))
