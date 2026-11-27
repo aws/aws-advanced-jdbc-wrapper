@@ -59,6 +59,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
   private static final String MONITORING_PROPERTY_PREFIX = "frt-";
   private static final int TERMINATION_TIMEOUT_SEC = 5;
   private static final int NUM_OF_MEASURES = 5;
+  protected static final int DEFAULT_CONNECT_TIMEOUT_MS = 5000;
+  protected static final int DEFAULT_SOCKET_TIMEOUT_MS = 5000;
 
   private final int intervalMs;
   private final @NonNull HostSpec hostSpec;
@@ -123,6 +125,18 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
               monitoringConnProperties.remove(p);
             });
 
+    // The monitoring connection is not watched by any failure-detection plugin, so without these a
+    // node that stops answering blocks this monitor for the OS TCP timeout. Same defaults as the
+    // topology monitor; explicit values, including 'frt-' prefixed ones, take precedence.
+    if (PropertyDefinition.SOCKET_TIMEOUT.getString(this.monitoringConnProperties) == null) {
+      PropertyDefinition.SOCKET_TIMEOUT.set(
+          this.monitoringConnProperties, String.valueOf(DEFAULT_SOCKET_TIMEOUT_MS));
+    }
+    if (PropertyDefinition.CONNECT_TIMEOUT.getString(this.monitoringConnProperties) == null) {
+      PropertyDefinition.CONNECT_TIMEOUT.set(
+          this.monitoringConnProperties, String.valueOf(DEFAULT_CONNECT_TIMEOUT_MS));
+    }
+
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
     this.responseTimeMsGauge = telemetryFactory.createGauge(
@@ -137,6 +151,11 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
 
   public @NonNull HostSpec getHostSpec() {
     return this.hostSpec;
+  }
+
+  // For testing purposes.
+  @NonNull Properties getMonitoringConnProperties() {
+    return this.monitoringConnProperties;
   }
 
   // The method is for testing purposes.

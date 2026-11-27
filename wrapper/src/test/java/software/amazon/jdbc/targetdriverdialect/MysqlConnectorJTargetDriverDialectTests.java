@@ -21,7 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
@@ -35,6 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.states.AuthorizationSessionState;
@@ -208,5 +215,47 @@ public class MysqlConnectorJTargetDriverDialectTests {
   })
   void ignoresStatementsThatDoNotChangeAuthorizationSessionState(final String sql) {
     assertEquals(AuthorizationStateImpact.NONE, dialect.getAuthorizationStateImpact(sql));
+  }
+
+  /**
+   * A connection with no network timeout gets a bounded one for the ping and has it restored
+   * afterwards; the ping statement itself also gets a query timeout.
+   */
+  @Test
+  void testPingBoundsAnUnboundedConnectionAndRestoresIt() throws SQLException {
+    when(mockConnection.getNetworkTimeout()).thenReturn(0);
+    when(mockConnection.createStatement()).thenReturn(mockJdbcStatement);
+    when(mockJdbcStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+
+    assertTrue(dialect.ping(mockConnection));
+
+    final InOrder inOrder = inOrder(mockConnection, mockJdbcStatement);
+    inOrder.verify(mockConnection).setNetworkTimeout(any(), eq(MysqlConnectorJTargetDriverDialect.PING_TIMEOUT_MS));
+    inOrder.verify(mockJdbcStatement).setQueryTimeout(MysqlConnectorJTargetDriverDialect.PING_TIMEOUT_SEC);
+    inOrder.verify(mockJdbcStatement).executeQuery("/* ping */ SELECT 1");
+    inOrder.verify(mockConnection).setNetworkTimeout(any(), eq(0));
+  }
+
+  @Test
+  void testPingKeepsAnExistingNetworkTimeout() throws SQLException {
+    when(mockConnection.getNetworkTimeout()).thenReturn(3000);
+    when(mockConnection.createStatement()).thenReturn(mockJdbcStatement);
+    when(mockJdbcStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+
+    assertTrue(dialect.ping(mockConnection));
+
+    verify(mockConnection, never()).setNetworkTimeout(any(), anyInt());
+    verify(mockJdbcStatement).setQueryTimeout(MysqlConnectorJTargetDriverDialect.PING_TIMEOUT_SEC);
+  }
+
+  @Test
+  void testPingRestoresTheNetworkTimeoutWhenTheQueryFails() throws SQLException {
+    when(mockConnection.getNetworkTimeout()).thenReturn(0);
+    when(mockConnection.createStatement()).thenReturn(mockJdbcStatement);
+    when(mockJdbcStatement.executeQuery(anyString())).thenThrow(new SQLException("timed out"));
+
+    assertFalse(dialect.ping(mockConnection));
+
+    verify(mockConnection).setNetworkTimeout(any(), eq(0));
   }
 }
