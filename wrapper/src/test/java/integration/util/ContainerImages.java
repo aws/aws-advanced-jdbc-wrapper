@@ -78,6 +78,21 @@ public final class ContainerImages {
     }
   }
 
+  /**
+   * Base image of the container the Hibernate ORM tests run in.
+   *
+   * <p>JDK 21 uses a glibc image instead of {@link #jvmBase}. The 21-alpine-full tag now resolves to
+   * Alpine 3.24 (musl 1.2.6), where JFR recording dumps fail with "Not supported" on a host kernel
+   * older than 6.9 (JDK-8393536). The CodeBuild hosts run 6.1, so the Hibernate JFR tests failed
+   * there. Go back to {@link #jvmBase} once Corretto 21 has the fix.
+   */
+  public static String hibernateJvmBase(TargetJvm jvm) {
+    if (jvm == TargetJvm.OPENJDK21) {
+      return dockerOfficialImage("amazoncorretto", "21-al2023");
+    }
+    return jvmBase(jvm);
+  }
+
   public static DockerImageName mysql() {
     return dockerOfficial("mysql", "8.0.31");
   }
@@ -114,9 +129,16 @@ public final class ContainerImages {
     return DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0");
   }
 
-  /** Used as a Dockerfile {@code FROM}, so this returns the raw coordinate. */
+  /**
+   * Used as a Dockerfile {@code FROM}, so this returns the raw coordinate.
+   *
+   * <p>The image build runs {@code apt-get update}, which fails once the image's Debian release is
+   * dropped from apt.postgresql.org (16-3.4 was bullseye, whose bullseye-pgdg suite now returns 404).
+   * Move to a newer PostGIS tag when that happens; keep PostgreSQL 16 so the pgvector package name
+   * still matches.
+   */
   public static String postgis() {
-    return "postgis/postgis:16-3.4";
+    return "postgis/postgis:16-3.7";
   }
 
   /**

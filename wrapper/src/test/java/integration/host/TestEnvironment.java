@@ -1459,17 +1459,27 @@ public class TestEnvironment implements AutoCloseable {
     final ContainerHelper containerHelper = new ContainerHelper();
 
     if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
+      final String hibernateImage = ContainerImages.hibernateJvmBase(env.info.getRequest().getTargetJvm());
+      final boolean isAl2023 = hibernateImage.contains("al2023");
       env.testContainer =
           containerHelper.createTestContainer(
                   "aws/rds-test-container",
-                  ContainerImages.jvmBase(env.info.getRequest().getTargetJvm()),
-                  builder -> builder
-                      .run("apk", "add", "--no-cache", "--upgrade", "bash")
-                      .run("apk", "add", "git")
-                      .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
-                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm")
-                      .run("rm -f /app/libs/*-bundle-*.jar")
-                      .run("rm -f /app/hibernate-orm/drivers/*-bundle-*.jar"))
+                  hibernateImage,
+                  builder -> {
+                    if (isAl2023) {
+                      // bash is already there; gradlew needs xargs, collect_test_results.sh needs find, tar and gzip.
+                      builder.run("dnf", "install", "-y", "git-core", "findutils", "tar", "gzip");
+                    } else {
+                      builder
+                          .run("apk", "add", "--no-cache", "--upgrade", "bash")
+                          .run("apk", "add", "git");
+                    }
+                    return builder
+                        .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
+                            "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm")
+                        .run("rm -f /app/libs/*-bundle-*.jar")
+                        .run("rm -f /app/hibernate-orm/drivers/*-bundle-*.jar");
+                  })
               .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"),
                   "app/hibernate-orm/drivers")
               // Need to overwrite the gradle.properties to override the minimum JDK version from 25 to 17.
