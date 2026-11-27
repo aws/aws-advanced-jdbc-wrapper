@@ -372,9 +372,12 @@ public class ContainerHelper {
 
     GenericContainer genericContainer = new GenericContainer(
         new ImageFromDockerfile()
+            // The PostGIS images are published for linux/amd64 only. Without a platform, the build fails
+            // on arm64 hosts (e.g. Apple Silicon) with "no matching manifest for linux/arm64/v8".
+            .withBuildImageCmdModifier(cmd -> cmd.withPlatform("linux/amd64"))
             .withDockerfileFromBuilder(builder ->
                 builder
-                    .from("postgis/postgis:16-3.4")
+                    .from("postgis/postgis:16-3.7")
                     .run("apt-get update")
                     .run("/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y")
                     .run("apt install -y postgresql-16-pgvector")

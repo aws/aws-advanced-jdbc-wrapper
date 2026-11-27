@@ -1,4 +1,4 @@
-FROM postgis/postgis:16-3.4
+FROM postgis/postgis:16-3.7
 
 # Install necessary packages
 RUN apt-get update \
