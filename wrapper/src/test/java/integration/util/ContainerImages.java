@@ -78,6 +78,21 @@ public final class ContainerImages {
     }
   }
 
+  /**
+   * Base image of the container the Hibernate ORM tests run in.
+   *
+   * <p>JDK 21 uses a glibc image instead of {@link #jvmBase}. The 21-alpine-full tag now resolves to
+   * Alpine 3.24 (musl 1.2.6), where JFR recording dumps fail with "Not supported" on a host kernel
+   * older than 6.9 (JDK-8393536). The CodeBuild hosts run 6.1, so the Hibernate JFR tests failed
+   * there. Go back to {@link #jvmBase} once Corretto 21 has the fix.
+   */
+  public static String hibernateJvmBase(TargetJvm jvm) {
+    if (jvm == TargetJvm.OPENJDK21) {
+      return dockerOfficialImage("amazoncorretto", "21-al2023");
+    }
+    return jvmBase(jvm);
+  }
+
   public static DockerImageName mysql() {
     return dockerOfficial("mysql", "8.0.31");
   }
