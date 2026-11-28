@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -47,6 +48,33 @@ public class RetryUtil {
       final @Nullable ConnectionPlugin plugin,
       final boolean verifyRole,
       final long timeoutEndNano)
+      throws TimeoutException, SQLException {
+    return requireResults(this.getWriterConnection(
+        pluginService, properties, plugin, verifyRole, timeoutEndNano, null));
+  }
+
+  /**
+   * Same as {@link #getWriterConnection(PluginService, Properties, ConnectionPlugin, boolean, long)}, but gives
+   * up early when {@code abandonWhen} returns true.
+   *
+   * @param pluginService the plugin service
+   * @param properties the connection properties
+   * @param plugin the plugin to skip when connecting
+   * @param verifyRole whether to verify that the new connection is to a writer
+   * @param timeoutEndNano when to give up
+   * @param abandonWhen checked after every topology refresh and before a new connection is accepted; null to never
+   *     abandon
+   * @return the connection, or null when the attempt was abandoned
+   * @throws TimeoutException when no connection could be opened before {@code timeoutEndNano}
+   * @throws SQLException on other errors
+   */
+  public @Nullable Results getWriterConnection(
+      final @NonNull PluginService pluginService,
+      final @NonNull Properties properties,
+      final @Nullable ConnectionPlugin plugin,
+      final boolean verifyRole,
+      final long timeoutEndNano,
+      final @Nullable BooleanSupplier abandonWhen)
       throws TimeoutException, SQLException {
     return this.getAllowedConnection(
         pluginService,
@@ -77,7 +105,8 @@ public class RetryUtil {
         },
         null,
         verifyRole ? HostRole.WRITER : null,
-        timeoutEndNano);
+        timeoutEndNano,
+        abandonWhen);
   }
 
   public Results getAllowedConnection(
@@ -89,6 +118,38 @@ public class RetryUtil {
       @Nullable HostRole verifyRole,
       final long retryEndNano)
       throws TimeoutException, SQLException {
+    return requireResults(this.getAllowedConnection(
+        pluginService, properties, plugin, allowedHosts, strategy, verifyRole, retryEndNano, null));
+  }
+
+  /**
+   * Same as {@link #getAllowedConnection(PluginService, Properties, ConnectionPlugin, Supplier, String, HostRole,
+   * long)}, but gives up early when {@code abandonWhen} returns true. It is checked after every topology refresh,
+   * and again after a connection has been opened and verified, before that connection is returned: a connection
+   * opened while the topology changed is closed instead of returned.
+   *
+   * @param pluginService the plugin service
+   * @param properties the connection properties
+   * @param plugin the plugin to skip when connecting
+   * @param allowedHosts the hosts to choose from, evaluated again after every topology refresh
+   * @param strategy the host selection strategy, or null for random
+   * @param verifyRole the role the new connection must have, or null for any role
+   * @param retryEndNano when to give up
+   * @param abandonWhen when to give up early; null to never abandon
+   * @return the connection, or null when the attempt was abandoned
+   * @throws TimeoutException when no connection could be opened before {@code retryEndNano}
+   * @throws SQLException on other errors
+   */
+  public @Nullable Results getAllowedConnection(
+      final @NonNull PluginService pluginService,
+      final @NonNull Properties properties,
+      final @Nullable ConnectionPlugin plugin,
+      final @NonNull Supplier<@Nullable Set<HostSpec>> allowedHosts,
+      @Nullable String strategy,
+      @Nullable HostRole verifyRole,
+      final long retryEndNano,
+      final @Nullable BooleanSupplier abandonWhen)
+      throws TimeoutException, SQLException {
 
     if (StringUtils.isNullOrEmpty(strategy)) {
       strategy = "random";
@@ -99,6 +160,9 @@ public class RetryUtil {
       do {
         // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
         pluginService.refreshHostList();
+        if (abandonWhen != null && abandonWhen.getAsBoolean()) {
+          return null;
+        }
         Set<HostSpec> updatedAllowedHosts = allowedHosts.get();
         if (updatedAllowedHosts == null) {
           this.shortDelay();
@@ -145,6 +209,18 @@ public class RetryUtil {
             // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
             HostRole role = verifyRole == null ? null : pluginService.getHostRole(candidateConn);
             if (verifyRole == null || verifyRole == role) {
+              if (abandonWhen != null) {
+                // Opening the connection can take long enough for the topology to change meanwhile.
+                try {
+                  pluginService.refreshHostList();
+                } catch (SQLException ex) {
+                  // Best effort: keep the current topology rather than reject a verified connection.
+                }
+                if (abandonWhen.getAsBoolean()) {
+                  // Closed by the finally block.
+                  return null;
+                }
+              }
               HostSpec updatedHostSpec = new HostSpec(candidateHost, role);
               Results results = new Results(candidateConn, updatedHostSpec);
               candidateConn = null; // Prevents connection from closing in the finally block
@@ -179,6 +255,14 @@ public class RetryUtil {
         }
       }
     }
+  }
+
+  // Without an abandon condition the overloads above never return null.
+  private static Results requireResults(final @Nullable Results results) throws TimeoutException {
+    if (results == null) {
+      throw new TimeoutException(Messages.get("RetryUtil.timeout"));
+    }
+    return results;
   }
 
   protected void shortDelay() {

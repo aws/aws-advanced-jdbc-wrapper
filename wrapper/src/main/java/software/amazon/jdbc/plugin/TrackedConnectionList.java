@@ -42,13 +42,17 @@ public class TrackedConnectionList {
   public static class Node {
     final WeakReference<Connection> connectionRef;
     final TrackedConnectionList ownerList;
+    /** Whether the connection was opened for the writer role (see {@link #add(Connection, boolean)}). */
+    final boolean openedForWriter;
     @Nullable Node prev;
     @Nullable Node next;
     boolean removed;
 
-    Node(final WeakReference<Connection> connectionRef, final TrackedConnectionList ownerList) {
+    Node(final WeakReference<Connection> connectionRef, final TrackedConnectionList ownerList,
+        final boolean openedForWriter) {
       this.connectionRef = connectionRef;
       this.ownerList = ownerList;
+      this.openedForWriter = openedForWriter;
     }
   }
 
@@ -59,7 +63,19 @@ public class TrackedConnectionList {
    * @return the node representing this connection, for O(1) removal later
    */
   public Node add(final Connection connection) {
-    final Node node = new Node(new WeakReference<>(connection), this);
+    return this.add(connection, false);
+  }
+
+  /**
+   * Adds a connection to the tail of the list.
+   *
+   * @param connection the connection to track
+   * @param openedForWriter whether the connection was opened for the writer role, for example through a cluster
+   *     writer endpoint; see {@link #drainOpenedForWriter()}
+   * @return the node representing this connection, for O(1) removal later
+   */
+  public Node add(final Connection connection, final boolean openedForWriter) {
+    final Node node = new Node(new WeakReference<>(connection), this, openedForWriter);
     lock.lock();
     try {
       if (tail == null) {
@@ -92,26 +108,31 @@ public class TrackedConnectionList {
       if (node.removed) {
         return;
       }
-      node.removed = true;
-
-      if (node.prev != null) {
-        node.prev.next = node.next;
-      } else {
-        head = node.next;
-      }
-
-      if (node.next != null) {
-        node.next.prev = node.prev;
-      } else {
-        tail = node.prev;
-      }
-
-      node.prev = null;
-      node.next = null;
-      size--;
+      this.unlink(node);
     } finally {
       lock.unlock();
     }
+  }
+
+  /** Unlinks a node that is still in the list. The caller holds the lock. */
+  private void unlink(final Node node) {
+    node.removed = true;
+
+    if (node.prev != null) {
+      node.prev.next = node.next;
+    } else {
+      head = node.next;
+    }
+
+    if (node.next != null) {
+      node.next.prev = node.prev;
+    } else {
+      tail = node.prev;
+    }
+
+    node.prev = null;
+    node.next = null;
+    size--;
   }
 
   /**
@@ -146,6 +167,34 @@ public class TrackedConnectionList {
   }
 
   /**
+   * Removes the nodes whose connection was opened for the writer role and returns those connections. Other nodes
+   * stay in the list.
+   *
+   * @return the connections that were opened for the writer role
+   */
+  public List<Connection> drainOpenedForWriter() {
+    final List<Connection> connections = new ArrayList<>();
+    lock.lock();
+    try {
+      Node current = head;
+      while (current != null) {
+        final Node next = current.next;
+        if (current.openedForWriter) {
+          final Connection conn = current.connectionRef.get();
+          if (conn != null) {
+            connections.add(conn);
+          }
+          this.unlink(current);
+        }
+        current = next;
+      }
+    } finally {
+      lock.unlock();
+    }
+    return connections;
+  }
+
+  /**
    * Removes nodes matching the predicate. Used for pruning GC'd or closed connections.
    *
    * @param predicate test applied to each node's weak reference
@@ -157,20 +206,7 @@ public class TrackedConnectionList {
       while (current != null) {
         final Node next = current.next;
         if (predicate.test(current.connectionRef)) {
-          current.removed = true;
-          if (current.prev != null) {
-            current.prev.next = current.next;
-          } else {
-            head = current.next;
-          }
-          if (current.next != null) {
-            current.next.prev = current.prev;
-          } else {
-            tail = current.prev;
-          }
-          current.prev = null;
-          current.next = null;
-          size--;
+          this.unlink(current);
         }
         current = next;
       }

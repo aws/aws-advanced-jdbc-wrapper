@@ -941,9 +941,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
     }
 
     // For STRICT_WRITER failover mode when connection exception indicate that the connection's in read-only mode,
-    // initiate a failover by returning true.
+    // initiate a failover by returning true. Not when the application itself made the connection read-only: a new
+    // connection would inherit that state and fail the same way.
     return this.failoverMode == FailoverMode.STRICT_WRITER
-      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
+      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect())
+      && !this.isReadOnlyRequestedByApplication();
+  }
+
+  /**
+   * Whether the application set the connection read-only through {@code setReadOnly(true)}. A read-only error on
+   * such a connection is the application's own doing, not a sign that the connection landed on a reader.
+   */
+  protected boolean isReadOnlyRequestedByApplication() {
+    try {
+      return this.pluginService.getSessionStateService().getReadOnly().orElse(false);
+    } catch (SQLException ex) {
+      return false;
+    }
   }
 
   /**

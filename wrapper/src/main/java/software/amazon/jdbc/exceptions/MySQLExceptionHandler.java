@@ -35,6 +35,11 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       1836 // Running in read-only mode
   ));
 
+  // ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION (1792): "Cannot execute statement in a READ ONLY transaction",
+  // reported with SQL state 25006.
+  private static final int ERROR_READ_ONLY_TRANSACTION = 1792;
+  private static final String SQLSTATE_READ_ONLY_TRANSACTION = "25006";
+
   @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
@@ -115,6 +120,10 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   @Override
   public boolean isReadOnlyConnectionException(
       final @Nullable String sqlState, final @Nullable Integer errorCode) {
+    if (SQLSTATE_READ_ONLY_TRANSACTION.equals(sqlState)
+        || (errorCode != null && errorCode == ERROR_READ_ONLY_TRANSACTION)) {
+      return true;
+    }
     // HY000 - generic SQL state; use error code for more specific information
     return "HY000".equals(sqlState) && errorCode != null && (SQLSTATE_READ_ONLY_CONNECTION.contains(errorCode));
   }

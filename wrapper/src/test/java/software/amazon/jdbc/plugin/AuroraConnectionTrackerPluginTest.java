@@ -20,8 +20,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,10 +34,16 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,13 +58,16 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.GlobalAuroraMysqlDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class AuroraConnectionTrackerPluginTest {
 
@@ -92,6 +106,7 @@ public class AuroraConnectionTrackerPluginTest {
 
   @AfterEach
   void tearDown() throws Exception {
+    AuroraConnectionTrackerPlugin.clearHandledPrimaryRegionChanges();
     closeable.close();
   }
 
@@ -119,7 +134,7 @@ public class AuroraConnectionTrackerPluginTest {
         mockConnectionFunction);
 
     assertEquals(mockConnection, actualConnection);
-    verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
+    verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection), eq(true));
   }
 
   @Test
@@ -198,6 +213,229 @@ public class AuroraConnectionTrackerPluginTest {
     assertEquals(expectedException, exception);
     verify(mockTracker, never()).removeConnectionTracking(eq(originalHost), eq(mockConnection));
     verify(mockTracker).invalidateAllConnections(originalHost);
+  }
+
+  private static final String OHIO_WRITER_ENDPOINT =
+      "global-ohio-mysql.cluster-c12pgqavxipt.us-east-2.rds.amazonaws.com";
+  private static final String OHIO_READER_ENDPOINT =
+      "global-ohio-mysql.cluster-ro-c12pgqavxipt.us-east-2.rds.amazonaws.com";
+  private static final HostSpec OHIO_1 = gdbHost(
+      "global-ohio-mysql-instance-1.c12pgqavxipt.us-east-2.rds.amazonaws.com", HostRole.WRITER);
+  private static final HostSpec OHIO_2 = gdbHost(
+      "global-ohio-mysql-instance-2.c12pgqavxipt.us-east-2.rds.amazonaws.com", HostRole.READER);
+  private static final HostSpec OREGON_1 = gdbHost(
+      "global-oregon-mysql-instance-1.cxmnwnbkcxsy.us-west-2.rds.amazonaws.com", HostRole.WRITER);
+
+  private static HostSpec gdbHost(final String host, final HostRole role) {
+    return new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(host).port(3306).role(role).build();
+  }
+
+  /** Real region parsing, mocked everything else the plugin needs from RdsUtils. */
+  private void useGlobalDatabase(final AtomicReference<List<HostSpec>> topology) {
+    final RdsUtils real = new RdsUtils();
+    when(mockRdsUtils.getRdsRegion(any())).thenAnswer(i -> real.getRdsRegion(i.getArgument(0)));
+    when(mockRdsUtils.isSameRegion(any(), any()))
+        .thenAnswer(i -> real.isSameRegion(i.getArgument(0), i.getArgument(1)));
+    when(mockRdsUtils.isRdsInstance(any())).thenAnswer(i -> real.isRdsInstance(i.getArgument(0)));
+    when(mockRdsUtils.identifyRdsType(any())).thenAnswer(i -> real.identifyRdsType(i.getArgument(0)));
+    when(mockPluginService.getDialect()).thenReturn(mock(GlobalAuroraMysqlDialect.class));
+    when(mockPluginService.getAllHosts()).thenAnswer(i -> topology.get());
+  }
+
+  private void executeThenFailover(final AuroraConnectionTrackerPlugin plugin,
+      final AtomicReference<List<HostSpec>> topology, final List<HostSpec> topologyAfterFailover)
+      throws SQLException {
+    final FailoverSQLException failover = new FailoverSQLException("reason", "08S02");
+    // doReturn/doThrow: a when(call()) stub would invoke the previous stub, which may throw.
+    doReturn(mockResultSet).when(mockSqlFunction).call();
+    plugin.execute(ResultSet.class, SQLException.class, Statement.class, "Statement.executeQuery",
+        mockSqlFunction, SQL_ARGS);
+
+    topology.set(topologyAfterFailover);
+    doThrow(failover).when(mockSqlFunction).call();
+    assertThrows(FailoverSQLException.class, () -> plugin.execute(ResultSet.class, SQLException.class,
+        Statement.class, "Statement.executeQuery", mockSqlFunction, SQL_ARGS));
+  }
+
+  @Test
+  public void testPrimaryRegionChangeInvalidatesOtherInstancesOfNewPrimaryRegion() throws SQLException {
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    executeThenFailover(plugin, topology, Arrays.asList(OHIO_1, OHIO_2));
+
+    verify(mockTracker).invalidateAllConnections(OREGON_1);
+    verify(mockTracker).invalidateConnectionsOpenedForWriterInRegion("us-east-2", OHIO_1.getHostAndPort());
+  }
+
+  @Test
+  public void testPrimaryRegionChangeIsHandledOnce() throws SQLException {
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final AuroraConnectionTrackerPlugin first =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+    final AuroraConnectionTrackerPlugin second =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    executeThenFailover(first, topology, Arrays.asList(OHIO_1, OHIO_2));
+    topology.set(Arrays.asList(OREGON_1, OHIO_2));
+    executeThenFailover(second, topology, Arrays.asList(OHIO_1, OHIO_2));
+
+    verify(mockTracker, times(1)).invalidateConnectionsOpenedForWriterInRegion("us-east-2", OHIO_1.getHostAndPort());
+  }
+
+  @Test
+  public void testWriterChangeWithinRegionDoesNotInvalidateRegion() throws SQLException {
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OHIO_1));
+    useGlobalDatabase(topology);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    executeThenFailover(plugin, topology,
+        Arrays.asList(gdbHost(OHIO_2.getHost(), HostRole.WRITER)));
+
+    verify(mockTracker).invalidateAllConnections(OHIO_1);
+    verify(mockTracker, never()).invalidateConnectionsOpenedForWriterInRegion(any(), any());
+  }
+
+  @Test
+  public void testPrimaryRegionChangeIgnoredWhenDisabled() throws SQLException {
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final Properties props = new Properties();
+    props.setProperty(AuroraConnectionTrackerPlugin.INVALIDATE_ON_PRIMARY_REGION_CHANGE.name, "false");
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, props, mockRdsUtils, mockTracker);
+
+    executeThenFailover(plugin, topology, Arrays.asList(OHIO_1, OHIO_2));
+
+    verify(mockTracker).invalidateAllConnections(OREGON_1);
+    verify(mockTracker, never()).invalidateConnectionsOpenedForWriterInRegion(any(), any());
+  }
+
+  @Test
+  public void testPrimaryRegionChangeIgnoredForNonGlobalDialect() throws SQLException {
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    executeThenFailover(plugin, topology, Arrays.asList(OHIO_1, OHIO_2));
+
+    verify(mockTracker, never()).invalidateConnectionsOpenedForWriterInRegion(any(), any());
+  }
+
+  @Test
+  public void testPrimaryRegionChangeAbortsOnlyConnectionsOpenedForWriter() throws Exception {
+    // End to end with the real tracker. While Ohio was secondary, a connection opened through the Ohio cluster
+    // writer endpoint landed on the reader OHIO_2: it is aborted when the writer moves to Ohio. A connection opened
+    // through the reader cluster endpoint to the same instance, and a connection to the new writer, are kept.
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mock(TelemetryFactory.class));
+    final OpenedConnectionTracker realTracker = new OpenedConnectionTracker(mockPluginService);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, realTracker);
+    final HostSpec writerEndpoint = gdbHost(OHIO_WRITER_ENDPOINT, HostRole.WRITER);
+    final HostSpec readerEndpoint = gdbHost(OHIO_READER_ENDPOINT, HostRole.READER);
+
+    final Connection writerEndpointConnection = mock(Connection.class);
+    final Connection readerEndpointConnection = mock(Connection.class);
+    final Connection writerConnection = mock(Connection.class);
+    try {
+      when(mockPluginService.identifyConnection(writerEndpointConnection, writerEndpoint)).thenReturn(OHIO_2);
+      when(mockConnectionFunction.call()).thenReturn(writerEndpointConnection);
+      plugin.connect("mysql", writerEndpoint, EMPTY_PROPERTIES, true, mockConnectionFunction);
+
+      when(mockPluginService.identifyConnection(readerEndpointConnection, readerEndpoint)).thenReturn(OHIO_2);
+      when(mockConnectionFunction.call()).thenReturn(readerEndpointConnection);
+      plugin.connect("mysql", readerEndpoint, EMPTY_PROPERTIES, true, mockConnectionFunction);
+
+      when(mockConnectionFunction.call()).thenReturn(writerConnection);
+      plugin.connect("mysql", OHIO_1, EMPTY_PROPERTIES, false, mockConnectionFunction);
+
+      executeThenFailover(plugin, topology, Arrays.asList(OHIO_1, OHIO_2));
+
+      verify(writerEndpointConnection, timeout(2000)).abort(any());
+      verify(readerEndpointConnection, after(300).never()).abort(any());
+      verify(writerConnection, never()).abort(any());
+    } finally {
+      OpenedConnectionTracker.clearCache();
+    }
+  }
+
+  @Test
+  public void testConnectionThroughReaderEndpointIsNotOpenedForWriter() throws SQLException {
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final HostSpec readerEndpoint = gdbHost(OHIO_READER_ENDPOINT, HostRole.READER);
+    when(mockPluginService.identifyConnection(mockConnection, readerEndpoint)).thenReturn(OHIO_2);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    plugin.connect("mysql", readerEndpoint, EMPTY_PROPERTIES, true, mockConnectionFunction);
+    // A reader instance selected from the topology, e.g. by read/write splitting or a reader failover.
+    plugin.connect("mysql", OHIO_2, EMPTY_PROPERTIES, false, mockConnectionFunction);
+
+    verify(mockTracker, times(2)).populateOpenedConnectionQueue(OHIO_2, mockConnection, false);
+  }
+
+  @Test
+  public void testPrimaryRegionChangeDetectedThroughNodeListChangedNotification() throws SQLException {
+    // No connection fails over here: the change arrives as a PROMOTED_TO_WRITER notification, and the next call
+    // on the connection acts on it.
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+    doReturn(mockResultSet).when(mockSqlFunction).call();
+    plugin.execute(ResultSet.class, SQLException.class, Statement.class, "Statement.executeQuery",
+        mockSqlFunction, SQL_ARGS);
+
+    topology.set(Arrays.asList(OHIO_1, OHIO_2));
+    final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
+    changes.put(OHIO_1.getUrl(), EnumSet.of(NodeChangeOptions.PROMOTED_TO_WRITER));
+    changes.put(OREGON_1.getUrl(), EnumSet.of(NodeChangeOptions.PROMOTED_TO_READER));
+    plugin.notifyNodeListChanged(changes);
+    plugin.execute(ResultSet.class, SQLException.class, Statement.class, "Statement.executeQuery",
+        mockSqlFunction, SQL_ARGS);
+
+    verify(mockTracker).invalidateAllConnections(OREGON_1);
+    verify(mockTracker).invalidateConnectionsOpenedForWriterInRegion("us-east-2", OHIO_1.getHostAndPort());
+  }
+
+  @Test
+  public void testSwitchbackWithinWindowIsHandledAsNewChange() throws SQLException {
+    // Oregon to Ohio, then Ohio back to Oregon within the dedup window: both changes invalidate.
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OREGON_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    executeThenFailover(plugin, topology, Arrays.asList(OHIO_1, OHIO_2));
+    executeThenFailover(plugin, topology, Arrays.asList(OREGON_1, OHIO_2));
+
+    verify(mockTracker).invalidateConnectionsOpenedForWriterInRegion("us-east-2", OHIO_1.getHostAndPort());
+    verify(mockTracker).invalidateConnectionsOpenedForWriterInRegion("us-west-2", OREGON_1.getHostAndPort());
+  }
+
+  @Test
+  public void testConnectionThroughWriterEndpointIsTrackedAsIs() throws SQLException {
+    // Whether the connection reached the right instance is not the tracker's concern: it tracks what it got.
+    final AtomicReference<List<HostSpec>> topology = new AtomicReference<>(Arrays.asList(OHIO_1, OHIO_2));
+    useGlobalDatabase(topology);
+    final HostSpec endpoint = gdbHost(OHIO_WRITER_ENDPOINT, HostRole.WRITER);
+    when(mockPluginService.identifyConnection(mockConnection, endpoint)).thenReturn(OHIO_2);
+    final AuroraConnectionTrackerPlugin plugin =
+        new AuroraConnectionTrackerPlugin(mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+
+    assertEquals(mockConnection,
+        plugin.connect("mysql", endpoint, EMPTY_PROPERTIES, true, mockConnectionFunction));
+    verify(mockConnection, never()).close();
+    verify(mockTracker).populateOpenedConnectionQueue(OHIO_2, mockConnection, true);
   }
 
   @ParameterizedTest

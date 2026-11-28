@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -44,6 +45,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +64,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.ImportantEventService;
@@ -517,12 +520,31 @@ class FailoverConnectionPluginTest {
   void test_failover_when_read_only_connection() throws SQLException {
     initializePlugin();
     spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
+    final SessionStateService sessionStateService = mock(SessionStateService.class);
+    when(mockPluginService.getSessionStateService()).thenReturn(sessionStateService);
+    when(sessionStateService.getReadOnly()).thenReturn(Optional.empty());
 
     when(mockPluginService.isReadOnlyConnectionException(any(), any(TargetDriverDialect.class))).thenReturn(true);
     assertTrue(spyPlugin.shouldExceptionTriggerConnectionSwitch(new SQLException("test", "any")));
 
     when(mockPluginService.isReadOnlyConnectionException(any(), any(TargetDriverDialect.class))).thenReturn(false);
     assertFalse(spyPlugin.shouldExceptionTriggerConnectionSwitch(new SQLException("test", "any")));
+  }
+
+  @Test
+  void test_no_failover_on_read_only_error_when_application_set_read_only() throws SQLException {
+    // The application made the connection read-only itself; a new connection would inherit that and fail again.
+    initializePlugin();
+    spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
+    final SessionStateService sessionStateService = mock(SessionStateService.class);
+    when(mockPluginService.getSessionStateService()).thenReturn(sessionStateService);
+    when(mockPluginService.isReadOnlyConnectionException(any(), any(TargetDriverDialect.class))).thenReturn(true);
+
+    when(sessionStateService.getReadOnly()).thenReturn(Optional.of(true));
+    assertFalse(spyPlugin.shouldExceptionTriggerConnectionSwitch(new SQLException("test", "any")));
+
+    when(sessionStateService.getReadOnly()).thenReturn(Optional.of(false));
+    assertTrue(spyPlugin.shouldExceptionTriggerConnectionSwitch(new SQLException("test", "any")));
   }
 
 }

@@ -21,3 +21,11 @@ When the application tries to continue the workflow with the idle connection tha
 Since the Aurora Connection Tracker Plugin keeps track of all the open connections, the plugin can close all impacted connections after failover.
 When the application tries to use the outdated idle connection, the application will get a `connection's closed` error instead.
 
+## Aurora Global Database switchover
+
+When the primary region of an Aurora Global Database changes, an application in the new primary region still holds the connections it opened while that region was secondary. Those opened for the writer, through the cluster writer endpoint or to an instance selected as the writer, point to reader instances. The plugin closes them, except connections to the new writer, so the pool replaces them with writer connections. Connections opened for a reader, through the reader cluster endpoint, a custom endpoint, or to an instance selected as a reader, are still valid and stay open. This applies only with a Global Database dialect (`global-aurora-mysql`, `global-aurora-pg`).
+
+| Parameter                         | Available Since Version | Value   | Required | Description                                                                                                                              | Default Value |
+|-----------------------------------|-------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `invalidateOnPrimaryRegionChange` | 4.8.0                   | Boolean | No       | Close connections that were opened for the writer but point to a reader in the new primary region after a Global Database switchover. | `true`        |
+

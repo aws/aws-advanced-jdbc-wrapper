@@ -16,11 +16,16 @@
 
 package software.amazon.jdbc.exceptions;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mysql.cj.exceptions.CJException;
+import java.sql.SQLException;
 import java.sql.SQLNonTransientConnectionException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import software.amazon.jdbc.targetdriverdialect.MysqlConnectorJTargetDriverDialect;
 
 public class MySQLExceptionHandlerTest {
@@ -46,5 +51,40 @@ public class MySQLExceptionHandlerTest {
 
     assertTrue(handler.isLoginException(connectionException, new MysqlConnectorJTargetDriverDialect()),
         "Should detect nested authentication exception with dialect");
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+      "HY000, 1290, true",  // --read-only option
+      "HY000, 1836, true",  // running in read-only mode
+      "25006, 1792, true",  // cannot execute statement in a READ ONLY transaction
+      "25006, 0, true",     // read-only transaction SQL state alone
+      "HY000, 1792, true",  // read-only transaction error code alone
+      "HY000, 1205, false", // lock wait timeout
+      "42000, 1064, false", // syntax error
+      "08S01, 0, false"     // communications link failure
+  })
+  public void testIsReadOnlyConnectionException(
+      final String sqlState, final int errorCode, final boolean expected) {
+    final MySQLExceptionHandler handler = new MySQLExceptionHandler();
+
+    assertEquals(expected, handler.isReadOnlyConnectionException(sqlState, errorCode));
+    assertEquals(expected, handler.isReadOnlyConnectionException(
+        new SQLException("test", sqlState, errorCode), new MysqlConnectorJTargetDriverDialect()));
+  }
+
+  @Test
+  public void testIsReadOnlyConnectionException_NestedReadOnlyTransaction() {
+    final MySQLExceptionHandler handler = new MySQLExceptionHandler();
+    final SQLException readOnlyTransaction =
+        new SQLException("Cannot execute statement in a READ ONLY transaction.", "25006", 1792);
+    final SQLException wrapper = new SQLException("wrapped", null, 0, readOnlyTransaction);
+
+    assertTrue(handler.isReadOnlyConnectionException(wrapper, new MysqlConnectorJTargetDriverDialect()));
+  }
+
+  @Test
+  public void testIsReadOnlyConnectionException_NullSqlState() {
+    assertFalse(new MySQLExceptionHandler().isReadOnlyConnectionException((String) null, (Integer) null));
   }
 }

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -194,7 +195,7 @@ public class StaleDnsRoutedHostSpecTest {
 
       final ArgumentCaptor<HostSpec> trackedHosts = ArgumentCaptor.forClass(HostSpec.class);
       verify(trackers.constructed().get(0), atLeastOnce())
-          .populateOpenedConnectionQueue(trackedHosts.capture(), eq(writerConn));
+          .populateOpenedConnectionQueue(trackedHosts.capture(), eq(writerConn), anyBoolean());
 
       assertAll(
           () -> assertEquals(NEW_WRITER_DNS, routedAfterConnect == null ? null : routedAfterConnect.getHost(),

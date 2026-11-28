@@ -29,6 +29,8 @@ When a user application needs a reader connection, prioritize reader connections
 
 The mentioned scenarios can be configured with the GDB Failover plugin. [Failover2 Plugin](./UsingTheFailover2Plugin.md) and [Failover Plugin](./UsingTheFailoverPlugin.md) don't support the home region and can't be used for the cases mentioned above.
 
+**Failover during a Global Database switchover.** The failover mode depends on whether the writer is in the home region, and a switchover can change that while a failover is still reconnecting, for example while it waits for a home reader that is restarting. Since version 4.8.0 the plugin abandons such an attempt as soon as the writer moves into or out of the home region and chooses the failover mode again, so a connection that started failing over while the home region was secondary connects to the new writer, not to a reader, once the home region becomes primary.
+
 ## Using the GDB Failover Plugin
 The GDB Failover Plugin will not be enabled by default if the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value is not specified. If you would like to override the default plugins, you can explicitly include the GDB Failover Plugin in your list of plugins by adding the plugin code `gdbFailover` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters). After you load the plugin, the failover feature will be enabled.
 
