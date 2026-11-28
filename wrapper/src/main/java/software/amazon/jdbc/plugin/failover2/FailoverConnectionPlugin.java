@@ -410,6 +410,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin implement
       this.servicesContainer.getImportantEventService().registerEvent(
           () -> Messages.get("Failover.startReaderFailover"));
 
+      // An unsupported strategy can never select a reader, so retrying until the timeout cannot help.
+      if (!this.pluginService.acceptsStrategy(HostRole.READER, this.failoverReaderHostSelectorStrategySetting)) {
+        final String message = Messages.get(
+            "Failover.unsupportedReaderHostSelectorStrategy",
+            new Object[] {this.failoverReaderHostSelectorStrategySetting});
+        LOGGER.severe(message);
+        throw new FailoverFailedSQLException(message);
+      }
+
       // When we pass a timeout of 0, we inform the plugin service that it should update its topology without waiting
       // for it to get updated, since we do not need updated topology to establish a reader connection.
       if (!this.pluginService.forceRefreshHostList(false, 0)) {
