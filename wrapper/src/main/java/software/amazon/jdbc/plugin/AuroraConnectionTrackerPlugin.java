@@ -24,12 +24,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -56,8 +57,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "invalidateOnPrimaryRegionChange",
           "true",
-          "Aurora Global Database only. When the primary region changes, close the tracked connections to the "
-              + "other instances of the new primary region.");
+          "Aurora Global Database only. When the primary region changes, close the tracked connections that were "
+              + "opened for the writer but point to a reader in the new primary region.");
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraConnectionTrackerPlugin.class);
@@ -65,9 +66,28 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   private static final AtomicLong hostListRefreshEndTimeNano = new AtomicLong(0);
 
-  // New writer (host:port) of each primary region change that has been handled, and when. A region change is
-  // detected independently by every connection that sees it; only the first one invalidates connections.
-  private static final Map<String, Long> handledPrimaryRegionChanges = new ConcurrentHashMap<>();
+  /** A primary region change (previous writer to new writer, as host:port) and when it was handled. */
+  private static final class PrimaryRegionChange {
+    final String previousWriter;
+    final String newWriter;
+    final long handledAtNano;
+
+    PrimaryRegionChange(final String previousWriter, final String newWriter, final long handledAtNano) {
+      this.previousWriter = previousWriter;
+      this.newWriter = newWriter;
+      this.handledAtNano = handledAtNano;
+    }
+
+    boolean isSameChange(final String previousWriter, final String newWriter) {
+      return this.previousWriter.equals(previousWriter) && this.newWriter.equals(newWriter);
+    }
+  }
+
+  // The last primary region change that has been handled. A region change is detected independently by every
+  // connection that sees it; only the first one invalidates connections. Keyed by the previous and the new writer
+  // so that a switchback (A to B, then B to A) within the window is handled as a new change.
+  private static final AtomicReference<@Nullable PrimaryRegionChange> lastHandledPrimaryRegionChange =
+      new AtomicReference<>();
 
   private final PluginService pluginService;
   private final boolean invalidateOnPrimaryRegionChange;
@@ -121,11 +141,28 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
           this.pluginService.setRoutedHostSpec(identifiedHostSpec);
         }
       }
-      final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(connectionHostSpec, conn);
+      final TrackedConnectionList.Node node = tracker.populateOpenedConnectionQueue(
+          connectionHostSpec, conn, this.isOpenedForWriter(hostSpec));
       this.pluginService.setTrackedConnectionNode(node);
     }
 
     return conn;
+  }
+
+  /**
+   * Whether a connection to the given host, as requested before any routing or instance identification, is meant
+   * for the writer: through a cluster writer endpoint, or to an instance selected as the writer. Connections through
+   * a reader or custom cluster endpoint, and to instances selected as readers, are not.
+   */
+  private boolean isOpenedForWriter(final HostSpec requestedHostSpec) {
+    final RdsUrlType type = this.rdsHelper.identifyRdsType(requestedHostSpec.getHost());
+    if (type == RdsUrlType.RDS_WRITER_CLUSTER || type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
+      return true;
+    }
+    if (type == RdsUrlType.RDS_READER_CLUSTER || type == RdsUrlType.RDS_CUSTOM_CLUSTER) {
+      return false;
+    }
+    return requestedHostSpec.getRole() == HostRole.WRITER;
   }
 
   @Override
@@ -207,29 +244,33 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
       hostListRefreshEndTimeNano.set(0);
+    } else {
+      // Same writer as remembered: nothing to invalidate for this notification.
+      this.needUpdateCurrentWriter = false;
     }
   }
 
   // For tests.
   static void clearHandledPrimaryRegionChanges() {
-    handledPrimaryRegionChanges.clear();
+    lastHandledPrimaryRegionChange.set(null);
   }
 
-  private boolean isGlobalDatabase() {
+  private boolean shouldInvalidateOnPrimaryRegionChange() {
     return this.invalidateOnPrimaryRegionChange
         && this.pluginService.getDialect() instanceof GlobalAuroraTopologyDialect;
   }
 
   /**
-   * Aurora Global Database: when the writer moves to another region, the connections this application holds to
-   * the instances of the new primary region were opened while that region was secondary, so they are reader
-   * connections. Close them all, except connections to the new writer itself.
+   * Aurora Global Database: when the writer moves to another region, the connections this application opened for
+   * the writer (through the cluster writer endpoint, or to an instance selected as the writer) while the new primary
+   * region was still secondary landed on reader instances. Close them, except connections to the new writer itself.
+   * Connections opened for a reader are still valid and stay open.
    *
    * <p>Every connection detects the same change on its own; only the first detection within
    * {@link #TOPOLOGY_CHANGES_EXPECTED_TIME_NANO} acts on it.
    */
   private void invalidateIfPrimaryRegionChanged(final HostSpec previousWriter, final HostSpec newWriter) {
-    if (!this.isGlobalDatabase()) {
+    if (!this.shouldInvalidateOnPrimaryRegionChange()) {
       return;
     }
     final String previousRegion = this.rdsHelper.getRdsRegion(previousWriter.getHost());
@@ -239,26 +280,33 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     }
 
     final long now = System.nanoTime();
+    final String previousWriterHostAndPort = previousWriter.getHostAndPort();
     final String newWriterHostAndPort = newWriter.getHostAndPort();
-    final Long handledAt = handledPrimaryRegionChanges.get(newWriterHostAndPort);
-    if (handledAt != null && now - handledAt < TOPOLOGY_CHANGES_EXPECTED_TIME_NANO) {
+    final PrimaryRegionChange lastHandled = lastHandledPrimaryRegionChange.get();
+    if (lastHandled != null
+        && lastHandled.isSameChange(previousWriterHostAndPort, newWriterHostAndPort)
+        && now - lastHandled.handledAtNano < TOPOLOGY_CHANGES_EXPECTED_TIME_NANO) {
       return;
     }
-    final boolean firstToHandle = handledAt == null
-        ? handledPrimaryRegionChanges.putIfAbsent(newWriterHostAndPort, now) == null
-        : handledPrimaryRegionChanges.replace(newWriterHostAndPort, handledAt, now);
-    if (!firstToHandle) {
+    final PrimaryRegionChange change = new PrimaryRegionChange(previousWriterHostAndPort, newWriterHostAndPort, now);
+    if (!lastHandledPrimaryRegionChange.compareAndSet(lastHandled, change)) {
+      // Another connection handled a change meanwhile.
       return;
     }
 
     LOGGER.info(() -> Messages.get(
         "AuroraConnectionTrackerPlugin.primaryRegionChanged",
         new Object[] {previousRegion, newRegion, newWriterHostAndPort}));
-    this.tracker.invalidateConnectionsInRegion(newRegion, newWriterHostAndPort);
+    this.tracker.invalidateConnectionsOpenedForWriterInRegion(newRegion, newWriterHostAndPort);
   }
 
+  /**
+   * Records the writer the first time this connection sees a topology. A later writer change
+   * (needUpdateCurrentWriter, set by {@link #notifyNodeListChanged}) is left to {@link #checkWriterChanged}, which
+   * compares the previous and the new writer; overwriting the writer here would hide the change from it.
+   */
   private void rememberWriter() {
-    if (this.currentWriter == null || this.needUpdateCurrentWriter) {
+    if (this.currentWriter == null) {
       this.currentWriter = Utils.getWriter(this.pluginService.getAllHosts());
       this.needUpdateCurrentWriter = false;
     }

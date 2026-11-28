@@ -99,13 +99,28 @@ public class OpenedConnectionTracker {
 
   public TrackedConnectionList.@Nullable Node populateOpenedConnectionQueue(
       final HostSpec hostSpec, final Connection conn) {
+    return this.populateOpenedConnectionQueue(hostSpec, conn, false);
+  }
+
+  /**
+   * Tracks an opened connection.
+   *
+   * @param hostSpec the instance the connection is to
+   * @param conn the connection
+   * @param openedForWriter whether the connection was opened for the writer role (through a cluster writer
+   *     endpoint, or to an instance selected as the writer); see
+   *     {@link #invalidateConnectionsOpenedForWriterInRegion}
+   * @return the tracking node, for O(1) removal later, or null when nothing was tracked
+   */
+  public TrackedConnectionList.@Nullable Node populateOpenedConnectionQueue(
+      final HostSpec hostSpec, final Connection conn, final boolean openedForWriter) {
     if (hostSpec == null || conn == null) {
       return null;
     }
 
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
-      final TrackedConnectionList.Node node = trackConnection(hostSpec.getHostAndPort(), conn);
+      final TrackedConnectionList.Node node = trackConnection(hostSpec.getHostAndPort(), conn, openedForWriter);
       logOpenedConnections();
       return node;
     }
@@ -113,10 +128,10 @@ public class OpenedConnectionTracker {
     // It might be a custom domain name. Let's track by hostId and custom domain name
     TrackedConnectionList.Node lastNode = null;
     if (!StringUtils.isNullOrEmpty(hostSpec.getHostId())) {
-      lastNode = trackConnection(hostSpec.getHostId(), conn);
+      lastNode = trackConnection(hostSpec.getHostId(), conn, openedForWriter);
     }
     if (!StringUtils.isNullOrEmpty(hostSpec.getHostAndPort())) {
-      lastNode = trackConnection(hostSpec.getHostAndPort(), conn);
+      lastNode = trackConnection(hostSpec.getHostAndPort(), conn, openedForWriter);
     }
     logOpenedConnections();
     return lastNode;
@@ -199,7 +214,7 @@ public class OpenedConnectionTracker {
   }
 
   private TrackedConnectionList.@Nullable Node trackConnection(
-      final String instanceEndpoint, final Connection connection) {
+      final String instanceEndpoint, final Connection connection, final boolean openedForWriter) {
     if (connection == null) {
       return null;
     }
@@ -208,17 +223,22 @@ public class OpenedConnectionTracker {
         openedConnections.computeIfAbsent(
             instanceEndpoint,
             (k) -> new TrackedConnectionList());
-    return connectionList.add(connection);
+    return connectionList.add(connection, openedForWriter);
   }
 
   private void invalidateConnections(final @Nullable TrackedConnectionList connectionList) {
+    this.invalidateConnections(connectionList, false);
+  }
+
+  private void invalidateConnections(
+      final @Nullable TrackedConnectionList connectionList, final boolean openedForWriterOnly) {
     if (connectionList == null || connectionList.isEmpty()) {
       return;
     }
     // connectionList is non-null past the guard; capture it so the refinement holds inside the lambda.
     final TrackedConnectionList list = connectionList;
     getOrCreateInvalidateExecutor().submit(() -> {
-      final List<Connection> connections = list.drainAll();
+      final List<Connection> connections = openedForWriterOnly ? list.drainOpenedForWriter() : list.drainAll();
       for (final Connection conn : connections) {
         try {
           conn.abort(abortConnectionExecutor);
@@ -230,15 +250,18 @@ public class OpenedConnectionTracker {
   }
 
   /**
-   * Invalidates the opened connections to every tracked RDS instance endpoint in the given region, except
-   * {@code exceptHostAndPort}. Tracked keys that are not RDS endpoints (custom domains, host ids) carry no
-   * region and are left alone.
+   * Invalidates the connections that were opened for the writer role (see
+   * {@link #populateOpenedConnectionQueue(HostSpec, Connection, boolean)}) to every tracked RDS instance endpoint
+   * in the given region, except {@code exceptHostAndPort}. Connections opened for a reader stay open. Tracked keys
+   * that are not RDS endpoints (custom domains, host ids) carry no region and are left alone.
    *
    * @param region the AWS region, for example {@code us-east-1}
    * @param exceptHostAndPort a host:port whose connections are kept, or null
    */
-  public void invalidateConnectionsInRegion(final String region, final @Nullable String exceptHostAndPort) {
-    for (final String key : openedConnections.keySet()) {
+  public void invalidateConnectionsOpenedForWriterInRegion(
+      final String region, final @Nullable String exceptHostAndPort) {
+    for (final Map.Entry<String, TrackedConnectionList> entry : openedConnections.entrySet()) {
+      final String key = entry.getKey();
       if (key.equals(exceptHostAndPort)) {
         continue;
       }
@@ -249,7 +272,8 @@ public class OpenedConnectionTracker {
       }
       final String keyRegion = rdsUtils.getRdsRegion(host);
       if (keyRegion != null && keyRegion.equalsIgnoreCase(region)) {
-        this.invalidateAllConnections(key);
+        logConnectionList(key, entry.getValue());
+        this.invalidateConnections(entry.getValue(), true);
       }
     }
   }

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -116,6 +117,31 @@ class RetryUtilTest {
         HostRole.READER, inOneSecond(), () -> false);
 
     assertNotNull(results);
+    verify(this.connection, never()).close();
+  }
+
+  @Test
+  void testFailedRefreshAfterVerifiedConnectionKeepsTheConnection() throws Exception {
+    // The first refresh (before connecting) succeeds, the one after the verified connection fails: the connection
+    // is returned against the current topology rather than closed.
+    final AtomicBoolean connected = new AtomicBoolean(false);
+    doAnswer(i -> {
+      if (connected.get()) {
+        throw new SQLException("topology refresh failed");
+      }
+      return null;
+    }).when(this.pluginService).refreshHostList();
+    when(this.pluginService.getHostRole(this.connection)).thenAnswer(i -> {
+      connected.set(true);
+      return HostRole.READER;
+    });
+
+    final RetryUtil.Results results = new RetryUtil().getAllowedConnection(
+        this.pluginService, new Properties(), mock(ConnectionPlugin.class), this.allowedHosts, null,
+        HostRole.READER, inOneSecond(), () -> false);
+
+    assertNotNull(results);
+    assertEquals(this.connection, results.getConnection());
     verify(this.connection, never()).close();
   }
 }

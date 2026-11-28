@@ -211,7 +211,11 @@ public class RetryUtil {
             if (verifyRole == null || verifyRole == role) {
               if (abandonWhen != null) {
                 // Opening the connection can take long enough for the topology to change meanwhile.
-                pluginService.refreshHostList();
+                try {
+                  pluginService.refreshHostList();
+                } catch (SQLException ex) {
+                  // Best effort: keep the current topology rather than reject a verified connection.
+                }
                 if (abandonWhen.getAsBoolean()) {
                   // Closed by the finally block.
                   return null;

@@ -209,11 +209,12 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     HostRole roleToVerify = this.getRoleToVerify(
         urlType, isInitialConnection, props, originalConnectHost.getHost());
     // A cluster writer endpoint is treated as inactive (Global Database secondary region) when the topology places
-    // the writer in another region, or has no writer yet. That topology can be outdated, for example during a
-    // switchover, so it is checked again once a connection has been opened.
-    boolean writerEndpointTreatedAsInactive = isInitialConnection
+    // the writer in another region. That topology can be outdated, for example during a switchover, so it is
+    // checked again once a connection has been opened. A topology with no writer yet (first connection) is not a
+    // secondary region and gets no recheck.
+    boolean writerInAnotherRegion = isInitialConnection
         && urlType == RdsUrlType.RDS_WRITER_CLUSTER
-        && !this.isActiveClusterWriterEndpoint(originalConnectHost.getHost());
+        && this.isWriterInAnotherRegion(originalConnectHost.getHost());
     final long endTimeNano = System.nanoTime() + this.openConnectionRetryTimeoutNano;
 
     // Hold the candidate connection in an AtomicConnection so that it can never leak: its LazyCleaner safety net
@@ -237,12 +238,16 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
             continue;
           }
 
-          if (writerEndpointTreatedAsInactive) {
-            this.pluginService.refreshHostList();
+          if (writerInAnotherRegion) {
+            try {
+              this.pluginService.refreshHostList();
+            } catch (SQLException ex) {
+              // Best effort: keep the current topology; the connection is checked against it below.
+            }
             if (this.isActiveClusterWriterEndpoint(originalConnectHost.getHost())) {
               // The endpoint's region is the primary region now: the connection must be to the writer, and the
               // next attempt, if any, goes to the writer instance instead of through the endpoint's DNS.
-              writerEndpointTreatedAsInactive = false;
+              writerInAnotherRegion = false;
               substitutionStrategy = this.getInstanceSubstitutionStrategy(
                   props, urlType, isInitialConnection, originalConnectHost.getHost());
               roleToVerify = this.getRoleToVerify(urlType, isInitialConnection, props, originalConnectHost.getHost());
@@ -505,6 +510,17 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return writer != null
         && this.rdsUtils.isRdsInstance(writer.getHost())
         && this.rdsUtils.isSameRegion(writer.getHost(), clusterWriterEndpoint);
+  }
+
+  /**
+   * Whether the topology places the writer in a region other than the endpoint's (a Global Database secondary
+   * region). False when the topology has no writer yet.
+   */
+  protected boolean isWriterInAnotherRegion(final @NonNull String clusterWriterEndpoint) {
+    final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+    return writer != null
+        && this.rdsUtils.isRdsInstance(writer.getHost())
+        && !this.rdsUtils.isSameRegion(writer.getHost(), clusterWriterEndpoint);
   }
 
   protected void validateSubstitutionStrategy(@NonNull InstanceSubstitutionStrategy setting, RdsUrlType urlType)

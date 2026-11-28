@@ -222,11 +222,18 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       // is still reconnecting, for example while it waits for a home reader that is restarting. The failover
       // mode depends on the writer region, so an attempt that outlives such a change is abandoned and the mode
       // is chosen again from the current topology.
+      boolean attemptAbandoned = false;
       while (true) {
         final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
         final HostSpec writerCandidate = Utils.getWriter(updatedHosts);
 
         if (writerCandidate == null) {
+          if (attemptAbandoned && System.nanoTime() < failoverEndNano) {
+            // The switchover that abandoned the previous attempt may still be in progress, and the topology can
+            // briefly have no writer. Wait for one rather than failing the failover.
+            this.waitForTopologyChange();
+            continue;
+          }
           if (this.failoverWriterTriggeredCounter != null) {
             this.failoverWriterTriggeredCounter.inc();
           }
@@ -249,11 +256,14 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         LOGGER.finest(() ->
             Messages.get("GlobalDbFailoverConnectionPlugin.currentFailoverMode", new Object[]{currentFailoverMode}));
 
-        // Abandons the attempt below as soon as the writer moves into or out of the home region.
-        final BooleanSupplier primaryRegionChanged = () -> {
-          final Boolean writerInHomeRegion = this.isWriterInHomeRegion();
-          return writerInHomeRegion != null && writerInHomeRegion != isHomeRegion;
-        };
+        // Abandons the attempt below as soon as the writer moves into or out of the home region. When both modes
+        // are the same, a region change can't change the outcome, so the attempt is never abandoned.
+        final BooleanSupplier primaryRegionChanged = this.activeHomeFailoverMode == this.inactiveHomeFailoverMode
+            ? null
+            : () -> {
+              final Boolean writerInHomeRegion = this.isWriterInHomeRegion();
+              return writerInHomeRegion != null && writerInHomeRegion != isHomeRegion;
+            };
 
         switch (currentFailoverMode) {
           case STRICT_WRITER:
@@ -354,6 +364,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
         }
 
         // Every attempt above either throws or returns because the primary region changed.
+        attemptAbandoned = true;
         LOGGER.info(() -> Messages.get(
             "GlobalDbFailoverConnectionPlugin.primaryRegionChangedDuringFailover",
             new Object[]{currentFailoverMode}));
@@ -419,6 +430,24 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     return writerRegion == null ? null : this.homeRegion.equalsIgnoreCase(writerRegion);
   }
 
+  /**
+   * Waits briefly and refreshes the topology. Used while a switchover is in progress and the topology has no
+   * writer yet. A failed refresh keeps the current topology.
+   */
+  protected void waitForTopologyChange() {
+    try {
+      TimeUnit.MILLISECONDS.sleep(100);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(ex);
+    }
+    try {
+      this.pluginService.refreshHostList();
+    } catch (SQLException ex) {
+      // Keep the current topology.
+    }
+  }
+
   protected void failoverToWriter(final HostSpec writerCandidate, final long failoverEndNano)
       throws SQLException {
     this.failoverToWriter(writerCandidate, failoverEndNano, null);
@@ -440,10 +469,8 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       final @Nullable BooleanSupplier abandonWhen)
       throws SQLException {
 
-    if (this.failoverWriterTriggeredCounter != null) {
-      this.failoverWriterTriggeredCounter.inc();
-    }
-
+    // An abandoned attempt records neither a success nor a failure, so it isn't counted as triggered either.
+    boolean abandoned = false;
     RetryUtil.Results result = null;
     try {
       result = this.retryUtil.getWriterConnection(
@@ -455,6 +482,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
           abandonWhen);
       if (result == null) {
         // Abandoned: the caller chooses the failover mode again.
+        abandoned = true;
         return;
       }
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
@@ -476,6 +504,9 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       throw new FailoverFailedSQLException(
           Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
     } finally {
+      if (!abandoned && this.failoverWriterTriggeredCounter != null) {
+        this.failoverWriterTriggeredCounter.inc();
+      }
       if (result != null
           && result.getConnection() != null
           && result.getConnection() != this.pluginService.getCurrentConnection()) {
@@ -514,10 +545,8 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       final @Nullable BooleanSupplier abandonWhen)
       throws SQLException {
 
-    if (this.failoverReaderTriggeredCounter != null) {
-      this.failoverReaderTriggeredCounter.inc();
-    }
-
+    // An abandoned attempt records neither a success nor a failure, so it isn't counted as triggered either.
+    boolean abandoned = false;
     RetryUtil.Results result = null;
     try {
       result = this.retryUtil.getAllowedConnection(
@@ -531,6 +560,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
           abandonWhen);
       if (result == null) {
         // Abandoned: the caller chooses the failover mode again.
+        abandoned = true;
         return;
       }
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
@@ -556,6 +586,9 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       }
       throw ex;
     } finally {
+      if (!abandoned && this.failoverReaderTriggeredCounter != null) {
+        this.failoverReaderTriggeredCounter.inc();
+      }
       if (result != null && result.getConnection() != this.pluginService.getCurrentConnection()) {
         try {
           result.getConnection().close();

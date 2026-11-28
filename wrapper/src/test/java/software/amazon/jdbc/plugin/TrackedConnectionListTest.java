@@ -175,6 +175,35 @@ public class TrackedConnectionListTest {
   }
 
   @Test
+  void testDrainOpenedForWriterKeepsOtherNodes() {
+    final Connection forWriter1 = mock(Connection.class);
+    final Connection forReader = mock(Connection.class);
+    final Connection forWriter2 = mock(Connection.class);
+    final TrackedConnectionList.Node writerNode1 = list.add(forWriter1, true);
+    final TrackedConnectionList.Node readerNode = list.add(forReader, false);
+    final TrackedConnectionList.Node writerNode2 = list.add(forWriter2, true);
+
+    final List<Connection> drained = list.drainOpenedForWriter();
+
+    assertEquals(2, drained.size());
+    assertSame(forWriter1, drained.get(0));
+    assertSame(forWriter2, drained.get(1));
+    assertTrue(writerNode1.removed);
+    assertTrue(writerNode2.removed);
+    assertFalse(readerNode.removed);
+    assertEquals(1, list.size());
+    assertSame(forReader, list.drainAll().get(0));
+  }
+
+  @Test
+  void testAddWithoutIntentIsNotOpenedForWriter() {
+    list.add(mock(Connection.class));
+
+    assertTrue(list.drainOpenedForWriter().isEmpty());
+    assertEquals(1, list.size());
+  }
+
+  @Test
   void testDrainAllMarksNodesAsRemoved() {
     final Connection conn = mock(Connection.class);
     final TrackedConnectionList.Node node = list.add(conn);

@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -123,6 +124,40 @@ class AuroraInitialConnectionStrategyPluginTest {
     assertSame(this.writerConnection, result);
     verify(this.readerConnection).close();
     verify(this.pluginService).connect(any(HostSpec.class), any(Properties.class), any());
+  }
+
+  @Test
+  void testFirstConnectionWithoutTopologyGetsNoRecheck() throws SQLException {
+    // No topology yet is not a secondary region: the recheck is for an endpoint whose topology placed the writer
+    // elsewhere. The connection is accepted as the settings ask, without an extra refresh.
+    this.topology.set(Arrays.asList());
+    this.topologyAfterRefresh.set(Arrays.asList(OHIO_1_WRITER, OHIO_2));
+    final AuroraInitialConnectionStrategyPlugin plugin =
+        new AuroraInitialConnectionStrategyPlugin(this.servicesContainer, inactiveEndpointNoVerification());
+
+    final Connection result = plugin.connect(
+        "jdbc:aws-wrapper:mysql://", OHIO_ENDPOINT, inactiveEndpointNoVerification(), true,
+        this.connectThroughEndpoint);
+
+    assertSame(this.readerConnection, result);
+    verify(this.pluginService, never()).refreshHostList();
+    verify(this.readerConnection, never()).close();
+  }
+
+  @Test
+  void testFailedRecheckRefreshKeepsTheConnection() throws SQLException {
+    // The recheck is best effort: a failed topology refresh must not turn a successful connection into an error.
+    this.topology.set(Arrays.asList(OREGON_1, OHIO_1_READER, OHIO_2));
+    doThrow(new SQLException("topology refresh failed")).when(this.pluginService).refreshHostList();
+    final AuroraInitialConnectionStrategyPlugin plugin =
+        new AuroraInitialConnectionStrategyPlugin(this.servicesContainer, inactiveEndpointNoVerification());
+
+    final Connection result = plugin.connect(
+        "jdbc:aws-wrapper:mysql://", OHIO_ENDPOINT, inactiveEndpointNoVerification(), true,
+        this.connectThroughEndpoint);
+
+    assertSame(this.readerConnection, result);
+    verify(this.readerConnection, never()).close();
   }
 
   @Test

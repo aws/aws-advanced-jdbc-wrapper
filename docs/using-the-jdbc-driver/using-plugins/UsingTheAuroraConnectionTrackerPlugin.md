@@ -23,9 +23,9 @@ When the application tries to use the outdated idle connection, the application 
 
 ## Aurora Global Database switchover
 
-When the primary region of an Aurora Global Database changes, an application in the new primary region still holds the connections it opened while that region was secondary. They point to reader instances. The plugin closes the tracked connections to every instance of the new primary region except the new writer, so the pool replaces them with writer connections. This applies only with a Global Database dialect (`global-aurora-mysql`, `global-aurora-pg`).
+When the primary region of an Aurora Global Database changes, an application in the new primary region still holds the connections it opened while that region was secondary. Those opened for the writer, through the cluster writer endpoint or to an instance selected as the writer, point to reader instances. The plugin closes them, except connections to the new writer, so the pool replaces them with writer connections. Connections opened for a reader, through the reader cluster endpoint, a custom endpoint, or to an instance selected as a reader, are still valid and stay open. This applies only with a Global Database dialect (`global-aurora-mysql`, `global-aurora-pg`).
 
-| Parameter                         | Available Since Version | Value   | Required | Description                                                                                                  | Default Value |
-|-----------------------------------|-------------------------|---------|----------|--------------------------------------------------------------------------------------------------------------|---------------|
-| `invalidateOnPrimaryRegionChange` | 4.8.0                   | Boolean | No       | Close connections to the other instances of the new primary region after a Global Database switchover. | `true`        |
+| Parameter                         | Available Since Version | Value   | Required | Description                                                                                                                              | Default Value |
+|-----------------------------------|-------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `invalidateOnPrimaryRegionChange` | 4.8.0                   | Boolean | No       | Close connections that were opened for the writer but point to a reader in the new primary region after a Global Database switchover. | `true`        |
 

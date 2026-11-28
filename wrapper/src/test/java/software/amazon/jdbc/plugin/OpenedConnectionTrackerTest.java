@@ -135,29 +135,35 @@ class OpenedConnectionTrackerTest {
   }
 
   @Test
-  void testInvalidateConnectionsInRegion_skipsWriterAndOtherRegions() throws SQLException, InterruptedException {
+  void testInvalidateConnectionsOpenedForWriterInRegion_skipsWriterReadersAndOtherRegions()
+      throws SQLException, InterruptedException {
     final HostSpec newWriter = instance("global-ohio-mysql-instance-1.c12pgqavxipt.us-east-2.rds.amazonaws.com");
     final HostSpec newPrimaryReader =
         instance("global-ohio-mysql-instance-2.c12pgqavxipt.us-east-2.rds.amazonaws.com");
     final HostSpec otherRegion = instance("global-oregon-mysql-instance-1.cxmnwnbkcxsy.us-west-2.rds.amazonaws.com");
 
     final AtomicBoolean writerAborted = new AtomicBoolean(false);
-    final AtomicBoolean readerAborted = new AtomicBoolean(false);
+    final AtomicBoolean forWriterAborted = new AtomicBoolean(false);
+    final AtomicBoolean forReaderAborted = new AtomicBoolean(false);
     final AtomicBoolean otherRegionAborted = new AtomicBoolean(false);
 
     final OpenedConnectionTracker tracker = new OpenedConnectionTracker(mockPluginService);
-    tracker.populateOpenedConnectionQueue(newWriter, abortable(writerAborted));
-    tracker.populateOpenedConnectionQueue(newPrimaryReader, abortable(readerAborted));
-    tracker.populateOpenedConnectionQueue(otherRegion, abortable(otherRegionAborted));
+    tracker.populateOpenedConnectionQueue(newWriter, abortable(writerAborted), true);
+    // Two connections to the same reader: one opened for the writer (through the cluster writer endpoint while
+    // the region was secondary), one opened for a reader.
+    tracker.populateOpenedConnectionQueue(newPrimaryReader, abortable(forWriterAborted), true);
+    tracker.populateOpenedConnectionQueue(newPrimaryReader, abortable(forReaderAborted), false);
+    tracker.populateOpenedConnectionQueue(otherRegion, abortable(otherRegionAborted), true);
 
-    tracker.invalidateConnectionsInRegion("US-EAST-2", newWriter.getHostAndPort());
+    tracker.invalidateConnectionsOpenedForWriterInRegion("US-EAST-2", newWriter.getHostAndPort());
 
     // Invalidation is asynchronous.
-    for (int i = 0; i < 40 && !readerAborted.get(); i++) {
+    for (int i = 0; i < 40 && !forWriterAborted.get(); i++) {
       TimeUnit.MILLISECONDS.sleep(50);
     }
-    assertTrue(readerAborted.get());
+    assertTrue(forWriterAborted.get());
     TimeUnit.MILLISECONDS.sleep(200);
+    assertFalse(forReaderAborted.get());
     assertFalse(writerAborted.get());
     assertFalse(otherRegionAborted.get());
   }
